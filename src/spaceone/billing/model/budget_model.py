@@ -67,6 +67,10 @@ class Budget(MongoModel):
             'project_id',
             'project_group_id'
         ],
+        'change_query_keys': {
+            'user_projects': 'project_id',
+            'user_project_groups': 'project_group_id'
+        },
         'ordering': ['name'],
         'indexes': [
             'budget_id',
