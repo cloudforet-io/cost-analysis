@@ -1,0 +1,5 @@
+spaceone-core
+spaceone-api
+mongoengine
+redis
+schematics
