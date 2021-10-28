@@ -95,9 +95,6 @@ class DataSourceService(BaseService):
         domain_id = params['domain_id']
         data_source_vo: DataSource = self.data_source_mgr.get_data_source(data_source_id, domain_id)
 
-        if 'tags' in params:
-            params['tags'] = utils.dict_to_tags(params['tags'])
-
         if 'template' in params:
             # check template
             pass
