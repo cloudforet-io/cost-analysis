@@ -1,6 +1,6 @@
 apiVersion: v2
-name: billing-v2
-description: SpaceONE billing v2 Helm chart for Kubernetes
+name: cost-analysis
+description: SpaceONE Cost Analysis Helm chart for Kubernetes
 
 type: application
 

@@ -20,9 +20,9 @@ with open('VERSION', 'r') as f:
     f.close()
 
 setup(
-    name='spaceone-billing-v2',
+    name='spaceone-cost-analysis',
     version=VERSION,
-    description='SpaceONE billing v2 service',
+    description='SpaceONE cost analysis service',
     long_description='',
     url='https://www.spaceone.dev/',
     author='MEGAZONE SpaceONE Team',
