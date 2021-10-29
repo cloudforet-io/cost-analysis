@@ -19,10 +19,8 @@ class CostTypes(EmbeddedDocument):
     account = ListField(StringField(), default=[])
     product = ListField(StringField(), default=[])
 
-
-class TimePeriod(EmbeddedDocument):
-    start = DateField(required=True)
-    end = DateField(required=True)
+    def to_dict(self):
+        return dict(self.to_mongo())
 
 
 class Notification(EmbeddedDocument):
@@ -38,9 +36,10 @@ class Budget(MongoModel):
     planned_limits = ListField(EmbeddedDocumentField(PlannedLimit), default=[])
     total_usd_cost = FloatField(default=0)
     monthly_costs = ListField(EmbeddedDocumentField(MonthlyCost), default=[])
-    cost_types = EmbeddedDocumentField(CostTypes, default=CostTypes)
+    cost_types = EmbeddedDocumentField(CostTypes, default=None, null=True)
     time_unit = StringField(max_length=20, choices=('TOTAL', 'MONTHLY', 'YEARLY'))
-    time_period = EmbeddedDocumentField(TimePeriod, default=TimePeriod)
+    start = DateField(required=True)
+    end = DateField(required=True)
     notifications = ListField(EmbeddedDocumentField(Notification), default=[])
     tags = DictField(default={})
     project_id = StringField(max_length=40, default=None, null=True)
@@ -56,6 +55,7 @@ class Budget(MongoModel):
             'planned_limits',
             'total_usd_cost',
             'monthly_costs',
+            'end',
             'notifications',
             'tags'
         ],
@@ -76,6 +76,8 @@ class Budget(MongoModel):
             'budget_id',
             'name',
             'time_unit',
+            'start',
+            'end',
             'project_id',
             'project_group_id',
             'domain_id',
