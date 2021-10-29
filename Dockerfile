@@ -34,4 +34,4 @@ RUN python3 setup.py install && \
 EXPOSE ${SPACEONE_PORT}
 
 ENTRYPOINT ["spaceone"]
-CMD ["grpc", "spaceone.billing"]
+CMD ["grpc", "spaceone.cost_analysis"]
