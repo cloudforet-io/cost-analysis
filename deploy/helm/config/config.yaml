@@ -1,7 +1,7 @@
 REMOTE_URL:
-- file:///opt/spaceone/cost_analysis/config/database.yaml
-- file:///opt/spaceone/cost_analysis/config/shared.yaml
-- file:///opt/spaceone/cost_analysis/config/application.yaml
+- file:///opt/spaceone/cost-analysis/config/database.yaml
+- file:///opt/spaceone/cost-analysis/config/shared.yaml
+- file:///opt/spaceone/cost-analysis/config/application.yaml
 GLOBAL:
   MAX_WORKERS: 1000
   DATABASES:
