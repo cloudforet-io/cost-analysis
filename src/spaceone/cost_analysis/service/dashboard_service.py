@@ -101,15 +101,7 @@ class DashboardService(BaseService):
         """
         dashboard_id = params['dashboard_id']
         domain_id = params['domain_id']
-        scope = params['scope']
         dashboard_vo: Dashboard = self.dashboard_mgr.get_dashboard(dashboard_id, domain_id)
-
-        # Check Permissions
-
-        if scope == 'PRIVATE':
-            params['user_id'] = self.transaction.get_meta('user_id')
-        else:
-            params['user_id'] = None
 
         return self.dashboard_mgr.update_dashboard_by_vo(params, dashboard_vo)
 
