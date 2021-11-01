@@ -52,6 +52,8 @@ class CostService(BaseService):
 
         params['billed_at'] = params.get('billed_at') or datetime.utcnow()
 
+        # check original currency
+
         # exchange rate applied to usd cost
         params['usd_cost'] = params['original_cost']
 
