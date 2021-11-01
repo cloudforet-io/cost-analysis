@@ -52,6 +52,9 @@ class CostService(BaseService):
 
         params['billed_at'] = params.get('billed_at') or datetime.utcnow()
 
+        # exchange rate applied to usd cost
+        params['usd_cost'] = params['original_cost']
+
         # validation check (service_account_id / project_id / data_source_id)
 
         return self.cost_mgr.create_cost(params)
