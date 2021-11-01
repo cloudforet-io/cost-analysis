@@ -20,7 +20,7 @@ class DashboardService(BaseService):
         self.dashboard_mgr: DashboardManager = self.locator.get_manager('DashboardManager')
 
     @transaction(append_meta={'authorization.scope': 'DOMAIN'})
-    @check_required(['name', 'scope', 'granularity', 'domain_id'])
+    @check_required(['name', 'granularity', 'domain_id'])
     @change_date_value(['start', 'end'])
     def create(self, params):
         """Register dashboard
@@ -28,7 +28,6 @@ class DashboardService(BaseService):
         Args:
             params (dict): {
                 'name': 'str',
-                'scope': 'str',
                 'granularity': 'str',
                 'default_layout_id': 'str',
                 'custom_layouts': 'list',
@@ -40,12 +39,7 @@ class DashboardService(BaseService):
         Returns:
             dashboard_vo (object)
         """
-        scope = params['scope']
-
-        # Check Permissions
-
-        if scope == 'PRIVATE':
-            params['user_id'] = self.transaction.get_meta('user_id')
+        params['user_id'] = self.transaction.get_meta('user_id')
 
         default_layout_id = params.get('default_layout_id')
 
