@@ -14,10 +14,10 @@ class MonthlyCost(EmbeddedDocument):
 
 
 class CostTypes(EmbeddedDocument):
-    provider = ListField(StringField(), default=[])
-    region_code = ListField(StringField(), default=[])
-    account = ListField(StringField(), default=[])
-    product = ListField(StringField(), default=[])
+    provider = ListField(StringField(), default=None, null=True)
+    region_code = ListField(StringField(), default=None, null=True)
+    account = ListField(StringField(), default=None, null=True)
+    product = ListField(StringField(), default=None, null=True)
 
     def to_dict(self):
         return dict(self.to_mongo())

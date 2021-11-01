@@ -109,7 +109,7 @@ class BudgetService(BaseService):
         return self.budget_mgr.update_budget_by_vo(params, budget_vo)
 
     @transaction(append_meta={'authorization.scope': 'PROJECT'})
-    @check_required(['budget_id', 'notifications', 'domain_id'])
+    @check_required(['budget_id', 'domain_id'])
     def set_notification(self, params):
         """Set budget notification
 
@@ -126,6 +126,8 @@ class BudgetService(BaseService):
         budget_id = params['budget_id']
         domain_id = params['domain_id']
         budget_vo: Budget = self.budget_mgr.get_budget(budget_id, domain_id)
+
+        params['notifications'] = params.get('notifications', [])
 
         # Check Notifications
 
