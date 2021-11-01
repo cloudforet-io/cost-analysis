@@ -20,7 +20,7 @@ class CostQuerySetService(BaseService):
         self.cost_query_set_mgr: CostQuerySetManager = self.locator.get_manager('CostQuerySetManager')
 
     @transaction(append_meta={'authorization.scope': 'DOMAIN'})
-    @check_required(['name', 'scope', 'options', 'domain_id'])
+    @check_required(['name', 'options', 'domain_id'])
     @change_date_value(['start', 'end'])
     def create(self, params):
         """Register cost_query_set
@@ -28,7 +28,6 @@ class CostQuerySetService(BaseService):
         Args:
             params (dict): {
                 'name': 'str',
-                'scope': 'str',
                 'options': 'str',
                 'tags': 'dict',
                 'domain_id': 'str'
@@ -37,12 +36,8 @@ class CostQuerySetService(BaseService):
         Returns:
             cost_query_set_vo (object)
         """
-        scope = params['scope']
 
-        # Check Permissions
-
-        if scope == 'PRIVATE':
-            params['user_id'] = self.transaction.get_meta('user_id')
+        params['user_id'] = self.transaction.get_meta('user_id')
 
         return self.cost_query_set_mgr.create_cost_query_set(params)
 
