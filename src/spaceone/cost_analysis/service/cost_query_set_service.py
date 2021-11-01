@@ -83,15 +83,7 @@ class CostQuerySetService(BaseService):
         """
         cost_query_set_id = params['cost_query_set_id']
         domain_id = params['domain_id']
-        scope = params['scope']
         cost_query_set_vo: CostQuerySet = self.cost_query_set_mgr.get_cost_query_set(cost_query_set_id, domain_id)
-
-        # Check Permissions
-
-        if scope == 'PRIVATE':
-            params['user_id'] = self.transaction.get_meta('user_id')
-        else:
-            params['user_id'] = None
 
         return self.cost_query_set_mgr.update_cost_query_set_by_vo(params, cost_query_set_vo)
 
