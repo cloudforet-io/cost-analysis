@@ -56,7 +56,7 @@ class Budget(MongoModel):
             'budget_id',
             'name',
             'limit',
-            'total_usd_cost',
+            'total_usage_usd_cost',
             'project_id',
             'project_group_id'
         ],

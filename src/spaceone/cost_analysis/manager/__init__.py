@@ -6,5 +6,6 @@ from spaceone.cost_analysis.manager.exchange_rate_manager import ExchangeRateMan
 from spaceone.cost_analysis.manager.cost_manager import CostManager
 from spaceone.cost_analysis.manager.data_source_rule_manager import DataSourceRuleManager
 from spaceone.cost_analysis.manager.budget_manager import BudgetManager
+from spaceone.cost_analysis.manager.budget_usage_manager import BudgetUsageManager
 from spaceone.cost_analysis.manager.dashboard_manager import DashboardManager
 from spaceone.cost_analysis.manager.cost_query_set_manager import CostQuerySetManager
