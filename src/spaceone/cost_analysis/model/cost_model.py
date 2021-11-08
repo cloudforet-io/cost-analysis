@@ -4,7 +4,7 @@ from spaceone.core.model.mongo_model import MongoModel
 
 
 class Cost(MongoModel):
-    cost_id = StringField(max_length=40, generate_id='cost', unique=True)
+    cost_id = StringField(max_length=40, generate_id='cost')
     cost_key = StringField(max_length=255, default=None, null=True)
     usd_cost = FloatField(required=True)
     original_currency = StringField(max_length=40)
