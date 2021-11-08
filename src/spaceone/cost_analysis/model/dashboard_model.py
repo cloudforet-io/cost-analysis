@@ -7,7 +7,6 @@ class Dashboard(MongoModel):
     dashboard_id = StringField(max_length=40, generate_id='dash', unique=True)
     name = StringField(max_length=255)
     scope = StringField(max_length=20, choices=('PUBLIC', 'PRIVATE'), default='PRIVATE')
-    granularity = StringField(max_length=20, choices=('MONTHLY', 'YEARLY'))
     default_layout_id = StringField(max_length=255, default=None, null=True)
     custom_layouts = ListField(default=[])
     default_filter = DictField(default={})
@@ -21,7 +20,6 @@ class Dashboard(MongoModel):
         'updatable_fields': [
             'name',
             'scope',
-            'granularity',
             'default_layout_id',
             'custom_layouts',
             'default_filter',
@@ -32,7 +30,6 @@ class Dashboard(MongoModel):
             'dashboard_id',
             'name',
             'scope',
-            'granularity',
             'user_id'
         ],
         'ordering': [
@@ -43,7 +40,6 @@ class Dashboard(MongoModel):
             'dashboard_id',
             'name',
             'scope',
-            'granularity',
             'user_id',
             'domain_id'
         ]

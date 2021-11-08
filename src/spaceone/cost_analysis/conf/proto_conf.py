@@ -5,6 +5,7 @@ PROTO = {
     'spaceone.cost_analysis.interface.grpc.v1.cost': ['Cost'],
     'spaceone.cost_analysis.interface.grpc.v1.data_source_rule': ['DataSourceRule'],
     'spaceone.cost_analysis.interface.grpc.v1.budget': ['Budget'],
+    'spaceone.cost_analysis.interface.grpc.v1.budget_usage': ['BudgetUsage'],
     'spaceone.cost_analysis.interface.grpc.v1.dashboard': ['Dashboard'],
     'spaceone.cost_analysis.interface.grpc.v1.cost_query_set': ['CostQuerySet'],
 }

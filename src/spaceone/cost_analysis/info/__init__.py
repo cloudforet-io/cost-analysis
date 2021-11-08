@@ -5,5 +5,6 @@ from spaceone.cost_analysis.info.exchange_rate_info import *
 from spaceone.cost_analysis.info.cost_info import *
 from spaceone.cost_analysis.info.data_source_rule_info import *
 from spaceone.cost_analysis.info.budget_info import *
+from spaceone.cost_analysis.info.budget_usage_info import *
 from spaceone.cost_analysis.info.dashboard_info import *
 from spaceone.cost_analysis.info.cost_query_set_info import *

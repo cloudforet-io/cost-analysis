@@ -20,7 +20,7 @@ class DashboardService(BaseService):
         self.dashboard_mgr: DashboardManager = self.locator.get_manager('DashboardManager')
 
     @transaction(append_meta={'authorization.scope': 'DOMAIN'})
-    @check_required(['name', 'granularity', 'domain_id'])
+    @check_required(['name', 'domain_id'])
     @change_date_value(['start', 'end'])
     def create(self, params):
         """Register dashboard
@@ -28,7 +28,6 @@ class DashboardService(BaseService):
         Args:
             params (dict): {
                 'name': 'str',
-                'granularity': 'str',
                 'default_layout_id': 'str',
                 'custom_layouts': 'list',
                 'default_filter': 'dict',
@@ -58,7 +57,6 @@ class DashboardService(BaseService):
             params (dict): {
                 'dashboard_id': 'str',
                 'name': 'str',
-                'granularity': 'str',
                 'default_layout_id': 'str',
                 'custom_layouts': 'list',
                 'default_filter': 'dict',
@@ -147,7 +145,7 @@ class DashboardService(BaseService):
         'authorization.scope': 'DOMAIN'
     })
     @check_required(['domain_id'])
-    @append_query_filter(['dashboard_id', 'name', 'scope', 'granularity', 'user_id', 'domain_id'])
+    @append_query_filter(['dashboard_id', 'name', 'scope', 'user_id', 'domain_id'])
     @append_keyword_filter(['dashboard_id', 'name'])
     def list(self, params):
         """ List dashboards
@@ -157,7 +155,6 @@ class DashboardService(BaseService):
                 'dashboard_id': 'str',
                 'name': 'str',
                 'scope': 'str',
-                'granularity': 'str',
                 'user_id': 'str',
                 'domain_id': 'str',
                 'query': 'dict (spaceone.api.core.v1.Query)'
