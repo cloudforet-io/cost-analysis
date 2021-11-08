@@ -25,8 +25,8 @@ class CostTypes(EmbeddedDocument):
 
 class Notification(EmbeddedDocument):
     threshold = FloatField(required=True)
-    unit = StringField(max_length=20, choices=('PERCENT', 'ACTUAL_COST'))
-    notification_type = StringField(max_length=20, choices=('CRITICAL', 'WARNING'))
+    unit = StringField(max_length=20, required=True, choices=('PERCENT', 'ACTUAL_COST'))
+    notification_type = StringField(max_length=20, required=True, choices=('CRITICAL', 'WARNING'))
 
 
 class Budget(MongoModel):
