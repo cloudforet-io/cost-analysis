@@ -12,7 +12,6 @@ def DashboardInfo(dashboard_vo: Dashboard, minimal=False):
         'dashboard_id': dashboard_vo.dashboard_id,
         'name': dashboard_vo.name,
         'scope': dashboard_vo.scope,
-        'granularity': dashboard_vo.granularity,
         'user_id': dashboard_vo.user_id,
     }
 
