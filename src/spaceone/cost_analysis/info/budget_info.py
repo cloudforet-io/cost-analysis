@@ -3,7 +3,7 @@ from typing import List
 from spaceone.api.cost_analysis.v1 import budget_pb2
 from spaceone.core.pygrpc.message_type import *
 from spaceone.core import utils
-from spaceone.cost_analysis.model.budget_model import Budget, PlannedLimit, MonthlyCost, Notification
+from spaceone.cost_analysis.model.budget_model import Budget, PlannedLimit, Notification
 
 __all__ = ['BudgetInfo', 'BudgetsInfo']
 
@@ -23,23 +23,6 @@ def PlannedLimitsInfo(planned_limit_vos: List[PlannedLimit]):
         planned_limits_info.append(budget_pb2.PlannedLimit(**info))
 
     return planned_limits_info
-
-
-def MonthlyBudgetCostsInfo(monthly_cost_vos: List[MonthlyCost]):
-    if monthly_cost_vos is None:
-        monthly_cost_vos = []
-
-    monthly_costs_info = []
-
-    for vo in monthly_cost_vos:
-        info = {
-            'date': vo.date,
-            'usd_cost': vo.usd_cost
-        }
-
-        monthly_costs_info.append(budget_pb2.MonthlyBudgetCost(**info))
-
-    return monthly_costs_info
 
 
 def BudgetNotificationsInfo(notification_vos: List[Notification]):
@@ -65,7 +48,7 @@ def BudgetInfo(budget_vo: Budget, minimal=False):
         'budget_id': budget_vo.budget_id,
         'name': budget_vo.name,
         'limit': budget_vo.limit,
-        'total_usd_cost': budget_vo.total_usd_cost,
+        'total_usage_usd_cost': budget_vo.total_usage_usd_cost,
         'project_id': budget_vo.project_id,
         'project_group_id': budget_vo.project_group_id,
     }
@@ -73,7 +56,6 @@ def BudgetInfo(budget_vo: Budget, minimal=False):
     if not minimal:
         info.update({
             'planned_limits': PlannedLimitsInfo(budget_vo.planned_limits),
-            'monthly_costs': MonthlyBudgetCostsInfo(budget_vo.monthly_costs),
             'cost_types': change_struct_type(budget_vo.cost_types.to_dict()) if budget_vo.cost_types else None,
             'time_unit': budget_vo.time_unit,
             'start': utils.date_to_string(budget_vo.start),

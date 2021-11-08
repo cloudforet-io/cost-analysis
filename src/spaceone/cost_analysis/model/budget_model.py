@@ -8,11 +8,6 @@ class PlannedLimit(EmbeddedDocument):
     limit = FloatField(required=True)
 
 
-class MonthlyCost(EmbeddedDocument):
-    date = StringField(required=True)
-    usd_cost = FloatField(required=True)
-
-
 class CostTypes(EmbeddedDocument):
     provider = ListField(StringField(), default=None, null=True)
     region_code = ListField(StringField(), default=None, null=True)
@@ -34,8 +29,7 @@ class Budget(MongoModel):
     name = StringField(max_length=255, default='')
     limit = FloatField(required=True)
     planned_limits = ListField(EmbeddedDocumentField(PlannedLimit), default=[])
-    total_usd_cost = FloatField(default=0)
-    monthly_costs = ListField(EmbeddedDocumentField(MonthlyCost), default=[])
+    total_usage_usd_cost = FloatField(default=0)
     cost_types = EmbeddedDocumentField(CostTypes, default=None, null=True)
     time_unit = StringField(max_length=20, choices=('TOTAL', 'MONTHLY', 'YEARLY'))
     start = DateField(required=True)
@@ -53,8 +47,7 @@ class Budget(MongoModel):
             'name',
             'limit',
             'planned_limits',
-            'total_usd_cost',
-            'monthly_costs',
+            'total_usage_usd_cost',
             'end',
             'notifications',
             'tags'
