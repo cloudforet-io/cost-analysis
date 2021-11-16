@@ -8,7 +8,7 @@ def ExchangeRateInfo(exchange_rate_data):
     info = {
         'currency': exchange_rate_data['currency'],
         'rate': exchange_rate_data['rate'],
-        'is_default': exchange_rate_data['is_default'],
+        'is_default': exchange_rate_data.get('is_default', False),
         'domain_id': exchange_rate_data['domain_id']
     }
 

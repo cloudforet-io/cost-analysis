@@ -41,6 +41,12 @@ CONNECTORS = {
 # Job Settings
 JOB_TIMEOUT = 600
 
+DEFAULT_EXCHANGE_RATE = {
+#    'KRW': 1178.7,
+#    'JPY': 114,
+#    'CNY': 6.3
+}
+
 INSTALLED_DATA_SOURCE_PLUGINS = [
     # {
     #     'name': '',

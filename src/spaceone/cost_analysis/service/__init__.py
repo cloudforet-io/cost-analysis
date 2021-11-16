@@ -1,4 +1,5 @@
 from spaceone.cost_analysis.service.data_source_service import DataSourceService
+from spaceone.cost_analysis.service.exchange_rate_service import ExchangeRateService
 from spaceone.cost_analysis.service.cost_service import CostService
 from spaceone.cost_analysis.service.budget_service import BudgetService
 from spaceone.cost_analysis.service.budget_usage_service import BudgetUsageService

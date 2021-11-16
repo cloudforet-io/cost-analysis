@@ -29,7 +29,7 @@ class ExchangeRate(BaseAPI, exchange_rate_pb2_grpc.ExchangeRateServicer):
         params, metadata = self.parse_request(request, context)
 
         with self.locator.get_service('ExchangeRateService', metadata) as exchange_rate_service:
-            exchange_rate_vos, total_count = exchange_rate_service.list(params)
+            exchange_rates_data, total_count = exchange_rate_service.list(params)
             return self.locator.get_info('ExchangeRatesInfo',
-                                         exchange_rate_vos,
+                                         exchange_rates_data,
                                          total_count)

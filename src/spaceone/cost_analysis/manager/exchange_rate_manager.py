@@ -15,8 +15,7 @@ class ExchangeRateManager(BaseManager):
     def create_exchange_rate(self, params):
         def _rollback(exchange_rate_vo):
             _LOGGER.info(f'[create_exchange_rate._rollback] '
-                         f'Delete exchange_rate : {exchange_rate_vo.name} '
-                         f'({exchange_rate_vo.exchange_rate_id})')
+                         f'Delete exchange rate : {exchange_rate_vo.currency}')
             exchange_rate_vo.delete()
 
         exchange_rate_vo: ExchangeRate = self.exchange_rate_model.create(params)
@@ -24,12 +23,24 @@ class ExchangeRateManager(BaseManager):
 
         return exchange_rate_vo
 
-    def delete_exchange_rate(self, exchange_rate_id, domain_id):
-        exchange_rate_vo: ExchangeRate = self.get_exchange_rate(exchange_rate_id, domain_id)
+    def update_exchange_rate_by_vo(self, params, exchange_rate_vo):
+        def _rollback(old_data):
+            _LOGGER.info(f'[update_exchange_rate_by_vo._rollback] Revert Data : '
+                         f'{old_data["currency"]}')
+            exchange_rate_vo.update(old_data)
+
+        self.transaction.add_rollback(_rollback, exchange_rate_vo.to_dict())
+        return exchange_rate_vo.update(params)
+
+    def delete_exchange_rate(self, currency, domain_id):
+        exchange_rate_vo: ExchangeRate = self.get_exchange_rate(currency, domain_id)
         exchange_rate_vo.delete()
 
-    def get_exchange_rate(self, exchange_rate_id, domain_id, only=None):
-        return self.exchange_rate_model.get(exchange_rate_id=exchange_rate_id, domain_id=domain_id, only=only)
+    def get_exchange_rate(self, currency, domain_id, only=None):
+        return self.exchange_rate_model.get(currency=currency, domain_id=domain_id, only=only)
+
+    def filter_exchange_rates(self, **conditions):
+        return self.exchange_rate_model.filter(**conditions)
 
     def list_exchange_rates(self, query={}):
         return self.exchange_rate_model.query(**query)
