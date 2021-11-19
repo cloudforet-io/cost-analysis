@@ -119,7 +119,7 @@ class BudgetUsageManager(BaseManager):
                     query['filter'].append({
                         'key': key,
                         'value': values,
-                        'operator': 'eq'
+                        'operator': 'in'
                     })
 
         return query
