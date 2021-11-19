@@ -1,9 +1,12 @@
 import logging
+from dateutil.rrule import rrule, MONTHLY, YEARLY
 
 from spaceone.core.service import *
 from spaceone.core import utils
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.manager.budget_manager import BudgetManager
+from spaceone.cost_analysis.manager.budget_usage_manager import BudgetUsageManager
+from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 from spaceone.cost_analysis.model.budget_model import Budget
 
 _LOGGER = logging.getLogger(__name__)
@@ -53,6 +56,7 @@ class BudgetService(BaseService):
         time_unit = params['time_unit']
         start = params['start']
         end = params['end']
+        notifications = params.get('notifications', [])
 
         self._check_target(project_id, project_group_id, domain_id)
         self._check_time_period(start, end)
@@ -65,14 +69,23 @@ class BudgetService(BaseService):
 
         else:
             # Check Planned Limits
+            self._check_planned_limits(start, end, time_unit, planned_limits)
 
             params['limit'] = 0
             for planned_limit in planned_limits:
-                params['limit'] += planned_limit['limit']
+                params['limit'] += planned_limit.get('limit', 0)
 
         # Check Notifications
+        self._check_notifications(notifications)
 
-        return self.budget_mgr.create_budget(params)
+        budget_vo = self.budget_mgr.create_budget(params)
+
+        # Create budget usages
+        budget_usage_mgr: BudgetUsageManager = self.locator.get_manager('BudgetUsageManager')
+        budget_usage_mgr.create_budget_usages(budget_vo)
+        budget_usage_mgr.update_budget_usage(budget_vo)
+
+        return budget_vo
 
     @transaction(append_meta={'authorization.scope': 'PROJECT'})
     @check_required(['budget_id', 'domain_id'])
@@ -97,14 +110,18 @@ class BudgetService(BaseService):
         budget_id = params['budget_id']
         domain_id = params['domain_id']
         end = params.get('end')
+        planned_limits = params.get('planned_limits')
 
         budget_vo: Budget = self.budget_mgr.get_budget(budget_id, domain_id)
 
-        # Check limit and Planned Limits
-
         if end:
-            # reset total_usd_cost and monthly_costs
-            pass
+            if budget_vo.end > end:
+                raise
+
+            if planned_limits is None:
+                raise
+
+        # Check limit and Planned Limits
 
         return self.budget_mgr.update_budget_by_vo(params, budget_vo)
 
@@ -125,11 +142,13 @@ class BudgetService(BaseService):
         """
         budget_id = params['budget_id']
         domain_id = params['domain_id']
-        budget_vo: Budget = self.budget_mgr.get_budget(budget_id, domain_id)
-
-        params['notifications'] = params.get('notifications', [])
+        notifications = params.get('notifications', [])
 
         # Check Notifications
+        self._check_notifications(notifications)
+        params['notifications'] = notifications
+
+        budget_vo: Budget = self.budget_mgr.get_budget(budget_id, domain_id)
 
         return self.budget_mgr.update_budget_by_vo(params, budget_vo)
 
@@ -234,11 +253,79 @@ class BudgetService(BaseService):
         return self.budget_mgr.stat_budgets(query)
 
     def _check_target(self, project_id, project_group_id, domain_id):
+        if project_id is None and project_group_id is None:
+            raise ERROR_REQUIRED_PARAMETER(key='project_id or project_group_id')
+
         if project_id and project_group_id:
             raise ERROR_ONLY_ONF_OF_PROJECT_OR_PROJECT_GROUP()
 
-        # Check Project ID and Project Group ID
+        identity_mgr: IdentityManager = self.locator.get_manager('IdentityManager')
 
-    def _check_time_period(self, start, end):
-        pass
-        # Check Time Period
+        if project_id:
+            identity_mgr.get_project(project_id, domain_id)
+        else:
+            identity_mgr.get_project_group(project_group_id, domain_id)
+
+    @staticmethod
+    def _check_time_period(start, end):
+        if start >= end:
+            raise ERROR_INVALID_TIME_RANGE(start=str(start), end=str(end))
+
+    def _check_planned_limits(self, start, end, time_unit, planned_limits):
+        planned_limits_dict = self._convert_planned_limits_data_type(planned_limits)
+
+        if time_unit == 'MONTHLY':
+            for dt in rrule(MONTHLY, dtstart=start, until=end):
+                month = dt.strftime("%Y-%m")
+                if month not in planned_limits_dict:
+                    raise ERROR_NO_DATE_IN_PLANNED_LIMITS(date=month)
+
+                del planned_limits_dict[month]
+
+        elif time_unit == 'YEARLY':
+            for dt in rrule(YEARLY, dtstart=start, until=end):
+                year = dt.strftime("%Y")
+                if year not in planned_limits_dict:
+                    raise ERROR_NO_DATE_IN_PLANNED_LIMITS(date=year)
+
+                del planned_limits_dict[year]
+
+        if len(planned_limits_dict.keys()) > 0:
+            raise ERROR_DATE_IS_WRONG(date=list(planned_limits_dict.keys()))
+
+    @staticmethod
+    def _convert_planned_limits_data_type(planned_limits):
+        planned_limits_dict = {}
+
+        for planned_limit in planned_limits:
+            date = planned_limit.get('date')
+            limit = planned_limit.get('limit', 0)
+            if date is None:
+                raise ERROR_DATE_IS_REQUIRED(value=planned_limit)
+
+            if limit < 0:
+                raise ERROR_LIMIT_IS_WRONG(value=planned_limit)
+
+            planned_limits_dict[date] = limit
+
+        return planned_limits_dict
+
+    @staticmethod
+    def _check_notifications(notifications):
+        for notification in notifications:
+            unit = notification.get('unit')
+            notification_type = notification.get('notification_type')
+            threshold = notification.get('threshold', 0)
+
+            if unit not in ['PERCENT', 'ACTUAL_COST']:
+                raise ERROR_UNIT_IS_REQUIRED(value=notification)
+
+            if notification_type not in ['CRITICAL', 'WARNING']:
+                raise ERROR_NOTIFICATION_TYPE_IS_REQUIRED(value=notification)
+
+            if threshold < 0:
+                raise ERROR_THRESHOLD_IS_WRONG(value=notification)
+
+            if unit == 'PERCENT':
+                if threshold > 100:
+                    raise ERROR_THRESHOLD_IS_WRONG_IN_PERCENT_TYPE(value=notification)

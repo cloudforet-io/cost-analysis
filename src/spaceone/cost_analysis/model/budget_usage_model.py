@@ -29,7 +29,7 @@ class BudgetUsage(MongoModel):
             'user_projects': 'project_id',
             'user_project_groups': 'project_group_id'
         },
-        'ordering': ['-date'],
+        'ordering': ['budget_id, date'],
         'indexes': [
             'budget_id',
             'date',
