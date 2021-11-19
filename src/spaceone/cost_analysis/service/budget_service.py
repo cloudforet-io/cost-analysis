@@ -83,6 +83,7 @@ class BudgetService(BaseService):
         # Create budget usages
         budget_usage_mgr: BudgetUsageManager = self.locator.get_manager('BudgetUsageManager')
         budget_usage_mgr.create_budget_usages(budget_vo)
+        budget_usage_mgr.update_budget_usage(budget_vo)
 
         return budget_vo
 
@@ -109,14 +110,18 @@ class BudgetService(BaseService):
         budget_id = params['budget_id']
         domain_id = params['domain_id']
         end = params.get('end')
+        planned_limits = params.get('planned_limits')
 
         budget_vo: Budget = self.budget_mgr.get_budget(budget_id, domain_id)
 
-        # Check limit and Planned Limits
-
         if end:
-            # reset total_usd_cost and monthly_costs
-            pass
+            if budget_vo.end > end:
+                raise
+
+            if planned_limits is None:
+                raise
+
+        # Check limit and Planned Limits
 
         return self.budget_mgr.update_budget_by_vo(params, budget_vo)
 
