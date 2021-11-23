@@ -4,6 +4,7 @@ from dateutil.rrule import rrule, MONTHLY
 
 from spaceone.core.manager import BaseManager
 from spaceone.cost_analysis.manager.cost_manager import CostManager
+from spaceone.cost_analysis.manager.budget_manager import BudgetManager
 from spaceone.cost_analysis.model.budget_usage_model import BudgetUsage
 from spaceone.cost_analysis.model.budget_model import Budget
 
@@ -17,6 +18,8 @@ class BudgetUsageManager(BaseManager):
         self.budget_usage_model: BudgetUsage = self.locator.get_model('BudgetUsage')
 
     def create_budget_usages(self, budget_vo: Budget):
+        # Rollback
+
         if budget_vo.time_unit == 'TOTAL':
             dts = [dt for dt in rrule(MONTHLY, dtstart=budget_vo.start, until=budget_vo.end)]
             limit_per_month = int(budget_vo.limit / len(dts))
@@ -52,6 +55,30 @@ class BudgetUsageManager(BaseManager):
 
     def update_budget_usage(self, budget_vo: Budget):
         cost_mgr: CostManager = self.locator.get_manager('CostManager')
+        self._update_total_budget_usage(budget_vo, cost_mgr)
+        self._update_monthly_budget_usage(budget_vo, cost_mgr)
+
+    def filter_budget_usages(self, **conditions):
+        return self.budget_usage_model.query(**conditions)
+
+    def list_budget_usages(self, query={}):
+        return self.budget_usage_model.query(**query)
+
+    def stat_budget_usages(self, query):
+        return self.budget_usage_model.stat(**query)
+
+    def _update_total_budget_usage(self, budget_vo: Budget, cost_mgr: CostManager):
+        budget_mgr: BudgetManager = self.locator.get_manager('BudgetManager')
+
+        query = self._make_cost_stat_query(budget_vo, True)
+        result = cost_mgr.stat_costs(query)
+        if len(result.get('results', [])) > 0:
+            total_usage_usd_cost = result['results'][0].get('usd_cost')
+            if total_usage_usd_cost:
+                budget_mgr.update_budget_by_vo({'total_usage_usd_cost': total_usage_usd_cost}, budget_vo)
+
+    def _update_monthly_budget_usage(self, budget_vo: Budget, cost_mgr: CostManager):
+        # Rollback
 
         query = self._make_cost_stat_query(budget_vo)
         result = cost_mgr.stat_costs(query)
@@ -65,28 +92,20 @@ class BudgetUsageManager(BaseManager):
                     budget_usage_vo = budget_usage_vos[0]
                     budget_usage_vo.update({'usd_cost': usd_cost})
 
-    def filter_budget_usages(self, **conditions):
-        return self.budget_usage_model.query(**conditions)
-
-    def list_budget_usages(self, query={}):
-        return self.budget_usage_model.query(**query)
-
-    def stat_budget_usages(self, query):
-        return self.budget_usage_model.stat(**query)
-
-    def _make_cost_stat_query(self, budget_vo: Budget):
+    def _make_cost_stat_query(self, budget_vo: Budget, is_accumulated=False):
         query = self._get_default_query()
 
-        if budget_vo.time_unit == 'YEARLY':
-            date_format = '%Y'
-        else:
-            date_format = '%Y-%m'
+        if not is_accumulated:
+            if budget_vo.time_unit == 'YEARLY':
+                date_format = '%Y'
+            else:
+                date_format = '%Y-%m'
 
-        query['aggregate'][0]['group']['keys'].append({
-            'key': 'billed_at',
-            'name': 'date',
-            'date_format': date_format
-        })
+            query['aggregate'][0]['group']['keys'].append({
+                'key': 'billed_at',
+                'name': 'date',
+                'date_format': date_format
+            })
 
         query['filter'].append({
             'key': 'billed_at',
