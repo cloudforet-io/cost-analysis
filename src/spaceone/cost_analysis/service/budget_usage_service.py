@@ -55,7 +55,7 @@ class BudgetUsageService(BaseService):
             'user_project_groups': 'authorization.project_groups'
         }
     })
-    @check_required(['query', 'budget_id', 'domain_id'])
+    @check_required(['query', 'domain_id'])
     @append_query_filter(['budget_id', 'domain_id'])
     @append_keyword_filter(['budget_id'])
     def stat(self, params):
