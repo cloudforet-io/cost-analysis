@@ -25,3 +25,15 @@ class IdentityManager(BaseManager):
     def get_project_group(self, project_group_id, domain_id):
         return self.identity_connector.dispatch('ProjectGroup.get', {'project_group_id': project_group_id,
                                                                      'domain_id': domain_id})
+
+    def list_projects_in_project_group(self, project_group_id, domain_id, recursive=False, query=None):
+        request = {
+            'project_group_id': project_group_id,
+            'domain_id': domain_id,
+            'recursive': recursive
+        }
+
+        if query:
+            request['query'] = query
+
+        return self.identity_connector.dispatch('ProjectGroup.list_projects', request)
