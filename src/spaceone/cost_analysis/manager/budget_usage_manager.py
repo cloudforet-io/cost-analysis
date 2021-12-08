@@ -3,6 +3,7 @@ from datetime import timedelta
 from dateutil.rrule import rrule, MONTHLY
 
 from spaceone.core.manager import BaseManager
+from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 from spaceone.cost_analysis.manager.cost_manager import CostManager
 from spaceone.cost_analysis.manager.budget_manager import BudgetManager
 from spaceone.cost_analysis.model.budget_usage_model import BudgetUsage
@@ -126,10 +127,18 @@ class BudgetUsageManager(BaseManager):
                 'operator': 'eq'
             })
         else:
+            identity_mgr: IdentityManager = self.locator.get_manager('IdentityManager')
+            response = identity_mgr.list_projects_in_project_group(budget_vo.project_group_id,
+                                                                   budget_vo.domain_id, True)
+
+            project_ids = []
+            for project_info in response.get('results', []):
+                project_ids.append(project_info['project_id'])
+
             query['filter'].append({
-                'key': 'project_group_id',
-                'value': budget_vo.project_group_id,
-                'operator': 'eq'
+                'key': 'project_id',
+                'value': project_ids,
+                'operator': 'in'
             })
 
         if budget_vo.cost_types:
