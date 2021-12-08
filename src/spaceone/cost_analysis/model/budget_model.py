@@ -11,7 +11,7 @@ class PlannedLimit(EmbeddedDocument):
 class CostTypes(EmbeddedDocument):
     provider = ListField(StringField(), default=None, null=True)
     region_code = ListField(StringField(), default=None, null=True)
-    account = ListField(StringField(), default=None, null=True)
+    service_account_id = ListField(StringField(), default=None, null=True)
     product = ListField(StringField(), default=None, null=True)
 
     def to_dict(self):
@@ -68,6 +68,10 @@ class Budget(MongoModel):
         'indexes': [
             'budget_id',
             'name',
+            'cost_types.provider',
+            'cost_types.region_code',
+            'cost_types.service_account_id',
+            'cost_types.product',
             'time_unit',
             'start',
             'end',

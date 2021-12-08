@@ -17,6 +17,7 @@ def BudgetUsageInfo(budget_usage_vo: BudgetUsage, minimal=False):
 
     if not minimal:
         info.update({
+            'cost_types': change_struct_type(budget_usage_vo.cost_types.to_dict()) if budget_usage_vo.cost_types else None,
             'domain_id': budget_usage_vo.domain_id,
             'updated_at': utils.datetime_to_iso8601(budget_usage_vo.updated_at)
         })

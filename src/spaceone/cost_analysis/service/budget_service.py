@@ -198,7 +198,7 @@ class BudgetService(BaseService):
         }
     })
     @check_required(['domain_id'])
-    @append_query_filter(['budget_id', 'name', 'project_id', 'project_group_id', 'domain_id',
+    @append_query_filter(['budget_id', 'name', 'project_id', 'project_group_id', 'time_unit', 'domain_id',
                           'user_projects', 'user_project_groups'])
     @append_keyword_filter(['budget_id', 'name'])
     def list(self, params):
@@ -210,6 +210,7 @@ class BudgetService(BaseService):
                 'name': 'str',
                 'project_id': 'str',
                 'project_group_id': 'str',
+                'time_unit': 'str',
                 'domain_id': 'str',
                 'query': 'dict (spaceone.api.core.v1.Query)',
                 'user_projects': 'list', // from meta,
