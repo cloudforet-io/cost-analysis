@@ -3,11 +3,22 @@ from mongoengine import *
 from spaceone.core.model.mongo_model import MongoModel
 
 
+class CostTypes(EmbeddedDocument):
+    provider = ListField(StringField(), default=None, null=True)
+    region_code = ListField(StringField(), default=None, null=True)
+    service_account_id = ListField(StringField(), default=None, null=True)
+    product = ListField(StringField(), default=None, null=True)
+
+    def to_dict(self):
+        return dict(self.to_mongo())
+
+
 class BudgetUsage(MongoModel):
     budget_id = StringField(max_length=40)
     date = StringField()
     usd_cost = FloatField()
     limit = FloatField()
+    cost_types = EmbeddedDocumentField(CostTypes, default=None, null=True)
     budget = ReferenceField('Budget', reverse_delete_rule=CASCADE)
     project_id = StringField(max_length=40, default=None, null=True)
     project_group_id = StringField(max_length=40, default=None, null=True)
@@ -33,6 +44,10 @@ class BudgetUsage(MongoModel):
         'indexes': [
             'budget_id',
             'date',
+            'cost_types.provider',
+            'cost_types.region_code',
+            'cost_types.service_account_id',
+            'cost_types.product',
             'project_id',
             'project_group_id',
             'domain_id'

@@ -26,7 +26,7 @@ class BudgetUsageService(BaseService):
         }
     })
     @check_required(['budget_id', 'domain_id'])
-    @append_query_filter(['budget_id', 'domain_id', 'user_projects', 'user_project_groups'])
+    @append_query_filter(['budget_id', 'date', 'domain_id', 'user_projects', 'user_project_groups'])
     @append_keyword_filter(['budget_id'])
     def list(self, params):
         """ List budget_usages
