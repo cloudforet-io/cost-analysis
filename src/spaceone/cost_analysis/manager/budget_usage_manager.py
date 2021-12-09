@@ -73,7 +73,7 @@ class BudgetUsageManager(BaseManager):
         self._update_monthly_budget_usage(budget_vo, cost_mgr)
 
     def filter_budget_usages(self, **conditions):
-        return self.budget_usage_model.query(**conditions)
+        return self.budget_usage_model.filter(**conditions)
 
     def list_budget_usages(self, query={}):
         return self.budget_usage_model.query(**query)
