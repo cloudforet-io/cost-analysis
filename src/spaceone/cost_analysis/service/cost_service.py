@@ -34,7 +34,7 @@ class CostService(BaseService):
                 'region_code': 'str',
                 'product': 'str',
                 'account': 'str',
-                'type': 'str',
+                'instance_type': 'str',
                 'resource_group': 'str',
                 'resource': 'str',
                 'tags': 'dict',
@@ -106,7 +106,7 @@ class CostService(BaseService):
     })
     @check_required(['domain_id'])
     @append_query_filter(['cost_id', 'cost_key', 'original_currency', 'provider', 'region_code', 'product',
-                          'account', 'type', 'resource_group', 'resource', 'service_account_id', 'project_id',
+                          'account', 'instance_type', 'resource_group', 'resource', 'service_account_id', 'project_id',
                           'data_source_id', 'domain_id', 'user_projects'])
     @append_keyword_filter(['cost_id'])
     def list(self, params):
@@ -121,7 +121,7 @@ class CostService(BaseService):
                 'region_code': 'str',
                 'product': 'str',
                 'account': 'str',
-                'type': 'str',
+                'instance_type': 'str',
                 'resource_group': 'str',
                 'resource': 'str',
                 'service_account_id': 'str',
