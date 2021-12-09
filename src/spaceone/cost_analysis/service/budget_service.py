@@ -83,7 +83,7 @@ class BudgetService(BaseService):
         # Create budget usages
         budget_usage_mgr: BudgetUsageManager = self.locator.get_manager('BudgetUsageManager')
         budget_usage_mgr.create_budget_usages(budget_vo)
-        budget_usage_mgr.update_budget_usage(budget_vo)
+        budget_usage_mgr.update_cost_usage(budget_vo)
 
         return budget_vo
 
@@ -112,6 +112,8 @@ class BudgetService(BaseService):
         end = params.get('end')
         planned_limits = params.get('planned_limits')
 
+        budget_usage_mgr: BudgetUsageManager = self.locator.get_manager('BudgetUsageManager')
+
         budget_vo: Budget = self.budget_mgr.get_budget(budget_id, domain_id)
 
         if end:
@@ -123,7 +125,14 @@ class BudgetService(BaseService):
 
         # Check limit and Planned Limits
 
-        return self.budget_mgr.update_budget_by_vo(params, budget_vo)
+        budget_vo = self.budget_mgr.update_budget_by_vo(params, budget_vo)
+
+        if 'name' in params:
+            budget_usage_vos = budget_usage_mgr.filter_budget_usages(budget_id=budget_id)
+            for budget_usage_vo in budget_usage_vos:
+                budget_usage_mgr.update_budget_usage_by_vo({'name': params['name']}, budget_usage_vo)
+
+        return budget_vo
 
     @transaction(append_meta={'authorization.scope': 'PROJECT'})
     @check_required(['budget_id', 'domain_id'])

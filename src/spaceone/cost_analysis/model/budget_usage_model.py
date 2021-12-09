@@ -15,6 +15,7 @@ class CostTypes(EmbeddedDocument):
 
 class BudgetUsage(MongoModel):
     budget_id = StringField(max_length=40)
+    name = StringField(max_length=255, default='')
     date = StringField()
     usd_cost = FloatField()
     limit = FloatField()
@@ -27,11 +28,13 @@ class BudgetUsage(MongoModel):
 
     meta = {
         'updatable_fields': [
+            'name',
             'usd_cost',
             'limit'
         ],
         'minimal_fields': [
             'budget_id',
+            'name',
             'date',
             'usd_cost',
             'limit'
@@ -43,6 +46,7 @@ class BudgetUsage(MongoModel):
         'ordering': ['budget_id', 'date'],
         'indexes': [
             'budget_id',
+            'name',
             'date',
             'cost_types.provider',
             'cost_types.region_code',

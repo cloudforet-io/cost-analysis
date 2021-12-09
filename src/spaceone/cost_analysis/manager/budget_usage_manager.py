@@ -28,6 +28,7 @@ class BudgetUsageManager(BaseManager):
             for dt in dts:
                 budget_usage_data = {
                     'budget_id': budget_vo.budget_id,
+                    'name': budget_vo.name,
                     'date': dt.strftime("%Y-%m"),
                     'usd_cost': 0,
                     'limit': limit_per_month,
@@ -44,6 +45,7 @@ class BudgetUsageManager(BaseManager):
             for planned_limit in budget_vo.planned_limits:
                 budget_usage_data = {
                     'budget_id': budget_vo.budget_id,
+                    'name': budget_vo.name,
                     'date': planned_limit['date'],
                     'usd_cost': 0,
                     'limit': planned_limit.limit,
@@ -56,7 +58,16 @@ class BudgetUsageManager(BaseManager):
 
                 self.budget_usage_model.create(budget_usage_data)
 
-    def update_budget_usage(self, budget_vo: Budget):
+    def update_budget_usage_by_vo(self, params, budget_usage_vo):
+        def _rollback(old_data):
+            _LOGGER.info(f'[update_budget_usage_by_vo._rollback] Revert Data : '
+                         f'{old_data["budget_id"]} / {old_data["date"]}')
+            budget_usage_vo.update(old_data)
+
+        self.transaction.add_rollback(_rollback, budget_usage_vo.to_dict())
+        return budget_usage_vo.update(params)
+
+    def update_cost_usage(self, budget_vo: Budget):
         cost_mgr: CostManager = self.locator.get_manager('CostManager')
         self._update_total_budget_usage(budget_vo, cost_mgr)
         self._update_monthly_budget_usage(budget_vo, cost_mgr)

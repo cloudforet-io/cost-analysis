@@ -25,9 +25,9 @@ class BudgetUsageService(BaseService):
             'user_project_groups': 'authorization.project_groups'
         }
     })
-    @check_required(['budget_id', 'domain_id'])
+    @check_required(['domain_id'])
     @append_query_filter(['budget_id', 'date', 'domain_id', 'user_projects', 'user_project_groups'])
-    @append_keyword_filter(['budget_id'])
+    @append_keyword_filter(['budget_id', 'name'])
     def list(self, params):
         """ List budget_usages
 
@@ -56,8 +56,8 @@ class BudgetUsageService(BaseService):
         }
     })
     @check_required(['query', 'domain_id'])
-    @append_query_filter(['budget_id', 'domain_id'])
-    @append_keyword_filter(['budget_id'])
+    @append_query_filter(['domain_id'])
+    @append_keyword_filter(['budget_id', 'name'])
     def stat(self, params):
         """
         Args:
