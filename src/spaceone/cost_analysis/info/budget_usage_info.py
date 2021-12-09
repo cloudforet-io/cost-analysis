@@ -10,6 +10,7 @@ __all__ = ['BudgetUsageInfo', 'BudgetUsagesInfo']
 def BudgetUsageInfo(budget_usage_vo: BudgetUsage, minimal=False):
     info = {
         'budget_id': budget_usage_vo.budget_id,
+        'name': budget_usage_vo.name,
         'date': budget_usage_vo.date,
         'usd_cost': budget_usage_vo.usd_cost,
         'limit': budget_usage_vo.limit
