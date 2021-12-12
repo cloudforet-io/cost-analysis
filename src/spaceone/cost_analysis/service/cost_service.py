@@ -105,9 +105,9 @@ class CostService(BaseService):
         'mutation.append_parameter': {'user_projects': 'authorization.projects'}
     })
     @check_required(['domain_id'])
-    @append_query_filter(['cost_id', 'cost_key', 'original_currency', 'provider', 'region_code', 'product',
-                          'account', 'instance_type', 'resource_group', 'resource', 'service_account_id', 'project_id',
-                          'data_source_id', 'domain_id', 'user_projects'])
+    @append_query_filter(['cost_id', 'cost_key', 'original_currency', 'provider', 'region_code', 'region_key',
+                          'product', 'account', 'instance_type', 'resource_group', 'resource', 'service_account_id',
+                          'project_id', 'data_source_id', 'domain_id', 'user_projects'])
     @append_keyword_filter(['cost_id'])
     def list(self, params):
         """ List costs
@@ -119,6 +119,7 @@ class CostService(BaseService):
                 'original_currency': 'str',
                 'provider': 'str',
                 'region_code': 'str',
+                'region_key': 'str',
                 'product': 'str',
                 'account': 'str',
                 'instance_type': 'str',

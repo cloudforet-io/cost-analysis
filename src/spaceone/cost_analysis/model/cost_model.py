@@ -12,6 +12,7 @@ class Cost(MongoModel):
     usage_quantity = FloatField(default=0)
     provider = StringField(max_length=40, default=None, null=True)
     region_code = StringField(max_length=255, default=None, null=True)
+    region_key = StringField(max_length=255, default=None, null=True)
     product = StringField(max_length=255, default=None, null=True)
     account = StringField(max_length=255, default=None, null=True)
     instance_type = StringField(max_length=255, default=None, null=True)
@@ -56,6 +57,7 @@ class Cost(MongoModel):
             'usage_quantity',
             'provider',
             'region_code',
+            'region_key',
             'product',
             'account',
             'instance_type',
