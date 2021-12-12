@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime
 
 from spaceone.core.service import *
 from spaceone.core import utils
@@ -49,14 +48,6 @@ class CostService(BaseService):
         Returns:
             cost_vo (object)
         """
-
-        params['billed_at'] = params.get('billed_at') or datetime.utcnow()
-
-        if 'usd_cost' not in params:
-            # check original currency
-            # exchange rate applied to usd cost
-
-            params['usd_cost'] = params['original_cost']
 
         # validation check (service_account_id / project_id / data_source_id)
 

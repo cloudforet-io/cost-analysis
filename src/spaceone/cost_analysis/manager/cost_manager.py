@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 
 from spaceone.core.manager import BaseManager
 from spaceone.cost_analysis.model.cost_model import Cost
@@ -18,6 +19,14 @@ class CostManager(BaseManager):
                          f'Delete cost : {cost_vo.name} '
                          f'({cost_vo.cost_id})')
             cost_vo.delete()
+
+        params['billed_at'] = params.get('billed_at') or datetime.utcnow()
+
+        if 'usd_cost' not in params:
+            # check original currency
+            # exchange rate applied to usd cost
+
+            params['usd_cost'] = params['original_cost']
 
         cost_vo: Cost = self.cost_model.create(params)
         self.transaction.add_rollback(_rollback, cost_vo)

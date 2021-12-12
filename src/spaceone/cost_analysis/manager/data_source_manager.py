@@ -41,6 +41,9 @@ class DataSourceManager(BaseManager):
         data_source_vo: DataSource = self.get_data_source(data_source_id, domain_id)
         data_source_vo.delete()
 
+    def deregister_data_source_by_vo(self, data_source_vo):
+        data_source_vo.delete()
+
     def get_data_source(self, data_source_id, domain_id, only=None):
         return self.data_source_model.get(data_source_id=data_source_id, domain_id=domain_id, only=only)
 
