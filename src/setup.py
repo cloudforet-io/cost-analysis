@@ -35,7 +35,7 @@ setup(
         'mongoengine',
         'redis',
         'schematics',
-        'bodo3'
+        'boto3'
     ],
     zip_safe=False,
 )
