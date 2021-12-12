@@ -1,6 +1,7 @@
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.data_source_plugin_manager import DataSourcePluginManager
 from spaceone.cost_analysis.manager.plugin_manager import PluginManager
+from spaceone.cost_analysis.manager.repository_manager import RepositoryManager
 from spaceone.cost_analysis.manager.schedule_manager import ScheduleManager
 from spaceone.cost_analysis.manager.exchange_rate_manager import ExchangeRateManager
 from spaceone.cost_analysis.manager.cost_manager import CostManager

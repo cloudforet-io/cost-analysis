@@ -62,7 +62,7 @@ class DataSourceService(BaseService):
 
             params['plugin_info']['metadata'] = plugin_metadata
 
-            # set template from plugin metadata
+            # TODO: set template from plugin metadata
             # set data source rule from plugin metadata
 
         else:
