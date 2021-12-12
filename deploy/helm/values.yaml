@@ -27,7 +27,12 @@ application_rest: {}
 application_scheduler: {}
 
 # Overwrite worker config
-application_worker: {}
+application_worker:
+  WORKERS:
+    cost_analysis_worker:
+      backend: spaceone.core.scheduler.worker.BaseWorker
+      queue: cost_analysis_q
+      pool: 1
 
 # local sidecar
 ##########################

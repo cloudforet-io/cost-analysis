@@ -37,8 +37,15 @@ CONNECTORS = {
     },
 }
 
+# Scheduler Settings
+QUEUES = {}
+SCHEDULERS = {}
+WORKERS = {}
+TOKEN = ""
+TOKEN_INFO = {}
+
 # Job Settings
-JOB_TIMEOUT = 600
+JOB_TIMEOUT = 7200
 
 DEFAULT_EXCHANGE_RATE = {
     # 'KRW': 1178.7,
@@ -49,6 +56,7 @@ DEFAULT_EXCHANGE_RATE = {
 INSTALLED_DATA_SOURCE_PLUGINS = [
     # {
     #     'name': '',
+    #     'data_source_type': 'EXTERNAL',
     #     'plugin_info': {
     #         'plugin_id': '',
     #         'version': '',

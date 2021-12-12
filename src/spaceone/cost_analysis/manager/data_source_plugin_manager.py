@@ -3,6 +3,8 @@ import logging
 from spaceone.core.manager import BaseManager
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.manager.plugin_manager import PluginManager
+from spaceone.cost_analysis.manager.data_source_rule_manager import DataSourceRuleManager
+from spaceone.cost_analysis.service.data_source_rule_service import DataSourceRuleService
 from spaceone.cost_analysis.connector.datasource_plugin_connector import DataSourcePluginConnector
 from spaceone.cost_analysis.model.data_source_model import DataSource
 
@@ -46,6 +48,7 @@ class DataSourcePluginManager(BaseManager):
 
     def upgrade_data_source_plugin_version(self, data_source_vo: DataSource, endpoint, updated_version):
         plugin_info = data_source_vo.plugin_info.to_dict()
+
         self.initialize(endpoint)
 
         plugin_options = plugin_info.get('options', {})
@@ -54,3 +57,38 @@ class DataSourcePluginManager(BaseManager):
         plugin_info['version'] = updated_version
         plugin_info['metadata'] = plugin_metadata
         data_source_vo.update({'plugin_info': plugin_info})
+
+        data_source_id = data_source_vo.data_source_id
+        domain_id = data_source_vo.domain_id
+
+        self.delete_data_source_rules(data_source_id, domain_id)
+        self.create_data_source_rules_by_metadata(plugin_metadata, data_source_id, domain_id)
+
+    def delete_data_source_rules(self, data_source_id, domain_id):
+        _LOGGER.debug(f'[_delete_data_source_rules] delete all data source rules: {data_source_id}')
+        data_source_rule_mgr: DataSourceRuleManager = self.locator.get_manager('DataSourceRuleManager')
+        old_data_source_rule_vos = data_source_rule_mgr.filter_data_source_rules(data_source_id=data_source_id,
+                                                                                 domain_id=domain_id)
+
+        old_data_source_rule_vos.delete()
+
+    def create_data_source_rules_by_metadata(self, metadata, data_source_id, domain_id):
+        data_source_rules = metadata.get('data_source_rules', [])
+
+        if len(data_source_rules) > 0:
+            _LOGGER.debug(f'[_create_data_source_rules_by_metadata] create data source rules: {data_source_id} / '
+                          f'rule count = {len(data_source_rules)}')
+            metadata = {
+                'transaction_id': self.transaction.id,
+                'token': self.transaction.get_meta('token'),
+                'service': 'identity',
+                'resource': 'DataSourceRule',
+                'verb': 'create'
+            }
+
+            data_source_rule_svc: DataSourceRuleService = self.locator.get_service('DataSourceRuleService', metadata)
+
+            for data_source_rule_params in data_source_rules:
+                data_source_rule_params['data_source_id'] = data_source_id
+                data_source_rule_params['domain_id'] = domain_id
+                data_source_rule_svc.create(data_source_rule_params)
