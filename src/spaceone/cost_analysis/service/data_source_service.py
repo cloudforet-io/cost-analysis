@@ -3,10 +3,12 @@ import logging
 from spaceone.core.service import *
 from spaceone.core import utils
 from spaceone.cost_analysis.error import *
+from spaceone.cost_analysis.service.data_source_rule_service import DataSourceRuleService
 from spaceone.cost_analysis.manager.repository_manager import RepositoryManager
 from spaceone.cost_analysis.manager.secret_manager import SecretManager
 from spaceone.cost_analysis.manager.data_source_plugin_manager import DataSourcePluginManager
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
+from spaceone.cost_analysis.manager.data_source_rule_manager import DataSourceRuleManager
 from spaceone.cost_analysis.model.data_source_model import DataSource
 
 _LOGGER = logging.getLogger(__name__)
@@ -58,12 +60,20 @@ class DataSourceService(BaseService):
                 params['plugin_info']['version'] = updated_version
 
             options = params['plugin_info'].get('options', {})
+
             plugin_metadata = self._init_plugin(endpoint, options)
 
             params['plugin_info']['metadata'] = plugin_metadata
 
-            # TODO: set template from plugin metadata
-            # set data source rule from plugin metadata
+            secret_data = plugin_info.get('secret_data')
+            if secret_data:
+                self._verify_plugin(endpoint, plugin_info, domain_id)
+
+                secret_mgr: SecretManager = self.locator.get_manager('SecretManager')
+                secret_id = secret_mgr.create_secret(domain_id, secret_data, plugin_info.get('schema'))
+
+                params['plugin_info']['secret_id'] = secret_id
+                del params['plugin_info']['secret_data']
 
         else:
             params['plugin_info'] = None
@@ -72,7 +82,17 @@ class DataSourceService(BaseService):
             # check template
             pass
 
-        return self.data_source_mgr.register_data_source(params)
+        data_source_vo: DataSource = self.data_source_mgr.register_data_source(params)
+
+        if data_source_type == 'EXTERNAL':
+            data_source_id = data_source_vo.data_source_id
+            metadata = data_source_vo.plugin_info.metadata
+
+            self._create_data_source_rules_by_metadata(metadata, data_source_id, domain_id)
+
+        # TODO: set template from plugin metadata
+
+        return data_source_vo
 
     @transaction(append_meta={'authorization.scope': 'DOMAIN'})
     @check_required(['data_source_id', 'domain_id'])
@@ -158,7 +178,17 @@ class DataSourceService(BaseService):
             None
         """
 
-        self.data_source_mgr.deregister_data_source(params['data_source_id'], params['domain_id'])
+        data_source_id = params['data_source_id']
+        domain_id = params['domain_id']
+
+        data_source_vo: DataSource = self.data_source_mgr.get_data_source(data_source_id, domain_id)
+        secret_id = data_source_vo.plugin_info.secret_id
+
+        if secret_id:
+            secret_mgr: SecretManager = self.locator.get_manager('SecretManager')
+            secret_mgr.delete_secret(secret_id, domain_id)
+
+        self.data_source_mgr.deregister_data_source_by_vo(data_source_vo)
 
     @transaction(append_meta={'authorization.scope': 'DOMAIN'})
     @check_required(['data_source_id', 'domain_id'])
@@ -239,12 +269,15 @@ class DataSourceService(BaseService):
             'plugin_info': plugin_info
         }
 
-        # set template from plugin metadata
-        # set data source rule from plugin metadata
+        # TODO: set template from plugin metadata
 
-        _LOGGER.debug(f'[update_plugin] {plugin_info}')
+        data_source_vo = self.data_source_mgr.update_data_source_by_vo(params, data_source_vo)
 
-        return self.data_source_mgr.update_data_source_by_vo(params, data_source_vo)
+        self._delete_data_source_rules(data_source_id, domain_id)
+
+        self._create_data_source_rules_by_metadata(plugin_metadata, data_source_id, domain_id)
+
+        return data_source_vo
 
     @transaction(append_meta={'authorization.scope': 'DOMAIN'})
     @check_required(['data_source_id', 'domain_id'])
@@ -334,16 +367,44 @@ class DataSourceService(BaseService):
     def _verify_plugin(self, endpoint, plugin_info, domain_id):
         options = plugin_info.get('options', {})
         secret_id = plugin_info.get('secret_id')
+        secret_data = plugin_info.get('secret_data')
+        schema = plugin_info.get('schema')
 
         if secret_id:
             secret_mgr: SecretManager = self.locator.get_manager('SecretManager')
-            secret_info = secret_mgr.get_secret(secret_id, domain_id)
             secret_data = secret_mgr.get_secret_data(secret_id, domain_id)
-            schema = secret_info.get('schema')
         else:
-            secret_data = {}
-            schema = None
+            if not secret_data:
+                secret_data = {}
+                schema = None
 
         ds_plugin_mgr: DataSourcePluginManager = self.locator.get_manager('DataSourcePluginManager')
         ds_plugin_mgr.initialize(endpoint)
         ds_plugin_mgr.verify_plugin(options, secret_data, schema)
+
+    def _delete_data_source_rules(self, data_source_id, domain_id):
+        data_source_rule_mgr: DataSourceRuleManager = self.locator.get_manager('DataSourceRuleManager')
+        old_data_source_rule_vos = data_source_rule_mgr.filter_data_source_rules(data_source_id=data_source_id,
+                                                                                 domain_id=domain_id)
+
+        old_data_source_rule_vos.delete()
+
+    def _create_data_source_rules_by_metadata(self, metadata, data_source_id, domain_id):
+        data_source_rules = metadata.get('data_source_rules', [])
+
+        if len(data_source_rules) > 0:
+            metadata = {
+                'transaction_id': self.transaction.id,
+                'token': self.transaction.get_meta('token'),
+                'disable_info_log': 'true',
+                'service': 'identity',
+                'resource': 'DataSourceRule',
+                'verb': 'create'
+            }
+
+            data_source_rule_svc: DataSourceRuleService = self.locator.get_service('DataSourceRuleService', metadata)
+
+            for data_source_rule_params in data_source_rules:
+                data_source_rule_params['data_source_id'] = data_source_id
+                data_source_rule_params['domain_id'] = domain_id
+                data_source_rule_svc.create(data_source_rule_params)

@@ -52,6 +52,9 @@ class DataSourceRuleManager(BaseManager):
     def get_data_source_rule(self, data_source_rule_id, domain_id, only=None):
         return self.data_source_rule_model.get(data_source_rule_id=data_source_rule_id, domain_id=domain_id, only=only)
 
+    def filter_data_source_rules(self, **conditions):
+        return self.data_source_rule_model.filter(**conditions)
+
     def list_data_source_rules(self, query={}):
         return self.data_source_rule_model.query(**query)
 
