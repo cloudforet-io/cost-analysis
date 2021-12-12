@@ -7,6 +7,8 @@ from spaceone.cost_analysis.manager.repository_manager import RepositoryManager
 from spaceone.cost_analysis.manager.secret_manager import SecretManager
 from spaceone.cost_analysis.manager.data_source_plugin_manager import DataSourcePluginManager
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
+from spaceone.cost_analysis.manager.job_manager import JobManager
+from spaceone.cost_analysis.manager.job_task_manager import JobTaskManager
 from spaceone.cost_analysis.model.data_source_model import DataSource
 
 _LOGGER = logging.getLogger(__name__)
@@ -83,12 +85,10 @@ class DataSourceService(BaseService):
         data_source_vo: DataSource = self.data_source_mgr.register_data_source(params)
 
         if data_source_type == 'EXTERNAL':
-            ds_plugin_mgr: DataSourcePluginManager = self.locator.get_manager('DataSourcePluginManager')
-
             data_source_id = data_source_vo.data_source_id
             metadata = data_source_vo.plugin_info.metadata
 
-            ds_plugin_mgr.create_data_source_rules_by_metadata(metadata, data_source_id, domain_id)
+            self.ds_plugin_mgr.create_data_source_rules_by_metadata(metadata, data_source_id, domain_id)
 
             # TODO: set template from plugin metadata
 
@@ -220,9 +220,34 @@ class DataSourceService(BaseService):
 
         endpoint = self.ds_plugin_mgr.get_data_source_plugin_endpoint_by_vo(data_source_vo)
         secret_id = data_source_vo.plugin_info.secret_id
+        options = data_source_vo.plugin_info.options
         schema = data_source_vo.plugin_info.schema
-
         secret_data = self._get_secret_data(secret_id, domain_id)
+
+        params['last_synchronized_at'] = data_source_vo.last_synchronized_at
+
+        self.ds_plugin_mgr.initialize(endpoint)
+        tasks, last_changed_at = self.ds_plugin_mgr.get_tasks(options, secret_data, schema, params)
+
+        job_mgr: JobManager = self.locator.get_manager('JobManager')
+        job_task_mgr: JobTaskManager = self.locator.get_manager('JobTaskManager')
+
+        job_vo = job_mgr.create_job(data_source_id, domain_id, len(tasks), last_changed_at)
+
+        for task_options in tasks:
+            job_task_vo = None
+            try:
+                job_task_vo = job_task_mgr.create_job_task(job_vo.job_id, data_source_id, domain_id, task_options)
+                job_task_mgr.push_job_task({
+                    'task_options': task_options,
+                    'job_task_id': job_task_vo.job_task_id,
+                    'domain_id': domain_id
+                })
+            except Exception as e:
+                if job_task_vo:
+                    job_task_mgr.change_error_status(job_task_vo, e)
+
+        return job_vo
 
     @transaction(append_meta={'authorization.scope': 'DOMAIN'})
     @check_required(['data_source_id', 'domain_id'])
@@ -307,9 +332,8 @@ class DataSourceService(BaseService):
 
         data_source_vo = self.data_source_mgr.update_data_source_by_vo(params, data_source_vo)
 
-        ds_plugin_mgr: DataSourcePluginManager = self.locator.get_manager('DataSourcePluginManager')
-        ds_plugin_mgr.delete_data_source_rules(data_source_id, domain_id)
-        ds_plugin_mgr.create_data_source_rules_by_metadata(plugin_metadata, data_source_id, domain_id)
+        self.ds_plugin_mgr.delete_data_source_rules(data_source_id, domain_id)
+        self.ds_plugin_mgr.create_data_source_rules_by_metadata(plugin_metadata, data_source_id, domain_id)
 
         return data_source_vo
 
@@ -407,9 +431,8 @@ class DataSourceService(BaseService):
         if not secret_data:
             secret_data = self._get_secret_data(secret_id, domain_id)
 
-        ds_plugin_mgr: DataSourcePluginManager = self.locator.get_manager('DataSourcePluginManager')
-        ds_plugin_mgr.initialize(endpoint)
-        ds_plugin_mgr.verify_plugin(options, secret_data, schema)
+        self.ds_plugin_mgr.initialize(endpoint)
+        self.ds_plugin_mgr.verify_plugin(options, secret_data, schema)
 
     def _get_secret_data(self, secret_id, domain_id):
         secret_mgr: SecretManager = self.locator.get_manager('SecretManager')

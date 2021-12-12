@@ -1,5 +1,6 @@
 import logging
 
+from spaceone.core import utils
 from spaceone.core.manager import BaseManager
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.manager.plugin_manager import PluginManager
@@ -31,6 +32,14 @@ class DataSourcePluginManager(BaseManager):
 
     def verify_plugin(self, options, secret_data, schema):
         self.dsp_connector.verify(options, secret_data, schema)
+
+    def get_tasks(self, options, secret_data, schema, params):
+        start = params.get('start')
+        end = params.get('end')
+        last_synchronized_at = utils.datetime_to_iso8601(params.get('last_synchronized_at'))
+
+        response = self.dsp_connector.get_tasks(options, secret_data, schema, start, end, last_synchronized_at)
+        return response.get('tasks', []), response.get('last_changed_at')
 
     def get_data_source_plugin_endpoint_by_vo(self, data_source_vo: DataSource):
         plugin_info = data_source_vo.plugin_info.to_dict()

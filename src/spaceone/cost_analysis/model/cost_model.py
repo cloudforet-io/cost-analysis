@@ -23,6 +23,7 @@ class Cost(MongoModel):
     service_account_id = StringField(max_length=40, default=None, null=True)
     project_id = StringField(max_length=40, default=None, null=True)
     data_source_id = StringField(max_length=40)
+    job_id = StringField(max_length=40, default=None, null=True)
     domain_id = StringField(max_length=40)
     created_at = DateTimeField(auto_now_add=True)
     billed_at = DateTimeField(required=True)
