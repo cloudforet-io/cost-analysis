@@ -8,6 +8,7 @@ class JobTask(MongoModel):
     status = StringField(max_length=20, default='PENDING',
                          choices=('PENDING', 'CANCELED', 'IN_PROGRESS', 'SUCCESS', 'FAILURE'))
     options = DictField()
+    created_count = IntField(default=0)
     error_code = StringField(max_length=254, default=None, null=True)
     error_message = StringField(default=None, null=True)
     job_id = StringField(max_length=40, required=True)
@@ -21,6 +22,7 @@ class JobTask(MongoModel):
     meta = {
         'updatable_fields': [
             'status',
+            'created_count',
             'error_code',
             'error_message',
             'updated_at',

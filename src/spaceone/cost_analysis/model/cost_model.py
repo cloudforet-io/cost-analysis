@@ -51,10 +51,9 @@ class Cost(MongoModel):
         ],
         'indexes': [
             'cost_id',
-            'cost_key',
             'usd_cost',
-            'original_currency',
             'original_cost',
+            'original_currency',
             'usage_quantity',
             'provider',
             'region_code',

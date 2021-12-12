@@ -234,8 +234,9 @@ class DataSourceService(BaseService):
 
         job_vo = job_mgr.create_job(data_source_id, domain_id, len(tasks), last_changed_at)
 
-        for task_options in tasks:
+        for task in tasks:
             job_task_vo = None
+            task_options = task['task_options']
             try:
                 job_task_vo = job_task_mgr.create_job_task(job_vo.job_id, data_source_id, domain_id, task_options)
                 job_task_mgr.push_job_task({

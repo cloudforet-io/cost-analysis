@@ -69,7 +69,7 @@ class JobManager(BaseManager):
 
     @staticmethod
     def decrease_remained_tasks(job_vo: Job):
-        job_vo.decrement('remained_tasks', 1)
+        return job_vo.decrement('remained_tasks', 1)
 
     @staticmethod
     def change_success_status(job_vo: Job):

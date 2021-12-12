@@ -41,6 +41,9 @@ class DataSourcePluginManager(BaseManager):
         response = self.dsp_connector.get_tasks(options, secret_data, schema, start, end, last_synchronized_at)
         return response.get('tasks', []), response.get('last_changed_at')
 
+    def get_cost_data(self, options, secret_data, schema, task_options):
+        return self.dsp_connector.get_cost_data(options, secret_data, schema, task_options)
+
     def get_data_source_plugin_endpoint_by_vo(self, data_source_vo: DataSource):
         plugin_info = data_source_vo.plugin_info.to_dict()
         endpoint, updated_version = self.get_data_source_plugin_endpoint(plugin_info, data_source_vo.domain_id)

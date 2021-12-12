@@ -14,6 +14,8 @@ class JobTaskManager(BaseManager):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        self.job_mgr: JobManager = self.locator.get_manager('JobManager')
         self.job_task_model: JobTask = self.locator.get_model('JobTask')
 
     def create_job_task(self, job_id, data_source_id, domain_id, task_options):
@@ -56,7 +58,7 @@ class JobTaskManager(BaseManager):
             }]
         }
 
-        _LOGGER.debug(f'[push_job_task] push job task: {task}')
+        _LOGGER.debug(f'[push_job_task] push job task: {params}')
 
         queue.put('cost_analysis_q', utils.dump_json(task))
 
@@ -69,20 +71,22 @@ class JobTaskManager(BaseManager):
             'started_at': datetime.utcnow()
         })
 
-    @staticmethod
-    def change_success_status(job_task_vo: JobTask):
-        _LOGGER.debug(f'[change_success_status] success job task: {job_task_vo.job_task_id}')
+    def change_success_status(self, job_task_vo: JobTask, created_count):
+        _LOGGER.debug(f'[change_success_status] success job task: {job_task_vo.job_task_id} '
+                      f'(created_count = {created_count})')
 
         job_task_vo.update({
             'status': 'SUCCESS',
+            'created_count': created_count,
             'finished_at': datetime.utcnow()
         })
+
+        job_vo = self.job_mgr.get_job(job_task_vo.job_id, job_task_vo.domain_id)
+        self.job_mgr.decrease_remained_tasks(job_vo)
 
     def change_error_status(self, job_task_vo: JobTask, e):
         if not isinstance(e, ERROR_BASE):
             e = ERROR_UNKNOWN(message=str(e))
-
-        job_mgr: JobManager = self.locator.get_manager('JobManager')
 
         _LOGGER.error(f'[change_error_status], error job task ({job_task_vo.job_task_id}): {e.message}', exc_info=True)
 
@@ -93,5 +97,6 @@ class JobTaskManager(BaseManager):
             'finished_at': datetime.utcnow()
         })
 
-        job_vo = job_mgr.get_job(job_task_vo.job_id, job_task_vo.domain_id)
-        job_mgr.change_error_status(job_vo, ERROR_JOB_TASK())
+        job_vo = self.job_mgr.get_job(job_task_vo.job_id, job_task_vo.domain_id)
+        self.job_mgr.change_error_status(job_vo, ERROR_JOB_TASK())
+        self.job_mgr.decrease_remained_tasks(job_vo)
