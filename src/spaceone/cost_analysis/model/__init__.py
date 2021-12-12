@@ -7,3 +7,5 @@ from spaceone.cost_analysis.model.budget_model import Budget
 from spaceone.cost_analysis.model.budget_usage_model import BudgetUsage
 from spaceone.cost_analysis.model.dashboard_model import Dashboard
 from spaceone.cost_analysis.model.cost_query_set_model import CostQuerySet
+from spaceone.cost_analysis.model.job_model import Job
+from spaceone.cost_analysis.model.job_task_model import JobTask

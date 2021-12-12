@@ -13,3 +13,5 @@ from spaceone.cost_analysis.manager.dashboard_manager import DashboardManager
 from spaceone.cost_analysis.manager.cost_query_set_manager import CostQuerySetManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 from spaceone.cost_analysis.manager.secret_manager import SecretManager
+from spaceone.cost_analysis.manager.job_manager import JobManager
+from spaceone.cost_analysis.manager.job_task_manager import JobTaskManager

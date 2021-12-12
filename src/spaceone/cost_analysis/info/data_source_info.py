@@ -15,6 +15,7 @@ def PluginInfo(vo):
             'options': change_struct_type(vo.options),
             'metadata': change_struct_type(vo.metadata),
             'secret_id': vo.secret_id,
+            'schema': vo.schema,
             'upgrade_mode': vo.upgrade_mode
         }
 

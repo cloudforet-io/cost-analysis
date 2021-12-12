@@ -7,3 +7,11 @@ class ERROR_INVALID_PLUGIN_VERSION(ERROR_INVALID_ARGUMENT):
 
 class ERROR_NOT_ALLOW_PLUGIN_SETTINGS(ERROR_INVALID_ARGUMENT):
     _message = 'Local type dose not allow plugin settings. (data_source_id = {data_source_id})'
+
+
+class ERROR_NOT_ALLOW_SYNC_COMMAND(ERROR_INVALID_ARGUMENT):
+    _message = 'Local type dose not allow sync commands. (data_source_id = {data_source_id})'
+
+
+class ERROR_DATA_SOURCE_STATE(ERROR_BASE):
+    _message = 'Data source is disabled (data_source_id = {data_source_id})'

@@ -51,6 +51,13 @@ class DataSource(BaseAPI, data_source_pb2_grpc.DataSourceServicer):
             data_source_service.deregister(params)
             return self.locator.get_info('EmptyInfo')
 
+    def sync(self, request, context):
+        params, metadata = self.parse_request(request, context)
+
+        with self.locator.get_service('DataSourceService', metadata) as data_source_service:
+            data_source_service.sync(params)
+            return self.locator.get_info('EmptyInfo')
+
     def get(self, request, context):
         params, metadata = self.parse_request(request, context)
 

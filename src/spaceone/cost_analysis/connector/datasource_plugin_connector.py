@@ -34,18 +34,42 @@ class DataSourcePluginConnector(BaseConnector):
 
         return self._change_message(response)
 
-    def verify(self, options, secret_data, schema=None):
+    def verify(self, options, secret_data, schema):
         params = {
             'options': options,
-            'secret_data': secret_data
+            'secret_data': secret_data,
+            'schema': schema
         }
 
-        if schema:
-            params.update({
-                'schema': schema
-            })
-
         self.client.DataSource.verify(params, metadata=self.transaction.get_connection_meta())
+
+    def get_tasks(self, options, secret_data, schema, start=None, end=None, last_synchronized_at=None):
+        params = {
+            'options': options,
+            'secret_data': secret_data,
+            'schema': schema,
+            'start': start,
+            'end': end,
+            'last_synchronized_at': last_synchronized_at
+        }
+
+        response = self.client.Job.get_tasks(params, metadata=self.transaction.get_connection_meta())
+        return self._change_message(response)
+
+    def get_cost_data(self, options, secret_data, schema, task_options):
+        params = {
+            'options': options,
+            'secret_data': secret_data,
+            'schema': schema,
+            'task_options': task_options,
+        }
+
+        response_stream = self.client.Cost.get_data(params, metadata=self.transaction.get_connection_meta())
+        return self._process_stream(response_stream)
+
+    def _process_stream(self, response_stream):
+        for message in response_stream:
+            yield self._change_message(message)
 
     @staticmethod
     def _change_message(message):

@@ -3,12 +3,12 @@ import logging
 from spaceone.core.service import *
 from spaceone.core import utils
 from spaceone.cost_analysis.error import *
-from spaceone.cost_analysis.service.data_source_rule_service import DataSourceRuleService
 from spaceone.cost_analysis.manager.repository_manager import RepositoryManager
 from spaceone.cost_analysis.manager.secret_manager import SecretManager
 from spaceone.cost_analysis.manager.data_source_plugin_manager import DataSourcePluginManager
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
-from spaceone.cost_analysis.manager.data_source_rule_manager import DataSourceRuleManager
+from spaceone.cost_analysis.manager.job_manager import JobManager
+from spaceone.cost_analysis.manager.job_task_manager import JobTaskManager
 from spaceone.cost_analysis.model.data_source_model import DataSource
 
 _LOGGER = logging.getLogger(__name__)
@@ -88,9 +88,9 @@ class DataSourceService(BaseService):
             data_source_id = data_source_vo.data_source_id
             metadata = data_source_vo.plugin_info.metadata
 
-            self._create_data_source_rules_by_metadata(metadata, data_source_id, domain_id)
+            self.ds_plugin_mgr.create_data_source_rules_by_metadata(metadata, data_source_id, domain_id)
 
-        # TODO: set template from plugin metadata
+            # TODO: set template from plugin metadata
 
         return data_source_vo
 
@@ -192,6 +192,66 @@ class DataSourceService(BaseService):
 
     @transaction(append_meta={'authorization.scope': 'DOMAIN'})
     @check_required(['data_source_id', 'domain_id'])
+    def sync(self, params):
+        """Sync data with data source
+
+        Args:
+            params (dict): {
+                'data_source_id': 'str',
+                'start': 'datetime',
+                'end': 'datetime',
+                'domain_id': 'str'
+            }
+
+        Returns:
+            None
+        """
+
+        data_source_id = params['data_source_id']
+        domain_id = params['domain_id']
+
+        data_source_vo: DataSource = self.data_source_mgr.get_data_source(data_source_id, domain_id)
+
+        if data_source_vo.state == 'DISABLED':
+            raise ERROR_DATA_SOURCE_STATE(data_source_id=data_source_id)
+
+        if data_source_vo.data_source_type == 'LOCAL':
+            raise ERROR_NOT_ALLOW_SYNC_COMMAND(data_source_id=data_source_id)
+
+        endpoint = self.ds_plugin_mgr.get_data_source_plugin_endpoint_by_vo(data_source_vo)
+        secret_id = data_source_vo.plugin_info.secret_id
+        options = data_source_vo.plugin_info.options
+        schema = data_source_vo.plugin_info.schema
+        secret_data = self._get_secret_data(secret_id, domain_id)
+
+        params['last_synchronized_at'] = data_source_vo.last_synchronized_at
+
+        self.ds_plugin_mgr.initialize(endpoint)
+        tasks, last_changed_at = self.ds_plugin_mgr.get_tasks(options, secret_data, schema, params)
+
+        job_mgr: JobManager = self.locator.get_manager('JobManager')
+        job_task_mgr: JobTaskManager = self.locator.get_manager('JobTaskManager')
+
+        job_vo = job_mgr.create_job(data_source_id, domain_id, len(tasks), last_changed_at)
+
+        for task in tasks:
+            job_task_vo = None
+            task_options = task['task_options']
+            try:
+                job_task_vo = job_task_mgr.create_job_task(job_vo.job_id, data_source_id, domain_id, task_options)
+                job_task_mgr.push_job_task({
+                    'task_options': task_options,
+                    'job_task_id': job_task_vo.job_task_id,
+                    'domain_id': domain_id
+                })
+            except Exception as e:
+                if job_task_vo:
+                    job_task_mgr.change_error_status(job_task_vo, e)
+
+        return job_vo
+
+    @transaction(append_meta={'authorization.scope': 'DOMAIN'})
+    @check_required(['data_source_id', 'domain_id'])
     def verify_plugin(self, params):
         """ Verify data source plugin
 
@@ -273,9 +333,8 @@ class DataSourceService(BaseService):
 
         data_source_vo = self.data_source_mgr.update_data_source_by_vo(params, data_source_vo)
 
-        self._delete_data_source_rules(data_source_id, domain_id)
-
-        self._create_data_source_rules_by_metadata(plugin_metadata, data_source_id, domain_id)
+        self.ds_plugin_mgr.delete_data_source_rules(data_source_id, domain_id)
+        self.ds_plugin_mgr.create_data_source_rules_by_metadata(plugin_metadata, data_source_id, domain_id)
 
         return data_source_vo
 
@@ -370,41 +429,17 @@ class DataSourceService(BaseService):
         secret_data = plugin_info.get('secret_data')
         schema = plugin_info.get('schema')
 
+        if not secret_data:
+            secret_data = self._get_secret_data(secret_id, domain_id)
+
+        self.ds_plugin_mgr.initialize(endpoint)
+        self.ds_plugin_mgr.verify_plugin(options, secret_data, schema)
+
+    def _get_secret_data(self, secret_id, domain_id):
+        secret_mgr: SecretManager = self.locator.get_manager('SecretManager')
         if secret_id:
-            secret_mgr: SecretManager = self.locator.get_manager('SecretManager')
             secret_data = secret_mgr.get_secret_data(secret_id, domain_id)
         else:
-            if not secret_data:
-                secret_data = {}
-                schema = None
+            secret_data = {}
 
-        ds_plugin_mgr: DataSourcePluginManager = self.locator.get_manager('DataSourcePluginManager')
-        ds_plugin_mgr.initialize(endpoint)
-        ds_plugin_mgr.verify_plugin(options, secret_data, schema)
-
-    def _delete_data_source_rules(self, data_source_id, domain_id):
-        data_source_rule_mgr: DataSourceRuleManager = self.locator.get_manager('DataSourceRuleManager')
-        old_data_source_rule_vos = data_source_rule_mgr.filter_data_source_rules(data_source_id=data_source_id,
-                                                                                 domain_id=domain_id)
-
-        old_data_source_rule_vos.delete()
-
-    def _create_data_source_rules_by_metadata(self, metadata, data_source_id, domain_id):
-        data_source_rules = metadata.get('data_source_rules', [])
-
-        if len(data_source_rules) > 0:
-            metadata = {
-                'transaction_id': self.transaction.id,
-                'token': self.transaction.get_meta('token'),
-                'disable_info_log': 'true',
-                'service': 'identity',
-                'resource': 'DataSourceRule',
-                'verb': 'create'
-            }
-
-            data_source_rule_svc: DataSourceRuleService = self.locator.get_service('DataSourceRuleService', metadata)
-
-            for data_source_rule_params in data_source_rules:
-                data_source_rule_params['data_source_id'] = data_source_id
-                data_source_rule_params['domain_id'] = domain_id
-                data_source_rule_svc.create(data_source_rule_params)
+        return secret_data
