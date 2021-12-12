@@ -20,7 +20,7 @@ class DashboardService(BaseService):
         self.dashboard_mgr: DashboardManager = self.locator.get_manager('DashboardManager')
 
     @transaction(append_meta={'authorization.scope': 'DOMAIN'})
-    @check_required(['name', 'domain_id'])
+    @check_required(['name', 'period_type', 'domain_id'])
     @change_date_value(['start', 'end'])
     def create(self, params):
         """Register dashboard
@@ -31,19 +31,33 @@ class DashboardService(BaseService):
                 'default_layout_id': 'str',
                 'custom_layouts': 'list',
                 'default_filter': 'dict',
+                'period_type': 'str',
+                'period': 'dict',
                 'tags': 'dict',
+                'user_id': 'str',
                 'domain_id': 'str'
             }
 
         Returns:
             dashboard_vo (object)
         """
-        params['user_id'] = self.transaction.get_meta('user_id')
+
+        if 'user_id' in params:
+            params['scope'] = 'PRIVATE'
+        else:
+            params['scope'] = 'PUBLIC'
 
         default_layout_id = params.get('default_layout_id')
 
         if default_layout_id:
             params['custom_layouts'] = []
+
+        if params['period_type'] == 'FIXED':
+            if 'period' not in params:
+                raise ERROR_REQUIRED_PARAMETER(key='period')
+
+        else:
+            params['period'] = None
 
         return self.dashboard_mgr.create_dashboard(params)
 
@@ -60,6 +74,8 @@ class DashboardService(BaseService):
                 'default_layout_id': 'str',
                 'custom_layouts': 'list',
                 'default_filter': 'dict',
+                'period_type': 'str',
+                'period': 'dict',
                 'tags': 'dict'
                 'domain_id': 'str'
             }
@@ -71,6 +87,7 @@ class DashboardService(BaseService):
         domain_id = params['domain_id']
         default_layout_id = params.get('default_layout_id')
         custom_layouts = params.get('custom_layouts')
+        period_type = params.get('period_type')
 
         dashboard_vo: Dashboard = self.dashboard_mgr.get_dashboard(dashboard_id, domain_id)
 
@@ -80,26 +97,13 @@ class DashboardService(BaseService):
             if custom_layouts:
                 params['default_layout_id'] = None
 
-        return self.dashboard_mgr.update_dashboard_by_vo(params, dashboard_vo)
+        if period_type:
+            if period_type == 'FIXED':
+                if 'period' not in params:
+                    raise ERROR_REQUIRED_PARAMETER(key='period')
 
-    @transaction(append_meta={'authorization.scope': 'DOMAIN'})
-    @check_required(['dashboard_id', 'scope', 'domain_id'])
-    def change_scope(self, params):
-        """Change dashboard scope
-
-        Args:
-            params (dict): {
-                'dashboard_id': 'str',
-                'scope': 'str',
-                'domain_id': 'str'
-            }
-
-        Returns:
-            dashboard_vo (object)
-        """
-        dashboard_id = params['dashboard_id']
-        domain_id = params['domain_id']
-        dashboard_vo: Dashboard = self.dashboard_mgr.get_dashboard(dashboard_id, domain_id)
+            else:
+                params['period'] = None
 
         return self.dashboard_mgr.update_dashboard_by_vo(params, dashboard_vo)
 

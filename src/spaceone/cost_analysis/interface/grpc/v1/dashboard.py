@@ -19,12 +19,6 @@ class Dashboard(BaseAPI, dashboard_pb2_grpc.DashboardServicer):
         with self.locator.get_service('DashboardService', metadata) as dashboard_service:
             return self.locator.get_info('DashboardInfo', dashboard_service.update(params))
 
-    def change_scope(self, request, context):
-        params, metadata = self.parse_request(request, context)
-
-        with self.locator.get_service('DashboardService', metadata) as dashboard_service:
-            return self.locator.get_info('DashboardInfo', dashboard_service.change_scope(params))
-
     def delete(self, request, context):
         params, metadata = self.parse_request(request, context)
 
