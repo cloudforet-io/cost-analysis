@@ -19,12 +19,6 @@ class CostQuerySet(BaseAPI, cost_query_set_pb2_grpc.CostQuerySetServicer):
         with self.locator.get_service('CostQuerySetService', metadata) as cost_query_set_service:
             return self.locator.get_info('CostQuerySetInfo', cost_query_set_service.update(params))
 
-    def change_scope(self, request, context):
-        params, metadata = self.parse_request(request, context)
-
-        with self.locator.get_service('CostQuerySetService', metadata) as cost_query_set_service:
-            return self.locator.get_info('CostQuerySetInfo', cost_query_set_service.change_scope(params))
-
     def delete(self, request, context):
         params, metadata = self.parse_request(request, context)
 

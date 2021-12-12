@@ -30,6 +30,7 @@ class CostQuerySetService(BaseService):
                 'name': 'str',
                 'options': 'str',
                 'tags': 'dict',
+                'user_id': 'str',
                 'domain_id': 'str'
             }
 
@@ -37,7 +38,12 @@ class CostQuerySetService(BaseService):
             cost_query_set_vo (object)
         """
 
-        params['user_id'] = self.transaction.get_meta('user_id')
+        if 'user_id' in params:
+            # TODO: Check User ID
+
+            params['scope'] = 'PRIVATE'
+        else:
+            params['scope'] = 'PUBLIC'
 
         return self.cost_query_set_mgr.create_cost_query_set(params)
 
@@ -62,27 +68,6 @@ class CostQuerySetService(BaseService):
         cost_query_set_id = params['cost_query_set_id']
         domain_id = params['domain_id']
 
-        cost_query_set_vo: CostQuerySet = self.cost_query_set_mgr.get_cost_query_set(cost_query_set_id, domain_id)
-
-        return self.cost_query_set_mgr.update_cost_query_set_by_vo(params, cost_query_set_vo)
-
-    @transaction(append_meta={'authorization.scope': 'DOMAIN'})
-    @check_required(['cost_query_set_id', 'scope', 'domain_id'])
-    def change_scope(self, params):
-        """Change cost_query_set scope
-
-        Args:
-            params (dict): {
-                'cost_query_set_id': 'str',
-                'scope': 'str',
-                'domain_id': 'str'
-            }
-
-        Returns:
-            cost_query_set_vo (object)
-        """
-        cost_query_set_id = params['cost_query_set_id']
-        domain_id = params['domain_id']
         cost_query_set_vo: CostQuerySet = self.cost_query_set_mgr.get_cost_query_set(cost_query_set_id, domain_id)
 
         return self.cost_query_set_mgr.update_cost_query_set_by_vo(params, cost_query_set_vo)
