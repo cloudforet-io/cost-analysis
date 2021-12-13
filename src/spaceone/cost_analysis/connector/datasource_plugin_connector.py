@@ -43,13 +43,12 @@ class DataSourcePluginConnector(BaseConnector):
 
         self.client.DataSource.verify(params, metadata=self.transaction.get_connection_meta())
 
-    def get_tasks(self, options, secret_data, schema, start=None, end=None, last_synchronized_at=None):
+    def get_tasks(self, options, secret_data, schema, start=None, last_synchronized_at=None):
         params = {
             'options': options,
             'secret_data': secret_data,
             'schema': schema,
             'start': start,
-            'end': end,
             'last_synchronized_at': last_synchronized_at
         }
 
