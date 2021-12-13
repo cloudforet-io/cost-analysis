@@ -83,6 +83,7 @@ class JobService(BaseService):
                 for costs_data in ds_plugin_mgr.get_cost_data(options, secret_data, schema, task_options):
                     for cost_data in costs_data.get('results', []):
                         count += 1
+                        self._check_cost_data(cost_data)
                         self._create_cost_data(cost_data, job_task_vo)
 
                 end_dt = datetime.utcnow()
@@ -104,6 +105,20 @@ class JobService(BaseService):
             secret_data = {}
 
         return secret_data
+
+    @staticmethod
+    def _check_cost_data(cost_data):
+        if 'cost' not in cost_data:
+            _LOGGER.error(f'[_check_cost_data] cost_data: {cost_data}')
+            raise ERROR_REQUIRED_PARAMETER('plugin_cost_data.cost')
+
+        if 'currency' not in cost_data:
+            _LOGGER.error(f'[_check_cost_data] cost_data: {cost_data}')
+            raise ERROR_REQUIRED_PARAMETER('plugin_cost_data.currency')
+
+        if 'billed_at' not in cost_data:
+            _LOGGER.error(f'[_check_cost_data] cost_data: {cost_data}')
+            raise ERROR_REQUIRED_PARAMETER('plugin_cost_data.billed_at')
 
     def _create_cost_data(self, cost_data, job_task_vo):
         cost_data['job_id'] = job_task_vo.job_id
