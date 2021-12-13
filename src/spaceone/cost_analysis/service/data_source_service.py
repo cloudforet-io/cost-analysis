@@ -199,7 +199,6 @@ class DataSourceService(BaseService):
             params (dict): {
                 'data_source_id': 'str',
                 'start': 'datetime',
-                'end': 'datetime',
                 'domain_id': 'str'
             }
 
