@@ -20,7 +20,7 @@ class CostService(BaseService):
         self.cost_mgr: CostManager = self.locator.get_manager('CostManager')
 
     @transaction(append_meta={'authorization.scope': 'PROJECT'})
-    @check_required(['original_cost', 'original_currency', 'project_id', 'data_source_id', 'domain_id'])
+    @check_required(['original_cost', 'original_currency', 'data_source_id', 'domain_id'])
     @change_timestamp_value(['billed_at'], timestamp_format='iso8601')
     def create(self, params):
         """Register cost
