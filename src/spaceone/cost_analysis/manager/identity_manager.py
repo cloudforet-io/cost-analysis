@@ -37,3 +37,10 @@ class IdentityManager(BaseManager):
             request['query'] = query
 
         return self.identity_connector.dispatch('ProjectGroup.list_projects', request)
+
+    def get_service_account(self, service_account_id, domain_id):
+        return self.identity_connector.dispatch('ServiceAccount.get', {'service_account_id': service_account_id,
+                                                                       'domain_id': domain_id})
+
+    def list_service_accounts(self, query, domain_id):
+        return self.identity_connector.dispatch('ServiceAccount.list', {'query': query, 'domain_id': domain_id})
