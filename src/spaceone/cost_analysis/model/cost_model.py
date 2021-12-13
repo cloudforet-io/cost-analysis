@@ -15,7 +15,7 @@ class Cost(MongoModel):
     region_key = StringField(max_length=255, default=None, null=True)
     product = StringField(max_length=255, default=None, null=True)
     account = StringField(max_length=255, default=None, null=True)
-    instance_type = StringField(max_length=255, default=None, null=True)
+    usage_type = StringField(max_length=255, default=None, null=True)
     resource_group = StringField(default=None, null=True)
     resource = StringField(default=None, null=True)
     tags = DictField(default={})
@@ -37,7 +37,7 @@ class Cost(MongoModel):
             'region_code',
             'product',
             'account',
-            'instance_type',
+            'usage_type',
             'resource_group',
             'resource',
             'data_source_id',
@@ -60,7 +60,7 @@ class Cost(MongoModel):
             'region_key',
             'product',
             'account',
-            'instance_type',
+            'usage_type',
             'resource_group',
             'resource',
             'service_account_id',

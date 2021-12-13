@@ -84,6 +84,17 @@ class JobTaskManager(BaseManager):
         job_vo = self.job_mgr.get_job(job_task_vo.job_id, job_task_vo.domain_id)
         self.job_mgr.decrease_remained_tasks(job_vo)
 
+    def change_canceled_status(self, job_task_vo: JobTask):
+        _LOGGER.error(f'[change_canceled_status], job task canceled ({job_task_vo.job_task_id})')
+
+        job_task_vo.update({
+            'status': 'CANCELED',
+            'finished_at': datetime.utcnow()
+        })
+
+        job_vo = self.job_mgr.get_job(job_task_vo.job_id, job_task_vo.domain_id)
+        self.job_mgr.decrease_remained_tasks(job_vo)
+
     def change_error_status(self, job_task_vo: JobTask, e):
         if not isinstance(e, ERROR_BASE):
             e = ERROR_UNKNOWN(message=str(e))
