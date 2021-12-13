@@ -85,7 +85,7 @@ class BudgetUsageManager(BaseManager):
         budget_mgr: BudgetManager = self.locator.get_manager('BudgetManager')
 
         query = self._make_cost_stat_query(budget_vo, True)
-        result = cost_mgr.stat_costs(query)
+        result = cost_mgr.stat_aggregated_costs(query)
         if len(result.get('results', [])) > 0:
             total_usage_usd_cost = result['results'][0].get('usd_cost')
             if total_usage_usd_cost:
@@ -95,7 +95,7 @@ class BudgetUsageManager(BaseManager):
         # Rollback
 
         query = self._make_cost_stat_query(budget_vo)
-        result = cost_mgr.stat_costs(query)
+        result = cost_mgr.stat_aggregated_costs(query)
         for cost_usage_data in result.get('results', []):
             date = cost_usage_data.get('date')
             usd_cost = cost_usage_data.get('usd_cost', 0)

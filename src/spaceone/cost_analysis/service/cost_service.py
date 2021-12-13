@@ -3,6 +3,7 @@ import logging
 from spaceone.core.service import *
 from spaceone.core import utils
 from spaceone.cost_analysis.error import *
+from spaceone.cost_analysis.model.cost_model import AggregatedCost
 from spaceone.cost_analysis.manager.cost_manager import CostManager
 
 _LOGGER = logging.getLogger(__name__)
@@ -153,5 +154,53 @@ class CostService(BaseService):
 
         """
 
+        domain_id = params['domain_id']
         query = params.get('query', {})
-        return self.cost_mgr.stat_costs(query)
+        query_hash = utils.dict_to_hash(query)
+
+        if self._is_raw_cost_target(query):
+            return self.cost_mgr.stat_costs_with_cache(query, domain_id, query_hash)
+        else:
+            _LOGGER.debug('[stat] stat_aggregated_costs')
+            return self.cost_mgr.stat_aggregated_costs_with_cache(query, domain_id, query_hash)
+
+    @staticmethod
+    def _is_raw_cost_target(query):
+        aggregated_cost_fields = AggregatedCost.get_fields()
+        keyword = query.get('keyword')
+        distinct = query.get('distinct')
+        aggregate = query.get('aggregate', [])
+        _filter = query.get('filter', [])
+        _filter_or = query.get('filter_or', [])
+
+        if keyword:
+            _LOGGER.debug('[stat] stat_costs: keyword')
+            return True
+
+        if distinct and distinct not in aggregated_cost_fields:
+            _LOGGER.debug(f'[stat] stat_costs: distinct.{distinct}')
+            return True
+
+        for stage in aggregate:
+            if 'group' in stage:
+                keys = stage['group'].get('keys', []) + stage['group'].get('fields', [])
+
+                for condition in keys:
+                    key = condition.get('key')
+                    if key and key not in aggregated_cost_fields:
+                        _LOGGER.debug(f'[stat] stat_costs: aggregate.group.*.{key}')
+                        return True
+
+        for condition in _filter:
+            key = condition.get('k', condition.get('key'))
+            if key not in aggregated_cost_fields:
+                _LOGGER.debug(f'[stat] stat_costs: filter.{key}')
+                return True
+
+        for condition in _filter_or:
+            key = condition.get('k', condition.get('key'))
+            if key not in aggregated_cost_fields:
+                _LOGGER.debug(f'[stat] stat_costs: filter_or.{key}')
+                return True
+
+        return False
