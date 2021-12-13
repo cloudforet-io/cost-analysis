@@ -15,7 +15,7 @@ def CostInfo(cost_vo: Cost, minimal=False):
         'region_code': cost_vo.region_code,
         'product': cost_vo.product,
         'account': cost_vo.account,
-        'instance_type': cost_vo.instance_type,
+        'usage_type': cost_vo.usage_type,
         'resource_group': cost_vo.resource_group,
         'resource': cost_vo.resource,
         'data_source_id': cost_vo.data_source_id,

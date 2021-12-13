@@ -11,7 +11,7 @@ from spaceone.cost_analysis.model.data_source_rule_model import DataSourceRule
 
 _LOGGER = logging.getLogger(__name__)
 
-_SUPPORTED_CONDITION_KEYS = ['provider', 'region_code', 'product', 'account', 'instance_type', 'resource_group',
+_SUPPORTED_CONDITION_KEYS = ['provider', 'region_code', 'product', 'account', 'usage_type', 'resource_group',
                              'resource', 'tags.<key>', 'additional_info.<key>']
 _SUPPORTED_CONDITION_OPERATORS = ['eq', 'contain', 'not', 'not_contain']
 
