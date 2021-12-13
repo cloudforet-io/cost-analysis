@@ -56,42 +56,43 @@ class JobService(BaseService):
 
         job_id = job_task_vo.job_id
 
-        # TODO: Cancel the task if the job is canceled
+        if self._is_job_canceled(job_id, domain_id):
+            self.job_task_mgr.change_canceled_status(job_task_vo)
+        else:
+            data_source_mgr: DataSourceManager = self.locator.get_manager('DataSourceManager')
+            ds_plugin_mgr: DataSourcePluginManager = self.locator.get_manager('DataSourcePluginManager')
 
-        data_source_mgr: DataSourceManager = self.locator.get_manager('DataSourceManager')
-        ds_plugin_mgr: DataSourcePluginManager = self.locator.get_manager('DataSourcePluginManager')
+            self.job_task_mgr.change_in_progress_status(job_task_vo)
 
-        self.job_task_mgr.change_in_progress_status(job_task_vo)
+            try:
+                data_source_vo: DataSource = data_source_mgr.get_data_source(job_task_vo.data_source_id, domain_id)
+                plugin_info = data_source_vo.plugin_info.to_dict()
 
-        try:
-            data_source_vo: DataSource = data_source_mgr.get_data_source(job_task_vo.data_source_id, domain_id)
-            plugin_info = data_source_vo.plugin_info.to_dict()
+                endpoint, updated_version = ds_plugin_mgr.get_data_source_plugin_endpoint(plugin_info, domain_id)
 
-            endpoint, updated_version = ds_plugin_mgr.get_data_source_plugin_endpoint(plugin_info, domain_id)
+                secret_id = plugin_info.get('secret_id')
+                options = plugin_info.get('options', {})
+                schema = plugin_info.get('schema')
+                secret_data = self._get_secret_data(secret_id, domain_id)
 
-            secret_id = plugin_info.get('secret_id')
-            options = plugin_info.get('options', {})
-            schema = plugin_info.get('schema')
-            secret_data = self._get_secret_data(secret_id, domain_id)
+                ds_plugin_mgr.initialize(endpoint)
+                start_dt = datetime.utcnow()
 
-            ds_plugin_mgr.initialize(endpoint)
-            start_dt = datetime.utcnow()
+                count = 0
+                _LOGGER.debug(f'[get_cost_data] start job ({job_task_id}): {start_dt}')
+                for costs_data in ds_plugin_mgr.get_cost_data(options, secret_data, schema, task_options):
+                    for cost_data in costs_data.get('results', []):
+                        count += 1
+                        self._create_cost_data(cost_data, job_task_vo)
 
-            count = 0
-            _LOGGER.debug(f'[get_cost_data] start job ({job_task_id}): {start_dt}')
-            for costs_data in ds_plugin_mgr.get_cost_data(options, secret_data, schema, task_options):
-                for cost_data in costs_data.get('results', []):
-                    count += 1
-                    self._create_cost_data(cost_data, job_task_vo)
+                end_dt = datetime.utcnow()
+                _LOGGER.debug(f'[get_cost_data] end job ({job_task_id}): {end_dt}')
+                _LOGGER.debug(f'[get_cost_data] total job time ({job_task_id}): {end_dt - start_dt}')
 
-            end_dt = datetime.utcnow()
-            _LOGGER.debug(f'[get_cost_data] end job ({job_task_id}): {end_dt}')
-            _LOGGER.debug(f'[get_cost_data] total job time ({job_task_id}): {end_dt - start_dt}')
+                self.job_task_mgr.change_success_status(job_task_vo, count)
 
-            self.job_task_mgr.change_success_status(job_task_vo, count)
-
-        except Exception as e:
-            self.job_task_mgr.change_error_status(job_task_vo, e)
+            except Exception as e:
+                self.job_task_mgr.change_error_status(job_task_vo, e)
 
         self._close_job(job_id, domain_id)
 
@@ -114,16 +115,28 @@ class JobService(BaseService):
 
         self.cost_mgr.create_cost(cost_data, execute_rollback=False)
 
+    def _is_job_canceled(self, job_id, domain_id):
+        job_vo: Job = self.job_mgr.get_job(job_id, domain_id)
+
+        if job_vo.status == 'CANCELED':
+            return True
+        else:
+            return False
+
     def _close_job(self, job_id, domain_id):
         job_vo: Job = self.job_mgr.get_job(job_id, domain_id)
 
         if job_vo.remained_tasks == 0:
             if job_vo.status == 'IN_PROGRESS':
-                self.job_mgr.change_success_status(job_vo)
                 self._update_last_sync_time(job_vo)
                 self._delete_changed_cost_data(job_vo)
+                self.job_mgr.change_success_status(job_vo)
 
             elif job_vo.status == 'ERROR':
+                self._rollback_cost_data(job_vo)
+                self.job_mgr.update_job_by_vo({'finished_at': datetime.utcnow()}, job_vo)
+
+            elif job_vo.status == 'CANCELED':
                 self._rollback_cost_data(job_vo)
 
     def _rollback_cost_data(self, job_vo: Job):
