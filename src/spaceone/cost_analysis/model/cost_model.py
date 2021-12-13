@@ -50,9 +50,9 @@ class Cost(MongoModel):
             '-created_at'
         ],
         'indexes': [
-            'cost_id',
-            'domain_id',
-            'billed_at'
+            # 'cost_id',
+            # 'domain_id',
+            # 'billed_at'
         ]
     }
 
