@@ -225,7 +225,7 @@ class JobService(BaseService):
 
         _LOGGER.debug(f'[_create_aggregated_cost_data] dump aggregated cost: {job_vo.job_id}')
 
-        response = self.cost_mgr.list_costs(query)
+        response = self.cost_mgr.stat_costs(query)
         results = response.get('results', [])
         for aggregated_cost_data in results:
             aggregated_cost_data['data_source_id'] = job_vo.data_source_id
