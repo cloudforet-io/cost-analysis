@@ -45,15 +45,7 @@ class Cost(MongoModel):
         ],
         'change_query_keys': {
             'user_projects': 'project_id'
-        },
-        'ordering': [
-            '-created_at'
-        ],
-        'indexes': [
-            # 'cost_id',
-            # 'domain_id',
-            # 'billed_at'
-        ]
+        }
     }
 
 
@@ -75,6 +67,9 @@ class AggregatedCost(MongoModel):
 
     meta = {
         'updatable_fields': [],
+        'change_query_keys': {
+            'user_projects': 'project_id'
+        },
         'indexes': [
             'usd_cost',
             'usage_quantity',
@@ -92,3 +87,7 @@ class AggregatedCost(MongoModel):
             'billed_at'
         ]
     }
+
+    @classmethod
+    def get_fields(cls):
+        return list(cls._fields.keys())

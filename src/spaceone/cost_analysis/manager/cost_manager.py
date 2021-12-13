@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime
 
+from spaceone.core import cache
 from spaceone.core.manager import BaseManager
 from spaceone.cost_analysis.model.cost_model import Cost, AggregatedCost
 
@@ -55,6 +56,10 @@ class CostManager(BaseManager):
     def stat_costs(self, query):
         return self.cost_model.stat(**query)
 
+    @cache.cacheable(key='stat-costs:{domain_id}:{query_hash}', expire=3600*6)
+    def stat_costs_with_cache(self, query, domain_id, query_hash):
+        return self.cost_model.stat(**query)
+
     def create_aggregate_cost_data(self, params):
         aggregated_cost_vo: AggregatedCost = self.aggregated_cost_model.create(params)
         return aggregated_cost_vo
@@ -62,5 +67,9 @@ class CostManager(BaseManager):
     def list_aggregated_costs(self, query={}):
         return self.aggregated_cost_model.query(**query)
 
-    def stat_aggregated_costs(self, query={}):
+    def stat_aggregated_costs(self, query):
+        return self.aggregated_cost_model.stat(**query)
+
+    @cache.cacheable(key='stat-aggregated-costs:{domain_id}:{query_hash}', expire=3600*6)
+    def stat_aggregated_costs_with_cache(self, query, domain_id, query_hash):
         return self.aggregated_cost_model.stat(**query)

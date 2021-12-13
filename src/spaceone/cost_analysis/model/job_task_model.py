@@ -15,7 +15,6 @@ class JobTask(MongoModel):
     data_source_id = StringField(max_length=40, required=True)
     domain_id = StringField(max_length=40, required=True)
     created_at = DateTimeField(auto_now_add=True)
-    updated_at = DateTimeField(auto_now=True)
     started_at = DateTimeField(default=None, null=True)
     finished_at = DateTimeField(default=None, null=True)
 
@@ -25,7 +24,6 @@ class JobTask(MongoModel):
             'created_count',
             'error_code',
             'error_message',
-            'updated_at',
             'started_at',
             'finished_at'
         ],

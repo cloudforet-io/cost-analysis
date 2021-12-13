@@ -145,6 +145,7 @@ class JobService(BaseService):
                     self._delete_aggregated_cost_data(job_vo)
                     self._create_aggregated_cost_data(job_vo)
 
+                self._remove_cache(domain_id)
                 self._update_last_sync_time(job_vo)
                 self.job_mgr.change_success_status(job_vo)
 
@@ -154,6 +155,11 @@ class JobService(BaseService):
 
             elif job_vo.status == 'CANCELED':
                 self._rollback_cost_data(job_vo)
+
+    @staticmethod
+    def _remove_cache(domain_id):
+        cache.delete_pattern(f'stat-costs:{domain_id}:*')
+        cache.delete_pattern(f'stat-aggregated-costs:{domain_id}:*')
 
     def _rollback_cost_data(self, job_vo: Job):
         cost_vos = self.cost_mgr.filter_costs(data_source_id=job_vo.data_source_id, domain_id=job_vo.domain_id,
