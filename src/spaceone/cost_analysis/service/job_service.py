@@ -108,10 +108,6 @@ class JobService(BaseService):
 
     @staticmethod
     def _check_cost_data(cost_data):
-        if 'cost' not in cost_data:
-            _LOGGER.error(f'[_check_cost_data] cost_data: {cost_data}')
-            raise ERROR_REQUIRED_PARAMETER(key='plugin_cost_data.cost')
-
         if 'currency' not in cost_data:
             _LOGGER.error(f'[_check_cost_data] cost_data: {cost_data}')
             raise ERROR_REQUIRED_PARAMETER(key='plugin_cost_data.currency')
