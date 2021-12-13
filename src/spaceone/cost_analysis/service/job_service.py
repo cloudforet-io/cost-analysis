@@ -110,15 +110,15 @@ class JobService(BaseService):
     def _check_cost_data(cost_data):
         if 'cost' not in cost_data:
             _LOGGER.error(f'[_check_cost_data] cost_data: {cost_data}')
-            raise ERROR_REQUIRED_PARAMETER('plugin_cost_data.cost')
+            raise ERROR_REQUIRED_PARAMETER(key='plugin_cost_data.cost')
 
         if 'currency' not in cost_data:
             _LOGGER.error(f'[_check_cost_data] cost_data: {cost_data}')
-            raise ERROR_REQUIRED_PARAMETER('plugin_cost_data.currency')
+            raise ERROR_REQUIRED_PARAMETER(key='plugin_cost_data.currency')
 
         if 'billed_at' not in cost_data:
             _LOGGER.error(f'[_check_cost_data] cost_data: {cost_data}')
-            raise ERROR_REQUIRED_PARAMETER('plugin_cost_data.billed_at')
+            raise ERROR_REQUIRED_PARAMETER(key='plugin_cost_data.billed_at')
 
     def _create_cost_data(self, cost_data, job_task_vo):
         cost_data['job_id'] = job_task_vo.job_id
