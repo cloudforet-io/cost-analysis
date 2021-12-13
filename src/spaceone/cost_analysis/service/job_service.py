@@ -128,8 +128,13 @@ class JobService(BaseService):
 
         if job_vo.remained_tasks == 0:
             if job_vo.status == 'IN_PROGRESS':
+                last_changed_at = job_vo.last_changed_at
+                if last_changed_at:
+                    self._delete_changed_cost_data(job_vo)
+                    self._delete_aggregated_cost_data(job_vo)
+                    self._create_aggregated_cost_data(job_vo)
+
                 self._update_last_sync_time(job_vo)
-                self._delete_changed_cost_data(job_vo)
                 self.job_mgr.change_success_status(job_vo)
 
             elif job_vo.status == 'ERROR':
@@ -152,17 +157,68 @@ class JobService(BaseService):
         data_source_mgr.update_data_source_by_vo({'last_synchronized_at': job_vo.created_at}, data_source_vo)
 
     def _delete_changed_cost_data(self, job_vo: Job):
-        last_changed_at = job_vo.last_changed_at
+        query = {
+            'filter': [
+                {'k': 'billed_at', 'v': job_vo.last_changed_at, 'o': 'gte'},
+                {'k': 'data_source_id', 'v': job_vo.data_source_id, 'o': 'eq'},
+                {'k': 'domain_id', 'v': job_vo.domain_id, 'o': 'eq'},
+                {'k': 'job_id', 'v': job_vo.job_id, 'o': 'not'},
+            ]
+        }
 
-        if last_changed_at:
-            query = {
-                'filter': [
-                    {'k': 'billed_at', 'v': last_changed_at, 'o': 'gte'},
-                    {'k': 'data_source_id', 'v': job_vo.data_source_id, 'o': 'eq'},
-                    {'k': 'domain_id', 'v': job_vo.domain_id, 'o': 'eq'},
-                    {'k': 'job_id', 'v': job_vo.job_id, 'o': 'not'},
-                ]
-            }
+        cost_vos, total_count = self.cost_mgr.list_costs(query)
+        cost_vos.delete()
 
-            cost_vos, total_count = self.cost_mgr.list_costs(query)
-            cost_vos.delete()
+    def _delete_aggregated_cost_data(self, job_vo: Job):
+        query = {
+            'filter': [
+                {'k': 'billed_at', 'v': job_vo.last_changed_at, 'o': 'gte'},
+                {'k': 'data_source_id', 'v': job_vo.data_source_id, 'o': 'eq'},
+                {'k': 'domain_id', 'v': job_vo.domain_id, 'o': 'eq'},
+            ]
+        }
+
+        aggregated_cost_vos, total_count = self.cost_mgr.list_aggregated_costs(query)
+        aggregated_cost_vos.delete()
+
+    def _create_aggregated_cost_data(self, job_vo: Job):
+        query = {
+            'aggregate': [
+                {
+                    'group': {
+                        'keys': [
+                            {'key': 'provider', 'name': 'provider'},
+                            {'key': 'region_code', 'name': 'region_code'},
+                            {'key': 'region_key', 'name': 'region_key'},
+                            {'key': 'product', 'name': 'product'},
+                            {'key': 'account', 'name': 'account'},
+                            {'key': 'usage_type', 'name': 'usage_type'},
+                            {'key': 'resource_group', 'name': 'resource_group'},
+                            {'key': 'service_account_id', 'name': 'service_account_id'},
+                            {'key': 'project_id', 'name': 'project_id'},
+                            {'key': 'billed_at', 'name': 'billed_at', 'date_format': '%Y-%m-%d'},
+                        ],
+                        'fields': [
+                            {'key': 'usd_cost', 'name': 'usd_cost', 'operator': 'sum'},
+                            {'key': 'usage_quantity', 'name': 'usage_quantity', 'operator': 'sum'},
+                        ]
+                    }
+                }
+            ],
+            'filter': [
+                {'k': 'data_source_id', 'v': job_vo.data_source_id, 'o': 'eq'},
+                {'k': 'domain_id', 'v': job_vo.domain_id, 'o': 'eq'},
+                {'k': 'job_id', 'v': job_vo.job_id, 'o': 'eq'},
+            ]
+        }
+
+        _LOGGER.debug(f'[_create_aggregated_cost_data] dump aggregated cost: {job_vo.job_id}')
+
+        response = self.cost_mgr.list_costs(query)
+        results = response.get('results', [])
+        for aggregated_cost_data in results:
+            aggregated_cost_data['data_source_id'] = job_vo.data_source_id
+            aggregated_cost_data['domain_id'] = job_vo.domain_id
+            self.cost_mgr.create_aggregate_cost_data(aggregated_cost_data)
+
+        _LOGGER.debug(f'[_create_aggregated_cost_data] finished: {job_vo.job_id} (count = {len(results)})')

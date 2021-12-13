@@ -2,7 +2,7 @@ import logging
 from datetime import datetime
 
 from spaceone.core.manager import BaseManager
-from spaceone.cost_analysis.model.cost_model import Cost
+from spaceone.cost_analysis.model.cost_model import Cost, AggregatedCost
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -12,6 +12,7 @@ class CostManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.cost_model: Cost = self.locator.get_model('Cost')
+        self.aggregated_cost_model: AggregatedCost = self.locator.get_model('AggregatedCost')
 
     def create_cost(self, params, execute_rollback=True):
         def _rollback(cost_vo):
@@ -53,3 +54,13 @@ class CostManager(BaseManager):
 
     def stat_costs(self, query):
         return self.cost_model.stat(**query)
+
+    def create_aggregate_cost_data(self, params):
+        aggregated_cost_vo: AggregatedCost = self.aggregated_cost_model.create(params)
+        return aggregated_cost_vo
+
+    def list_aggregated_costs(self, query={}):
+        return self.aggregated_cost_model.query(**query)
+
+    def stat_aggregated_costs(self, query={}):
+        return self.aggregated_cost_model.stat(**query)

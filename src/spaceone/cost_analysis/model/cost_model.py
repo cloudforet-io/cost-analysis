@@ -51,9 +51,32 @@ class Cost(MongoModel):
         ],
         'indexes': [
             'cost_id',
+            'domain_id',
+            'billed_at'
+        ]
+    }
+
+
+class AggregatedCost(MongoModel):
+    usd_cost = FloatField(required=True)
+    usage_quantity = FloatField(default=0)
+    provider = StringField(max_length=40, default=None, null=True)
+    region_code = StringField(max_length=255, default=None, null=True)
+    region_key = StringField(max_length=255, default=None, null=True)
+    product = StringField(max_length=255, default=None, null=True)
+    account = StringField(max_length=255, default=None, null=True)
+    usage_type = StringField(max_length=255, default=None, null=True)
+    resource_group = StringField(default=None, null=True)
+    service_account_id = StringField(max_length=40, default=None, null=True)
+    project_id = StringField(max_length=40, default=None, null=True)
+    data_source_id = StringField(max_length=40)
+    domain_id = StringField(max_length=40)
+    billed_at = DateField(required=True)
+
+    meta = {
+        'updatable_fields': [],
+        'indexes': [
             'usd_cost',
-            'original_cost',
-            'original_currency',
             'usage_quantity',
             'provider',
             'region_code',
@@ -62,7 +85,6 @@ class Cost(MongoModel):
             'account',
             'usage_type',
             'resource_group',
-            'resource',
             'service_account_id',
             'project_id',
             'data_source_id',
