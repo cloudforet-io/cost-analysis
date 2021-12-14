@@ -7,3 +7,4 @@ from spaceone.cost_analysis.service.budget_usage_service import BudgetUsageServi
 from spaceone.cost_analysis.service.dashboard_service import DashboardService
 from spaceone.cost_analysis.service.cost_query_set_service import CostQuerySetService
 from spaceone.cost_analysis.service.job_service import JobService
+from spaceone.cost_analysis.service.job_task_service import JobTaskService

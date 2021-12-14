@@ -81,6 +81,15 @@ class JobManager(BaseManager):
         })
 
     @staticmethod
+    def change_canceled_status(job_vo: Job):
+        _LOGGER.error(f'[change_canceled_status], job canceled ({job_vo.job_id})')
+
+        return job_vo.update({
+            'status': 'CANCELED',
+            'finished_at': datetime.utcnow()
+        })
+
+    @staticmethod
     def change_timeout_status(job_vo: Job):
         _LOGGER.error(f'[change_timeout_status] job timeout: {job_vo.job_id}')
 
@@ -97,7 +106,7 @@ class JobManager(BaseManager):
         _LOGGER.error(f'[change_error_status] job error ({job_vo.job_id}): {e.message}', exc_info=True)
 
         job_vo.update({
-            'status': 'ERROR',
+            'status': 'FAILURE',
             'error_code': e.error_code,
             'error_message': e.message,
             'finished_at': datetime.utcnow()

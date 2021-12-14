@@ -6,7 +6,7 @@ from spaceone.core.model.mongo_model import MongoModel
 class JobTask(MongoModel):
     job_task_id = StringField(max_length=40, generate_id='job-task', unique=True)
     status = StringField(max_length=20, default='PENDING',
-                         choices=('PENDING', 'CANCELED', 'IN_PROGRESS', 'SUCCESS', 'FAILURE'))
+                         choices=('PENDING', 'IN_PROGRESS', 'SUCCESS', 'FAILURE', 'CANCELED'))
     options = DictField()
     created_count = IntField(default=0)
     error_code = StringField(max_length=254, default=None, null=True)
@@ -26,6 +26,12 @@ class JobTask(MongoModel):
             'error_message',
             'started_at',
             'finished_at'
+        ],
+        'minimal_fields': [
+            'job_task_id',
+            'status',
+            'job_id',
+            'data_source_id'
         ],
         'ordering': [
             '-created_at'
