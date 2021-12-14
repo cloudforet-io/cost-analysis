@@ -2,6 +2,7 @@ import logging
 
 from spaceone.core.service import *
 from spaceone.core import utils
+from spaceone.core import cache
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.model.cost_model import AggregatedCost
 from spaceone.cost_analysis.manager.cost_manager import CostManager
@@ -158,11 +159,16 @@ class CostService(BaseService):
         query = params.get('query', {})
         query_hash = utils.dict_to_hash(query)
 
+        return self._stat_costs(query, query_hash, domain_id)
+
+    @cache.cacheable(key='stat-costs:{domain_id}:{query_hash}', expire=3600 * 6)
+    def _stat_costs(self, query, query_hash, domain_id):
+
         if self._is_raw_cost_target(query):
-            return self.cost_mgr.stat_costs_with_cache(query, domain_id, query_hash)
+            return self.cost_mgr.stat_costs(query)
         else:
             _LOGGER.debug('[stat] stat_aggregated_costs')
-            return self.cost_mgr.stat_aggregated_costs_with_cache(query, domain_id, query_hash)
+            return self.cost_mgr.stat_aggregated_costs(query)
 
     @staticmethod
     def _is_raw_cost_target(query):
@@ -188,7 +194,7 @@ class CostService(BaseService):
                 for condition in keys:
                     key = condition.get('key')
                     if key and key not in aggregated_cost_fields:
-                        _LOGGER.debug(f'[stat] stat_costs: aggregate.group.*.{key}')
+                        _LOGGER.debug(f'[stat] stat_costs: aggregate.group.[keys|fields].{key}')
                         return True
 
         for condition in _filter:

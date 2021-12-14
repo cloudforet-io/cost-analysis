@@ -5,8 +5,8 @@ from typing import List, Union
 from datetime import timedelta, datetime
 
 from spaceone.core.service import *
-from spaceone.core.error import *
 from spaceone.core import cache, config, utils
+from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.model.job_task_model import JobTask
 from spaceone.cost_analysis.model.job_model import Job
 from spaceone.cost_analysis.model.data_source_model import DataSource
@@ -31,6 +31,96 @@ class JobService(BaseService):
         self.cost_mgr: CostManager = self.locator.get_manager('CostManager')
         self.job_mgr: JobManager = self.locator.get_manager('JobManager')
         self.job_task_mgr: JobTaskManager = self.locator.get_manager('JobTaskManager')
+
+    @transaction(append_meta={'authorization.scope': 'DOMAIN'})
+    @check_required(['job_id', 'domain_id'])
+    def cancel(self, params):
+        """ Get job
+
+        Args:
+            params (dict): {
+                'job_id': 'str',
+                'domain_id': 'str'
+            }
+
+        Returns:
+            job_vo (object)
+        """
+
+        job_id = params['job_id']
+        domain_id = params['domain_id']
+
+        job_vo = self.job_mgr.get_job(job_id, domain_id)
+
+        if job_vo.status != 'IN_PROGRESS':
+            raise ERROR_JOB_STATE(job_state=job_vo.status)
+
+        return self.job_mgr.change_canceled_status(job_vo)
+
+    @transaction(append_meta={'authorization.scope': 'DOMAIN'})
+    @check_required(['job_id', 'domain_id'])
+    def get(self, params):
+        """ Get job
+
+        Args:
+            params (dict): {
+                'job_id': 'str',
+                'domain_id': 'str',
+                'only': 'list
+            }
+
+        Returns:
+            job_vo (object)
+        """
+
+        job_id = params['job_id']
+        domain_id = params['domain_id']
+
+        return self.job_mgr.get_job(job_id, domain_id, params.get('only'))
+
+    @transaction(append_meta={'authorization.scope': 'DOMAIN'})
+    @check_required(['domain_id'])
+    @append_query_filter(['job_id', 'status', 'data_source_id', 'domain_id'])
+    @append_keyword_filter(['job_id'])
+    def list(self, params):
+        """ List jobs
+
+        Args:
+            params (dict): {
+                'job_id': 'str',
+                'status': 'str',
+                'data_source_id': 'str',
+                'domain_id': 'str',
+                'query': 'dict (spaceone.api.core.v1.Query)'
+            }
+
+        Returns:
+            job_vos (object)
+            total_count
+        """
+
+        query = params.get('query', {})
+        return self.job_mgr.list_jobs(query)
+
+    @transaction(append_meta={'authorization.scope': 'DOMAIN'})
+    @check_required(['query', 'domain_id'])
+    @append_query_filter(['domain_id'])
+    @append_keyword_filter(['job_id'])
+    def stat(self, params):
+        """
+        Args:
+            params (dict): {
+                'domain_id': 'str',
+                'query': 'dict (spaceone.api.core.v1.StatisticsQuery)'
+            }
+
+        Returns:
+            values (list) : 'list of statistics data'
+
+        """
+
+        query = params.get('query', {})
+        return self.job_mgr.stat_jobs(query)
 
     @transaction
     @check_required(['task_options', 'job_task_id', 'domain_id'])

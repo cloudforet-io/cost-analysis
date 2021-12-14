@@ -10,7 +10,8 @@ class Error(EmbeddedDocument):
 
 class Job(MongoModel):
     job_id = StringField(max_length=40, generate_id='job', unique=True)
-    status = StringField(max_length=20, default='IN_PROGRESS', choices=('IN_PROGRESS', 'SUCCESS', 'ERROR', 'TIMEOUT'))
+    status = StringField(max_length=20, default='IN_PROGRESS', choices=('IN_PROGRESS', 'SUCCESS', 'FAILURE',
+                                                                        'TIMEOUT', 'CANCELED'))
     error_code = StringField(max_length=254, default=None, null=True)
     error_message = StringField(default=None, null=True)
     total_tasks = IntField(default=0)
@@ -31,6 +32,13 @@ class Job(MongoModel):
             'remained_tasks',
             'updated_at',
             'finished_at'
+        ],
+        'minimal_fields': [
+            'job_id',
+            'status',
+            'total_tasks',
+            'remained_tasks',
+            'data_source_id'
         ],
         'ordering': [
             '-created_at'
