@@ -206,10 +206,14 @@ class DataSourceService(BaseService):
             None
         """
 
+        _LOGGER.debug(f'[sync] start')
+
         data_source_id = params['data_source_id']
         domain_id = params['domain_id']
 
         data_source_vo: DataSource = self.data_source_mgr.get_data_source(data_source_id, domain_id)
+
+        _LOGGER.debug(f'[sync] check data source')
 
         if data_source_vo.state == 'DISABLED':
             raise ERROR_DATA_SOURCE_STATE(data_source_id=data_source_id)
@@ -217,14 +221,19 @@ class DataSourceService(BaseService):
         if data_source_vo.data_source_type == 'LOCAL':
             raise ERROR_NOT_ALLOW_SYNC_COMMAND(data_source_id=data_source_id)
 
+        _LOGGER.debug(f'[sync] get_endpoint')
+
         endpoint = self.ds_plugin_mgr.get_data_source_plugin_endpoint_by_vo(data_source_vo)
         secret_id = data_source_vo.plugin_info.secret_id
         options = data_source_vo.plugin_info.options
         schema = data_source_vo.plugin_info.schema
         secret_data = self._get_secret_data(secret_id, domain_id)
 
+        _LOGGER.debug(f'[sync] get_secret_data')
+
         params['last_synchronized_at'] = data_source_vo.last_synchronized_at
 
+        _LOGGER.debug(f'[sync] initialize: {endpoint}')
         self.ds_plugin_mgr.initialize(endpoint)
         tasks, last_changed_at = self.ds_plugin_mgr.get_tasks(options, secret_data, schema, params)
 
