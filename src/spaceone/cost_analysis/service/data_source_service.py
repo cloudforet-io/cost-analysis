@@ -228,10 +228,14 @@ class DataSourceService(BaseService):
         self.ds_plugin_mgr.initialize(endpoint)
         tasks, last_changed_at = self.ds_plugin_mgr.get_tasks(options, secret_data, schema, params)
 
+        _LOGGER.debug(f'[sync] get_tasks: {tasks}')
+
         job_mgr: JobManager = self.locator.get_manager('JobManager')
         job_task_mgr: JobTaskManager = self.locator.get_manager('JobTaskManager')
 
+        _LOGGER.debug('create job')
         job_vo = job_mgr.create_job(data_source_id, domain_id, len(tasks), last_changed_at)
+        _LOGGER.debug('created job')
 
         for task in tasks:
             job_task_vo = None
