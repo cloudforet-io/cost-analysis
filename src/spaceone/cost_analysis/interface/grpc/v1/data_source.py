@@ -59,6 +59,7 @@ class DataSource(BaseAPI, data_source_pb2_grpc.DataSourceServicer):
         params, metadata = self.parse_request(request, context)
 
         with self.locator.get_service('DataSourceService', metadata) as data_source_service:
+            _LOGGER.debug(f'Job Start')
             job_vo = data_source_service.sync(params)
             _LOGGER.debug(f'Job End: {job_vo.job_id}')
             return self.locator.get_info('EmptyInfo')
