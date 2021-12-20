@@ -336,6 +336,9 @@ class DataSourceService(BaseService):
         if updated_version:
             plugin_info['version'] = updated_version
 
+        import time
+        time.sleep(60)
+
         options = plugin_info.get('options', {})
         plugin_metadata = self._init_plugin(endpoint, options)
         plugin_info['metadata'] = plugin_metadata
