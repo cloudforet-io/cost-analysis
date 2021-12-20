@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 
 from spaceone.core.service import *
 from spaceone.core import utils
@@ -6,6 +7,7 @@ from spaceone.core import cache
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.model.cost_model import AggregatedCost
 from spaceone.cost_analysis.manager.cost_manager import CostManager
+from spaceone.cost_analysis.manager.data_source_rule_manager import DataSourceRuleManager
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -51,6 +53,8 @@ class CostService(BaseService):
             cost_vo (object)
         """
 
+        data_source_rule_mgr: DataSourceRuleManager = self.locator.get_manager('DataSourceRuleManager')
+
         # validation check (service_account_id / project_id / data_source_id)
 
         if 'usd_cost' not in params:
@@ -58,6 +62,10 @@ class CostService(BaseService):
             # exchange rate applied to usd cost
 
             params['usd_cost'] = params['original_cost']
+
+        params['billed_at'] = params.get('billed_at') or datetime.utcnow()
+
+        params = self.data_source_rule_mgr.change_cost_data(params)
 
         return self.cost_mgr.create_cost(params)
 

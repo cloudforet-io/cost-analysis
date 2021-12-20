@@ -14,6 +14,7 @@ from spaceone.cost_analysis.manager.cost_manager import CostManager
 from spaceone.cost_analysis.manager.job_manager import JobManager
 from spaceone.cost_analysis.manager.job_task_manager import JobTaskManager
 from spaceone.cost_analysis.manager.data_source_plugin_manager import DataSourcePluginManager
+from spaceone.cost_analysis.manager.data_source_rule_manager import DataSourceRuleManager
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.secret_manager import SecretManager
 
@@ -140,6 +141,7 @@ class JobService(BaseService):
 
         data_source_mgr: DataSourceManager = self.locator.get_manager('DataSourceManager')
         ds_plugin_mgr: DataSourcePluginManager = self.locator.get_manager('DataSourcePluginManager')
+        data_source_rule_mgr: DataSourceRuleManager = self.locator.get_manager('DataSourceRuleManager')
 
         task_options = params['task_options']
         job_task_id = params['job_task_id']
@@ -156,7 +158,7 @@ class JobService(BaseService):
         options = plugin_info.get('options', {})
         schema = plugin_info.get('schema')
         data_type = plugin_info.get('metadata', {}).get('data_type', 'RAW')
-        _LOGGER.debug(f'[get_cost_data] data type: {data_source_vo}')
+        _LOGGER.debug(f'[get_cost_data] data type: {data_type}')
 
         if self._is_job_canceled(job_id, domain_id):
             self.job_task_mgr.change_canceled_status(job_task_vo)
@@ -176,7 +178,10 @@ class JobService(BaseService):
                 for costs_data in ds_plugin_mgr.get_cost_data(options, secret_data, schema, task_options):
                     for cost_data in costs_data.get('results', []):
                         count += 1
+
                         self._check_cost_data(cost_data)
+                        cost_data = data_source_rule_mgr.change_cost_data(cost_data)
+
                         if data_type == 'RAW':
                             self._create_cost_data(cost_data, job_task_vo)
                         else:
@@ -345,7 +350,6 @@ class JobService(BaseService):
                         'keys': [
                             {'key': 'provider', 'name': 'provider'},
                             {'key': 'region_code', 'name': 'region_code'},
-                            {'key': 'region_key', 'name': 'region_key'},
                             {'key': 'product', 'name': 'product'},
                             {'key': 'account', 'name': 'account'},
                             {'key': 'usage_type', 'name': 'usage_type'},
