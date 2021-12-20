@@ -75,7 +75,7 @@ class JobManager(BaseManager):
     def change_success_status(job_vo: Job):
         _LOGGER.error(f'[change_success_status] job success: {job_vo.job_id}')
 
-        job_vo.update({
+        return job_vo.update({
             'status': 'SUCCESS',
             'finished_at': datetime.utcnow()
         })
@@ -93,7 +93,7 @@ class JobManager(BaseManager):
     def change_timeout_status(job_vo: Job):
         _LOGGER.error(f'[change_timeout_status] job timeout: {job_vo.job_id}')
 
-        job_vo.update({
+        return job_vo.update({
             'status': 'TIMEOUT',
             'finished_at': datetime.utcnow()
         })
