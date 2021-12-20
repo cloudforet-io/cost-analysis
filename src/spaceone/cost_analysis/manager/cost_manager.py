@@ -57,6 +57,9 @@ class CostManager(BaseManager):
         aggregated_cost_vo: AggregatedCost = self.aggregated_cost_model.create(params)
         return aggregated_cost_vo
 
+    def filter_aggregated_costs(self, **conditions):
+        return self.aggregated_cost_model.filter(**conditions)
+
     def list_aggregated_costs(self, query={}):
         return self.aggregated_cost_model.query(**query)
 
