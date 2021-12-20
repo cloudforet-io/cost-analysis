@@ -18,6 +18,7 @@ class DataSourceRuleManager(BaseManager):
         self.identity_mgr: IdentityManager = self.locator.get_manager('IdentityManager')
         self._project_info = {}
         self._service_account_info = {}
+        self._data_source_rule_info = {}
 
     def create_data_source_rule(self, params):
         def _rollback(data_source_rule_vo: DataSourceRule):
@@ -191,6 +192,9 @@ class DataSourceRuleManager(BaseManager):
         return False
 
     def _get_data_source_rules(self, data_source_id, domain_id):
+        if data_source_id in self._data_source_rule_info:
+            return self._data_source_rule_info[data_source_id]
+
         query = {
             'filter': [
                 {
@@ -210,4 +214,6 @@ class DataSourceRuleManager(BaseManager):
         }
 
         data_source_rule_vos, total_count = self.list_data_source_rules(query)
+        self._data_source_rule_info[data_source_id] = data_source_rule_vos
+
         return data_source_rule_vos

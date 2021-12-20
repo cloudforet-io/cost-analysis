@@ -1,8 +1,6 @@
 import logging
-from datetime import datetime
 
 from spaceone.core.manager import BaseManager
-from spaceone.cost_analysis.manager.data_source_rule_manager import DataSourceRuleManager
 from spaceone.cost_analysis.model.cost_model import Cost, AggregatedCost
 
 _LOGGER = logging.getLogger(__name__)
@@ -14,7 +12,6 @@ class CostManager(BaseManager):
         super().__init__(*args, **kwargs)
         self.cost_model: Cost = self.locator.get_model('Cost')
         self.aggregated_cost_model: AggregatedCost = self.locator.get_model('AggregatedCost')
-        self.data_source_rule_mgr: DataSourceRuleManager = self.locator.get_manager('DataSourceRuleManager')
 
     def create_cost(self, params, execute_rollback=True):
         def _rollback(cost_vo):
@@ -23,12 +20,8 @@ class CostManager(BaseManager):
                          f'({cost_vo.cost_id})')
             cost_vo.delete()
 
-        params['billed_at'] = params.get('billed_at') or datetime.utcnow()
-
         if 'region_code' in params and 'provider' in params:
             params['region_key'] = f'{params["provider"]}.{params["region_code"]}'
-
-        params = self.data_source_rule_mgr.change_cost_data(params)
 
         cost_vo: Cost = self.cost_model.create(params)
 
@@ -54,6 +47,9 @@ class CostManager(BaseManager):
         return self.cost_model.stat(**query)
 
     def create_aggregate_cost_data(self, params):
+        if 'region_code' in params and 'provider' in params:
+            params['region_key'] = f'{params["provider"]}.{params["region_code"]}'
+
         aggregated_cost_vo: AggregatedCost = self.aggregated_cost_model.create(params)
         return aggregated_cost_vo
 
