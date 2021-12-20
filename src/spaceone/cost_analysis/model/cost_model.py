@@ -62,6 +62,7 @@ class AggregatedCost(MongoModel):
     service_account_id = StringField(max_length=40, default=None, null=True)
     project_id = StringField(max_length=40, default=None, null=True)
     data_source_id = StringField(max_length=40)
+    job_id = StringField(max_length=40, default=None, null=True)
     domain_id = StringField(max_length=40)
     billed_at = DateField(required=True)
 
@@ -83,6 +84,7 @@ class AggregatedCost(MongoModel):
             'service_account_id',
             'project_id',
             'data_source_id',
+            'job_id',
             'domain_id',
             'billed_at'
         ]

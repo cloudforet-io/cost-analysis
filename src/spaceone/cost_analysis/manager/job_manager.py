@@ -73,7 +73,7 @@ class JobManager(BaseManager):
 
     @staticmethod
     def change_success_status(job_vo: Job):
-        _LOGGER.error(f'[change_success_status] job success: {job_vo.job_id}')
+        _LOGGER.info(f'[change_success_status] job success: {job_vo.job_id}')
 
         return job_vo.update({
             'status': 'SUCCESS',

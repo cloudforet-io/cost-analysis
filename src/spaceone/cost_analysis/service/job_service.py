@@ -325,6 +325,7 @@ class JobService(BaseService):
         results = response.get('results', [])
         for aggregated_cost_data in results:
             aggregated_cost_data['data_source_id'] = job_vo.data_source_id
+            aggregated_cost_data['job_id'] = job_vo.job_id
             aggregated_cost_data['domain_id'] = job_vo.domain_id
             self.cost_mgr.create_aggregate_cost_data(aggregated_cost_data)
 
