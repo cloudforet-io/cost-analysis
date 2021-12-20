@@ -3,6 +3,7 @@ import logging
 from spaceone.core.service import *
 from spaceone.core import utils
 from spaceone.cost_analysis.error import *
+from spaceone.cost_analysis.model.job_model import Job
 from spaceone.cost_analysis.manager.repository_manager import RepositoryManager
 from spaceone.cost_analysis.manager.secret_manager import SecretManager
 from spaceone.cost_analysis.manager.data_source_plugin_manager import DataSourcePluginManager
@@ -251,6 +252,7 @@ class DataSourceService(BaseService):
                         job_task_mgr.change_error_status(job_task_vo, e)
         else:
             job_vo = job_mgr.change_success_status(job_vo)
+            self.data_source_mgr.update_data_source_by_vo({'last_synchronized_at': job_vo.created_at}, data_source_vo)
 
         return job_vo
 

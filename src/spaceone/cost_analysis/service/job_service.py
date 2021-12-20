@@ -248,30 +248,46 @@ class JobService(BaseService):
         job_vo: Job = self.job_mgr.get_job(job_id, domain_id)
 
         if job_vo.remained_tasks == 0:
-            if job_vo.status == 'IN_PROGRESS':
-                last_changed_at = job_vo.last_changed_at
-                if last_changed_at:
-                    self._delete_changed_cost_data(job_vo)
-                    self._delete_aggregated_cost_data(job_vo)
-
-                    if data_type == 'RAW':
+            if data_type == 'RAW':
+                if job_vo.status == 'IN_PROGRESS':
+                    last_changed_at = job_vo.last_changed_at
+                    if last_changed_at:
                         self._aggregate_cost_data(job_vo)
+                        self._delete_changed_cost_data(job_vo)
+                        self._delete_aggregated_cost_data(job_vo)
 
-                self._remove_cache(domain_id)
-                self._update_last_sync_time(job_vo)
-                self.job_mgr.change_success_status(job_vo)
+                    self._remove_cache(domain_id)
+                    self._update_last_sync_time(job_vo)
+                    self.job_mgr.change_success_status(job_vo)
 
-            elif job_vo.status == 'ERROR':
-                self._rollback_cost_data(job_vo)
-                self.job_mgr.update_job_by_vo({'finished_at': datetime.utcnow()}, job_vo)
+                elif job_vo.status == 'ERROR':
+                    self._rollback_cost_data(job_vo)
+                    self.job_mgr.update_job_by_vo({'finished_at': datetime.utcnow()}, job_vo)
 
-            elif job_vo.status == 'CANCELED':
-                self._rollback_cost_data(job_vo)
+                elif job_vo.status == 'CANCELED':
+                    self._rollback_cost_data(job_vo)
+
+            else:
+                if job_vo.status == 'IN_PROGRESS':
+                    last_changed_at = job_vo.last_changed_at
+                    if last_changed_at:
+                        self._aggregate_cost_data(job_vo)
+                        self._delete_aggregated_cost_data(job_vo)
+
+                    self._remove_cache(domain_id)
+                    self._update_last_sync_time(job_vo)
+                    self.job_mgr.change_success_status(job_vo)
+
+                elif job_vo.status == 'ERROR':
+                    self._rollback_aggregated_cost_data(job_vo)
+                    self.job_mgr.update_job_by_vo({'finished_at': datetime.utcnow()}, job_vo)
+
+                elif job_vo.status == 'CANCELED':
+                    self._rollback_aggregated_cost_data(job_vo)
 
     @staticmethod
     def _remove_cache(domain_id):
         cache.delete_pattern(f'stat-costs:{domain_id}:*')
-        cache.delete_pattern(f'stat-aggregated-costs:{domain_id}:*')
 
     def _rollback_cost_data(self, job_vo: Job):
         cost_vos = self.cost_mgr.filter_costs(data_source_id=job_vo.data_source_id, domain_id=job_vo.domain_id,
@@ -279,6 +295,14 @@ class JobService(BaseService):
 
         _LOGGER.debug(f'[_close_job] delete cost data created by job: {job_vo.job_id} (count = {cost_vos.count()})')
         cost_vos.delete()
+
+    def _rollback_aggregated_cost_data(self, job_vo: Job):
+        aggregated_cost_vos = self.cost_mgr.filter_aggregated_costs(data_source_id=job_vo.data_source_id,
+                                                                    domain_id=job_vo.domain_id, job_id=job_vo.job_id)
+
+        _LOGGER.debug(f'[_close_job] delete aggregated cost data created by job: {job_vo.job_id} '
+                      f'(count = {aggregated_cost_vos.count()})')
+        aggregated_cost_vos.delete()
 
     def _update_last_sync_time(self, job_vo: Job):
         data_source_mgr: DataSourceManager = self.locator.get_manager('DataSourceManager')
@@ -304,6 +328,7 @@ class JobService(BaseService):
                 {'k': 'billed_at', 'v': job_vo.last_changed_at, 'o': 'gte'},
                 {'k': 'data_source_id', 'v': job_vo.data_source_id, 'o': 'eq'},
                 {'k': 'domain_id', 'v': job_vo.domain_id, 'o': 'eq'},
+                {'k': 'job_id', 'v': job_vo.job_id, 'o': 'not'},
             ]
         }
 
