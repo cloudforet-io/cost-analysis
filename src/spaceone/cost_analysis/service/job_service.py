@@ -180,6 +180,11 @@ class JobService(BaseService):
                         count += 1
 
                         self._check_cost_data(cost_data)
+                        cost_data['job_id'] = job_task_vo.job_id
+                        cost_data['data_source_id'] = job_task_vo.data_source_id
+                        cost_data['domain_id'] = job_task_vo.domain_id
+                        cost_data['billed_at'] = utils.iso8601_to_datetime(cost_data['billed_at'])
+
                         cost_data = data_source_rule_mgr.change_cost_data(cost_data)
 
                         if data_type == 'RAW':
@@ -218,12 +223,8 @@ class JobService(BaseService):
             raise ERROR_REQUIRED_PARAMETER(key='plugin_cost_data.billed_at')
 
     def _create_cost_data(self, cost_data, job_task_vo):
-        cost_data['job_id'] = job_task_vo.job_id
-        cost_data['data_source_id'] = job_task_vo.data_source_id
-        cost_data['domain_id'] = job_task_vo.domain_id
         cost_data['original_currency'] = cost_data.get('currency', 'USD')
         cost_data['original_cost'] = cost_data.get('cost', 0)
-        cost_data['billed_at'] = utils.iso8601_to_datetime(cost_data['billed_at'])
 
         # check original currency
         # exchange rate applied to usd cost
@@ -232,10 +233,6 @@ class JobService(BaseService):
         self.cost_mgr.create_cost(cost_data, execute_rollback=False)
 
     def _create_aggregated_cost_data(self, cost_data, job_task_vo):
-        cost_data['job_id'] = job_task_vo.job_id
-        cost_data['data_source_id'] = job_task_vo.data_source_id
-        cost_data['domain_id'] = job_task_vo.domain_id
-        cost_data['billed_at'] = utils.iso8601_to_datetime(cost_data['billed_at'])
 
         # check original currency
         # exchange rate applied to usd cost
