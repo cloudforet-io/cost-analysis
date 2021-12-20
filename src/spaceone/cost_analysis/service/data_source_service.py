@@ -206,14 +206,10 @@ class DataSourceService(BaseService):
             None
         """
 
-        _LOGGER.debug(f'[sync] start')
-
         data_source_id = params['data_source_id']
         domain_id = params['domain_id']
 
         data_source_vo: DataSource = self.data_source_mgr.get_data_source(data_source_id, domain_id)
-
-        _LOGGER.debug(f'[sync] check data source')
 
         if data_source_vo.state == 'DISABLED':
             raise ERROR_DATA_SOURCE_STATE(data_source_id=data_source_id)
@@ -221,19 +217,14 @@ class DataSourceService(BaseService):
         if data_source_vo.data_source_type == 'LOCAL':
             raise ERROR_NOT_ALLOW_SYNC_COMMAND(data_source_id=data_source_id)
 
-        _LOGGER.debug(f'[sync] get_endpoint')
-
         endpoint = self.ds_plugin_mgr.get_data_source_plugin_endpoint_by_vo(data_source_vo)
         secret_id = data_source_vo.plugin_info.secret_id
         options = data_source_vo.plugin_info.options
         schema = data_source_vo.plugin_info.schema
         secret_data = self._get_secret_data(secret_id, domain_id)
 
-        _LOGGER.debug(f'[sync] get_secret_data')
-
         params['last_synchronized_at'] = data_source_vo.last_synchronized_at
 
-        _LOGGER.debug(f'[sync] initialize: {endpoint}')
         self.ds_plugin_mgr.initialize(endpoint)
         tasks, last_changed_at = self.ds_plugin_mgr.get_tasks(options, secret_data, schema, params)
 
@@ -242,9 +233,7 @@ class DataSourceService(BaseService):
         job_mgr: JobManager = self.locator.get_manager('JobManager')
         job_task_mgr: JobTaskManager = self.locator.get_manager('JobTaskManager')
 
-        _LOGGER.debug('create job')
         job_vo = job_mgr.create_job(data_source_id, domain_id, len(tasks), last_changed_at)
-        _LOGGER.debug('created job')
 
         if len(tasks) > 0:
             for task in tasks:
@@ -335,9 +324,6 @@ class DataSourceService(BaseService):
         endpoint, updated_version = self.ds_plugin_mgr.get_data_source_plugin_endpoint(plugin_info, domain_id)
         if updated_version:
             plugin_info['version'] = updated_version
-
-        import time
-        time.sleep(60)
 
         options = plugin_info.get('options', {})
         plugin_metadata = self._init_plugin(endpoint, options)
