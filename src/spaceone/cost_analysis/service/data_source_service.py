@@ -246,19 +246,22 @@ class DataSourceService(BaseService):
         job_vo = job_mgr.create_job(data_source_id, domain_id, len(tasks), last_changed_at)
         _LOGGER.debug('created job')
 
-        for task in tasks:
-            job_task_vo = None
-            task_options = task['task_options']
-            try:
-                job_task_vo = job_task_mgr.create_job_task(job_vo.job_id, data_source_id, domain_id, task_options)
-                job_task_mgr.push_job_task({
-                    'task_options': task_options,
-                    'job_task_id': job_task_vo.job_task_id,
-                    'domain_id': domain_id
-                })
-            except Exception as e:
-                if job_task_vo:
-                    job_task_mgr.change_error_status(job_task_vo, e)
+        if len(tasks) > 0:
+            for task in tasks:
+                job_task_vo = None
+                task_options = task['task_options']
+                try:
+                    job_task_vo = job_task_mgr.create_job_task(job_vo.job_id, data_source_id, domain_id, task_options)
+                    job_task_mgr.push_job_task({
+                        'task_options': task_options,
+                        'job_task_id': job_task_vo.job_task_id,
+                        'domain_id': domain_id
+                    })
+                except Exception as e:
+                    if job_task_vo:
+                        job_task_mgr.change_error_status(job_task_vo, e)
+        else:
+            job_vo = job_mgr.change_success_status(job_vo)
 
         return job_vo
 
