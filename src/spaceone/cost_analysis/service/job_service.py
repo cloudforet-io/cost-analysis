@@ -156,6 +156,7 @@ class JobService(BaseService):
         options = plugin_info.get('options', {})
         schema = plugin_info.get('schema')
         data_type = plugin_info.get('metadata', {}).get('data_type', 'RAW')
+        _LOGGER.debug(f'[get_cost_data] data type: {data_source_vo}')
 
         if self._is_job_canceled(job_id, domain_id):
             self.job_task_mgr.change_canceled_status(job_task_vo)
@@ -179,7 +180,7 @@ class JobService(BaseService):
                         if data_type == 'RAW':
                             self._create_cost_data(cost_data, job_task_vo)
                         else:
-                            self._create_cost_data(cost_data, job_task_vo)
+                            self._create_aggregated_cost_data(cost_data, job_task_vo)
 
                 end_dt = datetime.utcnow()
                 _LOGGER.debug(f'[get_cost_data] end job ({job_task_id}): {end_dt}')
