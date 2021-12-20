@@ -56,6 +56,7 @@ class DataSource(BaseAPI, data_source_pb2_grpc.DataSourceServicer):
             return self.locator.get_info('EmptyInfo')
 
     def sync(self, request, context):
+        _LOGGER.debug(f'======= Request')
         params, metadata = self.parse_request(request, context)
 
         with self.locator.get_service('DataSourceService', metadata) as data_source_service:
