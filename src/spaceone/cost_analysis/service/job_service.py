@@ -163,6 +163,7 @@ class JobService(BaseService):
                 secret_id = plugin_info.get('secret_id')
                 options = plugin_info.get('options', {})
                 schema = plugin_info.get('schema')
+                data_type = plugin_info.get('metadata', {}).get('data_type', 'RAW')
                 secret_data = self._get_secret_data(secret_id, domain_id)
 
                 ds_plugin_mgr.initialize(endpoint)
@@ -174,7 +175,10 @@ class JobService(BaseService):
                     for cost_data in costs_data.get('results', []):
                         count += 1
                         self._check_cost_data(cost_data)
-                        self._create_cost_data(cost_data, job_task_vo)
+                        if data_type == 'RAW':
+                            self._create_cost_data(cost_data, job_task_vo)
+                        else:
+                            self._create_cost_data(cost_data, job_task_vo)
 
                 end_dt = datetime.utcnow()
                 _LOGGER.debug(f'[get_cost_data] end job ({job_task_id}): {end_dt}')
@@ -185,7 +189,7 @@ class JobService(BaseService):
             except Exception as e:
                 self.job_task_mgr.change_error_status(job_task_vo, e)
 
-        self._close_job(job_id, domain_id)
+        self._close_job(job_id, domain_id, data_type)
 
     def _get_secret_data(self, secret_id, domain_id):
         secret_mgr: SecretManager = self.locator.get_manager('SecretManager')
@@ -214,7 +218,23 @@ class JobService(BaseService):
         cost_data['original_cost'] = cost_data.get('cost', 0)
         cost_data['billed_at'] = utils.iso8601_to_datetime(cost_data['billed_at'])
 
+        # check original currency
+        # exchange rate applied to usd cost
+        cost_data['usd_cost'] = cost_data['original_cost']
+
         self.cost_mgr.create_cost(cost_data, execute_rollback=False)
+
+    def _create_aggregated_cost_data(self, cost_data, job_task_vo):
+        cost_data['job_id'] = job_task_vo.job_id
+        cost_data['data_source_id'] = job_task_vo.data_source_id
+        cost_data['domain_id'] = job_task_vo.domain_id
+        cost_data['billed_at'] = utils.iso8601_to_datetime(cost_data['billed_at'])
+
+        # check original currency
+        # exchange rate applied to usd cost
+        cost_data['usd_cost'] = cost_data.get('cost', 0)
+
+        self.cost_mgr.create_aggregate_cost_data(cost_data)
 
     def _is_job_canceled(self, job_id, domain_id):
         job_vo: Job = self.job_mgr.get_job(job_id, domain_id)
@@ -224,7 +244,7 @@ class JobService(BaseService):
         else:
             return False
 
-    def _close_job(self, job_id, domain_id):
+    def _close_job(self, job_id, domain_id, data_type):
         job_vo: Job = self.job_mgr.get_job(job_id, domain_id)
 
         if job_vo.remained_tasks == 0:
@@ -233,7 +253,9 @@ class JobService(BaseService):
                 if last_changed_at:
                     self._delete_changed_cost_data(job_vo)
                     self._delete_aggregated_cost_data(job_vo)
-                    self._create_aggregated_cost_data(job_vo)
+
+                    if data_type == 'RAW':
+                        self._aggregate_cost_data(job_vo)
 
                 self._remove_cache(domain_id)
                 self._update_last_sync_time(job_vo)
@@ -288,7 +310,7 @@ class JobService(BaseService):
         aggregated_cost_vos, total_count = self.cost_mgr.list_aggregated_costs(query)
         aggregated_cost_vos.delete()
 
-    def _create_aggregated_cost_data(self, job_vo: Job):
+    def _aggregate_cost_data(self, job_vo: Job):
         query = {
             'aggregate': [
                 {
@@ -319,7 +341,7 @@ class JobService(BaseService):
             ]
         }
 
-        _LOGGER.debug(f'[_create_aggregated_cost_data] dump aggregated cost: {job_vo.job_id}')
+        _LOGGER.debug(f'[_aggregate_cost_data] dump aggregated cost: {job_vo.job_id}')
 
         response = self.cost_mgr.stat_costs(query)
         results = response.get('results', [])
@@ -329,4 +351,4 @@ class JobService(BaseService):
             aggregated_cost_data['domain_id'] = job_vo.domain_id
             self.cost_mgr.create_aggregate_cost_data(aggregated_cost_data)
 
-        _LOGGER.debug(f'[_create_aggregated_cost_data] finished: {job_vo.job_id} (count = {len(results)})')
+        _LOGGER.debug(f'[_aggregate_cost_data] finished: {job_vo.job_id} (count = {len(results)})')

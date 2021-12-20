@@ -25,12 +25,6 @@ class CostManager(BaseManager):
 
         params['billed_at'] = params.get('billed_at') or datetime.utcnow()
 
-        if 'usd_cost' not in params:
-            # check original currency
-            # exchange rate applied to usd cost
-
-            params['usd_cost'] = params['original_cost']
-
         if 'region_code' in params and 'provider' in params:
             params['region_key'] = f'{params["provider"]}.{params["region_code"]}'
 
