@@ -53,6 +53,12 @@ class CostService(BaseService):
 
         # validation check (service_account_id / project_id / data_source_id)
 
+        if 'usd_cost' not in params:
+            # check original currency
+            # exchange rate applied to usd cost
+
+            params['usd_cost'] = params['original_cost']
+
         return self.cost_mgr.create_cost(params)
 
     @transaction(append_meta={'authorization.scope': 'PROJECT'})
