@@ -138,6 +138,9 @@ class JobService(BaseService):
             None
         """
 
+        data_source_mgr: DataSourceManager = self.locator.get_manager('DataSourceManager')
+        ds_plugin_mgr: DataSourcePluginManager = self.locator.get_manager('DataSourcePluginManager')
+
         task_options = params['task_options']
         job_task_id = params['job_task_id']
         domain_id = params['domain_id']
@@ -146,24 +149,22 @@ class JobService(BaseService):
 
         job_id = job_task_vo.job_id
 
+        data_source_vo: DataSource = data_source_mgr.get_data_source(job_task_vo.data_source_id, domain_id)
+        plugin_info = data_source_vo.plugin_info.to_dict()
+
+        secret_id = plugin_info.get('secret_id')
+        options = plugin_info.get('options', {})
+        schema = plugin_info.get('schema')
+        data_type = plugin_info.get('metadata', {}).get('data_type', 'RAW')
+
         if self._is_job_canceled(job_id, domain_id):
             self.job_task_mgr.change_canceled_status(job_task_vo)
         else:
-            data_source_mgr: DataSourceManager = self.locator.get_manager('DataSourceManager')
-            ds_plugin_mgr: DataSourcePluginManager = self.locator.get_manager('DataSourcePluginManager')
-
             self.job_task_mgr.change_in_progress_status(job_task_vo)
 
             try:
-                data_source_vo: DataSource = data_source_mgr.get_data_source(job_task_vo.data_source_id, domain_id)
-                plugin_info = data_source_vo.plugin_info.to_dict()
-
                 endpoint, updated_version = ds_plugin_mgr.get_data_source_plugin_endpoint(plugin_info, domain_id)
 
-                secret_id = plugin_info.get('secret_id')
-                options = plugin_info.get('options', {})
-                schema = plugin_info.get('schema')
-                data_type = plugin_info.get('metadata', {}).get('data_type', 'RAW')
                 secret_data = self._get_secret_data(secret_id, domain_id)
 
                 ds_plugin_mgr.initialize(endpoint)
