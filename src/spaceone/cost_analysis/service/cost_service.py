@@ -5,9 +5,7 @@ from spaceone.core.service import *
 from spaceone.core import utils
 from spaceone.core import cache
 from spaceone.cost_analysis.error import *
-from spaceone.cost_analysis.model.cost_model import AggregatedCost
 from spaceone.cost_analysis.manager.cost_manager import CostManager
-from spaceone.cost_analysis.manager.data_source_rule_manager import DataSourceRuleManager
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -53,21 +51,15 @@ class CostService(BaseService):
             cost_vo (object)
         """
 
-        data_source_rule_mgr: DataSourceRuleManager = self.locator.get_manager('DataSourceRuleManager')
-
         # validation check (service_account_id / project_id / data_source_id)
-
-        if 'usd_cost' not in params:
-            # check original currency
-            # exchange rate applied to usd cost
-
-            params['usd_cost'] = params['original_cost']
 
         params['billed_at'] = params.get('billed_at') or datetime.utcnow()
 
-        params = self.data_source_rule_mgr.change_cost_data(params)
+        cost_vo = self.cost_mgr.create_cost(params)
 
-        return self.cost_mgr.create_cost(params)
+        self._remove_cache(params['domain_id'])
+
+        return cost_vo
 
     @transaction(append_meta={'authorization.scope': 'PROJECT'})
     @check_required(['cost_id', 'domain_id'])
@@ -175,52 +167,10 @@ class CostService(BaseService):
 
         return self._stat_costs(query, query_hash, domain_id)
 
-    @cache.cacheable(key='stat-costs:{domain_id}:{query_hash}', expire=3600 * 6)
+    @cache.cacheable(key='stat-costs:{domain_id}:{query_hash}', expire=3600 * 12)
     def _stat_costs(self, query, query_hash, domain_id):
-
-        if self._is_raw_cost_target(query):
-            return self.cost_mgr.stat_costs(query)
-        else:
-            _LOGGER.debug('[stat] stat_aggregated_costs')
-            return self.cost_mgr.stat_aggregated_costs(query)
+        return self.cost_mgr.stat_costs(query)
 
     @staticmethod
-    def _is_raw_cost_target(query):
-        aggregated_cost_fields = AggregatedCost.get_fields()
-        keyword = query.get('keyword')
-        distinct = query.get('distinct')
-        aggregate = query.get('aggregate', [])
-        _filter = query.get('filter', [])
-        _filter_or = query.get('filter_or', [])
-
-        if keyword:
-            _LOGGER.debug('[stat] stat_costs: keyword')
-            return True
-
-        if distinct and distinct not in aggregated_cost_fields:
-            _LOGGER.debug(f'[stat] stat_costs: distinct.{distinct}')
-            return True
-
-        for stage in aggregate:
-            if 'group' in stage:
-                keys = stage['group'].get('keys', []) + stage['group'].get('fields', [])
-
-                for condition in keys:
-                    key = condition.get('key')
-                    if key and key not in aggregated_cost_fields:
-                        _LOGGER.debug(f'[stat] stat_costs: aggregate.group.[keys|fields].{key}')
-                        return True
-
-        for condition in _filter:
-            key = condition.get('k', condition.get('key'))
-            if key not in aggregated_cost_fields:
-                _LOGGER.debug(f'[stat] stat_costs: filter.{key}')
-                return True
-
-        for condition in _filter_or:
-            key = condition.get('k', condition.get('key'))
-            if key not in aggregated_cost_fields:
-                _LOGGER.debug(f'[stat] stat_costs: filter_or.{key}')
-                return True
-
-        return False
+    def _remove_cache(domain_id):
+        cache.delete_pattern(f'stat-costs:{domain_id}:*')
