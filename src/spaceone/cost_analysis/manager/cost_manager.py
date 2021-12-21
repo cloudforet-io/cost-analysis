@@ -1,7 +1,8 @@
 import logging
 
 from spaceone.core.manager import BaseManager
-from spaceone.cost_analysis.model.cost_model import Cost, AggregatedCost
+from spaceone.cost_analysis.model.cost_model import Cost
+from spaceone.cost_analysis.manager.data_source_rule_manager import DataSourceRuleManager
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -11,7 +12,7 @@ class CostManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.cost_model: Cost = self.locator.get_model('Cost')
-        self.aggregated_cost_model: AggregatedCost = self.locator.get_model('AggregatedCost')
+        self.data_source_rule_mgr: DataSourceRuleManager = self.locator.get_manager('DataSourceRuleManager')
 
     def create_cost(self, params, execute_rollback=True):
         def _rollback(cost_vo):
@@ -22,6 +23,14 @@ class CostManager(BaseManager):
 
         if 'region_code' in params and 'provider' in params:
             params['region_key'] = f'{params["provider"]}.{params["region_code"]}'
+
+        if 'usd_cost' not in params:
+            # check original currency
+            # exchange rate applied to usd cost
+
+            params['usd_cost'] = params['original_cost']
+
+        params = self.data_source_rule_mgr.change_cost_data(params)
 
         cost_vo: Cost = self.cost_model.create(params)
 
@@ -45,19 +54,3 @@ class CostManager(BaseManager):
 
     def stat_costs(self, query):
         return self.cost_model.stat(**query)
-
-    def create_aggregate_cost_data(self, params):
-        if 'region_code' in params and 'provider' in params:
-            params['region_key'] = f'{params["provider"]}.{params["region_code"]}'
-
-        aggregated_cost_vo: AggregatedCost = self.aggregated_cost_model.create(params)
-        return aggregated_cost_vo
-
-    def filter_aggregated_costs(self, **conditions):
-        return self.aggregated_cost_model.filter(**conditions)
-
-    def list_aggregated_costs(self, query={}):
-        return self.aggregated_cost_model.query(**query)
-
-    def stat_aggregated_costs(self, query):
-        return self.aggregated_cost_model.stat(**query)
