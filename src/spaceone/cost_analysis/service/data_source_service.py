@@ -317,7 +317,7 @@ class DataSourceService(BaseService):
         if version:
             plugin_info['version'] = version
 
-        if options:
+        if isinstance(options, dict):
             plugin_info['options'] = options
 
         if upgrade_mode:
