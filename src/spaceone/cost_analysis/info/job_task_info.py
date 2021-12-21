@@ -18,6 +18,7 @@ def JobTaskInfo(job_task_vo: JobTask, minimal=False):
     if not minimal:
         info.update({
             'options': change_struct_type(job_task_vo.options),
+            'created_count': job_task_vo.created_count,
             'error_code': job_task_vo.error_code,
             'error_message': job_task_vo.error_message,
             'job_id': job_task_vo.job_id,
