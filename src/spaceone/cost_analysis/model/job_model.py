@@ -8,6 +8,11 @@ class Error(EmbeddedDocument):
     message = StringField(max_length=2048)
 
 
+class Changed(EmbeddedDocument):
+    start = DateTimeField(required=True)
+    end = DateTimeField(default=None, null=True)
+
+
 class Job(MongoModel):
     job_id = StringField(max_length=40, generate_id='job', unique=True)
     status = StringField(max_length=20, default='IN_PROGRESS', choices=('IN_PROGRESS', 'SUCCESS', 'FAILURE',
@@ -18,7 +23,7 @@ class Job(MongoModel):
     remained_tasks = IntField(default=0)
     data_source_id = StringField(max_length=40, required=True)
     domain_id = StringField(max_length=40, required=True)
-    last_changed_at = DateTimeField(default=None, null=True)
+    changed = ListField(EmbeddedDocumentField(Changed), default=[])
     created_at = DateTimeField(auto_now_add=True)
     updated_at = DateTimeField(auto_now=True)
     finished_at = DateTimeField(default=None, null=True)

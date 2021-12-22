@@ -38,7 +38,7 @@ class DataSourcePluginManager(BaseManager):
         last_synchronized_at = utils.datetime_to_iso8601(params.get('last_synchronized_at'))
 
         response = self.dsp_connector.get_tasks(options, secret_data, schema, start, last_synchronized_at)
-        return response.get('tasks', []), response.get('last_changed_at')
+        return response.get('tasks', []), response.get('changed', [])
 
     def get_cost_data(self, options, secret_data, schema, task_options):
         return self.dsp_connector.get_cost_data(options, secret_data, schema, task_options)

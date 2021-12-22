@@ -33,7 +33,7 @@ class JobManager(BaseManager):
         else:
             return False
 
-    def create_job(self, data_source_id, domain_id, total_tasks=None, last_changed_at=None):
+    def create_job(self, data_source_id, domain_id, total_tasks, changed=None):
         data = {
             'data_source_id': data_source_id,
             'domain_id': domain_id
@@ -45,8 +45,15 @@ class JobManager(BaseManager):
                 'remained_tasks': total_tasks
             })
 
-        if last_changed_at:
-            data['last_changed_at'] = utils.iso8601_to_datetime(last_changed_at)
+        if changed:
+            data['changed'] = []
+            for changed_info in changed:
+                start = utils.iso8601_to_datetime(changed_info['start'])
+                end = utils.iso8601_to_datetime(changed_info['end']) if 'end' in changed_info else None
+                data['changed'].append({
+                    'start': start,
+                    'end': end
+                })
 
         _LOGGER.debug(f'[create_job] create job: {data}')
 

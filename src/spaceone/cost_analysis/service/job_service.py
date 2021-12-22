@@ -231,9 +231,8 @@ class JobService(BaseService):
 
         if job_vo.remained_tasks == 0:
             if job_vo.status == 'IN_PROGRESS':
-                last_changed_at = job_vo.last_changed_at
-                if last_changed_at:
-                    self._delete_changed_cost_data(job_vo)
+                for changed_vo in job_vo.changed:
+                    self._delete_changed_cost_data(job_vo, changed_vo.start, changed_vo.end)
 
                 self._remove_cache(domain_id)
                 self._update_last_sync_time(job_vo)
@@ -262,16 +261,20 @@ class JobService(BaseService):
         data_source_vo = data_source_mgr.get_data_source(job_vo.data_source_id, job_vo.domain_id)
         data_source_mgr.update_data_source_by_vo({'last_synchronized_at': job_vo.created_at}, data_source_vo)
 
-    def _delete_changed_cost_data(self, job_vo: Job):
+    def _delete_changed_cost_data(self, job_vo: Job, start, end):
         query = {
             'filter': [
-                {'k': 'billed_at', 'v': job_vo.last_changed_at, 'o': 'gte'},
+                {'k': 'billed_at', 'v': start, 'o': 'gte'},
                 {'k': 'data_source_id', 'v': job_vo.data_source_id, 'o': 'eq'},
                 {'k': 'domain_id', 'v': job_vo.domain_id, 'o': 'eq'},
                 {'k': 'job_id', 'v': job_vo.job_id, 'o': 'not'},
             ]
         }
 
+        if end:
+            query['filter'].append({'k': 'billed_at', 'v': end, 'o': 'lt'})
+
+        _LOGGER.debug(f'[_delete_changed_cost_data] delete query: {query}')
         cost_vos, total_count = self.cost_mgr.list_costs(query)
         cost_vos.delete()
 
