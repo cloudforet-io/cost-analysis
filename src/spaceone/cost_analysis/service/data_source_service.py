@@ -227,14 +227,15 @@ class DataSourceService(BaseService):
         params['last_synchronized_at'] = data_source_vo.last_synchronized_at
 
         self.ds_plugin_mgr.initialize(endpoint)
-        tasks, last_changed_at = self.ds_plugin_mgr.get_tasks(options, secret_data, schema, params)
+        tasks, changed = self.ds_plugin_mgr.get_tasks(options, secret_data, schema, params)
 
         _LOGGER.debug(f'[sync] get_tasks: {tasks}')
+        _LOGGER.debug(f'[sync] changed: {changed}')
 
         job_mgr: JobManager = self.locator.get_manager('JobManager')
         job_task_mgr: JobTaskManager = self.locator.get_manager('JobTaskManager')
 
-        job_vo = job_mgr.create_job(data_source_id, domain_id, len(tasks), last_changed_at)
+        job_vo = job_mgr.create_job(data_source_id, domain_id, len(tasks), changed)
 
         if len(tasks) > 0:
             for task in tasks:
