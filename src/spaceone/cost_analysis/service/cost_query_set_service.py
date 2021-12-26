@@ -19,7 +19,10 @@ class CostQuerySetService(BaseService):
         super().__init__(*args, **kwargs)
         self.cost_query_set_mgr: CostQuerySetManager = self.locator.get_manager('CostQuerySetManager')
 
-    @transaction(append_meta={'authorization.scope': 'DOMAIN'})
+    @transaction(append_meta={
+        'authorization.scope': 'USER',
+        'authorization.require_user_id': True
+    })
     @check_required(['name', 'options', 'domain_id'])
     @change_date_value(['start', 'end'])
     def create(self, params):
@@ -47,7 +50,7 @@ class CostQuerySetService(BaseService):
 
         return self.cost_query_set_mgr.create_cost_query_set(params)
 
-    @transaction(append_meta={'authorization.scope': 'DOMAIN'})
+    @transaction(append_meta={'authorization.scope': 'USER'})
     @check_required(['cost_query_set_id', 'domain_id'])
     @change_date_value(['end'])
     def update(self, params):
@@ -72,7 +75,7 @@ class CostQuerySetService(BaseService):
 
         return self.cost_query_set_mgr.update_cost_query_set_by_vo(params, cost_query_set_vo)
 
-    @transaction(append_meta={'authorization.scope': 'DOMAIN'})
+    @transaction(append_meta={'authorization.scope': 'USER'})
     @check_required(['cost_query_set_id', 'domain_id'])
     def delete(self, params):
         """Deregister cost_query_set
@@ -89,7 +92,7 @@ class CostQuerySetService(BaseService):
 
         self.cost_query_set_mgr.delete_cost_query_set(params['cost_query_set_id'], params['domain_id'])
 
-    @transaction(append_meta={'authorization.scope': 'DOMAIN'})
+    @transaction(append_meta={'authorization.scope': 'USER'})
     @check_required(['cost_query_set_id', 'domain_id'])
     def get(self, params):
         """ Get cost_query_set
@@ -111,10 +114,11 @@ class CostQuerySetService(BaseService):
         return self.cost_query_set_mgr.get_cost_query_set(cost_query_set_id, domain_id, params.get('only'))
 
     @transaction(append_meta={
-        'authorization.scope': 'DOMAIN'
+        'authorization.scope': 'USER',
+        'mutation.append_parameter': {'user_self': {'meta': 'user_id', 'data': [None]}}
     })
     @check_required(['domain_id'])
-    @append_query_filter(['cost_query_set_id', 'name', 'scope', 'user_id', 'domain_id'])
+    @append_query_filter(['cost_query_set_id', 'name', 'scope', 'user_id', 'domain_id', 'user_self'])
     @append_keyword_filter(['cost_query_set_id', 'name'])
     def list(self, params):
         """ List cost_query_sets
@@ -126,7 +130,8 @@ class CostQuerySetService(BaseService):
                 'scope': 'str',
                 'user_id': 'str',
                 'domain_id': 'str',
-                'query': 'dict (spaceone.api.core.v1.Query)'
+                'query': 'dict (spaceone.api.core.v1.Query)',
+                'user_self': 'list', // from meta
             }
 
         Returns:
@@ -138,17 +143,19 @@ class CostQuerySetService(BaseService):
         return self.cost_query_set_mgr.list_cost_query_sets(query)
 
     @transaction(append_meta={
-        'authorization.scope': 'DOMAIN'
+        'authorization.scope': 'USER',
+        'mutation.append_parameter': {'user_self': {'meta': 'user_id', 'data': [None]}}
     })
     @check_required(['query', 'domain_id'])
-    @append_query_filter(['domain_id'])
+    @append_query_filter(['domain_id', 'user_self'])
     @append_keyword_filter(['cost_query_set_id', 'name'])
     def stat(self, params):
         """
         Args:
             params (dict): {
                 'domain_id': 'str',
-                'query': 'dict (spaceone.api.core.v1.StatisticsQuery)'
+                'query': 'dict (spaceone.api.core.v1.StatisticsQuery)',
+                'user_self': 'list', // from meta
             }
 
         Returns:
