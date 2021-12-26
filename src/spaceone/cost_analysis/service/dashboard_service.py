@@ -19,7 +19,10 @@ class DashboardService(BaseService):
         super().__init__(*args, **kwargs)
         self.dashboard_mgr: DashboardManager = self.locator.get_manager('DashboardManager')
 
-    @transaction(append_meta={'authorization.scope': 'DOMAIN'})
+    @transaction(append_meta={
+        'authorization.scope': 'USER',
+        'authorization.require_user_id': True
+    })
     @check_required(['name', 'period_type', 'domain_id'])
     @change_date_value(['start', 'end'])
     def create(self, params):
@@ -61,7 +64,7 @@ class DashboardService(BaseService):
 
         return self.dashboard_mgr.create_dashboard(params)
 
-    @transaction(append_meta={'authorization.scope': 'DOMAIN'})
+    @transaction(append_meta={'authorization.scope': 'USER'})
     @check_required(['dashboard_id', 'domain_id'])
     @change_date_value(['end'])
     def update(self, params):
@@ -107,7 +110,7 @@ class DashboardService(BaseService):
 
         return self.dashboard_mgr.update_dashboard_by_vo(params, dashboard_vo)
 
-    @transaction(append_meta={'authorization.scope': 'DOMAIN'})
+    @transaction(append_meta={'authorization.scope': 'USER'})
     @check_required(['dashboard_id', 'domain_id'])
     def delete(self, params):
         """Deregister dashboard
@@ -124,7 +127,7 @@ class DashboardService(BaseService):
 
         self.dashboard_mgr.delete_dashboard(params['dashboard_id'], params['domain_id'])
 
-    @transaction(append_meta={'authorization.scope': 'DOMAIN'})
+    @transaction(append_meta={'authorization.scope': 'USER'})
     @check_required(['dashboard_id', 'domain_id'])
     def get(self, params):
         """ Get dashboard
@@ -146,10 +149,11 @@ class DashboardService(BaseService):
         return self.dashboard_mgr.get_dashboard(dashboard_id, domain_id, params.get('only'))
 
     @transaction(append_meta={
-        'authorization.scope': 'DOMAIN'
+        'authorization.scope': 'USER',
+        'mutation.append_parameter': {'user_self': {'meta': 'user_id', 'data': [None]}}
     })
     @check_required(['domain_id'])
-    @append_query_filter(['dashboard_id', 'name', 'scope', 'user_id', 'domain_id'])
+    @append_query_filter(['dashboard_id', 'name', 'scope', 'user_id', 'domain_id', 'user_self'])
     @append_keyword_filter(['dashboard_id', 'name'])
     def list(self, params):
         """ List dashboards
@@ -161,7 +165,8 @@ class DashboardService(BaseService):
                 'scope': 'str',
                 'user_id': 'str',
                 'domain_id': 'str',
-                'query': 'dict (spaceone.api.core.v1.Query)'
+                'query': 'dict (spaceone.api.core.v1.Query)',
+                'user_self': 'list', // from meta
             }
 
         Returns:
@@ -173,17 +178,19 @@ class DashboardService(BaseService):
         return self.dashboard_mgr.list_dashboards(query)
 
     @transaction(append_meta={
-        'authorization.scope': 'DOMAIN'
+        'authorization.scope': 'USER',
+        'mutation.append_parameter': {'user_self': {'meta': 'user_id', 'data': [None]}}
     })
     @check_required(['query', 'domain_id'])
-    @append_query_filter(['domain_id'])
+    @append_query_filter(['domain_id', 'user_self'])
     @append_keyword_filter(['dashboard_id', 'name'])
     def stat(self, params):
         """
         Args:
             params (dict): {
                 'domain_id': 'str',
-                'query': 'dict (spaceone.api.core.v1.StatisticsQuery)'
+                'query': 'dict (spaceone.api.core.v1.StatisticsQuery)',
+                'user_self': 'list', // from meta
             }
 
         Returns:
