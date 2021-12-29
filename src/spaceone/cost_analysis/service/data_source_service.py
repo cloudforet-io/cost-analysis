@@ -456,7 +456,8 @@ class DataSourceService(BaseService):
 
         return secret_data
 
-    def _check_duplicate_job(self, data_source_id, domain_id, job_mgr: JobManager):
+    @staticmethod
+    def _check_duplicate_job(data_source_id, domain_id, job_mgr: JobManager):
         job_vos = job_mgr.filter_jobs(data_source_id=data_source_id, domain_id=domain_id, status='IN_PROGRESS')
 
         duplicate_job_time = datetime.utcnow() - timedelta(minutes=10)
