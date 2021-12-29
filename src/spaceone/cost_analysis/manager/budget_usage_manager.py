@@ -68,6 +68,7 @@ class BudgetUsageManager(BaseManager):
         return budget_usage_vo.update(params)
 
     def update_cost_usage(self, budget_vo: Budget):
+        _LOGGER.info(f'[update_cost_usage] Update Budget Usage: {budget_vo.budget_id}')
         cost_mgr: CostManager = self.locator.get_manager('CostManager')
         self._update_total_budget_usage(budget_vo, cost_mgr)
         self._update_monthly_budget_usage(budget_vo, cost_mgr)
