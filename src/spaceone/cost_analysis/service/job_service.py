@@ -177,7 +177,7 @@ class JobService(BaseService):
                     results = costs_data.get('results', [])
                     # Debugging for Performance
                     for no in range(5):
-                        for cost_data in results:
+                        for cost_data in copy.deepcopy(results):
                             count += 1
 
                             self._check_cost_data(cost_data)
