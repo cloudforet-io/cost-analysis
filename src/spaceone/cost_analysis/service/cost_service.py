@@ -167,7 +167,7 @@ class CostService(BaseService):
 
         return self._stat_costs(query, query_hash, domain_id)
 
-    @cache.cacheable(key='stat-costs:{domain_id}:{query_hash}', expire=3600 * 12)
+    @cache.cacheable(key='stat-costs:{domain_id}:{query_hash}', expire=3600 * 24)
     def _stat_costs(self, query, query_hash, domain_id):
         return self.cost_mgr.stat_costs(query)
 

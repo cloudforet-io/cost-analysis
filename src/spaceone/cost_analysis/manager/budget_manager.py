@@ -44,6 +44,9 @@ class BudgetManager(BaseManager):
     def get_budget(self, budget_id, domain_id, only=None):
         return self.budget_model.get(budget_id=budget_id, domain_id=domain_id, only=only)
 
+    def filter_budgets(self, **conditions):
+        return self.budget_model.filter(**conditions)
+
     def list_budgets(self, query={}):
         return self.budget_model.query(**query)
 
