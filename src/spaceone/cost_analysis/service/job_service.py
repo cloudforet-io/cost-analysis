@@ -16,6 +16,8 @@ from spaceone.cost_analysis.manager.job_task_manager import JobTaskManager
 from spaceone.cost_analysis.manager.data_source_plugin_manager import DataSourcePluginManager
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.secret_manager import SecretManager
+from spaceone.cost_analysis.manager.budget_manager import BudgetManager
+from spaceone.cost_analysis.manager.budget_usage_manager import BudgetUsageManager
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -239,6 +241,7 @@ class JobService(BaseService):
 
                 self._remove_cache(domain_id)
                 self._update_last_sync_time(job_vo)
+                self._update_budget_usage(domain_id)
                 self.job_mgr.change_success_status(job_vo)
 
             elif job_vo.status == 'ERROR':
@@ -247,6 +250,13 @@ class JobService(BaseService):
 
             elif job_vo.status == 'CANCELED':
                 self._rollback_cost_data(job_vo)
+
+    def _update_budget_usage(self, domain_id):
+        budget_mgr: BudgetManager = self.locator.get_manager('BudgetManager')
+        budget_usage_mgr: BudgetUsageManager = self.locator.get_manager('BudgetUsageManager')
+        budget_vos = budget_mgr.filter_budgets(domain_id=domain_id)
+        for budget_vo in budget_vos:
+            budget_usage_mgr.update_cost_usage(budget_vo)
 
     @staticmethod
     def _remove_cache(domain_id):
