@@ -175,13 +175,11 @@ class JobService(BaseService):
                 _LOGGER.debug(f'[get_cost_data] start job ({job_task_id}): {start_dt}')
                 for costs_data in ds_plugin_mgr.get_cost_data(options, secret_data, schema, task_options):
                     results = costs_data.get('results', [])
-                    # Debugging for Performance
-                    for no in range(5):
-                        for cost_data in copy.deepcopy(results):
-                            count += 1
+                    for cost_data in results:
+                        count += 1
 
-                            self._check_cost_data(cost_data)
-                            self._create_cost_data(cost_data, job_task_vo)
+                        self._check_cost_data(cost_data)
+                        self._create_cost_data(cost_data, job_task_vo)
 
                     job_task_vo = self.job_task_mgr.update_sync_status(job_task_vo, len(results))
 
