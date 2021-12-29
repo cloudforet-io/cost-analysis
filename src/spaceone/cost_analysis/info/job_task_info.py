@@ -25,6 +25,7 @@ def JobTaskInfo(job_task_vo: JobTask, minimal=False):
             'domain_id': job_task_vo.domain_id,
             'created_at': utils.datetime_to_iso8601(job_task_vo.created_at),
             'started_at': utils.datetime_to_iso8601(job_task_vo.started_at),
+            'updated_at': utils.datetime_to_iso8601(job_task_vo.updated_at),
             'finished_at': utils.datetime_to_iso8601(job_task_vo.finished_at)
         })
 
