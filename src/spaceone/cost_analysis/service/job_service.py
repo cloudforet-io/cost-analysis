@@ -152,7 +152,7 @@ class JobService(BaseService):
         if self._is_job_canceled(job_id, domain_id):
             self.job_task_mgr.change_canceled_status(job_task_vo)
         else:
-            self.job_task_mgr.change_in_progress_status(job_task_vo)
+            job_task_vo = self.job_task_mgr.change_in_progress_status(job_task_vo)
 
             try:
                 data_source_vo: DataSource = data_source_mgr.get_data_source(job_task_vo.data_source_id, domain_id)
@@ -172,11 +172,14 @@ class JobService(BaseService):
                 count = 0
                 _LOGGER.debug(f'[get_cost_data] start job ({job_task_id}): {start_dt}')
                 for costs_data in ds_plugin_mgr.get_cost_data(options, secret_data, schema, task_options):
-                    for cost_data in costs_data.get('results', []):
+                    results = costs_data.get('results', [])
+                    for cost_data in results:
                         count += 1
 
                         self._check_cost_data(cost_data)
                         self._create_cost_data(cost_data, job_task_vo)
+
+                    job_task_vo = self.job_task_mgr.update_sync_status(job_task_vo, len(results))
 
                 end_dt = datetime.utcnow()
                 _LOGGER.debug(f'[get_cost_data] end job ({job_task_id}): {end_dt}')
