@@ -66,9 +66,15 @@ class JobTaskManager(BaseManager):
     def change_in_progress_status(job_task_vo: JobTask):
         _LOGGER.debug(f'[change_in_progress_status] start job task: {job_task_vo.job_task_id}')
 
-        job_task_vo.update({
+        return job_task_vo.update({
             'status': 'IN_PROGRESS',
             'started_at': datetime.utcnow()
+        })
+
+    @staticmethod
+    def update_sync_status(job_task_vo: JobTask, created_count):
+        return job_task_vo.update({
+            'created_count': job_task_vo.created_count + created_count
         })
 
     def change_success_status(self, job_task_vo: JobTask, created_count):
