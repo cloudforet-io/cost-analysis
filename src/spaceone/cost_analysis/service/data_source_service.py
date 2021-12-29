@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timedelta
 
 from spaceone.core.service import *
 from spaceone.core import utils
@@ -207,6 +208,9 @@ class DataSourceService(BaseService):
             None
         """
 
+        job_mgr: JobManager = self.locator.get_manager('JobManager')
+        job_task_mgr: JobTaskManager = self.locator.get_manager('JobTaskManager')
+
         data_source_id = params['data_source_id']
         domain_id = params['domain_id']
 
@@ -217,6 +221,10 @@ class DataSourceService(BaseService):
 
         if data_source_vo.data_source_type == 'LOCAL':
             raise ERROR_NOT_ALLOW_SYNC_COMMAND(data_source_id=data_source_id)
+
+        self._check_duplicate_job(data_source_id, domain_id, job_mgr)
+
+        raise
 
         endpoint = self.ds_plugin_mgr.get_data_source_plugin_endpoint_by_vo(data_source_vo)
         secret_id = data_source_vo.plugin_info.secret_id
@@ -231,9 +239,6 @@ class DataSourceService(BaseService):
 
         _LOGGER.debug(f'[sync] get_tasks: {tasks}')
         _LOGGER.debug(f'[sync] changed: {changed}')
-
-        job_mgr: JobManager = self.locator.get_manager('JobManager')
-        job_task_mgr: JobTaskManager = self.locator.get_manager('JobTaskManager')
 
         job_vo = job_mgr.create_job(data_source_id, domain_id, len(tasks), changed)
 
@@ -450,3 +455,15 @@ class DataSourceService(BaseService):
             secret_data = {}
 
         return secret_data
+
+    @staticmethod
+    def _check_duplicate_job(data_source_id, domain_id, job_mgr: JobManager):
+        job_vos = job_mgr.filter_jobs(data_source_id=data_source_id, domain_id=domain_id, status='IN_PROGRESS')
+
+        duplicate_job_time = datetime.utcnow() - timedelta(minutes=10)
+
+        for job_vo in job_vos:
+            if job_vo.created_at >= duplicate_job_time:
+                raise ERROR_DUPLICATE_JOB(data_source_id=data_source_id)
+            else:
+                job_mgr.change_canceled_status(job_vo)
