@@ -16,6 +16,7 @@ class JobTask(MongoModel):
     domain_id = StringField(max_length=40, required=True)
     created_at = DateTimeField(auto_now_add=True)
     started_at = DateTimeField(default=None, null=True)
+    updated_at = DateTimeField(auto_now=True)
     finished_at = DateTimeField(default=None, null=True)
 
     meta = {
@@ -25,6 +26,7 @@ class JobTask(MongoModel):
             'error_code',
             'error_message',
             'started_at',
+            'updated_at',
             'finished_at'
         ],
         'minimal_fields': [
