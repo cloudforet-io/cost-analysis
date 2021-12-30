@@ -172,6 +172,7 @@ class JobService(BaseService):
                 start_dt = datetime.utcnow()
 
                 count = 0
+                is_canceled = False
                 _LOGGER.debug(f'[get_cost_data] start job ({job_task_id}): {start_dt}')
                 for costs_data in ds_plugin_mgr.get_cost_data(options, secret_data, schema, task_options):
                     results = costs_data.get('results', [])
@@ -181,13 +182,18 @@ class JobService(BaseService):
                         self._check_cost_data(cost_data)
                         self._create_cost_data(cost_data, job_task_vo)
 
-                    job_task_vo = self.job_task_mgr.update_sync_status(job_task_vo, len(results))
+                    if self._is_job_canceled(job_id, domain_id):
+                        self.job_task_mgr.change_canceled_status(job_task_vo)
+                        is_canceled = True
+                    else:
+                        job_task_vo = self.job_task_mgr.update_sync_status(job_task_vo, len(results))
 
-                end_dt = datetime.utcnow()
-                _LOGGER.debug(f'[get_cost_data] end job ({job_task_id}): {end_dt}')
-                _LOGGER.debug(f'[get_cost_data] total job time ({job_task_id}): {end_dt - start_dt}')
+                if is_canceled is False:
+                    end_dt = datetime.utcnow()
+                    _LOGGER.debug(f'[get_cost_data] end job ({job_task_id}): {end_dt}')
+                    _LOGGER.debug(f'[get_cost_data] total job time ({job_task_id}): {end_dt - start_dt}')
 
-                self.job_task_mgr.change_success_status(job_task_vo, count)
+                    self.job_task_mgr.change_success_status(job_task_vo, count)
 
             except Exception as e:
                 self.job_task_mgr.change_error_status(job_task_vo, e)
