@@ -5,7 +5,7 @@ from spaceone.core.model.mongo_model import MongoModel
 
 class PlannedLimit(EmbeddedDocument):
     date = StringField(required=True)
-    limit = FloatField(required=True)
+    limit = FloatField(default=0)
 
 
 class CostTypes(EmbeddedDocument):
