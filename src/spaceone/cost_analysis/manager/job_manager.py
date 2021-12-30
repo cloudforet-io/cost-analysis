@@ -55,9 +55,10 @@ class JobManager(BaseManager):
                     'end': end
                 })
 
-        _LOGGER.debug(f'[create_job] create job: {data}')
+        job_vo = self.job_model.create(data)
 
-        return self.job_model.create(data)
+        _LOGGER.debug(f'[create_job] create job: {job_vo.job_id}')
+        return job_vo
 
     def update_job_by_vo(self, params, job_vo):
         return job_vo.update(params)
