@@ -4,8 +4,8 @@
 enabled: true
 developer: false
 grpc: true
-scheduler: false
-worker: false
+scheduler: true
+worker: true
 rest: false
 name: cost-analysis
 replicas: 1
