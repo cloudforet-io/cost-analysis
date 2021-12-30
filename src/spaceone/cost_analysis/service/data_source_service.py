@@ -224,8 +224,6 @@ class DataSourceService(BaseService):
 
         self._check_duplicate_job(data_source_id, domain_id, job_mgr)
 
-        raise
-
         endpoint = self.ds_plugin_mgr.get_data_source_plugin_endpoint_by_vo(data_source_vo)
         secret_id = data_source_vo.plugin_info.secret_id
         options = data_source_vo.plugin_info.options
