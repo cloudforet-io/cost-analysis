@@ -47,6 +47,9 @@ class DataSourceManager(BaseManager):
     def get_data_source(self, data_source_id, domain_id, only=None):
         return self.data_source_model.get(data_source_id=data_source_id, domain_id=domain_id, only=only)
 
+    def filter_data_sources(self, **conditions):
+        return self.data_source_model.filter(**conditions)
+
     def list_data_sources(self, query={}):
         return self.data_source_model.query(**query)
 

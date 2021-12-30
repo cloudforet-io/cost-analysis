@@ -222,13 +222,13 @@ class DataSourceService(BaseService):
         if data_source_vo.data_source_type == 'LOCAL':
             raise ERROR_NOT_ALLOW_SYNC_COMMAND(data_source_id=data_source_id)
 
-        self._check_duplicate_job(data_source_id, domain_id, job_mgr)
-
         endpoint = self.ds_plugin_mgr.get_data_source_plugin_endpoint_by_vo(data_source_vo)
         secret_id = data_source_vo.plugin_info.secret_id
         options = data_source_vo.plugin_info.options
         schema = data_source_vo.plugin_info.schema
         secret_data = self._get_secret_data(secret_id, domain_id)
+
+        self._check_duplicate_job(data_source_id, domain_id, job_mgr)
 
         params['last_synchronized_at'] = data_source_vo.last_synchronized_at
 
@@ -458,7 +458,7 @@ class DataSourceService(BaseService):
     def _check_duplicate_job(data_source_id, domain_id, job_mgr: JobManager):
         job_vos = job_mgr.filter_jobs(data_source_id=data_source_id, domain_id=domain_id, status='IN_PROGRESS')
 
-        duplicate_job_time = datetime.utcnow() - timedelta(minutes=10)
+        duplicate_job_time = datetime.utcnow() - timedelta(minutes=1)
 
         for job_vo in job_vos:
             if job_vo.created_at >= duplicate_job_time:
