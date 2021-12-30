@@ -33,6 +33,22 @@ class JobService(BaseService):
         self.cost_mgr: CostManager = self.locator.get_manager('CostManager')
         self.job_mgr: JobManager = self.locator.get_manager('JobManager')
         self.job_task_mgr: JobTaskManager = self.locator.get_manager('JobTaskManager')
+        self.data_source_mgr: DataSourceManager = self.locator.get_manager('DataSourceManager')
+        self.ds_plugin_mgr: DataSourcePluginManager = self.locator.get_manager('DataSourcePluginManager')
+
+    @transaction(append_meta={'authorization.scope': 'SYSTEM'})
+    def create_jobs_by_data_source(self, params):
+        """ Create jobs by domain
+
+        Args:
+            params (dict): {}
+
+        Returns:
+            None
+        """
+
+        for data_source_vo in self._get_all_data_sources():
+            self._sync_data_source(data_source_vo)
 
     @transaction(append_meta={'authorization.scope': 'DOMAIN'})
     @check_required(['job_id', 'domain_id'])
@@ -140,9 +156,6 @@ class JobService(BaseService):
             None
         """
 
-        data_source_mgr: DataSourceManager = self.locator.get_manager('DataSourceManager')
-        ds_plugin_mgr: DataSourcePluginManager = self.locator.get_manager('DataSourcePluginManager')
-
         task_options = params['task_options']
         job_task_id = params['job_task_id']
         domain_id = params['domain_id']
@@ -157,24 +170,24 @@ class JobService(BaseService):
             job_task_vo = self.job_task_mgr.change_in_progress_status(job_task_vo)
 
             try:
-                data_source_vo: DataSource = data_source_mgr.get_data_source(job_task_vo.data_source_id, domain_id)
+                data_source_vo: DataSource = self.data_source_mgr.get_data_source(job_task_vo.data_source_id, domain_id)
                 plugin_info = data_source_vo.plugin_info.to_dict()
 
                 secret_id = plugin_info.get('secret_id')
                 options = plugin_info.get('options', {})
                 schema = plugin_info.get('schema')
 
-                endpoint, updated_version = ds_plugin_mgr.get_data_source_plugin_endpoint(plugin_info, domain_id)
+                endpoint, updated_version = self.ds_plugin_mgr.get_data_source_plugin_endpoint(plugin_info, domain_id)
 
                 secret_data = self._get_secret_data(secret_id, domain_id)
 
-                ds_plugin_mgr.initialize(endpoint)
+                self.ds_plugin_mgr.initialize(endpoint)
                 start_dt = datetime.utcnow()
 
                 count = 0
                 is_canceled = False
                 _LOGGER.debug(f'[get_cost_data] start job ({job_task_id}): {start_dt}')
-                for costs_data in ds_plugin_mgr.get_cost_data(options, secret_data, schema, task_options):
+                for costs_data in self.ds_plugin_mgr.get_cost_data(options, secret_data, schema, task_options):
                     results = costs_data.get('results', [])
                     for cost_data in results:
                         count += 1
@@ -185,10 +198,11 @@ class JobService(BaseService):
                     if self._is_job_canceled(job_id, domain_id):
                         self.job_task_mgr.change_canceled_status(job_task_vo)
                         is_canceled = True
+                        break
                     else:
                         job_task_vo = self.job_task_mgr.update_sync_status(job_task_vo, len(results))
 
-                if is_canceled is False:
+                if not is_canceled:
                     end_dt = datetime.utcnow()
                     _LOGGER.debug(f'[get_cost_data] end job ({job_task_id}): {end_dt}')
                     _LOGGER.debug(f'[get_cost_data] total job time ({job_task_id}): {end_dt - start_dt}')
@@ -276,9 +290,9 @@ class JobService(BaseService):
         cost_vos.delete()
 
     def _update_last_sync_time(self, job_vo: Job):
-        data_source_mgr: DataSourceManager = self.locator.get_manager('DataSourceManager')
-        data_source_vo = data_source_mgr.get_data_source(job_vo.data_source_id, job_vo.domain_id)
-        data_source_mgr.update_data_source_by_vo({'last_synchronized_at': job_vo.created_at}, data_source_vo)
+        self.data_source_mgr: DataSourceManager = self.locator.get_manager('DataSourceManager')
+        data_source_vo = self.data_source_mgr.get_data_source(job_vo.data_source_id, job_vo.domain_id)
+        self.data_source_mgr.update_data_source_by_vo({'last_synchronized_at': job_vo.created_at}, data_source_vo)
 
     def _delete_changed_cost_data(self, job_vo: Job, start, end):
         query = {
@@ -338,3 +352,72 @@ class JobService(BaseService):
             # self.cost_mgr.create_aggregate_cost_data(aggregated_cost_data)
 
         _LOGGER.debug(f'[_aggregate_cost_data] finished: {job_vo.job_id} (count = {len(results)})')
+
+    def _sync_data_source(self, data_source_vo: DataSource):
+        data_source_id = data_source_vo.data_source_id
+        domain_id = data_source_vo.domain_id
+        endpoint = self.ds_plugin_mgr.get_data_source_plugin_endpoint_by_vo(data_source_vo)
+        secret_id = data_source_vo.plugin_info.secret_id
+        options = data_source_vo.plugin_info.options
+        schema = data_source_vo.plugin_info.schema
+        secret_data = self._get_secret_data(secret_id, domain_id)
+
+        _LOGGER.debug(f'[create_jobs_by_data_source] sync data source: {data_source_id}')
+
+        params = {'last_synchronized_at': data_source_vo.last_synchronized_at}
+
+        self.ds_plugin_mgr.initialize(endpoint)
+        tasks, changed = self.ds_plugin_mgr.get_tasks(options, secret_data, schema, params)
+
+        _LOGGER.debug(f'[sync] get_tasks: {tasks}')
+        _LOGGER.debug(f'[sync] changed: {changed}')
+
+        job_vo = self.job_mgr.create_job(data_source_id, domain_id, len(tasks), changed)
+
+        if self._check_duplicate_job(data_source_id, domain_id, job_vo):
+            self.job_mgr.change_error_status(job_vo, ERROR_DUPLICATE_JOB(data_source_id=data_source_id))
+        else:
+            if len(tasks) > 0:
+                for task in tasks:
+                    job_task_vo = None
+                    task_options = task['task_options']
+                    try:
+                        job_task_vo = self.job_task_mgr.create_job_task(job_vo.job_id, data_source_id, domain_id,
+                                                                        task_options)
+                        self.job_task_mgr.push_job_task({
+                            'task_options': task_options,
+                            'job_task_id': job_task_vo.job_task_id,
+                            'domain_id': domain_id
+                        })
+                    except Exception as e:
+                        if job_task_vo:
+                            self.job_task_mgr.change_error_status(job_task_vo, e)
+            else:
+                job_vo = self.job_mgr.change_success_status(job_vo)
+                self.data_source_mgr.update_data_source_by_vo({'last_synchronized_at': job_vo.created_at},
+                                                              data_source_vo)
+
+    def _get_all_data_sources(self):
+        return self.data_source_mgr.filter_data_sources(state='ENABLED', data_source_type='EXTERNAL')
+
+    def _check_duplicate_job(self, data_source_id, domain_id, this_job_vo: Job):
+        query = {
+            'filter': [
+                {'k': 'data_source_id', 'v': data_source_id, 'o': 'eq'},
+                {'k': 'domain_id', 'v': domain_id, 'o': 'eq'},
+                {'k': 'status', 'v': 'IN_PROGRESS', 'o': 'eq'},
+                {'k': 'job_id', 'v': this_job_vo.job_id, 'o': 'not'},
+            ]
+        }
+
+        job_vos, total_count = self.job_mgr.list_jobs(query)
+
+        duplicate_job_time = datetime.utcnow() - timedelta(minutes=10)
+
+        for job_vo in job_vos:
+            if job_vo.created_at >= duplicate_job_time:
+                return True
+            else:
+                self.job_mgr.change_canceled_status(job_vo)
+
+        return False
