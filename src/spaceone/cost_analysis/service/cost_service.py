@@ -145,7 +145,7 @@ class CostService(BaseService):
         'mutation.append_parameter': {'user_projects': 'authorization.projects'}
     })
     @check_required(['query', 'domain_id'])
-    @append_query_filter(['domain_id'])
+    @append_query_filter(['domain_id', 'user_projects'])
     @append_keyword_filter(['cost_id'])
     def stat(self, params):
         """
