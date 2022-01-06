@@ -3,7 +3,6 @@ from datetime import datetime
 
 from spaceone.core.service import *
 from spaceone.core import utils
-from spaceone.core import cache
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.manager.cost_manager import CostManager
 
@@ -57,7 +56,7 @@ class CostService(BaseService):
 
         cost_vo = self.cost_mgr.create_cost(params)
 
-        self._remove_cache(params['domain_id'])
+        self.cost_mgr.remove_stat_cache(params['domain_id'])
 
         return cost_vo
 
@@ -175,18 +174,15 @@ class CostService(BaseService):
         start = params.get('start')
         end = params.get('end')
         query = params.get('query', {})
-        query = self._add_date_range_filter(query, start, end)
         query_hash = utils.dict_to_hash(query)
 
-        return self.stat_costs_with_cache(query, query_hash, domain_id)
+        # Save query for improve performance
+        self.cost_mgr.create_cost_query_history(query, query_hash, start, end, domain_id)
 
-    @cache.cacheable(key='stat-costs:{domain_id}:{query_hash}', expire=3600 * 24)
-    def stat_costs_with_cache(self, query, query_hash, domain_id):
-        return self.cost_mgr.stat_costs(query)
+        query = self._add_date_range_filter(query, start, end)
+        query_hash_with_date_range = utils.dict_to_hash(query)
 
-    @staticmethod
-    def _remove_cache(domain_id):
-        cache.delete_pattern(f'stat-costs:{domain_id}:*')
+        return self.cost_mgr.stat_costs_with_cache(query, query_hash_with_date_range, domain_id)
 
     @staticmethod
     def _add_date_range_filter(query, start, end):

@@ -67,3 +67,24 @@ class Cost(MongoModel):
             },
         ]
     }
+
+
+class CostQueryHistory(MongoModel):
+    query_hash = StringField(max_length=255)
+    query = DictField(default={})
+    domain_id = StringField(max_length=40)
+    start = DateTimeField(default=None, null=True)
+    end = DateTimeField(default=None, null=True)
+    updated_at = DateTimeField(auto_now=True)
+
+    meta = {
+        'updatable_fields': [
+            'start',
+            'end',
+            'updated_at'
+        ],
+        'indexes': [
+            'query_hash',
+            'domain_id',
+        ]
+    }
