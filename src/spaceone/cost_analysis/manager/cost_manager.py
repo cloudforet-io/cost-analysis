@@ -1,7 +1,9 @@
 import logging
+import copy
 
+from spaceone.core import cache
 from spaceone.core.manager import BaseManager
-from spaceone.cost_analysis.model.cost_model import Cost
+from spaceone.cost_analysis.model.cost_model import Cost, CostQueryHistory
 from spaceone.cost_analysis.manager.data_source_rule_manager import DataSourceRuleManager
 
 _LOGGER = logging.getLogger(__name__)
@@ -54,3 +56,36 @@ class CostManager(BaseManager):
 
     def stat_costs(self, query):
         return self.cost_model.stat(**query)
+
+    def filter_cost_query_history(self, **conditions):
+        history_model: CostQueryHistory = self.locator.get_model('CostQueryHistory')
+        return history_model.filter(**conditions)
+
+    @cache.cacheable(key='stat-costs-history:{domain_id}:{query_hash}', expire=600)
+    def create_cost_query_history(self, query, query_hash, start, end, domain_id):
+        history_model: CostQueryHistory = self.locator.get_model('CostQueryHistory')
+
+        history_vos = history_model.filter(query_hash=query_hash, domain_id=domain_id)
+        if history_vos.count() == 0:
+            history_model.create({
+                'query_hash': query_hash,
+                'query': copy.deepcopy(query),
+                'start': start,
+                'end': end,
+                'domain_id': domain_id
+            })
+        else:
+            history_vos[0].update({
+                'start': start,
+                'end': end
+            })
+
+        return True
+
+    @cache.cacheable(key='stat-costs:{domain_id}:{query_hash}', expire=3600 * 24)
+    def stat_costs_with_cache(self, query, query_hash, domain_id):
+        return self.stat_costs(query)
+
+    @staticmethod
+    def remove_stat_cache(domain_id):
+        cache.delete_pattern(f'stat-costs:{domain_id}:*')

@@ -1,15 +1,18 @@
 import copy
+import datetime
 import logging
 import time
 from typing import List, Union
+from dateutil import relativedelta
 from datetime import timedelta, datetime
 
 from spaceone.core.service import *
-from spaceone.core import cache, config, utils
+from spaceone.core import utils
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.model.job_task_model import JobTask
 from spaceone.cost_analysis.model.job_model import Job
 from spaceone.cost_analysis.model.data_source_model import DataSource
+from spaceone.cost_analysis.model.cost_model import CostQueryHistory
 from spaceone.cost_analysis.manager.cost_manager import CostManager
 from spaceone.cost_analysis.manager.job_manager import JobManager
 from spaceone.cost_analysis.manager.job_task_manager import JobTaskManager
@@ -140,6 +143,27 @@ class JobService(BaseService):
         query = params.get('query', {})
         return self.job_mgr.stat_jobs(query)
 
+    @transaction(append_meta={'authorization.scope': 'SYSTEM'})
+    def load_cache(self, params):
+        """ Load query results into cache
+
+        Args:
+            params (dict): {
+                'query_hash': 'str',
+                'domain_id': 'str'
+            }
+
+        Returns:
+            None
+        """
+
+        query_hash = params['query_hash']
+        domain_id = params['domain_id']
+
+        history_vos = self.cost_mgr.filter_cost_query_history(query_hash=query_hash, domain_id=domain_id)
+        for history_vo in history_vos:
+            self._create_cache_by_history(history_vo, domain_id)
+
     @transaction
     @check_required(['task_options', 'job_task_id', 'domain_id'])
     def get_cost_data(self, params):
@@ -259,10 +283,11 @@ class JobService(BaseService):
                 for changed_vo in job_vo.changed:
                     self._delete_changed_cost_data(job_vo, changed_vo.start, changed_vo.end)
 
-                self._remove_cache(domain_id)
+                self.cost_mgr.remove_stat_cache(domain_id)
                 self._update_last_sync_time(job_vo)
                 self._update_budget_usage(domain_id)
                 self.job_mgr.change_success_status(job_vo)
+                self._preload_cost_stat_queries(domain_id)
 
             elif job_vo.status == 'ERROR':
                 self._rollback_cost_data(job_vo)
@@ -277,10 +302,6 @@ class JobService(BaseService):
         budget_vos = budget_mgr.filter_budgets(domain_id=domain_id)
         for budget_vo in budget_vos:
             budget_usage_mgr.update_cost_usage(budget_vo)
-
-    @staticmethod
-    def _remove_cache(domain_id):
-        cache.delete_pattern(f'stat-costs:{domain_id}:*')
 
     def _rollback_cost_data(self, job_vo: Job):
         cost_vos = self.cost_mgr.filter_costs(data_source_id=job_vo.data_source_id, domain_id=job_vo.domain_id,
@@ -421,3 +442,74 @@ class JobService(BaseService):
                 self.job_mgr.change_canceled_status(job_vo)
 
         return False
+
+    def _preload_cost_stat_queries(self, domain_id):
+        cost_mgr: CostManager = self.locator.get_manager('CostManager')
+        history_vos: List[CostQueryHistory] = cost_mgr.filter_cost_query_history(domain_id=domain_id)
+        for history_vo in history_vos:
+            self.job_task_mgr.push_preload_cache_task({'query_hash': history_vo.query_hash, 'domain_id': domain_id})
+            self._create_cache_by_cost_query_history(history_vo, domain_id)
+            _LOGGER.debug(f'[_preload_cost_stat_queries] cache creation complete: {history_vo.query_hash}')
+
+    def _create_cache_by_history(self, history_vo: CostQueryHistory, domain_id):
+        query = history_vo.query
+        original_start = history_vo.start
+        original_end = history_vo.end
+        this_month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        this_month_end = this_month_start + relativedelta.relativedelta(months=1)
+
+        # Original Date Range
+        self._create_cache(copy.deepcopy(query), original_start, original_end, domain_id)
+
+        # This month
+        self._create_cache(copy.deepcopy(query), this_month_start, this_month_end, domain_id)
+
+        # Last Month
+        start = this_month_start - relativedelta.relativedelta(months=1)
+        self._create_cache(copy.deepcopy(query), start, this_month_start, domain_id)
+
+        # 2 Month Ago
+        start = this_month_start - relativedelta.relativedelta(months=2)
+        end = this_month_start - relativedelta.relativedelta(months=1)
+        self._create_cache(copy.deepcopy(query), start, end, domain_id)
+
+        # Last 3 Month
+        start = this_month_start - relativedelta.relativedelta(months=2)
+        self._create_cache(copy.deepcopy(query), start, this_month_end, domain_id)
+
+        # Last 4 Month
+        start = this_month_start - relativedelta.relativedelta(months=3)
+        self._create_cache(copy.deepcopy(query), start, this_month_end, domain_id)
+
+        # Last 6 Month
+        start = this_month_start - relativedelta.relativedelta(months=5)
+        self._create_cache(copy.deepcopy(query), start, this_month_end, domain_id)
+
+        # Last 12 Month
+        start = this_month_start - relativedelta.relativedelta(months=11)
+        self._create_cache(copy.deepcopy(query), start, this_month_end, domain_id)
+
+    def _create_cache(self, query, start, end, domain_id):
+        query = self._add_date_range_filter(query, start, end)
+        query_hash = utils.dict_to_hash(query)
+        self.cost_mgr.stat_costs_with_cache(query, query_hash, domain_id)
+
+    @staticmethod
+    def _add_date_range_filter(query, start, end):
+        query['filter'] = query.get('filter') or []
+
+        if start:
+            query['filter'].append({
+                'k': 'billed_at',
+                'v': utils.datetime_to_iso8601(start),
+                'o': 'datetime_gte'
+            })
+
+        if end:
+            query['filter'].append({
+                'k': 'billed_at',
+                'v': utils.datetime_to_iso8601(end),
+                'o': 'datetime_lt'
+            })
+
+        return query
