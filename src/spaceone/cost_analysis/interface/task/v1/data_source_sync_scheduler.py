@@ -47,9 +47,9 @@ class DataSourceSyncScheduler(HourlyScheduler):
                 }]
             }
 
-            print(f'{utils.datetime_to_iso8601(datetime.utcnow())} [INFO] [create_task] create_jobs_by_data_source => START')
+            print(f'{utils.datetime_to_iso8601(datetime.now())} [INFO] [create_task] create_jobs_by_data_source => START')
             return [stp]
         else:
-            print(f'{utils.datetime_to_iso8601(datetime.utcnow())} [INFO] [create_task] create_jobs_by_data_source => SKIP')
-            print(f'{utils.datetime_to_iso8601(datetime.utcnow())} [INFO] [create_task] data_source_sync_time: {self._data_source_sync_hour} hour (UTC)')
+            print(f'{utils.datetime_to_iso8601(datetime.now())} [INFO] [create_task] create_jobs_by_data_source => SKIP')
+            print(f'{utils.datetime_to_iso8601(datetime.now())} [INFO] [create_task] data_source_sync_time: {self._data_source_sync_hour} hour (UTC)')
             return []
