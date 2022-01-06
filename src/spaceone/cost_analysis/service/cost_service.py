@@ -104,6 +104,7 @@ class CostService(BaseService):
         'mutation.append_parameter': {'user_projects': 'authorization.projects'}
     })
     @check_required(['domain_id'])
+    @change_timestamp_value(['start', 'end'], timestamp_format='iso8601')
     @append_query_filter(['cost_id', 'cost_key', 'original_currency', 'provider', 'region_code', 'region_key',
                           'product', 'account', 'usage_type', 'resource_group', 'resource', 'service_account_id',
                           'project_id', 'data_source_id', 'domain_id', 'user_projects'])
@@ -124,6 +125,8 @@ class CostService(BaseService):
                 'usage_type': 'str',
                 'resource_group': 'str',
                 'resource': 'str',
+                'start': 'datetime',
+                'end': 'datetime',
                 'service_account_id': 'str',
                 'project_id': 'str',
                 'data_source_id': 'str'
@@ -137,7 +140,11 @@ class CostService(BaseService):
             total_count
         """
 
+        start = params.get('start')
+        end = params.get('end')
         query = params.get('query', {})
+        query = self._add_date_range_filter(query, start, end)
+
         return self.cost_mgr.list_costs(query)
 
     @transaction(append_meta={
@@ -145,6 +152,7 @@ class CostService(BaseService):
         'mutation.append_parameter': {'user_projects': 'authorization.projects'}
     })
     @check_required(['query', 'domain_id'])
+    @change_timestamp_value(['start', 'end'], timestamp_format='iso8601')
     @append_query_filter(['domain_id', 'user_projects'])
     @append_keyword_filter(['cost_id'])
     def stat(self, params):
@@ -153,6 +161,8 @@ class CostService(BaseService):
             params (dict): {
                 'domain_id': 'str',
                 'query': 'dict (spaceone.api.core.v1.StatisticsQuery)',
+                'start': 'datetime',
+                'end': 'datetime',
                 'user_projects': 'list', // from meta
             }
 
@@ -162,15 +172,38 @@ class CostService(BaseService):
         """
 
         domain_id = params['domain_id']
+        start = params.get('start')
+        end = params.get('end')
         query = params.get('query', {})
+        query = self._add_date_range_filter(query, start, end)
         query_hash = utils.dict_to_hash(query)
 
-        return self._stat_costs(query, query_hash, domain_id)
+        return self.stat_costs_with_cache(query, query_hash, domain_id)
 
     @cache.cacheable(key='stat-costs:{domain_id}:{query_hash}', expire=3600 * 24)
-    def _stat_costs(self, query, query_hash, domain_id):
+    def stat_costs_with_cache(self, query, query_hash, domain_id):
         return self.cost_mgr.stat_costs(query)
 
     @staticmethod
     def _remove_cache(domain_id):
         cache.delete_pattern(f'stat-costs:{domain_id}:*')
+
+    @staticmethod
+    def _add_date_range_filter(query, start, end):
+        query['filter'] = query.get('filter') or []
+
+        if start:
+            query['filter'].append({
+                'k': 'billed_at',
+                'v': utils.datetime_to_iso8601(start),
+                'o': 'datetime_gte'
+            })
+
+        if end:
+            query['filter'].append({
+                'k': 'billed_at',
+                'v': utils.datetime_to_iso8601(end),
+                'o': 'datetime_lt'
+            })
+
+        return query
