@@ -144,8 +144,8 @@ class JobService(BaseService):
         return self.job_mgr.stat_jobs(query)
 
     @transaction(append_meta={'authorization.scope': 'SYSTEM'})
-    def load_cache(self, params):
-        """ Load query results into cache
+    def preload_cache(self, params):
+        """ Preload query results into cache
 
         Args:
             params (dict): {
@@ -160,9 +160,11 @@ class JobService(BaseService):
         query_hash = params['query_hash']
         domain_id = params['domain_id']
 
-        history_vos = self.cost_mgr.filter_cost_query_history(query_hash=query_hash, domain_id=domain_id)
+        history_vos: List[CostQueryHistory] = self.cost_mgr.filter_cost_query_history(query_hash=query_hash,
+                                                                                      domain_id=domain_id)
         for history_vo in history_vos:
             self._create_cache_by_history(history_vo, domain_id)
+            _LOGGER.debug(f'[preload_cache] cache creation complete: {history_vo.query_hash}')
 
     @transaction
     @check_required(['task_options', 'job_task_id', 'domain_id'])
@@ -448,8 +450,6 @@ class JobService(BaseService):
         history_vos: List[CostQueryHistory] = cost_mgr.filter_cost_query_history(domain_id=domain_id)
         for history_vo in history_vos:
             self.job_task_mgr.push_preload_cache_task({'query_hash': history_vo.query_hash, 'domain_id': domain_id})
-            self._create_cache_by_cost_query_history(history_vo, domain_id)
-            _LOGGER.debug(f'[_preload_cost_stat_queries] cache creation complete: {history_vo.query_hash}')
 
     def _create_cache_by_history(self, history_vo: CostQueryHistory, domain_id):
         query = history_vo.query
