@@ -489,6 +489,22 @@ class JobService(BaseService):
         start = this_month_start - relativedelta.relativedelta(months=11)
         self._create_cache(copy.deepcopy(query), start, this_month_end, domain_id)
 
+        # Last Month - 3 Month
+        start = this_month_start - relativedelta.relativedelta(months=3)
+        self._create_cache(copy.deepcopy(query), start, this_month_start, domain_id)
+
+        # Last Month - 4 Month
+        start = this_month_start - relativedelta.relativedelta(months=4)
+        self._create_cache(copy.deepcopy(query), start, this_month_start, domain_id)
+
+        # Last Month - 6 Month
+        start = this_month_start - relativedelta.relativedelta(months=6)
+        self._create_cache(copy.deepcopy(query), start, this_month_start, domain_id)
+
+        # Last Month - 12 Month
+        start = this_month_start - relativedelta.relativedelta(months=12)
+        self._create_cache(copy.deepcopy(query), start, this_month_start, domain_id)
+
     def _create_cache(self, query, start, end, domain_id):
         query = self._add_date_range_filter(query, start, end)
         query_hash = utils.dict_to_hash(query)
