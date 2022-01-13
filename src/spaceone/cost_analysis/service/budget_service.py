@@ -202,8 +202,8 @@ class BudgetService(BaseService):
     @transaction(append_meta={
         'authorization.scope': 'PROJECT',
         'mutation.append_parameter': {
-            'user_projects': 'authorization.projects',
-            'user_project_groups': 'authorization.project_groups'
+            'user_projects': {'meta': 'authorization.projects', 'data': [None]},
+            'user_project_groups': {'meta': 'authorization.project_groups', 'data': [None]}
         }
     })
     @check_required(['domain_id'])
@@ -237,8 +237,8 @@ class BudgetService(BaseService):
     @transaction(append_meta={
         'authorization.scope': 'PROJECT',
         'mutation.append_parameter': {
-            'user_projects': 'authorization.projects',
-            'user_project_groups': 'authorization.project_groups'
+            'user_projects': {'meta': 'authorization.projects', 'data': [None]},
+            'user_project_groups': {'meta': 'authorization.project_groups', 'data': [None]}
         }
     })
     @check_required(['query', 'domain_id'])
