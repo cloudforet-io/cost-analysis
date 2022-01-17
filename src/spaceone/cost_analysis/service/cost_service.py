@@ -5,6 +5,7 @@ from spaceone.core.service import *
 from spaceone.core import utils
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.manager.cost_manager import CostManager
+from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -142,6 +143,7 @@ class CostService(BaseService):
         start = params.get('start')
         end = params.get('end')
         query = params.get('query', {})
+        query = self._change_project_group_filter(query, params['domain_id'])
         query = self._add_date_range_filter(query, start, end)
 
         return self.cost_mgr.list_costs(query)
@@ -174,6 +176,7 @@ class CostService(BaseService):
         start = params.get('start')
         end = params.get('end')
         query = params.get('query', {})
+        query = self._change_project_group_filter(query, params['domain_id'])
         query_hash = utils.dict_to_hash(query)
 
         # Save query for improve performance
@@ -201,5 +204,64 @@ class CostService(BaseService):
                 'v': utils.datetime_to_iso8601(end),
                 'o': 'datetime_lt'
             })
+
+        return query
+
+    def _change_project_group_filter(self, query, domain_id):
+        changed_filter = []
+        changed_filter_or = []
+        project_group_query = {
+            'filter': [],
+            'filter_or': [],
+            'only': ['project_group_id']
+        }
+
+        for condition in query.get('filter', []):
+            key = condition.get('k', condition.get('key'))
+            value = condition.get('v', condition.get('value'))
+            operator = condition.get('o', condition.get('operator'))
+
+            if not all([key, value, operator]):
+                raise ERROR_DB_QUERY(reason='Filter condition should have key, value and operator.')
+
+            if key == 'project_group_id':
+                project_group_query['filter'].append(condition)
+            else:
+                changed_filter.append(condition)
+
+        for condition in query.get('filter_or', []):
+            key = condition.get('k', condition.get('key'))
+            value = condition.get('v', condition.get('value'))
+            operator = condition.get('o', condition.get('operator'))
+
+            if not all([key, value, operator]):
+                raise ERROR_DB_QUERY(reason='FilterOr condition should have key, value and operator.')
+
+            if key == 'project_group_id':
+                project_group_query['filter_or'].append(condition)
+            else:
+                changed_filter_or.append(condition)
+
+        if len(project_group_query['filter']) > 0 or len(project_group_query['filter_or']) > 0:
+            identity_mgr: IdentityManager = self.locator.get_manager('IdentityManager')
+            response = identity_mgr.list_project_groups(project_group_query, domain_id)
+            project_group_ids = []
+            project_ids = []
+            for project_group_info in response.get('results', []):
+                project_group_ids.append(project_group_info['project_group_id'])
+
+            for project_group_id in project_group_ids:
+                response = identity_mgr.list_projects_in_project_group(project_group_id, domain_id, True,
+                                                                       {
+                                                                           'only': ['project_id']
+                                                                       })
+                for project_info in response.get('results', []):
+                    if project_info['project_id'] not in project_ids:
+                        project_ids.append(project_info['project_id'])
+
+            changed_filter.append({'k': 'project_id', 'v': project_ids, 'o': 'in'})
+
+        query['filter'] = changed_filter
+        query['filter_or'] = changed_filter_or
 
         return query
