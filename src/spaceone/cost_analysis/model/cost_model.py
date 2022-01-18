@@ -62,7 +62,7 @@ class Cost(MongoModel):
             'domain_id',
             'billed_at',
             {
-                "fields": ['domain_id', 'billed_at'],
+                "fields": ['domain_id', 'project_id', 'billed_at'],
                 "name": "COMPOUND_INDEX_FOR_SEARCH"
             },
         ]
