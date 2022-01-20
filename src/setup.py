@@ -33,9 +33,7 @@ setup(
         'spaceone-core',
         'spaceone-api',
         'mongoengine',
-        'redis',
-        'schematics',
-        'boto3'
+        'redis'
     ],
     zip_safe=False,
 )
