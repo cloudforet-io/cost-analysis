@@ -2,3 +2,4 @@ spaceone-core
 spaceone-api
 mongoengine
 redis
+boto3
