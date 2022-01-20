@@ -84,7 +84,7 @@ class CostManager(BaseManager):
         if history_vos.count() == 0:
             history_vo = history_model.create({
                 'query_hash': query_hash,
-                'query': copy.deepcopy(query),
+                'query_options': copy.deepcopy(query),
                 'start': start,
                 'end': end,
                 'domain_id': domain_id
