@@ -143,29 +143,6 @@ class JobService(BaseService):
         query = params.get('query', {})
         return self.job_mgr.stat_jobs(query)
 
-    @transaction(append_meta={'authorization.scope': 'SYSTEM'})
-    def preload_cache(self, params):
-        """ Preload query results into cache
-
-        Args:
-            params (dict): {
-                'query_hash': 'str',
-                'domain_id': 'str'
-            }
-
-        Returns:
-            None
-        """
-
-        query_hash = params['query_hash']
-        domain_id = params['domain_id']
-
-        history_vos: List[CostQueryHistory] = self.cost_mgr.filter_cost_query_history(query_hash=query_hash,
-                                                                                      domain_id=domain_id)
-        for history_vo in history_vos:
-            self._create_cache_by_history(history_vo, domain_id)
-            _LOGGER.debug(f'[preload_cache] cache creation complete: {history_vo.query_hash}')
-
     @transaction
     @check_required(['task_options', 'job_task_id', 'domain_id'])
     def get_cost_data(self, params):
@@ -288,8 +265,9 @@ class JobService(BaseService):
                 self.cost_mgr.remove_stat_cache(domain_id)
                 self._update_last_sync_time(job_vo)
                 self._update_budget_usage(domain_id)
-                self.job_mgr.change_success_status(job_vo)
+                self._aggregate_cost_data(job_vo)
                 self._preload_cost_stat_queries(domain_id)
+                self.job_mgr.change_success_status(job_vo)
 
             elif job_vo.status == 'ERROR':
                 self._rollback_cost_data(job_vo)
@@ -335,6 +313,7 @@ class JobService(BaseService):
         cost_vos.delete()
 
     def _aggregate_cost_data(self, job_vo: Job):
+        # Monthly Cost
         query = {
             'aggregate': [
                 {
@@ -342,13 +321,20 @@ class JobService(BaseService):
                         'keys': [
                             {'key': 'provider', 'name': 'provider'},
                             {'key': 'region_code', 'name': 'region_code'},
+                            {'key': 'region_key', 'name': 'region_key'},
+                            {'key': 'category', 'name': 'category'},
                             {'key': 'product', 'name': 'product'},
                             {'key': 'account', 'name': 'account'},
                             {'key': 'usage_type', 'name': 'usage_type'},
                             {'key': 'resource_group', 'name': 'resource_group'},
+                            {'key': 'resource', 'name': 'resource'},
+                            {'key': 'tags', 'name': 'tags'},
+                            {'key': 'additional_info', 'name': 'additional_info'},
                             {'key': 'service_account_id', 'name': 'service_account_id'},
                             {'key': 'project_id', 'name': 'project_id'},
-                            {'key': 'billed_at', 'name': 'billed_at', 'date_format': '%Y-%m-%d'},
+                            {'key': 'data_source_id', 'name': 'data_source_id'},
+                            {'key': 'billed_month', 'name': 'billed_month'},
+                            {'key': 'billed_year', 'name': 'billed_year'},
                         ],
                         'fields': [
                             {'key': 'usd_cost', 'name': 'usd_cost', 'operator': 'sum'},
@@ -364,7 +350,7 @@ class JobService(BaseService):
             ]
         }
 
-        _LOGGER.debug(f'[_aggregate_cost_data] dump aggregated cost: {job_vo.job_id}')
+        _LOGGER.debug(f'[_aggregate_cost_data] create monthly cost data: {job_vo.job_id}')
 
         response = self.cost_mgr.stat_costs(query)
         results = response.get('results', [])
@@ -372,9 +358,9 @@ class JobService(BaseService):
             aggregated_cost_data['data_source_id'] = job_vo.data_source_id
             aggregated_cost_data['job_id'] = job_vo.job_id
             aggregated_cost_data['domain_id'] = job_vo.domain_id
-            # self.cost_mgr.create_aggregate_cost_data(aggregated_cost_data)
+            self.cost_mgr.create_monthly_cost(aggregated_cost_data)
 
-        _LOGGER.debug(f'[_aggregate_cost_data] finished: {job_vo.job_id} (count = {len(results)})')
+        _LOGGER.debug(f'[_aggregate_cost_data] finished (monthly_cost): {job_vo.job_id} (count = {len(results)})')
 
     def _sync_data_source(self, data_source_vo: DataSource):
         data_source_id = data_source_vo.data_source_id
@@ -449,61 +435,61 @@ class JobService(BaseService):
         cost_mgr: CostManager = self.locator.get_manager('CostManager')
         history_vos: List[CostQueryHistory] = cost_mgr.filter_cost_query_history(domain_id=domain_id)
         for history_vo in history_vos:
-            self.job_task_mgr.push_preload_cache_task({'query_hash': history_vo.query_hash, 'domain_id': domain_id})
+            self._create_cache_by_history(history_vo, domain_id)
+            _LOGGER.debug(f'[preload_cache] cache creation complete: {history_vo.query_hash}')
 
     def _create_cache_by_history(self, history_vo: CostQueryHistory, domain_id):
         query = history_vo.query
-        original_start = history_vo.start
-        original_end = history_vo.end
-        this_month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        this_month_end = this_month_start + relativedelta.relativedelta(months=1)
 
         # Original Date Range
-        self._create_cache(copy.deepcopy(query), original_start, original_end, domain_id)
+        self._create_cache(copy.deepcopy(query), history_vo.start, history_vo.end, domain_id)
 
-        # This month
-        self._create_cache(copy.deepcopy(query), this_month_start, this_month_end, domain_id)
-
-        # Last Month
-        start = this_month_start - relativedelta.relativedelta(months=1)
-        self._create_cache(copy.deepcopy(query), start, this_month_start, domain_id)
-
-        # 2 Month Ago
-        start = this_month_start - relativedelta.relativedelta(months=2)
-        end = this_month_start - relativedelta.relativedelta(months=1)
-        self._create_cache(copy.deepcopy(query), start, end, domain_id)
-
-        # Last 3 Month
-        start = this_month_start - relativedelta.relativedelta(months=2)
-        self._create_cache(copy.deepcopy(query), start, this_month_end, domain_id)
-
-        # Last 4 Month
-        start = this_month_start - relativedelta.relativedelta(months=3)
-        self._create_cache(copy.deepcopy(query), start, this_month_end, domain_id)
-
-        # Last 6 Month
-        start = this_month_start - relativedelta.relativedelta(months=5)
-        self._create_cache(copy.deepcopy(query), start, this_month_end, domain_id)
-
-        # Last 12 Month
-        start = this_month_start - relativedelta.relativedelta(months=11)
-        self._create_cache(copy.deepcopy(query), start, this_month_end, domain_id)
-
-        # Last Month - 3 Month
-        start = this_month_start - relativedelta.relativedelta(months=3)
-        self._create_cache(copy.deepcopy(query), start, this_month_start, domain_id)
-
-        # Last Month - 4 Month
-        start = this_month_start - relativedelta.relativedelta(months=4)
-        self._create_cache(copy.deepcopy(query), start, this_month_start, domain_id)
-
-        # Last Month - 6 Month
-        start = this_month_start - relativedelta.relativedelta(months=6)
-        self._create_cache(copy.deepcopy(query), start, this_month_start, domain_id)
-
-        # Last Month - 12 Month
-        start = this_month_start - relativedelta.relativedelta(months=12)
-        self._create_cache(copy.deepcopy(query), start, this_month_start, domain_id)
+        # this_month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        # this_month_end = this_month_start + relativedelta.relativedelta(months=1)
+        #
+        # # This month
+        # self._create_cache(copy.deepcopy(query), this_month_start, this_month_end, domain_id)
+        #
+        # # Last Month
+        # start = this_month_start - relativedelta.relativedelta(months=1)
+        # self._create_cache(copy.deepcopy(query), start, this_month_start, domain_id)
+        #
+        # # 2 Month Ago
+        # start = this_month_start - relativedelta.relativedelta(months=2)
+        # end = this_month_start - relativedelta.relativedelta(months=1)
+        # self._create_cache(copy.deepcopy(query), start, end, domain_id)
+        #
+        # # Last 3 Month
+        # start = this_month_start - relativedelta.relativedelta(months=2)
+        # self._create_cache(copy.deepcopy(query), start, this_month_end, domain_id)
+        #
+        # # Last 4 Month
+        # start = this_month_start - relativedelta.relativedelta(months=3)
+        # self._create_cache(copy.deepcopy(query), start, this_month_end, domain_id)
+        #
+        # # Last 6 Month
+        # start = this_month_start - relativedelta.relativedelta(months=5)
+        # self._create_cache(copy.deepcopy(query), start, this_month_end, domain_id)
+        #
+        # # Last 12 Month
+        # start = this_month_start - relativedelta.relativedelta(months=11)
+        # self._create_cache(copy.deepcopy(query), start, this_month_end, domain_id)
+        #
+        # # Last Month - 3 Month
+        # start = this_month_start - relativedelta.relativedelta(months=3)
+        # self._create_cache(copy.deepcopy(query), start, this_month_start, domain_id)
+        #
+        # # Last Month - 4 Month
+        # start = this_month_start - relativedelta.relativedelta(months=4)
+        # self._create_cache(copy.deepcopy(query), start, this_month_start, domain_id)
+        #
+        # # Last Month - 6 Month
+        # start = this_month_start - relativedelta.relativedelta(months=6)
+        # self._create_cache(copy.deepcopy(query), start, this_month_start, domain_id)
+        #
+        # # Last Month - 12 Month
+        # start = this_month_start - relativedelta.relativedelta(months=12)
+        # self._create_cache(copy.deepcopy(query), start, this_month_start, domain_id)
 
     def _create_cache(self, query, start, end, domain_id):
         query = self._add_date_range_filter(query, start, end)

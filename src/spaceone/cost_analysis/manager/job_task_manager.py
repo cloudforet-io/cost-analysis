@@ -117,23 +117,3 @@ class JobTaskManager(BaseManager):
         job_vo = self.job_mgr.get_job(job_task_vo.job_id, job_task_vo.domain_id)
         self.job_mgr.change_error_status(job_vo, ERROR_JOB_TASK())
         self.job_mgr.decrease_remained_tasks(job_vo)
-
-    def push_preload_cache_task(self, params):
-        task = {
-            'name': 'preload_cache',
-            'version': 'v1',
-            'executionEngine': 'BaseWorker',
-            'stages': [{
-                'locator': 'SERVICE',
-                'name': 'JobService',
-                'metadata': self.transaction.meta,
-                'method': 'preload_cache',
-                'params': {
-                    'params': params
-                }
-            }]
-        }
-
-        _LOGGER.debug(f'[push_preload_cache_task] task: {params}')
-
-        queue.put('cost_analysis_q', utils.dump_json(task))
