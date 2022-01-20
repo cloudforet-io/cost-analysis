@@ -462,8 +462,8 @@ class JobService(BaseService):
         }
         history_vos, total_count = self.cost_mgr.list_cost_query_history(query)
         for history_vo in history_vos:
+            _LOGGER.debug(f'[preload_cache] create query cache: {history_vo.query_hash}')
             self._create_cache_by_history(history_vo, domain_id)
-            _LOGGER.debug(f'[preload_cache] cache creation complete: {history_vo.query_hash}')
 
     def _create_cache_by_history(self, history_vo: CostQueryHistory, domain_id):
         query = history_vo.query_options
