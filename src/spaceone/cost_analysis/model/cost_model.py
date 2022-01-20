@@ -129,7 +129,7 @@ class MonthlyCost(MongoModel):
 
 class CostQueryHistory(MongoModel):
     query_hash = StringField(max_length=255)
-    query = DictField(default={})
+    query_options = DictField(default={})
     domain_id = StringField(max_length=40)
     start = DateTimeField(default=None, null=True)
     end = DateTimeField(default=None, null=True)

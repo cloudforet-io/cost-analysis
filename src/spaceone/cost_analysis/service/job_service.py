@@ -466,7 +466,7 @@ class JobService(BaseService):
             _LOGGER.debug(f'[preload_cache] cache creation complete: {history_vo.query_hash}')
 
     def _create_cache_by_history(self, history_vo: CostQueryHistory, domain_id):
-        query = history_vo.query
+        query = history_vo.query_options
 
         # Original Date Range
         self._create_cache(copy.deepcopy(query), history_vo.start, history_vo.end, domain_id)
