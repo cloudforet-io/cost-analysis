@@ -452,8 +452,15 @@ class JobService(BaseService):
         return False
 
     def _preload_cost_stat_queries(self, domain_id):
-        cost_mgr: CostManager = self.locator.get_manager('CostManager')
-        history_vos: List[CostQueryHistory] = cost_mgr.filter_cost_query_history(domain_id=domain_id)
+        last_week = datetime.utcnow() - timedelta(days=7)
+
+        query = {
+            'filter': [
+                {'k': 'domain_id', 'v': domain_id, 'o': 'eq'},
+                {'k': 'updated_at', 'v': last_week, 'o': 'gte'},
+            ]
+        }
+        history_vos, total_count = self.cost_mgr.list_cost_query_history(query)
         for history_vo in history_vos:
             self._create_cache_by_history(history_vo, domain_id)
             _LOGGER.debug(f'[preload_cache] cache creation complete: {history_vo.query_hash}')
