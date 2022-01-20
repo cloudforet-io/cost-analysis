@@ -14,6 +14,7 @@ class CostManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.cost_model: Cost = self.locator.get_model('Cost')
+        self.monthly_cost_model: MonthlyCost = self.locator.get_model('MonthlyCost')
         self.data_source_rule_mgr: DataSourceRuleManager = self.locator.get_manager('DataSourceRuleManager')
 
     def create_cost(self, params, execute_rollback=True):
@@ -32,6 +33,10 @@ class CostManager(BaseManager):
 
             params['usd_cost'] = params['original_cost']
 
+        params['billed_year'] = params['billed_at'].strftime('%Y')
+        params['billed_month'] = params['billed_at'].strftime('%Y-%m')
+        params['billed_date'] = params['billed_at'].strftime('%Y-%m-%d')
+
         params = self.data_source_rule_mgr.change_cost_data(params)
 
         cost_vo: Cost = self.cost_model.create(params)
@@ -40,6 +45,9 @@ class CostManager(BaseManager):
             self.transaction.add_rollback(_rollback, cost_vo)
 
         return cost_vo
+
+    def create_monthly_cost(self, params):
+        return self.monthly_cost_model.create(params)
 
     def delete_cost(self, cost_id, domain_id):
         cost_vo: Cost = self.get_cost(cost_id, domain_id)
@@ -57,27 +65,32 @@ class CostManager(BaseManager):
     def stat_costs(self, query):
         return self.cost_model.stat(**query)
 
+    def list_monthly_costs(self, query={}):
+        return self.monthly_cost_model.query(**query)
+
     def filter_cost_query_history(self, **conditions):
         history_model: CostQueryHistory = self.locator.get_model('CostQueryHistory')
         return history_model.filter(**conditions)
 
-    def create_monthly_cost(self, params):
-        monthly_cost_model: MonthlyCost = self.locator.get_model('MonthlyCost')
-        return monthly_cost_model.create(params)
-
     @cache.cacheable(key='stat-costs-history:{domain_id}:{query_hash}', expire=600)
     def create_cost_query_history(self, query, query_hash, start, end, domain_id):
+        def _rollback(history_vo):
+            _LOGGER.info(f'[create_cost_query_history._rollback] Delete cost query history: {query_hash}')
+            history_vo.delete()
+
         history_model: CostQueryHistory = self.locator.get_model('CostQueryHistory')
 
         history_vos = history_model.filter(query_hash=query_hash, domain_id=domain_id)
         if history_vos.count() == 0:
-            history_model.create({
+            history_vo = history_model.create({
                 'query_hash': query_hash,
                 'query': copy.deepcopy(query),
                 'start': start,
                 'end': end,
                 'domain_id': domain_id
             })
+
+            self.transaction.add_rollback(_rollback, history_vo)
         else:
             history_vos[0].update({
                 'start': start,

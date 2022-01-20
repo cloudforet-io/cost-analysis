@@ -3,7 +3,6 @@ import datetime
 import logging
 import time
 from typing import List, Union
-from dateutil import relativedelta
 from datetime import timedelta, datetime
 
 from spaceone.core.service import *
@@ -259,15 +258,22 @@ class JobService(BaseService):
 
         if job_vo.remained_tasks == 0:
             if job_vo.status == 'IN_PROGRESS':
+                changed_start = None
                 for changed_vo in job_vo.changed:
                     self._delete_changed_cost_data(job_vo, changed_vo.start, changed_vo.end)
+                    if changed_start is None or changed_start > changed_vo.start:
+                        changed_start = changed_vo.start
 
-                self._aggregate_cost_data(job_vo)
-                self._update_budget_usage(domain_id)
-                self.cost_mgr.remove_stat_cache(domain_id)
-                self._preload_cost_stat_queries(domain_id)
-                self._update_last_sync_time(job_vo)
-                self.job_mgr.change_success_status(job_vo)
+                try:
+                    self._aggregate_cost_data(job_vo, changed_start)
+                    self._update_budget_usage(domain_id)
+                    self.cost_mgr.remove_stat_cache(domain_id)
+                    self._preload_cost_stat_queries(domain_id)
+                    self._update_last_sync_time(job_vo)
+                    self.job_mgr.change_success_status(job_vo)
+                except Exception as e:
+                    self.job_mgr.change_error_status(job_vo, e)
+                    raise e
 
             elif job_vo.status == 'ERROR':
                 self._rollback_cost_data(job_vo)
@@ -312,8 +318,23 @@ class JobService(BaseService):
         cost_vos, total_count = self.cost_mgr.list_costs(query)
         cost_vos.delete()
 
-    def _aggregate_cost_data(self, job_vo: Job):
-        # Monthly Cost
+    def _aggregate_cost_data(self, job_vo: Job, changed_start):
+        changed_start_month = changed_start.strftime('%Y-%m')
+        changed_start_year = changed_start.strftime('%Y')
+
+        # Delete Monthly Cost
+        query = {
+            'filter': [
+                {'k': 'data_source_id', 'v': job_vo.data_source_id, 'o': 'eq'},
+                {'k': 'domain_id', 'v': job_vo.domain_id, 'o': 'eq'},
+                {'k': 'billed_month', 'v': changed_start_month, 'o': 'gte'}
+            ]
+        }
+
+        monthly_cost_vos, total_count = self.cost_mgr.list_monthly_costs(query)
+        monthly_cost_vos.delete()
+
+        # Create Monthly Cost
         query = {
             'aggregate': [
                 {
@@ -346,7 +367,7 @@ class JobService(BaseService):
             'filter': [
                 {'k': 'data_source_id', 'v': job_vo.data_source_id, 'o': 'eq'},
                 {'k': 'domain_id', 'v': job_vo.domain_id, 'o': 'eq'},
-                {'k': 'job_id', 'v': job_vo.job_id, 'o': 'eq'},
+                {'k': 'billed_month', 'v': changed_start_month, 'o': 'gte'}
             ]
         }
 
@@ -356,7 +377,6 @@ class JobService(BaseService):
         results = response.get('results', [])
         for aggregated_cost_data in results:
             aggregated_cost_data['data_source_id'] = job_vo.data_source_id
-            aggregated_cost_data['job_id'] = job_vo.job_id
             aggregated_cost_data['domain_id'] = job_vo.domain_id
             self.cost_mgr.create_monthly_cost(aggregated_cost_data)
 
