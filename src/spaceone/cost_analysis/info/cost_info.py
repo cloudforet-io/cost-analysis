@@ -13,6 +13,7 @@ def CostInfo(cost_vo: Cost, minimal=False):
         'usd_cost': cost_vo.usd_cost,
         'provider': cost_vo.provider,
         'region_code': cost_vo.region_code,
+        'category': cost_vo.category,
         'product': cost_vo.product,
         'account': cost_vo.account,
         'usage_type': cost_vo.usage_type,
@@ -24,7 +25,6 @@ def CostInfo(cost_vo: Cost, minimal=False):
 
     if not minimal:
         info.update({
-            'cost_key': cost_vo.cost_key,
             'original_currency': cost_vo.original_currency,
             'original_cost': cost_vo.original_cost,
             'usage_quantity': cost_vo.usage_quantity,
