@@ -110,15 +110,15 @@ class BudgetUsageManager(BaseManager):
 
         if not is_accumulated:
             if budget_vo.time_unit == 'YEARLY':
-                date_format = '%Y'
+                query['aggregate'][0]['group']['keys'].append({
+                    'key': 'billed_year',
+                    'name': 'date'
+                })
             else:
-                date_format = '%Y-%m'
-
-            query['aggregate'][0]['group']['keys'].append({
-                'key': 'billed_at',
-                'name': 'date',
-                'date_format': date_format
-            })
+                query['aggregate'][0]['group']['keys'].append({
+                    'key': 'billed_month',
+                    'name': 'date'
+                })
 
         query['filter'].append({
             'key': 'billed_at',
