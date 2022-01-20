@@ -262,11 +262,11 @@ class JobService(BaseService):
                 for changed_vo in job_vo.changed:
                     self._delete_changed_cost_data(job_vo, changed_vo.start, changed_vo.end)
 
-                self.cost_mgr.remove_stat_cache(domain_id)
-                self._update_last_sync_time(job_vo)
-                self._update_budget_usage(domain_id)
                 self._aggregate_cost_data(job_vo)
+                self._update_budget_usage(domain_id)
+                self.cost_mgr.remove_stat_cache(domain_id)
                 self._preload_cost_stat_queries(domain_id)
+                self._update_last_sync_time(job_vo)
                 self.job_mgr.change_success_status(job_vo)
 
             elif job_vo.status == 'ERROR':
