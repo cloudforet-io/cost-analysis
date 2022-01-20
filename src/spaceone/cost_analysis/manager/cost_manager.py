@@ -68,9 +68,9 @@ class CostManager(BaseManager):
     def list_monthly_costs(self, query={}):
         return self.monthly_cost_model.query(**query)
 
-    def filter_cost_query_history(self, **conditions):
+    def list_cost_query_history(self, query={}):
         history_model: CostQueryHistory = self.locator.get_model('CostQueryHistory')
-        return history_model.filter(**conditions)
+        return history_model.query(**query)
 
     @cache.cacheable(key='stat-costs-history:{domain_id}:{query_hash}', expire=600)
     def create_cost_query_history(self, query, query_hash, start, end, domain_id):
