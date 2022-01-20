@@ -116,7 +116,6 @@ class MonthlyCost(MongoModel):
             'service_account_id',
             'project_id',
             'data_source_id',
-            'job_id',
             'domain_id',
             'billed_year',
             'billed_month',
