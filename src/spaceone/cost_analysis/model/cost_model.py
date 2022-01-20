@@ -119,7 +119,6 @@ class MonthlyCost(MongoModel):
             'data_source_id',
             'job_id',
             'domain_id',
-            'billed_at',
             'billed_year',
             'billed_month',
             {
