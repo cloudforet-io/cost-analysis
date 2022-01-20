@@ -33,6 +33,7 @@ class CostService(BaseService):
                 'usage_quantity': 'float',
                 'provider': 'str',
                 'region_code': 'str',
+                'category': 'str',
                 'product': 'str',
                 'account': 'str',
                 'usage_type': 'str',
@@ -76,6 +77,8 @@ class CostService(BaseService):
             None
         """
 
+        self.cost_mgr.remove_stat_cache(params['domain_id'])
+
         self.cost_mgr.delete_cost(params['cost_id'], params['domain_id'])
 
     @transaction(append_meta={'authorization.scope': 'PROJECT'})
@@ -105,7 +108,7 @@ class CostService(BaseService):
     })
     @check_required(['domain_id'])
     @change_timestamp_value(['start', 'end'], timestamp_format='iso8601')
-    @append_query_filter(['cost_id', 'cost_key', 'original_currency', 'provider', 'region_code', 'region_key',
+    @append_query_filter(['cost_id', 'original_currency', 'provider', 'region_code', 'region_key', 'category',
                           'product', 'account', 'usage_type', 'resource_group', 'resource', 'service_account_id',
                           'project_id', 'data_source_id', 'domain_id', 'user_projects'])
     @append_keyword_filter(['cost_id'])
@@ -115,11 +118,11 @@ class CostService(BaseService):
         Args:
             params (dict): {
                 'cost_id': 'str',
-                'cost_key': 'str',
                 'original_currency': 'str',
                 'provider': 'str',
                 'region_code': 'str',
                 'region_key': 'str',
+                'category': 'str',
                 'product': 'str',
                 'account': 'str',
                 'usage_type': 'str',

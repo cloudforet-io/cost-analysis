@@ -3,7 +3,7 @@ import copy
 
 from spaceone.core import cache
 from spaceone.core.manager import BaseManager
-from spaceone.cost_analysis.model.cost_model import Cost, CostQueryHistory
+from spaceone.cost_analysis.model.cost_model import Cost, MonthlyCost, CostQueryHistory
 from spaceone.cost_analysis.manager.data_source_rule_manager import DataSourceRuleManager
 
 _LOGGER = logging.getLogger(__name__)
@@ -60,6 +60,10 @@ class CostManager(BaseManager):
     def filter_cost_query_history(self, **conditions):
         history_model: CostQueryHistory = self.locator.get_model('CostQueryHistory')
         return history_model.filter(**conditions)
+
+    def create_monthly_cost(self, params):
+        monthly_cost_model: MonthlyCost = self.locator.get_model('MonthlyCost')
+        return monthly_cost_model.create(params)
 
     @cache.cacheable(key='stat-costs-history:{domain_id}:{query_hash}', expire=600)
     def create_cost_query_history(self, query, query_hash, start, end, domain_id):
