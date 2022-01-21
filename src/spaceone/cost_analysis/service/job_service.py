@@ -467,9 +467,12 @@ class JobService(BaseService):
 
     def _create_cache_by_history(self, history_vo: CostQueryHistory, domain_id):
         query = history_vo.query_options
+        granularity = history_vo.granularity
+        start = history_vo.start
+        end = history_vo.end
 
         # Original Date Range
-        self._create_cache(copy.deepcopy(query), history_vo.start, history_vo.end, domain_id)
+        self._create_cache(copy.deepcopy(query), granularity, start, end, domain_id)
 
         # this_month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         # this_month_end = this_month_start + relativedelta.relativedelta(months=1)
@@ -518,27 +521,11 @@ class JobService(BaseService):
         # start = this_month_start - relativedelta.relativedelta(months=12)
         # self._create_cache(copy.deepcopy(query), start, this_month_start, domain_id)
 
-    def _create_cache(self, query, start, end, domain_id):
-        query = self._add_date_range_filter(query, start, end)
-        query_hash = utils.dict_to_hash(query)
-        self.cost_mgr.stat_costs_with_cache(query, query_hash, domain_id)
+    def _create_cache(self, query, granularity, start, end, domain_id):
+        query = self.cost_mgr.add_date_range_filter(query, granularity, start, end)
+        query_hash_with_date_range = utils.dict_to_hash(query)
 
-    @staticmethod
-    def _add_date_range_filter(query, start, end):
-        query['filter'] = query.get('filter') or []
-
-        if start:
-            query['filter'].append({
-                'k': 'billed_at',
-                'v': utils.datetime_to_iso8601(start),
-                'o': 'datetime_gte'
-            })
-
-        if end:
-            query['filter'].append({
-                'k': 'billed_at',
-                'v': utils.datetime_to_iso8601(end),
-                'o': 'datetime_lt'
-            })
-
-        return query
+        if self.cost_mgr.is_monthly_cost(granularity, start, end):
+            self.cost_mgr.stat_monthly_costs_with_cache(query, query_hash_with_date_range, domain_id)
+        else:
+            self.cost_mgr.stat_costs_with_cache(query, query_hash_with_date_range, domain_id)

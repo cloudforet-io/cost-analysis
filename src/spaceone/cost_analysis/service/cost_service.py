@@ -208,7 +208,7 @@ class CostService(BaseService):
 
         query_hash = utils.dict_to_hash(query)
 
-        self.cost_mgr.create_cost_query_history(query, query_hash, start, end, domain_id)
+        self.cost_mgr.create_cost_query_history(query, query_hash, granularity, start, end, domain_id)
 
         query = self.cost_mgr.add_date_range_filter(query, granularity, start, end)
         query_hash_with_date_range = utils.dict_to_hash(query)
