@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from dateutil.relativedelta import relativedelta
 
 from spaceone.core.service import *
 from spaceone.core import utils
@@ -107,7 +108,6 @@ class CostService(BaseService):
         'mutation.append_parameter': {'user_projects': 'authorization.projects'}
     })
     @check_required(['domain_id'])
-    @change_timestamp_value(['start', 'end'], timestamp_format='iso8601')
     @append_query_filter(['cost_id', 'original_currency', 'provider', 'region_code', 'region_key', 'category',
                           'product', 'account', 'usage_type', 'resource_group', 'resource', 'service_account_id',
                           'project_id', 'data_source_id', 'domain_id', 'user_projects'])
@@ -128,8 +128,6 @@ class CostService(BaseService):
                 'usage_type': 'str',
                 'resource_group': 'str',
                 'resource': 'str',
-                'start': 'datetime',
-                'end': 'datetime',
                 'service_account_id': 'str',
                 'project_id': 'str',
                 'data_source_id': 'str'
@@ -143,11 +141,8 @@ class CostService(BaseService):
             total_count
         """
 
-        start = params.get('start')
-        end = params.get('end')
         query = params.get('query', {})
-        query = self._change_project_group_filter(query, params['domain_id'])
-        query = self._add_date_range_filter(query, start, end)
+        query['filter'] = self._change_project_group_filter(query.get('filter', []), params['domain_id'])
 
         return self.cost_mgr.list_costs(query)
 
@@ -155,19 +150,23 @@ class CostService(BaseService):
         'authorization.scope': 'PROJECT',
         'mutation.append_parameter': {'user_projects': 'authorization.projects'}
     })
-    @check_required(['query', 'domain_id'])
-    @change_timestamp_value(['start', 'end'], timestamp_format='iso8601')
-    @append_query_filter(['domain_id', 'user_projects'])
-    @append_keyword_filter(['cost_id'])
-    def stat(self, params):
+    @check_required(['granularity', 'start', 'end', 'domain_id'])
+    @change_date_value(['start', 'end'])
+    def analyze(self, params):
         """
         Args:
             params (dict): {
-                'domain_id': 'str',
-                'query': 'dict (spaceone.api.core.v1.StatisticsQuery)',
-                'start': 'datetime',
-                'end': 'datetime',
-                'user_projects': 'list', // from meta
+                'granularity': 'str',
+                'start': 'date',
+                'end': 'date',
+                'group_by': 'list',
+                'filter': 'list',
+                'limit': 'int',
+                'page': 'dict',
+                'sort': 'dict',
+                'include_usage_quantity': 'bool',
+                'include_others': 'bool',
+                'domain_id': 'str'
             }
 
         Returns:
@@ -176,76 +175,106 @@ class CostService(BaseService):
         """
 
         domain_id = params['domain_id']
-        start = params.get('start')
-        end = params.get('end')
-        query = params.get('query', {})
-        query = self._change_project_group_filter(query, params['domain_id'])
+        granularity = params['granularity']
+        start: datetime = params['start']
+        end: datetime = params['end']
+        group_by = params.get('group_by', [])
+        query_filter = params.get('filter', [])
+        limit = params.get('limit')
+        page = params.get('page')
+        sort = params.get('sort')
+        include_usage_quantity = params.get('include_usage_quantity', False)
+        include_others = params.get('include_others', False)
+
+        if start >= end:
+            raise ERROR_INVALID_DATE_RANGE(reason='End date must be greater than start date.')
+
+        if granularity in ['ACCUMULATED', 'MONTHLY']:
+            if start + relativedelta(months=12) < end:
+                raise ERROR_INVALID_DATE_RANGE(reason='Request up to a maximum of 12 months.')
+        elif granularity == 'DAILY':
+            if start + relativedelta(days=31) < end:
+                raise ERROR_INVALID_DATE_RANGE(reason='Request up to a maximum of 31 days')
+
+        if 'user_projects' in params:
+            query_filter = self._add_user_projects_filter(query_filter, params['user_projects'])
+
+        query_filter = self._change_project_group_filter(query_filter, domain_id)
+
+        if granularity == 'ACCUMULATED':
+            query = self.cost_mgr.make_accumulated_query(granularity, group_by, limit, page, sort, query_filter)
+        else:
+            query = self.cost_mgr.make_trend_query(granularity, group_by, limit, page, sort, query_filter)
+
         query_hash = utils.dict_to_hash(query)
 
-        # Save query for improve performance
         self.cost_mgr.create_cost_query_history(query, query_hash, start, end, domain_id)
 
-        query = self._add_date_range_filter(query, start, end)
+        query = self.cost_mgr.add_date_range_filter(query, granularity, start, end)
         query_hash_with_date_range = utils.dict_to_hash(query)
 
-        return self.cost_mgr.stat_costs_with_cache(query, query_hash_with_date_range, domain_id)
+        if self.cost_mgr.is_monthly_cost(granularity, start, end):
+            return self.cost_mgr.stat_monthly_costs_with_cache(query, query_hash_with_date_range, domain_id)
+        else:
+            return self.cost_mgr.stat_costs_with_cache(query, query_hash_with_date_range, domain_id)
+
+    @transaction(append_meta={
+        'authorization.scope': 'PROJECT',
+        'mutation.append_parameter': {'user_projects': 'authorization.projects'}
+    })
+    @check_required(['query', 'domain_id'])
+    @append_query_filter(['domain_id', 'user_projects'])
+    @append_keyword_filter(['cost_id'])
+    def stat(self, params):
+        """
+        Args:
+            params (dict): {
+                'domain_id': 'str',
+                'query': 'dict (spaceone.api.core.v1.StatisticsQuery)',
+                'user_projects': 'list', // from meta
+            }
+
+        Returns:
+            values (list) : 'list of statistics data'
+
+        """
+
+        query = params.get('query', {})
+        query['filter'] = self._change_project_group_filter(query.get('filter', []), params['domain_id'])
+
+        return self.cost_mgr.stat_costs(query)
 
     @staticmethod
-    def _add_date_range_filter(query, start, end):
-        query['filter'] = query.get('filter') or []
+    def _add_user_projects_filter(query_filter, user_projects):
+        query_filter.append({
+            'k': 'project_id',
+            'v': user_projects,
+            'o': 'in'
+        })
 
-        if start:
-            query['filter'].append({
-                'k': 'billed_at',
-                'v': utils.datetime_to_iso8601(start),
-                'o': 'datetime_gte'
-            })
+        return query_filter
 
-        if end:
-            query['filter'].append({
-                'k': 'billed_at',
-                'v': utils.datetime_to_iso8601(end),
-                'o': 'datetime_lt'
-            })
-
-        return query
-
-    def _change_project_group_filter(self, query, domain_id):
+    def _change_project_group_filter(self, query_filter, domain_id):
         changed_filter = []
-        changed_filter_or = []
         project_group_query = {
             'filter': [],
-            'filter_or': [],
             'only': ['project_group_id']
         }
 
-        for condition in query.get('filter', []):
+        for condition in query_filter:
             key = condition.get('k', condition.get('key'))
             value = condition.get('v', condition.get('value'))
             operator = condition.get('o', condition.get('operator'))
 
             if not all([key, value, operator]):
-                raise ERROR_DB_QUERY(reason='Filter condition should have key, value and operator.')
+                raise ERROR_DB_QUERY(reason='filter condition should have key, value and operator.')
 
             if key == 'project_group_id':
                 project_group_query['filter'].append(condition)
             else:
                 changed_filter.append(condition)
 
-        for condition in query.get('filter_or', []):
-            key = condition.get('k', condition.get('key'))
-            value = condition.get('v', condition.get('value'))
-            operator = condition.get('o', condition.get('operator'))
-
-            if not all([key, value, operator]):
-                raise ERROR_DB_QUERY(reason='FilterOr condition should have key, value and operator.')
-
-            if key == 'project_group_id':
-                project_group_query['filter_or'].append(condition)
-            else:
-                changed_filter_or.append(condition)
-
-        if len(project_group_query['filter']) > 0 or len(project_group_query['filter_or']) > 0:
+        if len(project_group_query['filter']) > 0:
             identity_mgr: IdentityManager = self.locator.get_manager('IdentityManager')
             response = identity_mgr.list_project_groups(project_group_query, domain_id)
             project_group_ids = []
@@ -255,16 +284,11 @@ class CostService(BaseService):
 
             for project_group_id in project_group_ids:
                 response = identity_mgr.list_projects_in_project_group(project_group_id, domain_id, True,
-                                                                       {
-                                                                           'only': ['project_id']
-                                                                       })
+                                                                       {'only': ['project_id']})
                 for project_info in response.get('results', []):
                     if project_info['project_id'] not in project_ids:
                         project_ids.append(project_info['project_id'])
 
             changed_filter.append({'k': 'project_id', 'v': project_ids, 'o': 'in'})
 
-        query['filter'] = changed_filter
-        query['filter_or'] = changed_filter_or
-
-        return query
+        return changed_filter
