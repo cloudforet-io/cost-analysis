@@ -238,7 +238,7 @@ class CostManager(BaseManager):
                 'fields': [
                     {
                         'key': 'values',
-                        'name': 'values',
+                        'name': 'usd_cost',
                         'operator': 'array_to_object'
                     }
                 ]
