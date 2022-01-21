@@ -196,6 +196,8 @@ class CostService(BaseService):
             if start + relativedelta(days=31) < end:
                 raise ERROR_INVALID_DATE_RANGE(reason='Request up to a maximum of 31 days')
 
+        query_filter = self._add_domain_filter(query_filter, domain_id)
+
         if 'user_projects' in params:
             query_filter = self._add_user_projects_filter(query_filter, params['user_projects'])
 
@@ -243,6 +245,16 @@ class CostService(BaseService):
         query['filter'] = self._change_project_group_filter(query.get('filter', []), params['domain_id'])
 
         return self.cost_mgr.stat_costs(query)
+
+    @staticmethod
+    def _add_domain_filter(query_filter, domain_id):
+        query_filter.append({
+            'k': 'domain_id',
+            'v': domain_id,
+            'o': 'eq'
+        })
+
+        return query_filter
 
     @staticmethod
     def _add_user_projects_filter(query_filter, user_projects):
