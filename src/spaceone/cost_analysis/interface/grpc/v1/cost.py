@@ -36,6 +36,12 @@ class Cost(BaseAPI, cost_pb2_grpc.CostServicer):
                                          total_count,
                                          minimal=self.get_minimal(params))
 
+    def analyze(self, request, context):
+        params, metadata = self.parse_request(request, context)
+
+        with self.locator.get_service('CostService', metadata) as cost_service:
+            return self.locator.get_info('StatisticsInfo', cost_service.analyze(params))
+
     def stat(self, request, context):
         params, metadata = self.parse_request(request, context)
 
