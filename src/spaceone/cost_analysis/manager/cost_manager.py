@@ -1,5 +1,6 @@
 import logging
 import copy
+from datetime import datetime
 
 from spaceone.core import cache
 from spaceone.core.manager import BaseManager
@@ -68,6 +69,9 @@ class CostManager(BaseManager):
     def list_monthly_costs(self, query={}):
         return self.monthly_cost_model.query(**query)
 
+    def stat_monthly_costs(self, query):
+        return self.monthly_cost_model.stat(**query)
+
     def list_cost_query_history(self, query={}):
         history_model: CostQueryHistory = self.locator.get_model('CostQueryHistory')
         return history_model.query(**query)
@@ -97,12 +101,183 @@ class CostManager(BaseManager):
                 'end': end
             })
 
-        return True
-
     @cache.cacheable(key='stat-costs:{domain_id}:{query_hash}', expire=3600 * 24)
     def stat_costs_with_cache(self, query, query_hash, domain_id):
         return self.stat_costs(query)
 
+    @cache.cacheable(key='stat-monthly-costs:{domain_id}:{query_hash}', expire=3600 * 24)
+    def stat_monthly_costs_with_cache(self, query, query_hash, domain_id):
+        return self.stat_monthly_costs(query)
+
     @staticmethod
     def remove_stat_cache(domain_id):
         cache.delete_pattern(f'stat-costs:{domain_id}:*')
+
+    @staticmethod
+    def is_monthly_cost(granularity, start, end):
+        if granularity in ['ACCUMULATED', 'MONTHLY'] and start.day == 1 and end.day == 1:
+            return True
+        else:
+            return False
+
+    def add_date_range_filter(self, query, granularity, start: datetime, end: datetime):
+        query['filter'] = query.get('filter') or []
+
+        if self.is_monthly_cost(granularity, start, end):
+            query['filter'].append({
+                'k': 'billed_month',
+                'v': start.strftime('%Y-%m'),
+                'o': 'gte'
+            })
+
+            query['filter'].append({
+                'k': 'billed_month',
+                'v': end.strftime('%Y-%m'),
+                'o': 'lt'
+            })
+
+        else:
+            query['filter'].append({
+                'k': 'billed_date',
+                'v': start.strftime('%Y-%m-%d'),
+                'o': 'gte'
+            })
+
+            query['filter'].append({
+                'k': 'billed_date',
+                'v': end.strftime('%Y-%m-%d'),
+                'o': 'lt'
+            })
+
+        return query
+
+    def make_accumulated_query(self, granularity, group_by, limit, page, sort, query_filter):
+        aggregate = [
+            {
+                'group': {
+                    'keys': self._get_keys_from_group_by(group_by),
+                    'fields': [
+                        {
+                            'key': 'usd_cost',
+                            'name': 'usd_cost',
+                            'operator': 'sum'
+                        }
+                    ]
+                }
+            },
+            {
+                'sort': {
+                    'key': 'usd_cost',
+                    'desc': True
+                }
+            }
+        ]
+
+        if limit:
+            aggregate.append({'limit': limit})
+
+        return {
+            'aggregate': aggregate,
+            'page': page,
+            'filter': query_filter
+        }
+
+    def make_trend_query(self, granularity, group_by, limit, page, sort, query_filter):
+        aggregate = [
+            {
+                'group': {
+                    'keys': self._get_keys_from_group_by(group_by) + self._get_keys_from_granularity(granularity),
+                    'fields': [
+                        {
+                            'key': 'usd_cost',
+                            'name': 'usd_cost',
+                            'operator': 'sum'
+                        }
+                    ]
+                }
+            },
+            {
+                'group': {
+                    'keys': self._get_keys_from_group_by(group_by),
+                    'fields': [
+                        {
+                            'key': 'usd_cost',
+                            'name': 'total_usd_cost',
+                            'operator': 'sum'
+                        },
+                        {
+                            'name': 'values',
+                            'operator': 'push',
+                            'fields': [
+                                {
+                                    'key': 'date',
+                                    'name': 'k'
+                                },
+                                {
+                                    'key': 'usd_cost',
+                                    'name': 'v'
+                                }
+                            ]
+                        }
+                    ]
+                }
+            },
+            {
+                'sort': {
+                    'key': 'total_usd_cost',
+                    'desc': True
+                }
+            }
+        ]
+
+        if limit:
+            aggregate.append({'limit': limit})
+
+        aggregate.append({
+            'project': {
+                'fields': [
+                    {
+                        'key': 'values',
+                        'name': 'values',
+                        'operator': 'array_to_object'
+                    }
+                ]
+            }
+        })
+
+        return {
+            'aggregate': aggregate,
+            'page': page,
+            'filter': query_filter
+        }
+
+    @staticmethod
+    def _get_keys_from_group_by(group_by):
+        keys = []
+        for key in group_by:
+            keys.append({
+                'key': key,
+                'name': key
+            })
+        return keys
+
+    @staticmethod
+    def _get_keys_from_granularity(granularity):
+        keys = []
+        if granularity == 'DAILY':
+            keys.append({
+                'key': 'billed_date',
+                'name': 'date'
+            })
+        elif granularity == 'MONTHLY':
+            keys.append({
+                'key': 'billed_month',
+                'name': 'date'
+            })
+        elif granularity == 'YEARLY':
+            keys.append({
+                'key': 'billed_year',
+                'name': 'date'
+            })
+
+        return keys
