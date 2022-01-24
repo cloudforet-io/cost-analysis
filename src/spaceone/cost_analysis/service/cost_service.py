@@ -241,10 +241,13 @@ class CostService(BaseService):
 
         """
 
+        domain_id = params['domain_id']
         query = params.get('query', {})
         query['filter'] = self._change_project_group_filter(query.get('filter', []), params['domain_id'])
 
-        return self.cost_mgr.stat_costs(query)
+        query_hash = utils.dict_to_hash(query)
+
+        return self.cost_mgr.stat_costs_with_cache(query, query_hash, domain_id)
 
     @staticmethod
     def _add_domain_filter(query_filter, domain_id):
@@ -274,11 +277,11 @@ class CostService(BaseService):
         }
 
         for condition in query_filter:
-            key = condition.get('k', condition.get('key'))
-            value = condition.get('v', condition.get('value'))
-            operator = condition.get('o', condition.get('operator'))
+            key = condition.get('key', condition.get('k'))
+            value = condition.get('value', condition.get('v'))
+            operator = condition.get('operator', condition.get('o'))
 
-            if not all([key, value, operator]):
+            if not all([key, operator]):
                 raise ERROR_DB_QUERY(reason='filter condition should have key, value and operator.')
 
             if key == 'project_group_id':
