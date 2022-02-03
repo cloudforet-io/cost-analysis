@@ -113,6 +113,7 @@ class CostManager(BaseManager):
     @staticmethod
     def remove_stat_cache(domain_id):
         cache.delete_pattern(f'stat-costs:{domain_id}:*')
+        cache.delete_pattern(f'stat-monthly-costs:{domain_id}:*')
 
     @staticmethod
     def is_monthly_cost(granularity, start, end):
