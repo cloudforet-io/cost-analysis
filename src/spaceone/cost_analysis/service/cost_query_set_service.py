@@ -20,8 +20,7 @@ class CostQuerySetService(BaseService):
         self.cost_query_set_mgr: CostQuerySetManager = self.locator.get_manager('CostQuerySetManager')
 
     @transaction(append_meta={
-        'authorization.scope': 'USER',
-        'authorization.require_user_id': True
+        'authorization.scope': 'USER'
     })
     @check_required(['name', 'options', 'domain_id'])
     @change_date_value(['start', 'end'])
@@ -33,7 +32,6 @@ class CostQuerySetService(BaseService):
                 'name': 'str',
                 'options': 'str',
                 'tags': 'dict',
-                'user_id': 'str',
                 'domain_id': 'str'
             }
 
@@ -41,12 +39,7 @@ class CostQuerySetService(BaseService):
             cost_query_set_vo (object)
         """
 
-        if 'user_id' in params:
-            # TODO: Check User ID
-
-            params['scope'] = 'PRIVATE'
-        else:
-            params['scope'] = 'PUBLIC'
+        params['user_id'] = self.transaction.get_meta('user_id')
 
         return self.cost_query_set_mgr.create_cost_query_set(params)
 
@@ -115,10 +108,10 @@ class CostQuerySetService(BaseService):
 
     @transaction(append_meta={
         'authorization.scope': 'USER',
-        'mutation.append_parameter': {'user_self': {'meta': 'user_id', 'data': [None]}}
+        'mutation.append_parameter': {'user_self': 'user_id'}
     })
     @check_required(['domain_id'])
-    @append_query_filter(['cost_query_set_id', 'name', 'scope', 'user_id', 'domain_id', 'user_self'])
+    @append_query_filter(['cost_query_set_id', 'name', 'user_id', 'domain_id', 'user_self'])
     @append_keyword_filter(['cost_query_set_id', 'name'])
     def list(self, params):
         """ List cost_query_sets
@@ -127,7 +120,6 @@ class CostQuerySetService(BaseService):
             params (dict): {
                 'cost_query_set_id': 'str',
                 'name': 'str',
-                'scope': 'str',
                 'user_id': 'str',
                 'domain_id': 'str',
                 'query': 'dict (spaceone.api.core.v1.Query)',
@@ -144,7 +136,7 @@ class CostQuerySetService(BaseService):
 
     @transaction(append_meta={
         'authorization.scope': 'USER',
-        'mutation.append_parameter': {'user_self': {'meta': 'user_id', 'data': [None]}}
+        'mutation.append_parameter': {'user_self': 'user_id'}
     })
     @check_required(['query', 'domain_id'])
     @append_query_filter(['domain_id', 'user_self'])

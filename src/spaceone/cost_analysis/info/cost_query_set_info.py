@@ -11,7 +11,6 @@ def CostQuerySetInfo(cost_query_set_vo: CostQuerySet, minimal=False):
     info = {
         'cost_query_set_id': cost_query_set_vo.cost_query_set_id,
         'name': cost_query_set_vo.name,
-        'scope': cost_query_set_vo.scope,
         'user_id': cost_query_set_vo.user_id,
     }
 
@@ -19,7 +18,6 @@ def CostQuerySetInfo(cost_query_set_vo: CostQuerySet, minimal=False):
         info.update({
             'options': change_struct_type(cost_query_set_vo.options),
             'tags': change_struct_type(cost_query_set_vo.tags),
-            'user_id': cost_query_set_vo.user_id,
             'domain_id': cost_query_set_vo.domain_id,
             'created_at': utils.datetime_to_iso8601(cost_query_set_vo.created_at),
             'updated_at': utils.datetime_to_iso8601(cost_query_set_vo.updated_at),
