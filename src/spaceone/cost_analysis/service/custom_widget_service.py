@@ -19,9 +19,7 @@ class CustomWidgetService(BaseService):
         super().__init__(*args, **kwargs)
         self.custom_widget_mgr: CustomWidgetManager = self.locator.get_manager('CustomWidgetManager')
 
-    @transaction(append_meta={
-        'authorization.scope': 'USER'
-    })
+    @transaction(append_meta={'authorization.scope': 'USER'})
     @check_required(['name', 'options', 'domain_id'])
     @change_date_value(['start', 'end'])
     def create(self, params):

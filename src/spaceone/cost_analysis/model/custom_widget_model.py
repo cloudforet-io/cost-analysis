@@ -31,7 +31,6 @@ class CustomWidget(MongoModel):
             'name'
         ],
         'indexes': [
-            'custom_widget_id',
             'name',
             'user_id',
             'domain_id'

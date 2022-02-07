@@ -19,9 +19,7 @@ class CostQuerySetService(BaseService):
         super().__init__(*args, **kwargs)
         self.cost_query_set_mgr: CostQuerySetManager = self.locator.get_manager('CostQuerySetManager')
 
-    @transaction(append_meta={
-        'authorization.scope': 'USER'
-    })
+    @transaction(append_meta={'authorization.scope': 'USER'})
     @check_required(['name', 'options', 'domain_id'])
     @change_date_value(['start', 'end'])
     def create(self, params):
