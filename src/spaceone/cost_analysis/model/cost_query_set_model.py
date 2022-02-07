@@ -31,7 +31,6 @@ class CostQuerySet(MongoModel):
             'name'
         ],
         'indexes': [
-            'cost_query_set_id',
             'name',
             'user_id',
             'domain_id'
