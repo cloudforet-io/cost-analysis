@@ -3,8 +3,8 @@ import logging
 from spaceone.core.service import *
 from spaceone.core import utils
 from spaceone.cost_analysis.error import *
-from spaceone.cost_analysis.manager.cost_query_set_manager import CostQuerySetManager
-from spaceone.cost_analysis.model.cost_query_set_model import CostQuerySet
+from spaceone.cost_analysis.manager.custom_widget_manager import CustomWidgetManager
+from spaceone.cost_analysis.model.custom_widget_model import CustomWidget
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -13,17 +13,17 @@ _LOGGER = logging.getLogger(__name__)
 @authorization_handler
 @mutation_handler
 @event_handler
-class CostQuerySetService(BaseService):
+class CustomWidgetService(BaseService):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.cost_query_set_mgr: CostQuerySetManager = self.locator.get_manager('CostQuerySetManager')
+        self.custom_widget_mgr: CustomWidgetManager = self.locator.get_manager('CustomWidgetManager')
 
     @transaction(append_meta={'authorization.scope': 'USER'})
     @check_required(['name', 'options', 'domain_id'])
     @change_date_value(['start', 'end'])
     def create(self, params):
-        """Register cost_query_set
+        """Register custom_widget
 
         Args:
             params (dict): {
@@ -34,22 +34,22 @@ class CostQuerySetService(BaseService):
             }
 
         Returns:
-            cost_query_set_vo (object)
+            custom_widget_vo (object)
         """
 
         params['user_id'] = self.transaction.get_meta('user_id')
 
-        return self.cost_query_set_mgr.create_cost_query_set(params)
+        return self.custom_widget_mgr.create_custom_widget(params)
 
     @transaction(append_meta={'authorization.scope': 'USER'})
-    @check_required(['cost_query_set_id', 'domain_id'])
+    @check_required(['custom_widget_id', 'domain_id'])
     @change_date_value(['end'])
     def update(self, params):
-        """Update cost_query_set
+        """Update custom_widget
 
         Args:
             params (dict): {
-                'cost_query_set_id': 'str',
+                'custom_widget_id': 'str',
                 'name': 'str',
                 'options': 'dict',
                 'tags': 'dict'
@@ -57,23 +57,23 @@ class CostQuerySetService(BaseService):
             }
 
         Returns:
-            cost_query_set_vo (object)
+            custom_widget_vo (object)
         """
-        cost_query_set_id = params['cost_query_set_id']
+        custom_widget_id = params['custom_widget_id']
         domain_id = params['domain_id']
 
-        cost_query_set_vo: CostQuerySet = self.cost_query_set_mgr.get_cost_query_set(cost_query_set_id, domain_id)
+        custom_widget_vo: CustomWidget = self.custom_widget_mgr.get_custom_widget(custom_widget_id, domain_id)
 
-        return self.cost_query_set_mgr.update_cost_query_set_by_vo(params, cost_query_set_vo)
+        return self.custom_widget_mgr.update_custom_widget_by_vo(params, custom_widget_vo)
 
     @transaction(append_meta={'authorization.scope': 'USER'})
-    @check_required(['cost_query_set_id', 'domain_id'])
+    @check_required(['custom_widget_id', 'domain_id'])
     def delete(self, params):
-        """Deregister cost_query_set
+        """Deregister custom_widget
 
         Args:
             params (dict): {
-                'cost_query_set_id': 'str',
+                'custom_widget_id': 'str',
                 'domain_id': 'str'
             }
 
@@ -81,42 +81,42 @@ class CostQuerySetService(BaseService):
             None
         """
 
-        self.cost_query_set_mgr.delete_cost_query_set(params['cost_query_set_id'], params['domain_id'])
+        self.custom_widget_mgr.delete_custom_widget(params['custom_widget_id'], params['domain_id'])
 
     @transaction(append_meta={'authorization.scope': 'USER'})
-    @check_required(['cost_query_set_id', 'domain_id'])
+    @check_required(['custom_widget_id', 'domain_id'])
     def get(self, params):
-        """ Get cost_query_set
+        """ Get custom_widget
 
         Args:
             params (dict): {
-                'cost_query_set_id': 'str',
+                'custom_widget_id': 'str',
                 'domain_id': 'str',
                 'only': 'list
             }
 
         Returns:
-            cost_query_set_vo (object)
+            custom_widget_vo (object)
         """
 
-        cost_query_set_id = params['cost_query_set_id']
+        custom_widget_id = params['custom_widget_id']
         domain_id = params['domain_id']
 
-        return self.cost_query_set_mgr.get_cost_query_set(cost_query_set_id, domain_id, params.get('only'))
+        return self.custom_widget_mgr.get_custom_widget(custom_widget_id, domain_id, params.get('only'))
 
     @transaction(append_meta={
         'authorization.scope': 'USER',
         'mutation.append_parameter': {'user_self': 'user_id'}
     })
     @check_required(['domain_id'])
-    @append_query_filter(['cost_query_set_id', 'name', 'user_id', 'domain_id', 'user_self'])
-    @append_keyword_filter(['cost_query_set_id', 'name'])
+    @append_query_filter(['custom_widget_id', 'name', 'user_id', 'domain_id', 'user_self'])
+    @append_keyword_filter(['custom_widget_id', 'name'])
     def list(self, params):
-        """ List cost_query_sets
+        """ List custom_widgets
 
         Args:
             params (dict): {
-                'cost_query_set_id': 'str',
+                'custom_widget_id': 'str',
                 'name': 'str',
                 'user_id': 'str',
                 'domain_id': 'str',
@@ -125,12 +125,12 @@ class CostQuerySetService(BaseService):
             }
 
         Returns:
-            cost_query_set_vos (object)
+            custom_widget_vos (object)
             total_count
         """
 
         query = params.get('query', {})
-        return self.cost_query_set_mgr.list_cost_query_sets(query)
+        return self.custom_widget_mgr.list_custom_widgets(query)
 
     @transaction(append_meta={
         'authorization.scope': 'USER',
@@ -138,7 +138,7 @@ class CostQuerySetService(BaseService):
     })
     @check_required(['query', 'domain_id'])
     @append_query_filter(['domain_id', 'user_self'])
-    @append_keyword_filter(['cost_query_set_id', 'name'])
+    @append_keyword_filter(['custom_widget_id', 'name'])
     def stat(self, params):
         """
         Args:
@@ -154,4 +154,4 @@ class CostQuerySetService(BaseService):
         """
 
         query = params.get('query', {})
-        return self.cost_query_set_mgr.stat_cost_query_sets(query)
+        return self.custom_widget_mgr.stat_custom_widgets(query)

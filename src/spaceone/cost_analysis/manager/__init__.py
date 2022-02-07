@@ -9,8 +9,10 @@ from spaceone.cost_analysis.manager.cost_manager import CostManager
 from spaceone.cost_analysis.manager.data_source_rule_manager import DataSourceRuleManager
 from spaceone.cost_analysis.manager.budget_manager import BudgetManager
 from spaceone.cost_analysis.manager.budget_usage_manager import BudgetUsageManager
-from spaceone.cost_analysis.manager.dashboard_manager import DashboardManager
+from spaceone.cost_analysis.manager.public_dashboard_manager import PublicDashboardManager
+from spaceone.cost_analysis.manager.user_dashboard_manager import UserDashboardManager
 from spaceone.cost_analysis.manager.cost_query_set_manager import CostQuerySetManager
+from spaceone.cost_analysis.manager.custom_widget_manager import CustomWidgetManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 from spaceone.cost_analysis.manager.secret_manager import SecretManager
 from spaceone.cost_analysis.manager.job_manager import JobManager

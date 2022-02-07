@@ -6,7 +6,9 @@ from spaceone.cost_analysis.info.exchange_rate_info import *
 from spaceone.cost_analysis.info.cost_info import *
 from spaceone.cost_analysis.info.budget_info import *
 from spaceone.cost_analysis.info.budget_usage_info import *
-from spaceone.cost_analysis.info.dashboard_info import *
+from spaceone.cost_analysis.info.public_dashboard_info import *
+from spaceone.cost_analysis.info.user_dashboard_info import *
 from spaceone.cost_analysis.info.cost_query_set_info import *
+from spaceone.cost_analysis.info.custom_widget import *
 from spaceone.cost_analysis.info.job_info import *
 from spaceone.cost_analysis.info.job_task_info import *

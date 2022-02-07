@@ -3,8 +3,8 @@ from mongoengine import *
 from spaceone.core.model.mongo_model import MongoModel
 
 
-class CostQuerySet(MongoModel):
-    cost_query_set_id = StringField(max_length=40, generate_id='query', unique=True)
+class CustomWidget(MongoModel):
+    custom_widget_id = StringField(max_length=40, generate_id='query', unique=True)
     name = StringField(max_length=255)
     options = DictField(default={})
     tags = DictField(default={})
@@ -20,7 +20,7 @@ class CostQuerySet(MongoModel):
             'tags'
         ],
         'minimal_fields': [
-            'cost_query_set_id',
+            'custom_widget_id',
             'name',
             'user_id'
         ],
