@@ -4,7 +4,7 @@ from spaceone.core.model.mongo_model import MongoModel
 
 
 class CustomWidget(MongoModel):
-    custom_widget_id = StringField(max_length=40, generate_id='query', unique=True)
+    custom_widget_id = StringField(max_length=40, generate_id='widget', unique=True)
     name = StringField(max_length=255)
     options = DictField(default={})
     tags = DictField(default={})
