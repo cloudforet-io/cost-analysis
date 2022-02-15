@@ -3,6 +3,7 @@ import datetime
 import logging
 import time
 from typing import List, Union
+from dateutil import rrule
 from datetime import timedelta, datetime
 
 from spaceone.core.service import *
@@ -258,13 +259,13 @@ class JobService(BaseService):
 
         if job_vo.remained_tasks == 0:
             if job_vo.status == 'IN_PROGRESS':
-                changed_start = None
-                for changed_vo in job_vo.changed:
-                    self._delete_changed_cost_data(job_vo, changed_vo.start, changed_vo.end)
-                    if changed_start is None or changed_start > changed_vo.start:
-                        changed_start = changed_vo.start
-
                 try:
+                    changed_start = None
+                    for changed_vo in job_vo.changed:
+                        self._delete_changed_cost_data(job_vo, changed_vo.start, changed_vo.end)
+                        if changed_start is None or changed_start > changed_vo.start:
+                            changed_start = changed_vo.start
+
                     self._aggregate_cost_data(job_vo, changed_start)
                     self._update_budget_usage(domain_id)
                     self.cost_mgr.remove_stat_cache(domain_id)
@@ -319,22 +320,17 @@ class JobService(BaseService):
         cost_vos.delete()
 
     def _aggregate_cost_data(self, job_vo: Job, changed_start):
-        changed_start_month = changed_start.strftime('%Y-%m')
-        changed_start_year = changed_start.strftime('%Y')
+        data_source_id = job_vo.data_source_id
+        domain_id = job_vo.domain_id
+        job_id = job_vo.job_id
 
-        # Delete Monthly Cost
-        query = {
-            'filter': [
-                {'k': 'data_source_id', 'v': job_vo.data_source_id, 'o': 'eq'},
-                {'k': 'domain_id', 'v': job_vo.domain_id, 'o': 'eq'},
-                {'k': 'billed_month', 'v': changed_start_month, 'o': 'gte'}
-            ]
-        }
+        for dt in rrule.rrule(rrule.MONTHLY, dtstart=changed_start, until=datetime.utcnow()):
+            billed_month = dt.strftime('%Y-%m')
+            self._aggregate_monthly_cost_data(data_source_id, domain_id, job_id, billed_month)
 
-        monthly_cost_vos, total_count = self.cost_mgr.list_monthly_costs(query)
-        monthly_cost_vos.delete()
+        self._delete_aggregated_cost_data(data_source_id, domain_id, job_id, changed_start)
 
-        # Create Monthly Cost
+    def _aggregate_monthly_cost_data(self, data_source_id, domain_id, job_id, billed_month):
         query = {
             'aggregate': [
                 {
@@ -365,22 +361,40 @@ class JobService(BaseService):
                 }
             ],
             'filter': [
-                {'k': 'data_source_id', 'v': job_vo.data_source_id, 'o': 'eq'},
-                {'k': 'domain_id', 'v': job_vo.domain_id, 'o': 'eq'},
-                {'k': 'billed_month', 'v': changed_start_month, 'o': 'gte'}
+                {'k': 'data_source_id', 'v': data_source_id, 'o': 'eq'},
+                {'k': 'domain_id', 'v': domain_id, 'o': 'eq'},
+                {'k': 'billed_month', 'v': billed_month, 'o': 'eq'},
             ]
         }
-
-        _LOGGER.debug(f'[_aggregate_cost_data] create monthly cost data: {job_vo.job_id}')
 
         response = self.cost_mgr.stat_costs(query)
         results = response.get('results', [])
         for aggregated_cost_data in results:
-            aggregated_cost_data['data_source_id'] = job_vo.data_source_id
-            aggregated_cost_data['domain_id'] = job_vo.domain_id
+            aggregated_cost_data['data_source_id'] = data_source_id
+            aggregated_cost_data['job_id'] = job_id
+            aggregated_cost_data['domain_id'] = domain_id
             self.cost_mgr.create_monthly_cost(aggregated_cost_data)
 
-        _LOGGER.debug(f'[_aggregate_cost_data] finished (monthly_cost): {job_vo.job_id} (count = {len(results)})')
+            _LOGGER.debug(f'[_aggregate_monthly_cost_data] create monthly costs: {billed_month} ({job_id}')
+
+    def _delete_aggregated_cost_data(self, data_source_id, domain_id, job_id, changed_start):
+        changed_start_month = changed_start.strftime('%Y-%m')
+        changed_start_year = changed_start.strftime('%Y')
+
+        # Delete Monthly Cost
+        query = {
+            'filter': [
+                {'k': 'data_source_id', 'v': data_source_id, 'o': 'eq'},
+                {'k': 'domain_id', 'v': domain_id, 'o': 'eq'},
+                {'k': 'job_id', 'v': job_id, 'o': 'not'},
+                {'k': 'billed_month', 'v': changed_start_month, 'o': 'gte'},
+            ]
+        }
+
+        monthly_cost_vos, total_count = self.cost_mgr.list_monthly_costs(query)
+        monthly_cost_vos.delete()
+
+        _LOGGER.debug(f'[_delete_aggregated_cost_data] delete monthly costs after {changed_start_month} ({job_id}')
 
     def _sync_data_source(self, data_source_vo: DataSource):
         data_source_id = data_source_vo.data_source_id
