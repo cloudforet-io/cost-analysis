@@ -488,53 +488,6 @@ class JobService(BaseService):
         # Original Date Range
         self._create_cache(copy.deepcopy(query), granularity, start, end, domain_id)
 
-        # this_month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        # this_month_end = this_month_start + relativedelta.relativedelta(months=1)
-        #
-        # # This month
-        # self._create_cache(copy.deepcopy(query), this_month_start, this_month_end, domain_id)
-        #
-        # # Last Month
-        # start = this_month_start - relativedelta.relativedelta(months=1)
-        # self._create_cache(copy.deepcopy(query), start, this_month_start, domain_id)
-        #
-        # # 2 Month Ago
-        # start = this_month_start - relativedelta.relativedelta(months=2)
-        # end = this_month_start - relativedelta.relativedelta(months=1)
-        # self._create_cache(copy.deepcopy(query), start, end, domain_id)
-        #
-        # # Last 3 Month
-        # start = this_month_start - relativedelta.relativedelta(months=2)
-        # self._create_cache(copy.deepcopy(query), start, this_month_end, domain_id)
-        #
-        # # Last 4 Month
-        # start = this_month_start - relativedelta.relativedelta(months=3)
-        # self._create_cache(copy.deepcopy(query), start, this_month_end, domain_id)
-        #
-        # # Last 6 Month
-        # start = this_month_start - relativedelta.relativedelta(months=5)
-        # self._create_cache(copy.deepcopy(query), start, this_month_end, domain_id)
-        #
-        # # Last 12 Month
-        # start = this_month_start - relativedelta.relativedelta(months=11)
-        # self._create_cache(copy.deepcopy(query), start, this_month_end, domain_id)
-        #
-        # # Last Month - 3 Month
-        # start = this_month_start - relativedelta.relativedelta(months=3)
-        # self._create_cache(copy.deepcopy(query), start, this_month_start, domain_id)
-        #
-        # # Last Month - 4 Month
-        # start = this_month_start - relativedelta.relativedelta(months=4)
-        # self._create_cache(copy.deepcopy(query), start, this_month_start, domain_id)
-        #
-        # # Last Month - 6 Month
-        # start = this_month_start - relativedelta.relativedelta(months=6)
-        # self._create_cache(copy.deepcopy(query), start, this_month_start, domain_id)
-        #
-        # # Last Month - 12 Month
-        # start = this_month_start - relativedelta.relativedelta(months=12)
-        # self._create_cache(copy.deepcopy(query), start, this_month_start, domain_id)
-
     def _create_cache(self, query, granularity, start, end, domain_id):
         query = self.cost_mgr.add_date_range_filter(query, granularity, start, end)
         query_hash_with_date_range = utils.dict_to_hash(query)
