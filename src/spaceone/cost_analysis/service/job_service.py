@@ -367,6 +367,7 @@ class JobService(BaseService):
             ]
         }
 
+        _LOGGER.debug(f'[_aggregate_monthly_cost_data] query: {query}')
         response = self.cost_mgr.stat_costs(query)
         results = response.get('results', [])
         for aggregated_cost_data in results:
@@ -375,7 +376,7 @@ class JobService(BaseService):
             aggregated_cost_data['domain_id'] = domain_id
             self.cost_mgr.create_monthly_cost(aggregated_cost_data)
 
-            _LOGGER.debug(f'[_aggregate_monthly_cost_data] create monthly costs: {billed_month} ({job_id}')
+        _LOGGER.debug(f'[_aggregate_monthly_cost_data] create monthly costs ({billed_month}): {job_id} (count = {len(results)})')
 
     def _delete_aggregated_cost_data(self, data_source_id, domain_id, job_id, changed_start):
         changed_start_month = changed_start.strftime('%Y-%m')
@@ -394,7 +395,7 @@ class JobService(BaseService):
         monthly_cost_vos, total_count = self.cost_mgr.list_monthly_costs(query)
         monthly_cost_vos.delete()
 
-        _LOGGER.debug(f'[_delete_aggregated_cost_data] delete monthly costs after {changed_start_month} ({job_id}')
+        _LOGGER.debug(f'[_delete_aggregated_cost_data] delete monthly costs after {changed_start_month}: {job_id}')
 
     def _sync_data_source(self, data_source_vo: DataSource):
         data_source_id = data_source_vo.data_source_id
@@ -487,53 +488,6 @@ class JobService(BaseService):
 
         # Original Date Range
         self._create_cache(copy.deepcopy(query), granularity, start, end, domain_id)
-
-        # this_month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        # this_month_end = this_month_start + relativedelta.relativedelta(months=1)
-        #
-        # # This month
-        # self._create_cache(copy.deepcopy(query), this_month_start, this_month_end, domain_id)
-        #
-        # # Last Month
-        # start = this_month_start - relativedelta.relativedelta(months=1)
-        # self._create_cache(copy.deepcopy(query), start, this_month_start, domain_id)
-        #
-        # # 2 Month Ago
-        # start = this_month_start - relativedelta.relativedelta(months=2)
-        # end = this_month_start - relativedelta.relativedelta(months=1)
-        # self._create_cache(copy.deepcopy(query), start, end, domain_id)
-        #
-        # # Last 3 Month
-        # start = this_month_start - relativedelta.relativedelta(months=2)
-        # self._create_cache(copy.deepcopy(query), start, this_month_end, domain_id)
-        #
-        # # Last 4 Month
-        # start = this_month_start - relativedelta.relativedelta(months=3)
-        # self._create_cache(copy.deepcopy(query), start, this_month_end, domain_id)
-        #
-        # # Last 6 Month
-        # start = this_month_start - relativedelta.relativedelta(months=5)
-        # self._create_cache(copy.deepcopy(query), start, this_month_end, domain_id)
-        #
-        # # Last 12 Month
-        # start = this_month_start - relativedelta.relativedelta(months=11)
-        # self._create_cache(copy.deepcopy(query), start, this_month_end, domain_id)
-        #
-        # # Last Month - 3 Month
-        # start = this_month_start - relativedelta.relativedelta(months=3)
-        # self._create_cache(copy.deepcopy(query), start, this_month_start, domain_id)
-        #
-        # # Last Month - 4 Month
-        # start = this_month_start - relativedelta.relativedelta(months=4)
-        # self._create_cache(copy.deepcopy(query), start, this_month_start, domain_id)
-        #
-        # # Last Month - 6 Month
-        # start = this_month_start - relativedelta.relativedelta(months=6)
-        # self._create_cache(copy.deepcopy(query), start, this_month_start, domain_id)
-        #
-        # # Last Month - 12 Month
-        # start = this_month_start - relativedelta.relativedelta(months=12)
-        # self._create_cache(copy.deepcopy(query), start, this_month_start, domain_id)
 
     def _create_cache(self, query, granularity, start, end, domain_id):
         query = self.cost_mgr.add_date_range_filter(query, granularity, start, end)
