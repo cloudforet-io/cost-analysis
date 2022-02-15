@@ -367,6 +367,7 @@ class JobService(BaseService):
             ]
         }
 
+        _LOGGER.debug(f'[_aggregate_monthly_cost_data] query: {query}')
         response = self.cost_mgr.stat_costs(query)
         results = response.get('results', [])
         for aggregated_cost_data in results:
@@ -375,7 +376,7 @@ class JobService(BaseService):
             aggregated_cost_data['domain_id'] = domain_id
             self.cost_mgr.create_monthly_cost(aggregated_cost_data)
 
-            _LOGGER.debug(f'[_aggregate_monthly_cost_data] create monthly costs: {billed_month} ({job_id}')
+        _LOGGER.debug(f'[_aggregate_monthly_cost_data] create monthly costs ({billed_month}): {job_id} (count = {len(results)})')
 
     def _delete_aggregated_cost_data(self, data_source_id, domain_id, job_id, changed_start):
         changed_start_month = changed_start.strftime('%Y-%m')
@@ -394,7 +395,7 @@ class JobService(BaseService):
         monthly_cost_vos, total_count = self.cost_mgr.list_monthly_costs(query)
         monthly_cost_vos.delete()
 
-        _LOGGER.debug(f'[_delete_aggregated_cost_data] delete monthly costs after {changed_start_month} ({job_id}')
+        _LOGGER.debug(f'[_delete_aggregated_cost_data] delete monthly costs after {changed_start_month}: {job_id}')
 
     def _sync_data_source(self, data_source_vo: DataSource):
         data_source_id = data_source_vo.data_source_id
