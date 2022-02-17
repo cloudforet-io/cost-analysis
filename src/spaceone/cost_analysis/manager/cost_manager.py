@@ -1,6 +1,6 @@
 import logging
 import copy
-from datetime import datetime
+from datetime import datetime, date
 
 from spaceone.core import cache
 from spaceone.core.manager import BaseManager
@@ -122,7 +122,7 @@ class CostManager(BaseManager):
         else:
             return False
 
-    def add_date_range_filter(self, query, granularity, start: datetime, end: datetime):
+    def add_date_range_filter(self, query, granularity, start: date, end: date):
         query['filter'] = query.get('filter') or []
 
         if self.is_monthly_cost(granularity, start, end):

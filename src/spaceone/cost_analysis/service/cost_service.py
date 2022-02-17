@@ -151,7 +151,6 @@ class CostService(BaseService):
         'mutation.append_parameter': {'user_projects': 'authorization.projects'}
     })
     @check_required(['granularity', 'start', 'end', 'domain_id'])
-    @change_date_value(['start', 'end'])
     def analyze(self, params):
         """
         Args:
@@ -176,8 +175,6 @@ class CostService(BaseService):
 
         domain_id = params['domain_id']
         granularity = params['granularity']
-        start: datetime = params['start']
-        end: datetime = params['end']
         group_by = params.get('group_by', [])
         query_filter = params.get('filter', [])
         limit = params.get('limit')
@@ -185,6 +182,9 @@ class CostService(BaseService):
         sort = params.get('sort')
         include_usage_quantity = params.get('include_usage_quantity', False)
         include_others = params.get('include_others', False)
+
+        start = self._parse_start_time(params['start'])
+        end = self._parse_end_time(params['end'])
 
         if start >= end:
             raise ERROR_INVALID_DATE_RANGE(reason='End date must be greater than start date.')
@@ -194,7 +194,7 @@ class CostService(BaseService):
                 raise ERROR_INVALID_DATE_RANGE(reason='Request up to a maximum of 12 months.')
         elif granularity == 'DAILY':
             if start + relativedelta(days=31) < end:
-                raise ERROR_INVALID_DATE_RANGE(reason='Request up to a maximum of 31 days')
+                raise ERROR_INVALID_DATE_RANGE(reason='Request up to a maximum of 31 days.')
 
         query_filter = self._add_domain_filter(query_filter, domain_id)
 
@@ -227,6 +227,7 @@ class CostService(BaseService):
     @check_required(['query', 'domain_id'])
     @append_query_filter(['domain_id', 'user_projects'])
     @append_keyword_filter(['cost_id'])
+    @change_date_value()
     def stat(self, params):
         """
         Args:
@@ -307,3 +308,28 @@ class CostService(BaseService):
             changed_filter.append({'k': 'project_id', 'v': project_ids, 'o': 'in'})
 
         return changed_filter
+
+    def _parse_start_time(self, date_str):
+        return self._convert_date_from_string(date_str, 'start')
+
+    def _parse_end_time(self, date_str):
+        date = self._convert_date_from_string(date_str, 'end')
+
+        if len(date_str.strip()) == 7:
+            return date + relativedelta(months=1)
+        else:
+            return date + relativedelta(days=1)
+
+    @staticmethod
+    def _convert_date_from_string(date_str, key):
+        if len(date_str.strip()) == 7:
+            # Month (YYYY-MM)
+            date_format = '%Y-%m'
+        else:
+            # Date (YYYY-MM-DD)
+            date_format = '%Y-%m-%d'
+
+        try:
+            return datetime.strptime(date_str, date_format).date()
+        except Exception as e:
+            raise ERROR_INVALID_PARAMETER_TYPE(key=key, type=date_format)
