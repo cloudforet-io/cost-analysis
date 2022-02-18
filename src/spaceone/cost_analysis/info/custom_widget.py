@@ -9,7 +9,7 @@ __all__ = ['CustomWidgetInfo', 'CustomWidgetsInfo']
 
 def CustomWidgetInfo(custom_widget_vo: CustomWidget, minimal=False):
     info = {
-        'custom_widget_id': custom_widget_vo.custom_widget_id,
+        'widget_id': custom_widget_vo.widget_id,
         'name': custom_widget_vo.name,
         'user_id': custom_widget_vo.user_id,
     }
