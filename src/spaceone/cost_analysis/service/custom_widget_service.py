@@ -42,14 +42,14 @@ class CustomWidgetService(BaseService):
         return self.custom_widget_mgr.create_custom_widget(params)
 
     @transaction(append_meta={'authorization.scope': 'USER'})
-    @check_required(['custom_widget_id', 'domain_id'])
+    @check_required(['widget_id', 'domain_id'])
     @change_date_value(['end'])
     def update(self, params):
         """Update custom_widget
 
         Args:
             params (dict): {
-                'custom_widget_id': 'str',
+                'widget_id': 'str',
                 'name': 'str',
                 'options': 'dict',
                 'tags': 'dict'
@@ -59,21 +59,21 @@ class CustomWidgetService(BaseService):
         Returns:
             custom_widget_vo (object)
         """
-        custom_widget_id = params['custom_widget_id']
+        widget_id = params['widget_id']
         domain_id = params['domain_id']
 
-        custom_widget_vo: CustomWidget = self.custom_widget_mgr.get_custom_widget(custom_widget_id, domain_id)
+        custom_widget_vo: CustomWidget = self.custom_widget_mgr.get_custom_widget(widget_id, domain_id)
 
         return self.custom_widget_mgr.update_custom_widget_by_vo(params, custom_widget_vo)
 
     @transaction(append_meta={'authorization.scope': 'USER'})
-    @check_required(['custom_widget_id', 'domain_id'])
+    @check_required(['widget_id', 'domain_id'])
     def delete(self, params):
         """Deregister custom_widget
 
         Args:
             params (dict): {
-                'custom_widget_id': 'str',
+                'widget_id': 'str',
                 'domain_id': 'str'
             }
 
@@ -81,16 +81,16 @@ class CustomWidgetService(BaseService):
             None
         """
 
-        self.custom_widget_mgr.delete_custom_widget(params['custom_widget_id'], params['domain_id'])
+        self.custom_widget_mgr.delete_custom_widget(params['widget_id'], params['domain_id'])
 
     @transaction(append_meta={'authorization.scope': 'USER'})
-    @check_required(['custom_widget_id', 'domain_id'])
+    @check_required(['widget_id', 'domain_id'])
     def get(self, params):
         """ Get custom_widget
 
         Args:
             params (dict): {
-                'custom_widget_id': 'str',
+                'widget_id': 'str',
                 'domain_id': 'str',
                 'only': 'list
             }
@@ -99,24 +99,24 @@ class CustomWidgetService(BaseService):
             custom_widget_vo (object)
         """
 
-        custom_widget_id = params['custom_widget_id']
+        widget_id = params['widget_id']
         domain_id = params['domain_id']
 
-        return self.custom_widget_mgr.get_custom_widget(custom_widget_id, domain_id, params.get('only'))
+        return self.custom_widget_mgr.get_custom_widget(widget_id, domain_id, params.get('only'))
 
     @transaction(append_meta={
         'authorization.scope': 'USER',
         'mutation.append_parameter': {'user_self': 'user_id'}
     })
     @check_required(['domain_id'])
-    @append_query_filter(['custom_widget_id', 'name', 'user_id', 'domain_id', 'user_self'])
-    @append_keyword_filter(['custom_widget_id', 'name'])
+    @append_query_filter(['widget_id', 'name', 'user_id', 'domain_id', 'user_self'])
+    @append_keyword_filter(['widget_id', 'name'])
     def list(self, params):
         """ List custom_widgets
 
         Args:
             params (dict): {
-                'custom_widget_id': 'str',
+                'widget_id': 'str',
                 'name': 'str',
                 'user_id': 'str',
                 'domain_id': 'str',
@@ -138,7 +138,7 @@ class CustomWidgetService(BaseService):
     })
     @check_required(['query', 'domain_id'])
     @append_query_filter(['domain_id', 'user_self'])
-    @append_keyword_filter(['custom_widget_id', 'name'])
+    @append_keyword_filter(['widget_id', 'name'])
     def stat(self, params):
         """
         Args:
