@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from dateutil.rrule import rrule, MONTHLY, YEARLY
 
 from spaceone.core.service import *
@@ -24,7 +25,7 @@ class BudgetService(BaseService):
 
     @transaction(append_meta={'authorization.scope': 'PROJECT'})
     @check_required(['time_unit', 'start', 'end', 'domain_id'])
-    @change_date_value(['start', 'end'])
+    # @change_date_value(['start', 'end'])
     def create(self, params):
         """Register budget
 
@@ -37,8 +38,8 @@ class BudgetService(BaseService):
                 'planned_limits': 'list',
                 'cost_types': 'dict',
                 'time_unit': 'str',
-                'start': 'date',
-                'end': 'date',
+                'start': 'str',
+                'end': 'str',
                 'notifications': 'list',
                 'tags': 'dict',
                 'domain_id': 'str'
@@ -279,26 +280,32 @@ class BudgetService(BaseService):
     @staticmethod
     def _check_time_period(start, end):
         if start >= end:
-            raise ERROR_INVALID_TIME_RANGE(start=str(start), end=str(end))
+            raise ERROR_INVALID_TIME_RANGE(start=start, end=end)
 
     def _check_planned_limits(self, start, end, time_unit, planned_limits):
         planned_limits_dict = self._convert_planned_limits_data_type(planned_limits)
 
         if time_unit == 'MONTHLY':
-            for dt in rrule(MONTHLY, dtstart=start, until=end):
-                month = dt.strftime("%Y-%m")
-                if month not in planned_limits_dict:
-                    raise ERROR_NO_DATE_IN_PLANNED_LIMITS(date=month)
+            date_format = '%Y-%m'
+        else:
+            date_format = '%Y'
 
-                del planned_limits_dict[month]
+        try:
+            start_dt = datetime.strptime(start, date_format)
+        except Exception as e:
+            raise ERROR_INVALID_PARAMETER_TYPE(key='start', type=date_format)
 
-        elif time_unit == 'YEARLY':
-            for dt in rrule(YEARLY, dtstart=start, until=end):
-                year = dt.strftime("%Y")
-                if year not in planned_limits_dict:
-                    raise ERROR_NO_DATE_IN_PLANNED_LIMITS(date=year)
+        try:
+            end_dt = datetime.strptime(end, date_format)
+        except Exception as e:
+            raise ERROR_INVALID_PARAMETER_TYPE(key='end', type=date_format)
 
-                del planned_limits_dict[year]
+        for dt in rrule(MONTHLY, dtstart=start_dt, until=end_dt):
+            date_str = dt.strftime(date_format)
+            if date_str not in planned_limits_dict:
+                raise ERROR_NO_DATE_IN_PLANNED_LIMITS(date=date_str)
+
+            del planned_limits_dict[date_str]
 
         if len(planned_limits_dict.keys()) > 0:
             raise ERROR_DATE_IS_WRONG(date=list(planned_limits_dict.keys()))
