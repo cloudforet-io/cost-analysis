@@ -190,10 +190,10 @@ class CostService(BaseService):
             raise ERROR_INVALID_DATE_RANGE(reason='End date must be greater than start date.')
 
         if granularity in ['ACCUMULATED', 'MONTHLY']:
-            if start + relativedelta(months=12) <= end:
+            if start + relativedelta(months=12) < end:
                 raise ERROR_INVALID_DATE_RANGE(reason='Request up to a maximum of 12 months.')
         elif granularity == 'DAILY':
-            if start + relativedelta(days=31) <= end:
+            if start + relativedelta(days=31) < end:
                 raise ERROR_INVALID_DATE_RANGE(reason='Request up to a maximum of 31 days.')
 
         query_filter = self._add_domain_filter(query_filter, domain_id)
