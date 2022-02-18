@@ -1,5 +1,5 @@
 import logging
-from datetime import timedelta
+from datetime import datetime
 from dateutil.rrule import rrule, MONTHLY
 
 from spaceone.core.manager import BaseManager
@@ -19,10 +19,11 @@ class BudgetUsageManager(BaseManager):
         self.budget_usage_model: BudgetUsage = self.locator.get_model('BudgetUsage')
 
     def create_budget_usages(self, budget_vo: Budget):
-        # Rollback
-
         if budget_vo.time_unit == 'TOTAL':
-            dts = [dt for dt in rrule(MONTHLY, dtstart=budget_vo.start, until=budget_vo.end)]
+            start_dt = datetime.strptime(budget_vo.start, '%Y-%m')
+            end_dt = datetime.strptime(budget_vo.end, '%Y-%m')
+
+            dts = [dt for dt in rrule(MONTHLY, dtstart=start_dt, until=end_dt)]
             limit_per_month = int(budget_vo.limit / len(dts))
 
             for dt in dts:
@@ -86,7 +87,7 @@ class BudgetUsageManager(BaseManager):
         budget_mgr: BudgetManager = self.locator.get_manager('BudgetManager')
 
         query = self._make_cost_stat_query(budget_vo, True)
-        result = cost_mgr.stat_costs(query)
+        result = cost_mgr.stat_monthly_costs(query)
         if len(result.get('results', [])) > 0:
             total_usage_usd_cost = result['results'][0].get('usd_cost')
             if total_usage_usd_cost:
@@ -94,7 +95,7 @@ class BudgetUsageManager(BaseManager):
 
     def _update_monthly_budget_usage(self, budget_vo: Budget, cost_mgr: CostManager):
         query = self._make_cost_stat_query(budget_vo)
-        result = cost_mgr.stat_costs(query)
+        result = cost_mgr.stat_monthly_costs(query)
         for cost_usage_data in result.get('results', []):
             date = cost_usage_data.get('date')
             usd_cost = cost_usage_data.get('usd_cost', 0)
@@ -121,15 +122,15 @@ class BudgetUsageManager(BaseManager):
                 })
 
         query['filter'].append({
-            'key': 'billed_at',
+            'key': 'billed_month',
             'value': budget_vo.start,
             'operator': 'gte'
         })
 
         query['filter'].append({
-            'key': 'billed_at',
-            'value': budget_vo.end + timedelta(days=1),
-            'operator': 'lt'
+            'key': 'billed_month',
+            'value': budget_vo.end,
+            'operator': 'lte'
         })
 
         if budget_vo.project_id:
