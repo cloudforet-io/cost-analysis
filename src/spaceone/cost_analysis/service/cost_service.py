@@ -183,6 +183,9 @@ class CostService(BaseService):
         include_usage_quantity = params.get('include_usage_quantity', False)
         include_others = params.get('include_others', False)
 
+        if limit:
+            page = None
+
         start = self._parse_start_time(params['start'])
         end = self._parse_end_time(params['end'])
 
@@ -204,9 +207,11 @@ class CostService(BaseService):
         query_filter = self._change_project_group_filter(query_filter, domain_id)
 
         if granularity == 'ACCUMULATED':
-            query = self.cost_mgr.make_accumulated_query(granularity, group_by, limit, page, sort, query_filter)
+            query = self.cost_mgr.make_accumulated_query(granularity, group_by, limit, page, sort, query_filter,
+                                                         include_others)
         else:
-            query = self.cost_mgr.make_trend_query(granularity, group_by, limit, page, sort, query_filter)
+            query = self.cost_mgr.make_trend_query(granularity, group_by, limit, page, sort, query_filter,
+                                                   include_others)
 
         query_hash = utils.dict_to_hash(query)
 
@@ -216,9 +221,14 @@ class CostService(BaseService):
         query_hash_with_date_range = utils.dict_to_hash(query)
 
         if self.cost_mgr.is_monthly_cost(granularity, start, end):
-            return self.cost_mgr.stat_monthly_costs_with_cache(query, query_hash_with_date_range, domain_id)
+            response = self.cost_mgr.stat_monthly_costs_with_cache(query, query_hash_with_date_range, domain_id)
         else:
-            return self.cost_mgr.stat_costs_with_cache(query, query_hash_with_date_range, domain_id)
+            response = self.cost_mgr.stat_costs_with_cache(query, query_hash_with_date_range, domain_id)
+
+        if include_others and limit:
+            response['results'] = self._sum_costs_over_limit(response.get('results', []), granularity, limit)
+
+        return response
 
     @transaction(append_meta={
         'authorization.scope': 'PROJECT',
@@ -333,3 +343,33 @@ class CostService(BaseService):
             return datetime.strptime(date_str, date_format).date()
         except Exception as e:
             raise ERROR_INVALID_PARAMETER_TYPE(key=key, type=date_format)
+
+    @staticmethod
+    def _sum_costs_over_limit(results, granularity, limit):
+        changed_results = results[:limit]
+
+        if granularity == 'ACCUMULATED':
+            others = {
+                'is_others': True,
+                'usd_cost': 0
+            }
+
+            for cost_info in results[limit:]:
+                others['usd_cost'] += cost_info['usd_cost']
+
+        else:
+            others = {
+                'is_others': True,
+                'usd_cost': {}
+            }
+
+            for cost_info in results[limit:]:
+                for date, usd_cost in cost_info['usd_cost'].items():
+                    if date not in others['usd_cost']:
+                        others['usd_cost'][date] = usd_cost
+                    else:
+                        others['usd_cost'][date] += usd_cost
+
+        changed_results.append(others)
+
+        return changed_results
