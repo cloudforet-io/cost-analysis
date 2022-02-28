@@ -153,7 +153,8 @@ class CostManager(BaseManager):
 
         return query
 
-    def make_accumulated_query(self, granularity, group_by, limit, page, sort, query_filter):
+    def make_accumulated_query(self, granularity, group_by, limit, page, sort, query_filter,
+                               include_others=False):
         aggregate = [
             {
                 'group': {
@@ -175,7 +176,7 @@ class CostManager(BaseManager):
             }
         ]
 
-        if limit:
+        if limit and include_others is False:
             aggregate.append({'limit': limit})
 
         return {
@@ -184,7 +185,8 @@ class CostManager(BaseManager):
             'filter': query_filter
         }
 
-    def make_trend_query(self, granularity, group_by, limit, page, sort, query_filter):
+    def make_trend_query(self, granularity, group_by, limit, page, sort, query_filter,
+                         include_others=False):
         aggregate = [
             {
                 'group': {
@@ -232,7 +234,7 @@ class CostManager(BaseManager):
             }
         ]
 
-        if limit:
+        if limit and include_others is False:
             aggregate.append({'limit': limit})
 
         aggregate.append({
