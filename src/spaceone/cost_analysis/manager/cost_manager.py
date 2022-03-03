@@ -258,7 +258,15 @@ class CostManager(BaseManager):
     @staticmethod
     def _get_keys_from_group_by(group_by):
         keys = []
-        for key in group_by:
+        group_keys = group_by[:]
+
+        if 'project_group_id' in group_keys:
+            if 'project_id' not in group_keys:
+                group_keys.append('project_id')
+
+            group_keys.remove('project_group_id')
+
+        for key in group_keys:
             keys.append({
                 'key': key,
                 'name': key

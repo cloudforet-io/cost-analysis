@@ -225,8 +225,11 @@ class CostService(BaseService):
         else:
             response = self.cost_mgr.stat_costs_with_cache(query, query_hash_with_date_range, domain_id)
 
+        if 'project_group_id' in group_by:
+            response = self._sum_costs_by_project_group(response, granularity, limit, domain_id)
+
         if include_others and limit:
-            response['results'] = self._sum_costs_over_limit(response.get('results', []), granularity, limit)
+            response = self._sum_costs_over_limit(response, granularity, limit)
 
         return response
 
@@ -344,8 +347,51 @@ class CostService(BaseService):
         except Exception as e:
             raise ERROR_INVALID_PARAMETER_TYPE(key=key, type=date_format)
 
+    def _sum_costs_by_project_group(self, response, granularity, limit, domain_id):
+        results = response.get('results', [])
+
+        identity_mgr: IdentityManager = self.locator.get_manager('IdentityManager')
+
+        project_query = {'only': ['project_id', 'project_group_id']}
+        query_hash = utils.dict_to_hash(project_query)
+
+        projects_info = identity_mgr.list_projects_with_cache(project_query, domain_id, query_hash)
+        print(projects_info)
+
+        return response
+        # changed_results = results[:limit]
+        #
+        # if granularity == 'ACCUMULATED':
+        #     others = {
+        #         'is_others': True,
+        #         'usd_cost': 0
+        #     }
+        #
+        #     for cost_info in results[limit:]:
+        #         others['usd_cost'] += cost_info['usd_cost']
+        #
+        # else:
+        #     others = {
+        #         'is_others': True,
+        #         'usd_cost': {}
+        #     }
+        #
+        #     for cost_info in results[limit:]:
+        #         for date, usd_cost in cost_info['usd_cost'].items():
+        #             if date not in others['usd_cost']:
+        #                 others['usd_cost'][date] = usd_cost
+        #             else:
+        #                 others['usd_cost'][date] += usd_cost
+        #
+        # changed_results.append(others)
+        #
+        # return {
+        #     'results': changed_results
+        # }
+
     @staticmethod
-    def _sum_costs_over_limit(results, granularity, limit):
+    def _sum_costs_over_limit(response, granularity, limit):
+        results = response.get('results', [])
         changed_results = results[:limit]
 
         if granularity == 'ACCUMULATED':
@@ -372,4 +418,6 @@ class CostService(BaseService):
 
         changed_results.append(others)
 
-        return changed_results
+        return {
+            'results': changed_results
+        }

@@ -16,6 +16,9 @@ class IdentityManager(BaseManager):
     def list_projects(self, query, domain_id):
         return self.identity_connector.dispatch('Project.list', {'query': query, 'domain_id': domain_id})
 
+    def list_projects_with_cache(self, query, domain_id, query_hash):
+        return self.list_projects(query, domain_id)
+
     def get_project(self, project_id, domain_id):
         return self.identity_connector.dispatch('Project.get', {'project_id': project_id, 'domain_id': domain_id})
 
