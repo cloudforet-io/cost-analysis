@@ -1,9 +1,12 @@
 import logging
 import copy
-from datetime import datetime, date
+import pandas as pd
+import numpy as np
+from datetime import date
 
 from spaceone.core import cache
 from spaceone.core.manager import BaseManager
+from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 from spaceone.cost_analysis.model.cost_model import Cost, MonthlyCost, CostQueryHistory
 from spaceone.cost_analysis.manager.data_source_rule_manager import DataSourceRuleManager
 
@@ -153,8 +156,8 @@ class CostManager(BaseManager):
 
         return query
 
-    def make_accumulated_query(self, granularity, group_by, limit, page, sort, query_filter,
-                               include_others=False):
+    def make_accumulated_query(self, granularity, group_by, limit, sort, query_filter,
+                               include_others=False, has_project_group_id=False):
         aggregate = [
             {
                 'group': {
@@ -176,17 +179,16 @@ class CostManager(BaseManager):
             }
         ]
 
-        if limit and include_others is False:
+        if limit and include_others is False and has_project_group_id is False:
             aggregate.append({'limit': limit})
 
         return {
             'aggregate': aggregate,
-            'page': page,
             'filter': query_filter
         }
 
-    def make_trend_query(self, granularity, group_by, limit, page, sort, query_filter,
-                         include_others=False):
+    def make_trend_query(self, granularity, group_by, limit, sort, query_filter,
+                         include_others=False, has_project_group_id=False):
         aggregate = [
             {
                 'group': {
@@ -234,12 +236,16 @@ class CostManager(BaseManager):
             }
         ]
 
-        if limit and include_others is False:
+        if limit and include_others is False and has_project_group_id is False:
             aggregate.append({'limit': limit})
 
         aggregate.append({
             'project': {
                 'fields': [
+                    {
+                        'key': 'total_usd_cost',
+                        'name': 'total_usd_cost'
+                    },
                     {
                         'key': 'values',
                         'name': 'usd_cost',
@@ -251,9 +257,119 @@ class CostManager(BaseManager):
 
         return {
             'aggregate': aggregate,
-            'page': page,
             'filter': query_filter
         }
+
+    def sum_costs_by_project_group(self, response, granularity, group_by, domain_id):
+        has_project_id = 'project_id' in group_by
+        cost_keys = list(set(group_by[:] + ['project_id', 'usd_cost']))
+        if granularity != 'ACCUMULATED':
+            cost_keys.append('total_usd_cost')
+
+        cost_keys.remove('project_group_id')
+        results = response.get('results', [])
+
+        projects_info = self._get_projects_info(domain_id)
+        project_df = pd.DataFrame(projects_info, columns=['project_id', 'project_group_id'])
+        cost_df = pd.DataFrame(results, columns=cost_keys)
+        join_df = pd.merge(cost_df, project_df, on=['project_id'], how='left')
+
+        if not has_project_id:
+            del join_df['project_id']
+
+        if granularity == 'ACCUMULATED':
+            join_df = join_df.groupby(by=group_by, dropna=False, as_index=False).sum()
+            join_df = join_df.sort_values(by='usd_cost', ascending=False)
+            join_df = join_df.replace({np.nan: None})
+
+            return {
+                'results': join_df.to_dict('records')
+            }
+
+        else:
+            join_df = join_df.groupby(by=group_by, dropna=False, as_index=False).agg({
+                'usd_cost': list,
+                'total_usd_cost': sum
+            })
+            join_df = join_df.sort_values(by='total_usd_cost', ascending=False)
+            join_df = join_df.replace({np.nan: None})
+
+            changed_results = []
+            for cost_info in join_df.to_dict('records'):
+                usd_cost_list = cost_info['usd_cost']
+                changed_usd_cost = {}
+                for usd_cost_info in usd_cost_list:
+                    for key, usd_cost in usd_cost_info.items():
+                        if key not in changed_usd_cost:
+                            changed_usd_cost[key] = usd_cost
+                        else:
+                            changed_usd_cost[key] += usd_cost
+
+                cost_info['usd_cost'] = changed_usd_cost
+                changed_results.append(cost_info)
+
+            return {
+                'results': changed_results
+            }
+
+    @staticmethod
+    def sum_costs_over_limit(response, granularity, limit):
+        results = response.get('results', [])
+        changed_results = results[:limit]
+
+        if granularity == 'ACCUMULATED':
+            others = {
+                'is_others': True,
+                'usd_cost': 0
+            }
+
+            for cost_info in results[limit:]:
+                others['usd_cost'] += cost_info['usd_cost']
+
+        else:
+            others = {
+                'is_others': True,
+                'usd_cost': {}
+            }
+
+            for cost_info in results[limit:]:
+                for key, usd_cost in cost_info['usd_cost'].items():
+                    if key not in others['usd_cost']:
+                        others['usd_cost'][key] = usd_cost
+                    else:
+                        others['usd_cost'][key] += usd_cost
+
+        changed_results.append(others)
+
+        return {
+            'results': changed_results
+        }
+
+    @staticmethod
+    def slice_results(response, limit):
+        results = response.get('results', [])
+
+        return {
+            'results': results[:limit]
+        }
+
+    @staticmethod
+    def page_results(response, page):
+        results = response.get('results', [])
+        response = {
+            'total_count': len(results)
+        }
+
+        if 'limit' in page and page['limit'] > 0:
+            start = page.get('start', 1)
+            if start < 1:
+                start = 1
+
+            response['results'] = results[start - 1:start + page['limit'] - 1]
+        else:
+            response['results'] = results
+
+        return response
 
     @staticmethod
     def _get_keys_from_group_by(group_by):
@@ -293,3 +409,20 @@ class CostManager(BaseManager):
             })
 
         return keys
+
+    @cache.cacheable(key='domain-all-project-info:{domain_id}', expire=300)
+    def _get_projects_info(self, domain_id):
+        projects_info = []
+
+        identity_mgr: IdentityManager = self.locator.get_manager('IdentityManager')
+
+        query = {'only': ['project_id', 'project_group_id']}
+        response = identity_mgr.list_projects(query, domain_id)
+
+        for project_info in response.get('results', []):
+            projects_info.append({
+                'project_id': project_info['project_id'],
+                'project_group_id': project_info['project_group_info']['project_group_id']
+            })
+
+        return projects_info

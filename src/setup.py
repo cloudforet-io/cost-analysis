@@ -34,7 +34,9 @@ setup(
         'spaceone-api',
         'mongoengine',
         'redis',
-        'boto3'
+        'boto3',
+        'pandas',
+        'numpy'
     ],
     zip_safe=False,
 )
