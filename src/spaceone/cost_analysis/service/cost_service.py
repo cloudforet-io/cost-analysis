@@ -1,9 +1,10 @@
+import copy
 import logging
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 from spaceone.core.service import *
-from spaceone.core import utils
+from spaceone.core import utils, cache
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.manager.cost_manager import CostManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
@@ -182,6 +183,7 @@ class CostService(BaseService):
         sort = params.get('sort')
         include_usage_quantity = params.get('include_usage_quantity', False)
         include_others = params.get('include_others', False)
+        has_project_group_id = 'project_group_id' in group_by
 
         if limit:
             page = None
@@ -207,11 +209,11 @@ class CostService(BaseService):
         query_filter = self._change_project_group_filter(query_filter, domain_id)
 
         if granularity == 'ACCUMULATED':
-            query = self.cost_mgr.make_accumulated_query(granularity, group_by, limit, page, sort, query_filter,
-                                                         include_others)
+            query = self.cost_mgr.make_accumulated_query(group_by, limit, query_filter, include_others,
+                                                         has_project_group_id)
         else:
-            query = self.cost_mgr.make_trend_query(granularity, group_by, limit, page, sort, query_filter,
-                                                   include_others)
+            query = self.cost_mgr.make_trend_query(granularity, group_by, limit, query_filter, include_others,
+                                                   has_project_group_id)
 
         query_hash = utils.dict_to_hash(query)
 
@@ -225,8 +227,15 @@ class CostService(BaseService):
         else:
             response = self.cost_mgr.stat_costs_with_cache(query, query_hash_with_date_range, domain_id)
 
+        if has_project_group_id:
+            response = self.cost_mgr.sum_costs_by_project_group(response, granularity, group_by, domain_id)
+
         if include_others and limit:
-            response['results'] = self._sum_costs_over_limit(response.get('results', []), granularity, limit)
+            response = self.cost_mgr.sum_costs_over_limit(response, granularity, limit)
+        elif has_project_group_id and limit:
+            response = self.cost_mgr.slice_results(response, limit)
+        elif page:
+            response = self.cost_mgr.page_results(response, page)
 
         return response
 
@@ -343,33 +352,3 @@ class CostService(BaseService):
             return datetime.strptime(date_str, date_format).date()
         except Exception as e:
             raise ERROR_INVALID_PARAMETER_TYPE(key=key, type=date_format)
-
-    @staticmethod
-    def _sum_costs_over_limit(results, granularity, limit):
-        changed_results = results[:limit]
-
-        if granularity == 'ACCUMULATED':
-            others = {
-                'is_others': True,
-                'usd_cost': 0
-            }
-
-            for cost_info in results[limit:]:
-                others['usd_cost'] += cost_info['usd_cost']
-
-        else:
-            others = {
-                'is_others': True,
-                'usd_cost': {}
-            }
-
-            for cost_info in results[limit:]:
-                for date, usd_cost in cost_info['usd_cost'].items():
-                    if date not in others['usd_cost']:
-                        others['usd_cost'][date] = usd_cost
-                    else:
-                        others['usd_cost'][date] += usd_cost
-
-        changed_results.append(others)
-
-        return changed_results

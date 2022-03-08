@@ -2,6 +2,7 @@ import logging
 
 from spaceone.core.manager import BaseManager
 from spaceone.core.connector.space_connector import SpaceConnector
+from spaceone.core import cache
 from spaceone.cost_analysis.error import *
 
 _LOGGER = logging.getLogger(__name__)
