@@ -1,8 +1,7 @@
+import copy
 import logging
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
-import pandas as pd
-import numpy as np
 
 from spaceone.core.service import *
 from spaceone.core import utils, cache
@@ -210,11 +209,11 @@ class CostService(BaseService):
         query_filter = self._change_project_group_filter(query_filter, domain_id)
 
         if granularity == 'ACCUMULATED':
-            query = self.cost_mgr.make_accumulated_query(granularity, group_by, limit, sort, query_filter,
-                                                         include_others, has_project_group_id)
+            query = self.cost_mgr.make_accumulated_query(group_by, limit, query_filter, include_others,
+                                                         has_project_group_id)
         else:
-            query = self.cost_mgr.make_trend_query(granularity, group_by, limit, sort, query_filter,
-                                                   include_others, has_project_group_id)
+            query = self.cost_mgr.make_trend_query(granularity, group_by, limit, query_filter, include_others,
+                                                   has_project_group_id)
 
         query_hash = utils.dict_to_hash(query)
 

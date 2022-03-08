@@ -156,8 +156,39 @@ class CostManager(BaseManager):
 
         return query
 
-    def make_accumulated_query(self, granularity, group_by, limit, sort, query_filter,
-                               include_others=False, has_project_group_id=False):
+    @staticmethod
+    def get_date_ranges_between_start_end(start, end):
+        date_ranges = []
+        is_first_day = start.day == 1
+        is_last_day = end.day == 1
+
+        for ts in pd.date_range(start, end, freq='MS'):
+            dt = ts.date()
+            if dt != start and dt != end:
+                date_ranges.append(dt)
+
+        if is_first_day and is_last_day:
+            return [
+                {'start': start, 'end': end}
+            ]
+        elif is_first_day and not is_last_day:
+            return [
+                {'start': start, 'end': date_ranges[-1]},
+                {'start': date_ranges[-1], 'end': end}
+            ]
+        elif not is_first_day and is_last_day:
+            return [
+                {'start': start, 'end': date_ranges[0]},
+                {'start': date_ranges[0], 'end': end}
+            ]
+        else:
+            return [
+                {'start': start, 'end': date_ranges[0]},
+                {'start': date_ranges[0], 'end': date_ranges[-1]},
+                {'start': date_ranges[-1], 'end': end}
+            ]
+
+    def make_accumulated_query(self, group_by, limit, query_filter, include_others=False, has_project_group_id=False):
         aggregate = [
             {
                 'group': {
@@ -187,8 +218,8 @@ class CostManager(BaseManager):
             'filter': query_filter
         }
 
-    def make_trend_query(self, granularity, group_by, limit, sort, query_filter,
-                         include_others=False, has_project_group_id=False):
+    def make_trend_query(self, granularity, group_by, limit, query_filter, include_others=False,
+                         has_project_group_id=False):
         aggregate = [
             {
                 'group': {
