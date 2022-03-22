@@ -91,6 +91,64 @@ class ExchangeRateService(BaseService):
 
     @transaction(append_meta={'authorization.scope': 'DOMAIN'})
     @check_required(['currency', 'domain_id'])
+    def enable(self, params):
+        """Enable exchange rate
+
+        Args:
+            params (dict): {
+                'currency': 'str',
+                'domain_id': 'str'
+            }
+
+        Returns:
+            exchange_rate_data (dict)
+        """
+
+        domain_id = params['domain_id']
+        currency = params['currency']
+
+        try:
+            exchange_rate_vo: ExchangeRate = self.exchange_rate_mgr.get_exchange_rate(currency, domain_id)
+        except Exception as e:
+            _LOGGER.error(f'[enable] Get ExchangeRate Error: {e}')
+            raise ERROR_CHANGE_STATE(currency=currency)
+
+        updated_exchange_rate_vo: ExchangeRate = self.exchange_rate_mgr.update_exchange_rate_by_vo(
+            {'state': 'ENABLED'}, exchange_rate_vo)
+
+        return updated_exchange_rate_vo.to_dict()
+
+    @transaction(append_meta={'authorization.scope': 'DOMAIN'})
+    @check_required(['currency', 'domain_id'])
+    def disable(self, params):
+        """Disable exchange rate
+
+        Args:
+            params (dict): {
+                'currency': 'str',
+                'domain_id': 'str'
+            }
+
+        Returns:
+            exchange_rate_data (dict)
+        """
+
+        domain_id = params['domain_id']
+        currency = params['currency']
+
+        try:
+            exchange_rate_vo: ExchangeRate = self.exchange_rate_mgr.get_exchange_rate(currency, domain_id)
+        except Exception as e:
+            _LOGGER.error(f'[disable] Get ExchangeRate Error: {e}')
+            raise ERROR_CHANGE_STATE(currency=currency)
+
+        updated_exchange_rate_vo: ExchangeRate = self.exchange_rate_mgr.update_exchange_rate_by_vo(
+            {'state': 'DISABLED'}, exchange_rate_vo)
+
+        return updated_exchange_rate_vo.to_dict()
+
+    @transaction(append_meta={'authorization.scope': 'DOMAIN'})
+    @check_required(['currency', 'domain_id'])
     def get(self, params):
         """ Get exchange rate
 
