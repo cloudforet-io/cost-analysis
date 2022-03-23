@@ -39,10 +39,10 @@ class ExchangeRateService(BaseService):
         currency = params['currency']
         rate = params['rate']
 
-        default_exchange_rates = config.get_global('DEFAULT_EXCHANGE_RATE', {})
+        self._check_currency(currency)
 
-        if currency not in default_exchange_rates:
-            raise ERROR_UNSUPPORTED_CURRENCY(supported_currency=default_exchange_rates.keys())
+        if rate <= 0:
+            raise ERROR_INVALID_PARAMETER(key='rate', reason='rate must be greater than 0')
 
         try:
             exchange_rate_vo: ExchangeRate = self.exchange_rate_mgr.get_exchange_rate(currency, domain_id)
@@ -72,9 +72,7 @@ class ExchangeRateService(BaseService):
         currency = params['currency']
 
         default_exchange_rates = config.get_global('DEFAULT_EXCHANGE_RATE', {})
-
-        if currency not in default_exchange_rates:
-            raise ERROR_UNSUPPORTED_CURRENCY(supported_currency=default_exchange_rates.keys())
+        self._check_currency(currency)
 
         try:
             exchange_rate_vo: ExchangeRate = self.exchange_rate_mgr.get_exchange_rate(currency, domain_id)
@@ -107,16 +105,29 @@ class ExchangeRateService(BaseService):
         domain_id = params['domain_id']
         currency = params['currency']
 
+        default_exchange_rates = config.get_global('DEFAULT_EXCHANGE_RATE', {})
+        self._check_currency(currency)
+
         try:
             exchange_rate_vo: ExchangeRate = self.exchange_rate_mgr.get_exchange_rate(currency, domain_id)
+
+            if exchange_rate_vo.rate == 0:
+                exchange_rate_vo.delete()
+            else:
+                updated_exchange_rate_vo: ExchangeRate = self.exchange_rate_mgr.update_exchange_rate_by_vo(
+                    {'state': 'ENABLED'}, exchange_rate_vo)
+
+                return updated_exchange_rate_vo.to_dict()
+
         except Exception as e:
-            _LOGGER.error(f'[enable] Get ExchangeRate Error: {e}')
-            raise ERROR_CHANGE_STATE(currency=currency)
+            pass
 
-        updated_exchange_rate_vo: ExchangeRate = self.exchange_rate_mgr.update_exchange_rate_by_vo(
-            {'state': 'ENABLED'}, exchange_rate_vo)
-
-        return updated_exchange_rate_vo.to_dict()
+        return {
+            'currency': currency,
+            'rate': default_exchange_rates[currency],
+            'domain_id': domain_id,
+            'is_default': True
+        }
 
     @transaction(append_meta={'authorization.scope': 'DOMAIN'})
     @check_required(['currency', 'domain_id'])
@@ -136,16 +147,25 @@ class ExchangeRateService(BaseService):
         domain_id = params['domain_id']
         currency = params['currency']
 
+        self._check_currency(currency)
+
         try:
             exchange_rate_vo: ExchangeRate = self.exchange_rate_mgr.get_exchange_rate(currency, domain_id)
+
+            updated_exchange_rate_vo: ExchangeRate = self.exchange_rate_mgr.update_exchange_rate_by_vo(
+                {'state': 'DISABLED'}, exchange_rate_vo)
+
+            return updated_exchange_rate_vo.to_dict()
+
         except Exception as e:
-            _LOGGER.error(f'[disable] Get ExchangeRate Error: {e}')
-            raise ERROR_CHANGE_STATE(currency=currency)
+            exchange_rate_vo: ExchangeRate = self.exchange_rate_mgr.create_exchange_rate({
+                'currency': currency,
+                'rate': 0,
+                'state': 'DISABLED',
+                'domain_id': domain_id
+            })
 
-        updated_exchange_rate_vo: ExchangeRate = self.exchange_rate_mgr.update_exchange_rate_by_vo(
-            {'state': 'DISABLED'}, exchange_rate_vo)
-
-        return updated_exchange_rate_vo.to_dict()
+            return exchange_rate_vo.to_dict()
 
     @transaction(append_meta={'authorization.scope': 'DOMAIN'})
     @check_required(['currency', 'domain_id'])
@@ -166,9 +186,7 @@ class ExchangeRateService(BaseService):
         currency = params['currency']
 
         default_exchange_rates = config.get_global('DEFAULT_EXCHANGE_RATE', {})
-
-        if currency not in default_exchange_rates:
-            raise ERROR_UNSUPPORTED_CURRENCY(supported_currency=default_exchange_rates.keys())
+        self._check_currency(currency)
 
         try:
             exchange_rate_vo: ExchangeRate = self.exchange_rate_mgr.get_exchange_rate(currency, domain_id)
@@ -220,3 +238,10 @@ class ExchangeRateService(BaseService):
                 })
 
         return results, len(results)
+
+    @staticmethod
+    def _check_currency(currency):
+        default_exchange_rates = config.get_global('DEFAULT_EXCHANGE_RATE', {})
+
+        if currency not in default_exchange_rates:
+            raise ERROR_UNSUPPORTED_CURRENCY(supported_currency=default_exchange_rates.keys())
