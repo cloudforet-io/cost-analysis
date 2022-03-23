@@ -1,5 +1,6 @@
 import logging
 
+from spaceone.core import config
 from spaceone.core.manager import BaseManager
 from spaceone.cost_analysis.model.exchange_rate_model import ExchangeRate
 
@@ -44,3 +45,25 @@ class ExchangeRateManager(BaseManager):
 
     def list_exchange_rates(self, query={}):
         return self.exchange_rate_model.query(**query)
+
+    def list_all_exchange_rates(self, domain_id):
+        results = []
+        custom_exchange_rates = []
+
+        exchange_rate_vos = self.filter_exchange_rates(domain_id=domain_id)
+        for exchange_rate_vo in exchange_rate_vos:
+            results.append(exchange_rate_vo.to_dict())
+            custom_exchange_rates.append(exchange_rate_vo.currency)
+
+        default_exchange_rates = config.get_global('DEFAULT_EXCHANGE_RATE', {})
+
+        for currency, rate in default_exchange_rates.items():
+            if currency not in custom_exchange_rates:
+                results.append({
+                    'currency': currency,
+                    'rate': rate,
+                    'domain_id': domain_id,
+                    'is_default': True
+                })
+
+        return results, len(results)

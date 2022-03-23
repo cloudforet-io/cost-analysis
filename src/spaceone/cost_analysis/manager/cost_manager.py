@@ -6,9 +6,11 @@ from datetime import date
 
 from spaceone.core import cache
 from spaceone.core.manager import BaseManager
+from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 from spaceone.cost_analysis.model.cost_model import Cost, MonthlyCost, CostQueryHistory
 from spaceone.cost_analysis.manager.data_source_rule_manager import DataSourceRuleManager
+from spaceone.cost_analysis.manager.exchange_rate_manager import ExchangeRateManager
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -20,6 +22,7 @@ class CostManager(BaseManager):
         self.cost_model: Cost = self.locator.get_model('Cost')
         self.monthly_cost_model: MonthlyCost = self.locator.get_model('MonthlyCost')
         self.data_source_rule_mgr: DataSourceRuleManager = self.locator.get_manager('DataSourceRuleManager')
+        self.exchange_rate_map = None
 
     def create_cost(self, params, execute_rollback=True):
         def _rollback(cost_vo):
@@ -32,10 +35,20 @@ class CostManager(BaseManager):
             params['region_key'] = f'{params["provider"]}.{params["region_code"]}'
 
         if 'usd_cost' not in params:
-            # check original currency
-            # exchange rate applied to usd cost
+            original_currency = params['original_currency']
+            original_cost = params['original_cost']
 
-            params['usd_cost'] = params['original_cost']
+            if original_currency == 'USD':
+                params['usd_cost'] = params['original_cost']
+            else:
+                self._load_exchange_rate_map(params['domain_id'])
+
+                rate = self.exchange_rate_map.get(original_currency)
+
+                if rate is None:
+                    raise ERROR_UNSUPPORTED_CURRENCY(supported_currency=list(self.exchange_rate_map.keys()))
+
+                params['usd_cost'] = round(original_cost / rate, 15)
 
         params['billed_year'] = params['billed_at'].strftime('%Y')
         params['billed_month'] = params['billed_at'].strftime('%Y-%m')
@@ -457,3 +470,13 @@ class CostManager(BaseManager):
             })
 
         return projects_info
+
+    def _load_exchange_rate_map(self, domain_id):
+        if self.exchange_rate_map is None:
+            self.exchange_rate_map = {}
+            exchange_rate_mgr: ExchangeRateManager = self.locator.get_manager('ExchangeRateManager')
+            results, total_count = exchange_rate_mgr.list_all_exchange_rates(domain_id)
+
+            for exchange_rate_data in results:
+                if exchange_rate_data.get('state', 'ENABLED') == 'ENABLED':
+                    self.exchange_rate_map[exchange_rate_data['currency']] = exchange_rate_data['rate']

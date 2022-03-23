@@ -218,26 +218,7 @@ class ExchangeRateService(BaseService):
 
         domain_id = params['domain_id']
 
-        results = []
-        custom_exchange_rates = []
-
-        exchange_rate_vos = self.exchange_rate_mgr.filter_exchange_rates(domain_id=domain_id)
-        for exchange_rate_vo in exchange_rate_vos:
-            results.append(exchange_rate_vo.to_dict())
-            custom_exchange_rates.append(exchange_rate_vo.currency)
-
-        default_exchange_rates = config.get_global('DEFAULT_EXCHANGE_RATE', {})
-
-        for currency, rate in default_exchange_rates.items():
-            if currency not in custom_exchange_rates:
-                results.append({
-                    'currency': currency,
-                    'rate': rate,
-                    'domain_id': domain_id,
-                    'is_default': True
-                })
-
-        return results, len(results)
+        return self.exchange_rate_mgr.list_all_exchange_rates(domain_id)
 
     @staticmethod
     def _check_currency(currency):
