@@ -192,12 +192,12 @@ class JobService(BaseService):
                 _LOGGER.debug(f'[get_cost_data] start job ({job_task_id}): {start_dt}')
                 for costs_data in self.ds_plugin_mgr.get_cost_data(options, secret_data, schema, task_options):
                     for num in range(100):
-                        results = costs_data.get('results', [])[:]
+                        results = costs_data.get('results', [])
                         for cost_data in results:
                             count += 1
 
                             self._check_cost_data(cost_data)
-                            self._create_cost_data(cost_data, job_task_vo)
+                            self._create_cost_data(copy.deepcopy(cost_data), job_task_vo)
 
                         if self._is_job_canceled(job_id, domain_id):
                             self.job_task_mgr.change_canceled_status(job_task_vo)
