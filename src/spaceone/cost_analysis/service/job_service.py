@@ -191,7 +191,7 @@ class JobService(BaseService):
                 is_canceled = False
                 _LOGGER.debug(f'[get_cost_data] start job ({job_task_id}): {start_dt}')
                 for costs_data in self.ds_plugin_mgr.get_cost_data(options, secret_data, schema, task_options):
-                    for num in range(100):
+                    for num in range(10):
                         results = costs_data.get('results', [])
                         for cost_data in results:
                             count += 1
@@ -263,7 +263,7 @@ class JobService(BaseService):
                 try:
                     changed_start = None
                     for changed_vo in job_vo.changed:
-                        self._delete_changed_cost_data(job_vo, changed_vo.start, changed_vo.end)
+                        # self._delete_changed_cost_data(job_vo, changed_vo.start, changed_vo.end)
                         if changed_start is None or changed_start > changed_vo.start:
                             changed_start = changed_vo.start
 
