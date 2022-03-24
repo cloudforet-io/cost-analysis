@@ -192,7 +192,7 @@ class JobService(BaseService):
                 _LOGGER.debug(f'[get_cost_data] start job ({job_task_id}): {start_dt}')
                 for costs_data in self.ds_plugin_mgr.get_cost_data(options, secret_data, schema, task_options):
                     for num in range(100):
-                        results = costs_data.get('results', [])
+                        results = costs_data.get('results', [])[:]
                         for cost_data in results:
                             count += 1
 
