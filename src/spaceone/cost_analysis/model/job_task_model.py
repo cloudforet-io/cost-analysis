@@ -32,6 +32,7 @@ class JobTask(MongoModel):
         'minimal_fields': [
             'job_task_id',
             'status',
+            'created_count',
             'job_id',
             'data_source_id'
         ],
