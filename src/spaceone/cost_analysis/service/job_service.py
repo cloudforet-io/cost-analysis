@@ -191,20 +191,19 @@ class JobService(BaseService):
                 is_canceled = False
                 _LOGGER.debug(f'[get_cost_data] start job ({job_task_id}): {start_dt}')
                 for costs_data in self.ds_plugin_mgr.get_cost_data(options, secret_data, schema, task_options):
-                    for num in range(10):
-                        results = costs_data.get('results', [])
-                        for cost_data in results:
-                            count += 1
+                    results = costs_data.get('results', [])
+                    for cost_data in results:
+                        count += 1
 
-                            self._check_cost_data(cost_data)
-                            self._create_cost_data(copy.deepcopy(cost_data), job_task_vo)
+                        self._check_cost_data(cost_data)
+                        self._create_cost_data(cost_data, job_task_vo)
 
-                        if self._is_job_canceled(job_id, domain_id):
-                            self.job_task_mgr.change_canceled_status(job_task_vo)
-                            is_canceled = True
-                            break
-                        else:
-                            job_task_vo = self.job_task_mgr.update_sync_status(job_task_vo, len(results))
+                    if self._is_job_canceled(job_id, domain_id):
+                        self.job_task_mgr.change_canceled_status(job_task_vo)
+                        is_canceled = True
+                        break
+                    else:
+                        job_task_vo = self.job_task_mgr.update_sync_status(job_task_vo, len(results))
 
                 if not is_canceled:
                     end_dt = datetime.utcnow()
@@ -263,7 +262,7 @@ class JobService(BaseService):
                 try:
                     changed_start = None
                     for changed_vo in job_vo.changed:
-                        # self._delete_changed_cost_data(job_vo, changed_vo.start, changed_vo.end)
+                        self._delete_changed_cost_data(job_vo, changed_vo.start, changed_vo.end)
                         if changed_start is None or changed_start > changed_vo.start:
                             changed_start = changed_vo.start
 
