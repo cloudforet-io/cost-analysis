@@ -86,13 +86,13 @@ class DataSourceRuleManager(BaseManager):
             if action == 'change_project':
                 cost_data['project_id'] = value
 
-            if action == 'match_project':
+            elif action == 'match_project':
                 source = value['source']
                 project_id = utils.get_dict_value(cost_data, source)
                 if project_id and self._check_project(project_id, domain_id):
                     cost_data['project_id'] = project_id
 
-            if action == 'match_service_account':
+            elif action == 'match_service_account':
                 source = value['source']
                 target_key = value['target']
                 target_value = utils.get_dict_value(cost_data, source)
@@ -125,7 +125,6 @@ class DataSourceRuleManager(BaseManager):
 
         service_account_info = None
         if total_count > 0:
-
             service_account_info = results[0]
 
         self._service_account_info[f'{domain_id}:{target_key}:{target_value}'] = service_account_info
