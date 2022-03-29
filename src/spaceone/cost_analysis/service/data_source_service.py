@@ -184,11 +184,13 @@ class DataSourceService(BaseService):
         domain_id = params['domain_id']
 
         data_source_vo: DataSource = self.data_source_mgr.get_data_source(data_source_id, domain_id)
-        secret_id = data_source_vo.plugin_info.secret_id
 
-        if secret_id:
-            secret_mgr: SecretManager = self.locator.get_manager('SecretManager')
-            secret_mgr.delete_secret(secret_id, domain_id)
+        if data_source_vo.plugin_info:
+            secret_id = data_source_vo.plugin_info.secret_id
+
+            if secret_id:
+                secret_mgr: SecretManager = self.locator.get_manager('SecretManager')
+                secret_mgr.delete_secret(secret_id, domain_id)
 
         self.data_source_mgr.deregister_data_source_by_vo(data_source_vo)
 
