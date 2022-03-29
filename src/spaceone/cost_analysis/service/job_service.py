@@ -323,6 +323,7 @@ class JobService(BaseService):
         data_source_id = job_vo.data_source_id
         domain_id = job_vo.domain_id
         job_id = job_vo.job_id
+        changed_start = changed_start.replace(day=1)
 
         for dt in rrule.rrule(rrule.MONTHLY, dtstart=changed_start, until=datetime.utcnow()):
             billed_month = dt.strftime('%Y-%m')
