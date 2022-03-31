@@ -36,6 +36,7 @@ def JobInfo(job_vo: Job, minimal=False):
 
     if not minimal:
         info.update({
+            'options': change_struct_type(job_vo.options),
             'error_code': job_vo.error_code,
             'error_message': job_vo.error_message,
             'domain_id': job_vo.domain_id,
