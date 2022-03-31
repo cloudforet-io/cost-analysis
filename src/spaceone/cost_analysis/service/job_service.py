@@ -256,6 +256,7 @@ class JobService(BaseService):
 
     def _close_job(self, job_id, domain_id):
         job_vo: Job = self.job_mgr.get_job(job_id, domain_id)
+        no_preload_cache = job_vo.options.get('no_preload_cache', False)
 
         if job_vo.remained_tasks == 0:
             if job_vo.status == 'IN_PROGRESS':
@@ -269,7 +270,10 @@ class JobService(BaseService):
                     self._aggregate_cost_data(job_vo, changed_start)
                     self._update_budget_usage(domain_id)
                     self.cost_mgr.remove_stat_cache(domain_id)
-                    self._preload_cost_stat_queries(domain_id)
+
+                    if not no_preload_cache:
+                        self._preload_cost_stat_queries(domain_id)
+
                     self._update_last_sync_time(job_vo)
                     self.job_mgr.change_success_status(job_vo)
                 except Exception as e:
