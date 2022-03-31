@@ -203,6 +203,7 @@ class DataSourceService(BaseService):
             params (dict): {
                 'data_source_id': 'str',
                 'start': 'datetime',
+                'no_preload_cache': 'bool',
                 'domain_id': 'str'
             }
 
@@ -215,6 +216,10 @@ class DataSourceService(BaseService):
 
         data_source_id = params['data_source_id']
         domain_id = params['domain_id']
+        job_options = {
+            'no_preload_cache': params.get('no_preload_cache', False),
+            'start': params.get('start')
+        }
 
         data_source_vo: DataSource = self.data_source_mgr.get_data_source(data_source_id, domain_id)
 
@@ -240,7 +245,7 @@ class DataSourceService(BaseService):
         _LOGGER.debug(f'[sync] get_tasks: {tasks}')
         _LOGGER.debug(f'[sync] changed: {changed}')
 
-        job_vo = job_mgr.create_job(data_source_id, domain_id, len(tasks), changed)
+        job_vo = job_mgr.create_job(data_source_id, domain_id, job_options, len(tasks), changed)
 
         if len(tasks) > 0:
             for task in tasks:

@@ -17,6 +17,7 @@ class Job(MongoModel):
     job_id = StringField(max_length=40, generate_id='job', unique=True)
     status = StringField(max_length=20, default='IN_PROGRESS', choices=('IN_PROGRESS', 'SUCCESS', 'FAILURE',
                                                                         'TIMEOUT', 'CANCELED'))
+    options = DictField()
     error_code = StringField(max_length=254, default=None, null=True)
     error_message = StringField(default=None, null=True)
     total_tasks = IntField(default=0)

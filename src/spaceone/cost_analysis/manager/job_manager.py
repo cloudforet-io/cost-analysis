@@ -33,10 +33,11 @@ class JobManager(BaseManager):
         else:
             return False
 
-    def create_job(self, data_source_id, domain_id, total_tasks, changed=None):
+    def create_job(self, data_source_id, domain_id, job_options, total_tasks, changed=None):
         data = {
             'data_source_id': data_source_id,
-            'domain_id': domain_id
+            'domain_id': domain_id,
+            'options': job_options
         }
 
         if total_tasks:
