@@ -248,7 +248,7 @@ class CostManager(BaseManager):
             },
             {
                 'group': {
-                    'keys': self._get_keys_from_group_by(group_by),
+                    'keys': self._get_keys_from_group_by(group_by, change_key=True),
                     'fields': [
                         {
                             'key': 'usd_cost',
@@ -416,7 +416,7 @@ class CostManager(BaseManager):
         return response
 
     @staticmethod
-    def _get_keys_from_group_by(group_by):
+    def _get_keys_from_group_by(group_by, change_key=False):
         keys = []
         group_keys = group_by[:]
 
@@ -428,8 +428,8 @@ class CostManager(BaseManager):
 
         for key in group_keys:
             keys.append({
-                'key': key,
-                'name': key
+                'key': key.replace('additional_info.', '') if change_key else key,
+                'name': key.replace('additional_info.', '')
             })
         return keys
 
