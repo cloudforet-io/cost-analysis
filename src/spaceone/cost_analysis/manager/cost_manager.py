@@ -201,7 +201,8 @@ class CostManager(BaseManager):
                 {'start': date_ranges[-1], 'end': end}
             ]
 
-    def make_accumulated_query(self, group_by, limit, query_filter, include_others=False, has_project_group_id=False):
+    def make_accumulated_query(self, group_by, limit, query_filter, include_others=False,
+                               include_usage_quantity=False, has_project_group_id=False):
         aggregate = [
             {
                 'group': {
@@ -223,6 +224,13 @@ class CostManager(BaseManager):
             }
         ]
 
+        if include_usage_quantity:
+            aggregate[0]['group']['fields'].append({
+                'key': 'usage_quantity',
+                'name': 'usage_quantity',
+                'operator': 'sum'
+            })
+
         if limit and include_others is False and has_project_group_id is False:
             aggregate.append({'limit': limit})
 
@@ -232,7 +240,7 @@ class CostManager(BaseManager):
         }
 
     def make_trend_query(self, granularity, group_by, limit, query_filter, include_others=False,
-                         has_project_group_id=False):
+                         include_usage_quantity=False, has_project_group_id=False):
         aggregate = [
             {
                 'group': {
@@ -256,7 +264,7 @@ class CostManager(BaseManager):
                             'operator': 'sum'
                         },
                         {
-                            'name': 'values',
+                            'name': 'usd_cost_values',
                             'operator': 'push',
                             'fields': [
                                 {
@@ -280,6 +288,34 @@ class CostManager(BaseManager):
             }
         ]
 
+        if include_usage_quantity:
+            aggregate[0]['group']['fields'].append({
+                'key': 'usage_quantity',
+                'name': 'usage_quantity',
+                'operator': 'sum'
+            })
+            aggregate[1]['group']['fields'] += [
+                {
+                    'key': 'usage_quantity',
+                    'name': 'total_usage_quantity',
+                    'operator': 'sum'
+                },
+                {
+                    'name': 'usage_quantity_values',
+                    'operator': 'push',
+                    'fields': [
+                        {
+                            'key': 'date',
+                            'name': 'k'
+                        },
+                        {
+                            'key': 'usage_quantity',
+                            'name': 'v'
+                        }
+                    ]
+                }
+            ]
+
         if limit and include_others is False and has_project_group_id is False:
             aggregate.append({'limit': limit})
 
@@ -291,7 +327,7 @@ class CostManager(BaseManager):
                         'name': 'total_usd_cost'
                     },
                     {
-                        'key': 'values',
+                        'key': 'usd_cost_values',
                         'name': 'usd_cost',
                         'operator': 'array_to_object'
                     }
@@ -299,16 +335,36 @@ class CostManager(BaseManager):
             }
         })
 
+        if include_usage_quantity:
+            aggregate[-1]['project']['fields'] += [
+                {
+                    'key': 'total_usage_quantity',
+                    'name': 'total_usage_quantity'
+                },
+                {
+                    'key': 'usage_quantity_values',
+                    'name': 'usage_quantity',
+                    'operator': 'array_to_object'
+                }
+            ]
+
         return {
             'aggregate': aggregate,
             'filter': query_filter
         }
 
-    def sum_costs_by_project_group(self, response, granularity, group_by, domain_id):
+    def sum_costs_by_project_group(self, response, granularity, group_by, domain_id, include_usage_quantity=False):
         has_project_id = 'project_id' in group_by
         cost_keys = list(set(group_by[:] + ['project_id', 'usd_cost']))
+
+        if include_usage_quantity:
+            cost_keys.append('usage_quantity')
+
         if granularity != 'ACCUMULATED':
             cost_keys.append('total_usd_cost')
+
+            if include_usage_quantity:
+                cost_keys.append('total_usage_quantity')
 
         cost_keys.remove('project_group_id')
         results = response.get('results', [])
@@ -331,10 +387,16 @@ class CostManager(BaseManager):
             }
 
         else:
-            join_df = join_df.groupby(by=group_by, dropna=False, as_index=False).agg({
+            aggr_values = {
                 'usd_cost': list,
                 'total_usd_cost': sum
-            })
+            }
+
+            if include_usage_quantity:
+                aggr_values['usage_quantity'] = list
+                aggr_values['total_usage_quantity'] = sum
+
+            join_df = join_df.groupby(by=group_by, dropna=False, as_index=False).agg(aggr_values)
             join_df = join_df.sort_values(by='total_usd_cost', ascending=False)
             join_df = join_df.replace({np.nan: None})
 
@@ -350,6 +412,19 @@ class CostManager(BaseManager):
                             changed_usd_cost[key] += usd_cost
 
                 cost_info['usd_cost'] = changed_usd_cost
+
+                if include_usage_quantity:
+                    usage_quantity_list = cost_info['usage_quantity']
+                    changed_usage_quantity = {}
+                    for usage_quantity_info in usage_quantity_list:
+                        for key, usage_quantity in usage_quantity_info.items():
+                            if key not in changed_usage_quantity:
+                                changed_usage_quantity[key] = usage_quantity
+                            else:
+                                changed_usage_quantity[key] += usage_quantity
+
+                    cost_info['usage_quantity'] = changed_usage_quantity
+
                 changed_results.append(cost_info)
 
             return {
@@ -357,7 +432,7 @@ class CostManager(BaseManager):
             }
 
     @staticmethod
-    def sum_costs_over_limit(response, granularity, limit):
+    def sum_costs_over_limit(response, granularity, limit, include_usage_quantity=False):
         results = response.get('results', [])
         changed_results = results[:limit]
 
@@ -367,21 +442,43 @@ class CostManager(BaseManager):
                 'usd_cost': 0
             }
 
+            if include_usage_quantity:
+                others['usage_quantity'] = 0
+
             for cost_info in results[limit:]:
                 others['usd_cost'] += cost_info['usd_cost']
+
+                if include_usage_quantity:
+                    others['usage_quantity'] += cost_info['usage_quantity']
 
         else:
             others = {
                 'is_others': True,
+                'total_usd_cost': 0,
                 'usd_cost': {}
             }
 
+            if include_usage_quantity:
+                others['total_usage_quantity'] = 0
+                others['usage_quantity'] = {}
+
             for cost_info in results[limit:]:
+                others['total_usd_cost'] += cost_info['total_usd_cost']
+
                 for key, usd_cost in cost_info['usd_cost'].items():
                     if key not in others['usd_cost']:
                         others['usd_cost'][key] = usd_cost
                     else:
                         others['usd_cost'][key] += usd_cost
+
+                if include_usage_quantity:
+                    others['total_usage_quantity'] += cost_info['total_usage_quantity']
+
+                    for key, usage_quantity in cost_info['usage_quantity'].items():
+                        if key not in others['usage_quantity']:
+                            others['usage_quantity'][key] = usage_quantity
+                        else:
+                            others['usage_quantity'][key] += usage_quantity
 
         changed_results.append(others)
 
