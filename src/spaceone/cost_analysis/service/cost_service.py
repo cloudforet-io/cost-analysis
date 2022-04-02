@@ -210,10 +210,10 @@ class CostService(BaseService):
 
         if granularity == 'ACCUMULATED':
             query = self.cost_mgr.make_accumulated_query(group_by, limit, query_filter, include_others,
-                                                         has_project_group_id)
+                                                         include_usage_quantity, has_project_group_id)
         else:
             query = self.cost_mgr.make_trend_query(granularity, group_by, limit, query_filter, include_others,
-                                                   has_project_group_id)
+                                                   include_usage_quantity, has_project_group_id)
 
         query_hash = utils.dict_to_hash(query)
 
@@ -228,10 +228,11 @@ class CostService(BaseService):
             response = self.cost_mgr.stat_costs_with_cache(query, query_hash_with_date_range, domain_id)
 
         if has_project_group_id:
-            response = self.cost_mgr.sum_costs_by_project_group(response, granularity, group_by, domain_id)
+            response = self.cost_mgr.sum_costs_by_project_group(response, granularity, group_by, domain_id,
+                                                                include_usage_quantity)
 
         if include_others and limit:
-            response = self.cost_mgr.sum_costs_over_limit(response, granularity, limit)
+            response = self.cost_mgr.sum_costs_over_limit(response, granularity, limit, include_usage_quantity)
         elif has_project_group_id and limit:
             response = self.cost_mgr.slice_results(response, limit)
         elif page:
