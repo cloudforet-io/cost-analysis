@@ -421,7 +421,8 @@ class JobService(BaseService):
         _LOGGER.debug(f'[sync] get_tasks: {tasks}')
         _LOGGER.debug(f'[sync] changed: {changed}')
 
-        job_vo = self.job_mgr.create_job(data_source_id, domain_id, len(tasks), changed)
+        # Add Job Options
+        job_vo = self.job_mgr.create_job(data_source_id, domain_id, {}, len(tasks), changed)
 
         if self._check_duplicate_job(data_source_id, domain_id, job_vo):
             self.job_mgr.change_error_status(job_vo, ERROR_DUPLICATE_JOB(data_source_id=data_source_id))
