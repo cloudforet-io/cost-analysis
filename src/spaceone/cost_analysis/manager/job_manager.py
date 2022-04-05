@@ -34,6 +34,9 @@ class JobManager(BaseManager):
             return False
 
     def create_job(self, data_source_id, domain_id, job_options, total_tasks, changed=None):
+        job_options['no_preload_cache'] = job_options.get('no_preload_cache', False)
+        job_options['start'] = job_options.get('start')
+
         data = {
             'data_source_id': data_source_id,
             'domain_id': domain_id,
