@@ -7,7 +7,7 @@ from dateutil import rrule
 from datetime import timedelta, datetime
 
 from spaceone.core.service import *
-from spaceone.core import utils
+from spaceone.core import utils, config
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.model.job_task_model import JobTask
 from spaceone.cost_analysis.model.job_model import Job
@@ -473,17 +473,21 @@ class JobService(BaseService):
         return False
 
     def _preload_cost_stat_queries(self, domain_id):
-        last_week = datetime.utcnow() - timedelta(days=7)
+        cost_query_cache_time = config.get_global('COST_QUERY_CACHE_TIME', 7)
+        cache_time = datetime.utcnow() - timedelta(days=cost_query_cache_time)
 
         query = {
             'filter': [
                 {'k': 'domain_id', 'v': domain_id, 'o': 'eq'},
-                {'k': 'updated_at', 'v': last_week, 'o': 'gte'},
+                {'k': 'updated_at', 'v': cache_time, 'o': 'gte'},
             ]
         }
+
+        _LOGGER.debug(f'[_preload_cost_stat_queries] query cache: {query}')
+
         history_vos, total_count = self.cost_mgr.list_cost_query_history(query)
         for history_vo in history_vos:
-            _LOGGER.debug(f'[preload_cache] create query cache: {history_vo.query_hash}')
+            _LOGGER.debug(f'[_preload_cost_stat_queries] create query cache: {history_vo.query_hash}')
             self._create_cache_by_history(history_vo, domain_id)
 
     def _create_cache_by_history(self, history_vo: CostQueryHistory, domain_id):
