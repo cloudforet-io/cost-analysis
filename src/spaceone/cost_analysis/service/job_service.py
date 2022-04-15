@@ -483,7 +483,7 @@ class JobService(BaseService):
             ]
         }
 
-        _LOGGER.debug(f'[_preload_cost_stat_queries] query cache: {query}')
+        _LOGGER.debug(f'[_preload_cost_stat_queries] cost_query_cache_time: {cost_query_cache_time} days')
 
         history_vos, total_count = self.cost_mgr.list_cost_query_history(query)
         for history_vo in history_vos:
