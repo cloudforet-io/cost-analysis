@@ -92,8 +92,11 @@ class BudgetUsageManager(BaseManager):
             total_usage_usd_cost = result['results'][0].get('usd_cost')
             if total_usage_usd_cost:
                 budget_mgr.update_budget_by_vo({'total_usage_usd_cost': total_usage_usd_cost}, budget_vo)
+        else:
+            budget_mgr.update_budget_by_vo({'total_usage_usd_cost': 0}, budget_vo)
 
     def _update_monthly_budget_usage(self, budget_vo: Budget, cost_mgr: CostManager):
+        update_data = {}
         query = self._make_cost_stat_query(budget_vo)
         result = cost_mgr.stat_monthly_costs(query)
         for cost_usage_data in result.get('results', []):
@@ -101,10 +104,14 @@ class BudgetUsageManager(BaseManager):
             usd_cost = cost_usage_data.get('usd_cost', 0)
 
             if date:
-                budget_usage_vos = self.budget_usage_model.filter(date=date, budget_id=budget_vo.budget_id)
-                if len(budget_usage_vos) > 0:
-                    budget_usage_vo = budget_usage_vos[0]
-                    budget_usage_vo.update({'usd_cost': usd_cost})
+                update_data[date] = usd_cost
+
+        budget_usage_vos = self.budget_usage_model.filter(budget_id=budget_vo.budget_id)
+        for budget_usage_vo in budget_usage_vos:
+            if budget_usage_vo.date in update_data:
+                budget_usage_vo.update({'usd_cost': update_data[budget_usage_vo.date]})
+            else:
+                budget_usage_vo.update({'usd_cost': 0})
 
     def _make_cost_stat_query(self, budget_vo: Budget, is_accumulated=False):
         query = self._get_default_query()
