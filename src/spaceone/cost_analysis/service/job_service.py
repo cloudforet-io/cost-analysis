@@ -1,8 +1,6 @@
 import copy
 import datetime
 import logging
-import time
-from typing import List, Union
 from dateutil import rrule
 from datetime import timedelta, datetime
 
@@ -51,7 +49,10 @@ class JobService(BaseService):
         """
 
         for data_source_vo in self._get_all_data_sources():
-            self._sync_data_source(data_source_vo)
+            try:
+                self._sync_data_source(data_source_vo)
+            except Exception as e:
+                _LOGGER.error(f'[create_jobs_by_data_source] sync error: {e}', exc_info=True)
 
     @transaction(append_meta={'authorization.scope': 'DOMAIN'})
     @check_required(['job_id', 'domain_id'])
