@@ -330,10 +330,10 @@ class CostService(BaseService):
         return changed_filter
 
     def _parse_start_time(self, date_str):
-        return self._convert_date_from_string(date_str, 'start')
+        return self._convert_date_from_string(date_str.strip(), 'start')
 
     def _parse_end_time(self, date_str):
-        date = self._convert_date_from_string(date_str, 'end')
+        date = self._convert_date_from_string(date_str.strip(), 'end')
 
         if len(date_str.strip()) == 7:
             return date + relativedelta(months=1)
@@ -342,7 +342,7 @@ class CostService(BaseService):
 
     @staticmethod
     def _convert_date_from_string(date_str, key):
-        if len(date_str.strip()) == 7:
+        if len(date_str) == 7:
             # Month (YYYY-MM)
             date_format = '%Y-%m'
         else:
