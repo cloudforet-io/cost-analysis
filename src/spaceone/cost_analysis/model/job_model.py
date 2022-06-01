@@ -50,7 +50,7 @@ class Job(MongoModel):
             '-created_at'
         ],
         'indexes': [
-            'job_id',
+            # 'job_id',
             'status',
             'data_source_id',
             'domain_id',

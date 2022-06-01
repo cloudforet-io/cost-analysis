@@ -66,7 +66,7 @@ class Budget(MongoModel):
         },
         'ordering': ['name'],
         'indexes': [
-            'budget_id',
+            # 'budget_id',
             'name',
             'cost_types.provider',
             'cost_types.region_code',

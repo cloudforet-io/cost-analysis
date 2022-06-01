@@ -49,7 +49,7 @@ class DataSource(MongoModel):
             'name'
         ],
         'indexes': [
-            'data_source_id',
+            # 'data_source_id',
             'name',
             'state',
             'data_source_type',
