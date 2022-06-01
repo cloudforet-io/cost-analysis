@@ -45,7 +45,7 @@ class DataSourceRule(MongoModel):
         ],
         'ordering': ['order'],
         'indexes': [
-            'data_source_rule_id',
+            # 'data_source_rule_id',
             'order',
             'conditions_policy',
             'data_source_id',
