@@ -380,8 +380,9 @@ class CostManager(BaseManager):
 
         if granularity == 'ACCUMULATED':
             join_df = join_df.groupby(by=group_by, dropna=False, as_index=False).sum()
-            join_df = join_df.sort_values(by='usd_cost', ascending=False)
-            join_df = join_df.replace({np.nan: None})
+            if len(join_df) > 0:
+                join_df = join_df.sort_values(by='usd_cost', ascending=False)
+                join_df = join_df.replace({np.nan: None})
 
             return {
                 'results': join_df.to_dict('records')
@@ -398,8 +399,10 @@ class CostManager(BaseManager):
                 aggr_values['total_usage_quantity'] = sum
 
             join_df = join_df.groupby(by=group_by, dropna=False, as_index=False).agg(aggr_values)
-            join_df = join_df.sort_values(by='total_usd_cost', ascending=False)
-            join_df = join_df.replace({np.nan: None})
+
+            if len(join_df) > 0:
+                join_df = join_df.sort_values(by='total_usd_cost', ascending=False)
+                join_df = join_df.replace({np.nan: None})
 
             changed_results = []
             for cost_info in join_df.to_dict('records'):
