@@ -369,6 +369,7 @@ class CostManager(BaseManager):
         cost_keys.remove('project_group_id')
         results = response.get('results', [])
 
+        _LOGGER.debug(f'[sum_costs_by_project_group] cost_keys: {cost_keys}')
         projects_info = self._get_projects_info(domain_id)
         project_df = pd.DataFrame(projects_info, columns=['project_id', 'project_group_id'])
         cost_df = pd.DataFrame(results, columns=cost_keys)
