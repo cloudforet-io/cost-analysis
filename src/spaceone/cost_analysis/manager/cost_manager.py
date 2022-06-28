@@ -581,3 +581,39 @@ class CostManager(BaseManager):
             for exchange_rate_data in results:
                 if exchange_rate_data.get('state', 'ENABLED') == 'ENABLED':
                     self.exchange_rate_map[exchange_rate_data['currency']] = exchange_rate_data['rate']
+
+    @staticmethod
+    def is_monthly_stat_query(query):
+        _filter = query.get('filter', [])
+        _aggregate = query.get('aggregate', [])
+
+        is_monthly_query = False
+
+        if len(_aggregate) > 0 and len(_filter) > 0:
+            has_date_key = False
+            has_month_start = False
+            has_month_end = False
+
+            stage = _aggregate[0]
+            if 'group' in stage:
+                keys = stage['group'].get('keys', [])
+                for options in keys:
+                    key = options.get('key', options.get('k'))
+                    if key == 'billed_date' or key == 'billed_at':
+                        has_date_key = True
+                        break
+
+            for condition in _filter:
+                key = condition.get('key', condition.get('k'))
+                operator = condition.get('operator', condition.get('o'))
+
+                if key == 'billed_month':
+                    if operator in ['gt', 'gte']:
+                        has_month_start = True
+                    elif operator in ['lt', 'lte']:
+                        has_month_end = True
+
+            if has_date_key is False and has_month_start and has_month_end:
+                is_monthly_query = True
+
+        return is_monthly_query

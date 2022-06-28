@@ -268,7 +268,10 @@ class CostService(BaseService):
 
         query_hash = utils.dict_to_hash(query)
 
-        return self.cost_mgr.stat_costs_with_cache(query, query_hash, domain_id)
+        if self.cost_mgr.is_monthly_stat_query(query):
+            return self.cost_mgr.stat_monthly_costs_with_cache(query, query_hash, domain_id)
+        else:
+            return self.cost_mgr.stat_costs_with_cache(query, query_hash, domain_id)
 
     @staticmethod
     def _add_domain_filter(query_filter, domain_id):
