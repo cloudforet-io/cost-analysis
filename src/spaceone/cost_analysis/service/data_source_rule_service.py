@@ -297,9 +297,6 @@ class DataSourceRuleService(BaseService):
             if 'source' not in actions['match_service_account']:
                 raise ERROR_REQUIRED_PARAMETER(key='actions.match_service_account.source')
 
-            if 'target' not in actions['match_service_account']:
-                raise ERROR_REQUIRED_PARAMETER(key='actions.match_service_account.target')
-
     def _get_highest_order(self, data_source_id, domain_id):
         data_source_rule_vos = self.data_source_rule_mgr.filter_data_source_rules(data_source_id=data_source_id,
                                                                                   domain_id=domain_id)

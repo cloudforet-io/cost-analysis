@@ -88,13 +88,16 @@ class DataSourceRuleManager(BaseManager):
 
             elif action == 'match_project':
                 source = value['source']
-                project_id = utils.get_dict_value(cost_data, source)
-                if project_id and self._check_project(project_id, domain_id):
-                    cost_data['project_id'] = project_id
+                target_key = value.get('target', 'project_id')
+                target_value = utils.get_dict_value(cost_data, source)
+                if target_value:
+                    project_info = self._get_project(target_key, target_value, domain_id)
+                    if project_info:
+                        cost_data['project_id'] = project_info['project_id']
 
             elif action == 'match_service_account':
                 source = value['source']
-                target_key = value['target']
+                target_key = value.get('target', 'service_account_id')
                 target_value = utils.get_dict_value(cost_data, source)
                 if target_value:
                     service_account_info = self._get_service_account(target_key, target_value, domain_id)
@@ -109,8 +112,8 @@ class DataSourceRuleManager(BaseManager):
         return cost_data
 
     def _get_service_account(self, target_key, target_value, domain_id):
-        if f'{domain_id}:{target_key}:{target_value}' in self._service_account_info:
-            return self._service_account_info[f'{domain_id}:{target_key}:{target_value}']
+        if f'service-account:{domain_id}:{target_key}:{target_value}' in self._service_account_info:
+            return self._service_account_info[f'service-account:{domain_id}:{target_key}:{target_value}']
 
         query = {
             'filter': [
@@ -127,23 +130,30 @@ class DataSourceRuleManager(BaseManager):
         if total_count > 0:
             service_account_info = results[0]
 
-        self._service_account_info[f'{domain_id}:{target_key}:{target_value}'] = service_account_info
+        self._service_account_info[f'service-account:{domain_id}:{target_key}:{target_value}'] = service_account_info
         return service_account_info
 
-    def _check_project(self, project_id, domain_id):
-        if f'{domain_id}:{project_id}' in self._project_info:
-            return self._project_info[f'{domain_id}:{project_id}']
+    def _get_project(self, target_key, target_value, domain_id):
+        if f'project:{domain_id}:{target_key}:{target_value}' in self._project_info:
+            return self._project_info[f'project:{domain_id}:{target_key}:{target_value}']
 
-        is_exists = False
-        try:
-            self.identity_mgr.get_project(project_id, domain_id)
-            is_exists = True
-        except Exception as e:
-            _LOGGER.debug(f'[_check_project] failed to get project: {project_id}')
+        query = {
+            'filter': [
+                {'k': target_key, 'v': target_value, 'o': 'eq'}
+            ],
+            'only': ['project_id']
+        }
 
-        self._project_info[f'{domain_id}:{project_id}'] = is_exists
+        response = self.identity_mgr.list_projects(query, domain_id)
+        results = response.get('results', [])
+        total_count = response.get('total_count', 0)
 
-        return is_exists
+        project_info = None
+        if total_count > 0:
+            project_info = results[0]
+
+        self._project_info[f'project:{domain_id}:{target_key}:{target_value}'] = project_info
+        return project_info
 
     def _change_cost_data_by_rule(self, cost_data, data_source_rule_vo: DataSourceRule):
         conditions_policy = data_source_rule_vo.conditions_policy
