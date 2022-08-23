@@ -104,10 +104,7 @@ class CustomWidgetService(BaseService):
 
         return self.custom_widget_mgr.get_custom_widget(widget_id, domain_id, params.get('only'))
 
-    @transaction(append_meta={
-        'authorization.scope': 'USER',
-        'mutation.append_parameter': {'user_self': 'user_id'}
-    })
+    @transaction(append_meta={'authorization.scope': 'USER'})
     @check_required(['domain_id'])
     @append_query_filter(['widget_id', 'name', 'user_id', 'domain_id', 'user_self'])
     @append_keyword_filter(['widget_id', 'name'])
@@ -120,8 +117,7 @@ class CustomWidgetService(BaseService):
                 'name': 'str',
                 'user_id': 'str',
                 'domain_id': 'str',
-                'query': 'dict (spaceone.api.core.v1.Query)',
-                'user_self': 'list', // from meta
+                'query': 'dict (spaceone.api.core.v1.Query)'
             }
 
         Returns:
@@ -132,10 +128,7 @@ class CustomWidgetService(BaseService):
         query = params.get('query', {})
         return self.custom_widget_mgr.list_custom_widgets(query)
 
-    @transaction(append_meta={
-        'authorization.scope': 'USER',
-        'mutation.append_parameter': {'user_self': 'user_id'}
-    })
+    @transaction(append_meta={'authorization.scope': 'USER'})
     @check_required(['query', 'domain_id'])
     @append_query_filter(['domain_id', 'user_self'])
     @append_keyword_filter(['widget_id', 'name'])
@@ -144,8 +137,7 @@ class CustomWidgetService(BaseService):
         Args:
             params (dict): {
                 'domain_id': 'str',
-                'query': 'dict (spaceone.api.core.v1.StatisticsQuery)',
-                'user_self': 'list', // from meta
+                'query': 'dict (spaceone.api.core.v1.StatisticsQuery)'
             }
 
         Returns:

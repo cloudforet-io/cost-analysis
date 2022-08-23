@@ -24,9 +24,6 @@ class CostQuerySet(MongoModel):
             'name',
             'user_id'
         ],
-        'change_query_keys': {
-            'user_self': 'user_id'
-        },
         'ordering': [
             'name'
         ],
