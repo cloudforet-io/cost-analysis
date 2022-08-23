@@ -106,7 +106,7 @@ class CostQuerySetService(BaseService):
 
     @transaction(append_meta={'authorization.scope': 'USER'})
     @check_required(['domain_id'])
-    @append_query_filter(['cost_query_set_id', 'name', 'user_id', 'domain_id', 'user_self'])
+    @append_query_filter(['cost_query_set_id', 'name', 'user_id', 'domain_id'])
     @append_keyword_filter(['cost_query_set_id', 'name'])
     def list(self, params):
         """ List cost_query_sets
@@ -130,7 +130,7 @@ class CostQuerySetService(BaseService):
 
     @transaction(append_meta={'authorization.scope': 'USER'})
     @check_required(['query', 'domain_id'])
-    @append_query_filter(['domain_id', 'user_self'])
+    @append_query_filter(['domain_id'])
     @append_keyword_filter(['cost_query_set_id', 'name'])
     def stat(self, params):
         """
