@@ -202,8 +202,7 @@ class BudgetService(BaseService):
 
     @transaction(append_meta={'authorization.scope': 'PROJECT'})
     @check_required(['domain_id'])
-    @append_query_filter(['budget_id', 'name', 'project_id', 'project_group_id', 'time_unit', 'domain_id',
-                          'user_projects', 'user_project_groups'])
+    @append_query_filter(['budget_id', 'name', 'project_id', 'project_group_id', 'time_unit', 'domain_id'])
     @append_keyword_filter(['budget_id', 'name'])
     def list(self, params):
         """ List budgets
@@ -231,7 +230,7 @@ class BudgetService(BaseService):
 
     @transaction(append_meta={'authorization.scope': 'PROJECT'})
     @check_required(['query', 'domain_id'])
-    @append_query_filter(['domain_id', 'user_projects', 'user_project_groups'])
+    @append_query_filter(['domain_id'])
     @append_keyword_filter(['budget_id', 'name'])
     def stat(self, params):
         """
