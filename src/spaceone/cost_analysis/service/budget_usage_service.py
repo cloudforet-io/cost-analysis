@@ -18,15 +18,9 @@ class BudgetUsageService(BaseService):
         super().__init__(*args, **kwargs)
         self.budget_usage_mgr: BudgetUsageManager = self.locator.get_manager('BudgetUsageManager')
 
-    @transaction(append_meta={
-        'authorization.scope': 'PROJECT',
-        'mutation.append_parameter': {
-            'user_projects': {'meta': 'authorization.projects', 'data': [None]},
-            'user_project_groups': {'meta': 'authorization.project_groups', 'data': [None]}
-        }
-    })
+    @transaction(append_meta={'authorization.scope': 'PROJECT'})
     @check_required(['domain_id'])
-    @append_query_filter(['budget_id', 'name', 'date', 'domain_id', 'user_projects', 'user_project_groups'])
+    @append_query_filter(['budget_id', 'name', 'date', 'domain_id'])
     @append_keyword_filter(['budget_id', 'name'])
     def list(self, params):
         """ List budget_usages
@@ -47,18 +41,12 @@ class BudgetUsageService(BaseService):
             total_count
         """
 
-        query = params.get('query', {})
+        query = self._set_user_project_or_project_group_filter(params)
         return self.budget_usage_mgr.list_budget_usages(query)
 
-    @transaction(append_meta={
-        'authorization.scope': 'PROJECT',
-        'mutation.append_parameter': {
-            'user_projects': {'meta': 'authorization.projects', 'data': [None]},
-            'user_project_groups': {'meta': 'authorization.project_groups', 'data': [None]}
-        }
-    })
+    @transaction(append_meta={'authorization.scope': 'PROJECT'})
     @check_required(['query', 'domain_id'])
-    @append_query_filter(['domain_id', 'user_projects', 'user_project_groups'])
+    @append_query_filter(['domain_id'])
     @append_keyword_filter(['budget_id', 'name'])
     def stat(self, params):
         """
@@ -76,5 +64,20 @@ class BudgetUsageService(BaseService):
 
         """
 
-        query = params.get('query', {})
+        query = self._set_user_project_or_project_group_filter(params)
         return self.budget_usage_mgr.stat_budget_usages(query)
+
+    @staticmethod
+    def _set_user_project_or_project_group_filter(params):
+        query = params.get('query', {})
+        query['filter'] = query.get('filter', [])
+
+        if 'user_projects' in params:
+            user_projects = params['user_projects'] + [None]
+            query['filter'].append({'k': 'user_projects', 'v': user_projects, 'o': 'in'})
+
+        if 'user_project_groups' in params:
+            user_project_groups = params['user_project_groups'] + [None]
+            query['filter'].append({'k': 'user_project_groups', 'v': user_project_groups, 'o': 'in'})
+
+        return query

@@ -104,10 +104,7 @@ class CostService(BaseService):
 
         return self.cost_mgr.get_cost(cost_id, domain_id, params.get('only'))
 
-    @transaction(append_meta={
-        'authorization.scope': 'PROJECT',
-        'mutation.append_parameter': {'user_projects': 'authorization.projects'}
-    })
+    @transaction(append_meta={'authorization.scope': 'PROJECT'})
     @check_required(['domain_id'])
     @append_query_filter(['cost_id', 'original_currency', 'provider', 'region_code', 'region_key', 'category',
                           'product', 'account', 'usage_type', 'resource_group', 'resource', 'service_account_id',
@@ -134,7 +131,7 @@ class CostService(BaseService):
                 'data_source_id': 'str'
                 'domain_id': 'str',
                 'query': 'dict (spaceone.api.core.v1.Query)',
-                'user_projects': 'list', // from meta
+                'user_projects': 'list' // from meta
             }
 
         Returns:
@@ -147,10 +144,7 @@ class CostService(BaseService):
 
         return self.cost_mgr.list_costs(query)
 
-    @transaction(append_meta={
-        'authorization.scope': 'PROJECT',
-        'mutation.append_parameter': {'user_projects': 'authorization.projects'}
-    })
+    @transaction(append_meta={'authorization.scope': 'PROJECT'})
     @check_required(['granularity', 'start', 'end', 'domain_id'])
     def analyze(self, params):
         """
@@ -166,7 +160,8 @@ class CostService(BaseService):
                 'sort': 'dict',
                 'include_usage_quantity': 'bool',
                 'include_others': 'bool',
-                'domain_id': 'str'
+                'domain_id': 'str',
+                'user_projects': 'list' // from meta
             }
 
         Returns:
@@ -240,10 +235,7 @@ class CostService(BaseService):
 
         return response
 
-    @transaction(append_meta={
-        'authorization.scope': 'PROJECT',
-        'mutation.append_parameter': {'user_projects': 'authorization.projects'}
-    })
+    @transaction(append_meta={'authorization.scope': 'PROJECT'})
     @check_required(['query', 'domain_id'])
     @append_query_filter(['domain_id', 'user_projects'])
     @append_keyword_filter(['cost_id'])
@@ -254,7 +246,7 @@ class CostService(BaseService):
             params (dict): {
                 'domain_id': 'str',
                 'query': 'dict (spaceone.api.core.v1.StatisticsQuery)',
-                'user_projects': 'list', // from meta
+                'user_projects': 'list' // from meta
             }
 
         Returns:
