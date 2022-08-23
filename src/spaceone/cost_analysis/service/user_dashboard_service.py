@@ -141,10 +141,7 @@ class UserDashboardService(BaseService):
 
         return self.user_dashboard_mgr.get_user_dashboard(user_dashboard_id, domain_id, params.get('only'))
 
-    @transaction(append_meta={
-        'authorization.scope': 'USER',
-        'mutation.append_parameter': {'user_self': 'user_id'}
-    })
+    @transaction(append_meta={'authorization.scope': 'USER'})
     @check_required(['domain_id'])
     @append_query_filter(['user_dashboard_id', 'name', 'user_id', 'domain_id', 'user_self'])
     @append_keyword_filter(['user_dashboard_id', 'name'])
@@ -157,8 +154,7 @@ class UserDashboardService(BaseService):
                 'name': 'str',
                 'scope': 'str',
                 'domain_id': 'str',
-                'query': 'dict (spaceone.api.core.v1.Query)',
-                'user_self': 'list', // from meta
+                'query': 'dict (spaceone.api.core.v1.Query)'
             }
 
         Returns:
@@ -169,10 +165,7 @@ class UserDashboardService(BaseService):
         query = params.get('query', {})
         return self.user_dashboard_mgr.list_user_dashboards(query)
 
-    @transaction(append_meta={
-        'authorization.scope': 'USER',
-        'mutation.append_parameter': {'user_self': 'user_id'}
-    })
+    @transaction(append_meta={'authorization.scope': 'USER'})
     @check_required(['query', 'domain_id'])
     @append_query_filter(['domain_id', 'user_self'])
     @append_keyword_filter(['user_dashboard_id', 'name'])
@@ -181,8 +174,7 @@ class UserDashboardService(BaseService):
         Args:
             params (dict): {
                 'domain_id': 'str',
-                'query': 'dict (spaceone.api.core.v1.StatisticsQuery)',
-                'user_self': 'list', // from meta
+                'query': 'dict (spaceone.api.core.v1.StatisticsQuery)'
             }
 
         Returns:

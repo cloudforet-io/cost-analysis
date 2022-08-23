@@ -200,13 +200,7 @@ class BudgetService(BaseService):
 
         return self.budget_mgr.get_budget(budget_id, domain_id, params.get('only'))
 
-    @transaction(append_meta={
-        'authorization.scope': 'PROJECT',
-        'mutation.append_parameter': {
-            'user_projects': {'meta': 'authorization.projects', 'data': [None]},
-            'user_project_groups': {'meta': 'authorization.project_groups', 'data': [None]}
-        }
-    })
+    @transaction(append_meta={'authorization.scope': 'PROJECT'})
     @check_required(['domain_id'])
     @append_query_filter(['budget_id', 'name', 'project_id', 'project_group_id', 'time_unit', 'domain_id',
                           'user_projects', 'user_project_groups'])
@@ -232,16 +226,10 @@ class BudgetService(BaseService):
             total_count
         """
 
-        query = params.get('query', {})
+        query = self._set_user_project_or_project_group_filter(params)
         return self.budget_mgr.list_budgets(query)
 
-    @transaction(append_meta={
-        'authorization.scope': 'PROJECT',
-        'mutation.append_parameter': {
-            'user_projects': {'meta': 'authorization.projects', 'data': [None]},
-            'user_project_groups': {'meta': 'authorization.project_groups', 'data': [None]}
-        }
-    })
+    @transaction(append_meta={'authorization.scope': 'PROJECT'})
     @check_required(['query', 'domain_id'])
     @append_query_filter(['domain_id', 'user_projects', 'user_project_groups'])
     @append_keyword_filter(['budget_id', 'name'])
@@ -260,7 +248,7 @@ class BudgetService(BaseService):
 
         """
 
-        query = params.get('query', {})
+        query = self._set_user_project_or_project_group_filter(params)
         return self.budget_mgr.stat_budgets(query)
 
     def _check_target(self, project_id, project_group_id, domain_id):
@@ -346,3 +334,18 @@ class BudgetService(BaseService):
             if unit == 'PERCENT':
                 if threshold > 100:
                     raise ERROR_THRESHOLD_IS_WRONG_IN_PERCENT_TYPE(value=notification)
+
+    @staticmethod
+    def _set_user_project_or_project_group_filter(params):
+        query = params.get('query', {})
+        query['filter'] = query.get('filter', [])
+
+        if 'user_projects' in params:
+            user_projects = params['user_projects'] + [None]
+            query['filter'].append({'k': 'user_projects', 'v': user_projects, 'o': 'in'})
+
+        if 'user_project_groups' in params:
+            user_project_groups = params['user_project_groups'] + [None]
+            query['filter'].append({'k': 'user_project_groups', 'v': user_project_groups, 'o': 'in'})
+
+        return query
