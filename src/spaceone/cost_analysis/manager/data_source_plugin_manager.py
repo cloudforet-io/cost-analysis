@@ -92,7 +92,7 @@ class DataSourcePluginManager(BaseManager):
             metadata = {
                 'transaction_id': self.transaction.id,
                 'token': self.transaction.get_meta('token'),
-                'service': 'identity',
+                'service': 'cost_analysis',
                 'resource': 'DataSourceRule',
                 'verb': 'create'
             }

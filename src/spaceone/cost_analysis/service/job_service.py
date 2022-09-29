@@ -370,7 +370,8 @@ class JobService(BaseService):
                 {'k': 'data_source_id', 'v': data_source_id, 'o': 'eq'},
                 {'k': 'domain_id', 'v': domain_id, 'o': 'eq'},
                 {'k': 'billed_month', 'v': billed_month, 'o': 'eq'},
-            ]
+            ],
+            'target': 'PRIMARY'  # Execute a query to primary DB
         }
 
         _LOGGER.debug(f'[_aggregate_monthly_cost_data] query: {query}')
@@ -505,6 +506,6 @@ class JobService(BaseService):
         query_hash_with_date_range = utils.dict_to_hash(query)
 
         if self.cost_mgr.is_monthly_cost(granularity, start, end):
-            self.cost_mgr.stat_monthly_costs_with_cache(query, query_hash_with_date_range, domain_id)
+            self.cost_mgr.stat_monthly_costs_with_cache(query, query_hash_with_date_range, domain_id, target='PRIMARY')
         else:
-            self.cost_mgr.stat_costs_with_cache(query, query_hash_with_date_range, domain_id)
+            self.cost_mgr.stat_costs_with_cache(query, query_hash_with_date_range, domain_id, target='PRIMARY')
