@@ -320,9 +320,10 @@ class JobService(BaseService):
         if end:
             query['filter'].append({'k': 'billed_at', 'v': end, 'o': 'lt'})
 
-        _LOGGER.debug(f'[_delete_changed_cost_data] delete query: {query}')
+        _LOGGER.debug(f'[_delete_changed_cost_data] query: {query}')
         cost_vos, total_count = self.cost_mgr.list_costs(query)
         cost_vos.delete()
+        _LOGGER.debug(f'[_delete_changed_cost_data] delete costs (count = {total_count})')
 
     def _aggregate_cost_data(self, job_vo: Job, changed_start):
         data_source_id = job_vo.data_source_id
@@ -398,6 +399,7 @@ class JobService(BaseService):
             ]
         }
 
+        _LOGGER.debug(f'[_delete_aggregated_cost_data] query: {query}')
         monthly_cost_vos, total_count = self.cost_mgr.list_monthly_costs(query)
         monthly_cost_vos.delete()
 
