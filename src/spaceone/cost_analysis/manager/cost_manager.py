@@ -119,11 +119,13 @@ class CostManager(BaseManager):
             })
 
     @cache.cacheable(key='stat-costs:{domain_id}:{query_hash}', expire=3600 * 24)
-    def stat_costs_with_cache(self, query, query_hash, domain_id):
+    def stat_costs_with_cache(self, query, query_hash, domain_id, target='SECONDARY_PREFERRED'):
+        query['target'] = target
         return self.stat_costs(query)
 
     @cache.cacheable(key='stat-monthly-costs:{domain_id}:{query_hash}', expire=3600 * 24)
-    def stat_monthly_costs_with_cache(self, query, query_hash, domain_id):
+    def stat_monthly_costs_with_cache(self, query, query_hash, domain_id, target='SECONDARY_PREFERRED'):
+        query['target'] = target
         return self.stat_monthly_costs(query)
 
     @staticmethod
