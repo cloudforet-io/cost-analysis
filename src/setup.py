@@ -31,7 +31,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         'spaceone-core',
-        'spaceone-api',
+        'spaceone-api==1.10.0',
         'mongoengine',
         'redis',
         'boto3',
