@@ -63,7 +63,7 @@ class DataSourceService(BaseService):
 
             options = params['plugin_info'].get('options', {})
 
-            plugin_metadata = self._init_plugin(endpoint, options)
+            plugin_metadata = self._init_plugin(endpoint, options, domain_id)
 
             params['plugin_info']['metadata'] = plugin_metadata
 
@@ -240,7 +240,7 @@ class DataSourceService(BaseService):
         params['last_synchronized_at'] = data_source_vo.last_synchronized_at
 
         self.ds_plugin_mgr.initialize(endpoint)
-        tasks, changed = self.ds_plugin_mgr.get_tasks(options, secret_data, schema, params)
+        tasks, changed = self.ds_plugin_mgr.get_tasks(options, secret_data, schema, params, domain_id)
 
         _LOGGER.debug(f'[sync] get_tasks: {tasks}')
         _LOGGER.debug(f'[sync] changed: {changed}')
@@ -339,7 +339,7 @@ class DataSourceService(BaseService):
             plugin_info['version'] = updated_version
 
         options = plugin_info.get('options', {})
-        plugin_metadata = self._init_plugin(endpoint, options)
+        plugin_metadata = self._init_plugin(endpoint, options, domain_id)
         plugin_info['metadata'] = plugin_metadata
 
         params = {
@@ -436,9 +436,9 @@ class DataSourceService(BaseService):
         repo_mgr: RepositoryManager = self.locator.get_manager('RepositoryManager')
         repo_mgr.get_plugin(plugin_id, domain_id)
 
-    def _init_plugin(self, endpoint, options):
+    def _init_plugin(self, endpoint, options, domain_id):
         self.ds_plugin_mgr.initialize(endpoint)
-        return self.ds_plugin_mgr.init_plugin(options)
+        return self.ds_plugin_mgr.init_plugin(options, domain_id)
 
     def _verify_plugin(self, endpoint, plugin_info, domain_id):
         options = plugin_info.get('options', {})
@@ -450,7 +450,7 @@ class DataSourceService(BaseService):
             secret_data = self._get_secret_data(secret_id, domain_id)
 
         self.ds_plugin_mgr.initialize(endpoint)
-        self.ds_plugin_mgr.verify_plugin(options, secret_data, schema)
+        self.ds_plugin_mgr.verify_plugin(options, secret_data, schema, domain_id)
 
     def _get_secret_data(self, secret_id, domain_id):
         secret_mgr: SecretManager = self.locator.get_manager('SecretManager')

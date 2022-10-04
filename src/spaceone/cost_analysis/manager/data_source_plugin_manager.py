@@ -22,26 +22,26 @@ class DataSourcePluginManager(BaseManager):
         _LOGGER.debug(f'[initialize] data source plugin endpoint: {endpoint}')
         self.dsp_connector.initialize(endpoint)
 
-    def init_plugin(self, options):
-        plugin_info = self.dsp_connector.init(options)
+    def init_plugin(self, options, domain_id):
+        plugin_info = self.dsp_connector.init(options, domain_id)
 
         _LOGGER.debug(f'[plugin_info] {plugin_info}')
         plugin_metadata = plugin_info.get('metadata', {})
 
         return plugin_metadata
 
-    def verify_plugin(self, options, secret_data, schema):
-        self.dsp_connector.verify(options, secret_data, schema)
+    def verify_plugin(self, options, secret_data, schema, domain_id):
+        self.dsp_connector.verify(options, secret_data, schema, domain_id)
 
-    def get_tasks(self, options, secret_data, schema, params):
+    def get_tasks(self, options, secret_data, schema, params, domain_id):
         start = params.get('start')
         last_synchronized_at = utils.datetime_to_iso8601(params.get('last_synchronized_at'))
 
-        response = self.dsp_connector.get_tasks(options, secret_data, schema, start, last_synchronized_at)
+        response = self.dsp_connector.get_tasks(options, secret_data, schema, domain_id, start, last_synchronized_at)
         return response.get('tasks', []), response.get('changed', [])
 
-    def get_cost_data(self, options, secret_data, schema, task_options):
-        return self.dsp_connector.get_cost_data(options, secret_data, schema, task_options)
+    def get_cost_data(self, options, secret_data, schema, task_options, domain_id):
+        return self.dsp_connector.get_cost_data(options, secret_data, schema, task_options, domain_id)
 
     def get_data_source_plugin_endpoint_by_vo(self, data_source_vo: DataSource):
         plugin_info = data_source_vo.plugin_info.to_dict()
@@ -60,17 +60,17 @@ class DataSourcePluginManager(BaseManager):
     def upgrade_data_source_plugin_version(self, data_source_vo: DataSource, endpoint, updated_version):
         plugin_info = data_source_vo.plugin_info.to_dict()
 
+        data_source_id = data_source_vo.data_source_id
+        domain_id = data_source_vo.domain_id
+
         self.initialize(endpoint)
 
         plugin_options = plugin_info.get('options', {})
 
-        plugin_metadata = self.init_plugin(plugin_options)
+        plugin_metadata = self.init_plugin(plugin_options, domain_id)
         plugin_info['version'] = updated_version
         plugin_info['metadata'] = plugin_metadata
         data_source_vo.update({'plugin_info': plugin_info})
-
-        data_source_id = data_source_vo.data_source_id
-        domain_id = data_source_vo.domain_id
 
         self.delete_data_source_rules(data_source_id, domain_id)
         self.create_data_source_rules_by_metadata(plugin_metadata, data_source_id, domain_id)
