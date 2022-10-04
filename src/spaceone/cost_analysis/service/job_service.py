@@ -191,7 +191,7 @@ class JobService(BaseService):
                 count = 0
                 is_canceled = False
                 _LOGGER.debug(f'[get_cost_data] start job ({job_task_id}): {start_dt}')
-                for costs_data in self.ds_plugin_mgr.get_cost_data(options, secret_data, schema, task_options):
+                for costs_data in self.ds_plugin_mgr.get_cost_data(options, secret_data, schema, task_options, domain_id):
                     results = costs_data.get('results', [])
                     for cost_data in results:
                         count += 1
@@ -420,7 +420,7 @@ class JobService(BaseService):
         params = {'last_synchronized_at': data_source_vo.last_synchronized_at}
 
         self.ds_plugin_mgr.initialize(endpoint)
-        tasks, changed = self.ds_plugin_mgr.get_tasks(options, secret_data, schema, params)
+        tasks, changed = self.ds_plugin_mgr.get_tasks(options, secret_data, schema, params, domain_id)
 
         _LOGGER.debug(f'[sync] get_tasks: {tasks}')
         _LOGGER.debug(f'[sync] changed: {changed}')
