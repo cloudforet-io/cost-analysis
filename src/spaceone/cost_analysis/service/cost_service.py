@@ -139,6 +139,7 @@ class CostService(BaseService):
         """
 
         query = params.get('query', {})
+        query['page'] = self._set_page_limit(query.get('page'))
         query['filter'] = self._change_project_group_filter(query.get('filter', []), params['domain_id'])
 
         return self.cost_mgr.list_costs(query)
@@ -173,13 +174,16 @@ class CostService(BaseService):
         group_by = params.get('group_by', [])
         query_filter = params.get('filter', [])
         limit = params.get('limit')
-        page = params.get('page')
+        page = self._set_page_limit(params.get('page'))
         sort = params.get('sort')
         include_usage_quantity = params.get('include_usage_quantity', False)
         include_others = params.get('include_others', False)
         has_project_group_id = 'project_group_id' in group_by
 
         if limit:
+            if limit > 1000:
+                limit = 1000
+
             page = None
 
         start = self._parse_start_time(params['start'])
@@ -255,6 +259,7 @@ class CostService(BaseService):
 
         domain_id = params['domain_id']
         query = params.get('query', {})
+        query['page'] = self._set_page_limit(query.get('page'))
         query['filter'] = self._change_project_group_filter(query.get('filter', []), params['domain_id'])
 
         query_hash = utils.dict_to_hash(query)
@@ -347,3 +352,14 @@ class CostService(BaseService):
             return datetime.strptime(date_str, date_format).date()
         except Exception as e:
             raise ERROR_INVALID_PARAMETER_TYPE(key=key, type=date_format)
+
+    @staticmethod
+    def _set_page_limit(page: dict = None):
+        page = page or {}
+        limit = page.get('limit', 1000)
+
+        if limit > 1000:
+            limit = 1000
+
+        page['limit'] = limit
+        return page
