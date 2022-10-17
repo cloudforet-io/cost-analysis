@@ -531,9 +531,10 @@ class CostManager(BaseManager):
 
         for key in group_keys:
             keys.append({
-                'key': key.replace('additional_info.', '') if change_key else key,
-                'name': key.replace('additional_info.', '')
+                'key': key.replace('.', '_') if change_key else key,
+                'name': key.replace('.', '_')
             })
+
         return keys
 
     @staticmethod
