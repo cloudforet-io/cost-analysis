@@ -264,7 +264,7 @@ class JobService(BaseService):
                 try:
                     changed_start = None
                     for changed_vo in job_vo.changed:
-                        self._delete_changed_cost_data(job_vo, changed_vo.start, changed_vo.end)
+                        self._delete_changed_cost_data(job_vo, changed_vo.start, changed_vo.end, changed_vo.filter)
                         if changed_start is None or changed_start > changed_vo.start:
                             changed_start = changed_vo.start
 
@@ -307,7 +307,7 @@ class JobService(BaseService):
         data_source_vo = self.data_source_mgr.get_data_source(job_vo.data_source_id, job_vo.domain_id)
         self.data_source_mgr.update_data_source_by_vo({'last_synchronized_at': job_vo.created_at}, data_source_vo)
 
-    def _delete_changed_cost_data(self, job_vo: Job, start, end):
+    def _delete_changed_cost_data(self, job_vo: Job, start, end, _filter):
         query = {
             'filter': [
                 {'k': 'billed_at', 'v': start, 'o': 'gte'},
@@ -319,6 +319,9 @@ class JobService(BaseService):
 
         if end:
             query['filter'].append({'k': 'billed_at', 'v': end, 'o': 'lt'})
+
+        for key, value in _filter.items():
+            query['filter'].append({'k': key, 'v': value, 'o': 'eq'})
 
         _LOGGER.debug(f'[_delete_changed_cost_data] query: {query}')
         cost_vos, total_count = self.cost_mgr.list_costs(query)
