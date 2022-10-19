@@ -54,9 +54,12 @@ class JobManager(BaseManager):
             for changed_info in changed:
                 start = utils.iso8601_to_datetime(changed_info['start'])
                 end = utils.iso8601_to_datetime(changed_info['end']) if 'end' in changed_info else None
+                _filter = changed_info.get('filter', {})
+
                 data['changed'].append({
                     'start': start,
-                    'end': end
+                    'end': end,
+                    'filter': _filter
                 })
 
         job_vo = self.job_model.create(data)

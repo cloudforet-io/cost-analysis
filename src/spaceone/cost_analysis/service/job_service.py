@@ -264,7 +264,7 @@ class JobService(BaseService):
                 try:
                     changed_start = None
                     for changed_vo in job_vo.changed:
-                        self._delete_changed_cost_data(job_vo, changed_vo.start, changed_vo.end)
+                        self._delete_changed_cost_data(job_vo, changed_vo.start, changed_vo.end, changed_vo.filter)
                         if changed_start is None or changed_start > changed_vo.start:
                             changed_start = changed_vo.start
 
@@ -307,7 +307,7 @@ class JobService(BaseService):
         data_source_vo = self.data_source_mgr.get_data_source(job_vo.data_source_id, job_vo.domain_id)
         self.data_source_mgr.update_data_source_by_vo({'last_synchronized_at': job_vo.created_at}, data_source_vo)
 
-    def _delete_changed_cost_data(self, job_vo: Job, start, end):
+    def _delete_changed_cost_data(self, job_vo: Job, start, end, _filter):
         query = {
             'filter': [
                 {'k': 'billed_at', 'v': start, 'o': 'gte'},
@@ -319,6 +319,9 @@ class JobService(BaseService):
 
         if end:
             query['filter'].append({'k': 'billed_at', 'v': end, 'o': 'lt'})
+
+        for key, value in _filter.items():
+            query['filter'].append({'k': key, 'v': value, 'o': 'eq'})
 
         _LOGGER.debug(f'[_delete_changed_cost_data] query: {query}')
         cost_vos, total_count = self.cost_mgr.list_costs(query)
@@ -333,11 +336,28 @@ class JobService(BaseService):
 
         for dt in rrule.rrule(rrule.MONTHLY, dtstart=changed_start, until=datetime.utcnow()):
             billed_month = dt.strftime('%Y-%m')
-            self._aggregate_monthly_cost_data(data_source_id, domain_id, job_id, billed_month)
+            accounts = self._list_accounts_from_cost_data(data_source_id, domain_id, billed_month)
+
+            for account in accounts:
+                self._aggregate_monthly_cost_data(data_source_id, domain_id, job_id, billed_month, account)
 
         self._delete_aggregated_cost_data(data_source_id, domain_id, job_id, changed_start)
 
-    def _aggregate_monthly_cost_data(self, data_source_id, domain_id, job_id, billed_month):
+    def _list_accounts_from_cost_data(self, data_source_id, domain_id, billed_month):
+        query = {
+            'distinct': 'account',
+            'filter': [
+                {'k': 'data_source_id', 'v': data_source_id, 'o': 'eq'},
+                {'k': 'domain_id', 'v': domain_id, 'o': 'eq'},
+                {'k': 'billed_month', 'v': billed_month, 'o': 'eq'},
+            ],
+            'target': 'PRIMARY'  # Execute a query to primary DB
+        }
+        _LOGGER.debug(f'[_list_accounts_from_cost_data] query: {query}')
+        response = self.cost_mgr.stat_costs(query)
+        return response.get('results', [])
+
+    def _aggregate_monthly_cost_data(self, data_source_id, domain_id, job_id, billed_month, account):
         query = {
             'aggregate': [
                 {
@@ -371,6 +391,7 @@ class JobService(BaseService):
                 {'k': 'data_source_id', 'v': data_source_id, 'o': 'eq'},
                 {'k': 'domain_id', 'v': domain_id, 'o': 'eq'},
                 {'k': 'billed_month', 'v': billed_month, 'o': 'eq'},
+                {'k': 'account', 'v': account, 'o': 'eq'},
             ],
             'target': 'PRIMARY'  # Execute a query to primary DB
         }
