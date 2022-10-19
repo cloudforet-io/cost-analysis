@@ -355,7 +355,11 @@ class JobService(BaseService):
         }
         _LOGGER.debug(f'[_list_accounts_from_cost_data] query: {query}')
         response = self.cost_mgr.stat_costs(query)
-        return response.get('results', [])
+        accounts = response.get('results', [])
+
+        _LOGGER.debug(f'[_list_accounts_from_cost_data] accounts: {accounts}')
+
+        return accounts
 
     def _aggregate_monthly_cost_data(self, data_source_id, domain_id, job_id, billed_month, account):
         query = {
