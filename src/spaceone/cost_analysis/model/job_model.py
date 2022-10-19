@@ -11,6 +11,7 @@ class Error(EmbeddedDocument):
 class Changed(EmbeddedDocument):
     start = DateTimeField(required=True)
     end = DateTimeField(default=None, null=True)
+    filter = DictField()
 
 
 class Job(MongoModel):
