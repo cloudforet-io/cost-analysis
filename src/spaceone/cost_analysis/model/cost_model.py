@@ -51,28 +51,24 @@ class Cost(MongoModel):
             'user_projects': 'project_id'
         },
         'indexes': [
-            'cost_id',
-            'provider',
-            'region_code',
-            'region_key',
-            'category',
-            'product',
-            'account',
-            'usage_type',
-            'resource_group',
-            'service_account_id',
-            'project_id',
-            'data_source_id',
-            'job_id',
-            'domain_id',
-            'billed_at',
-            'billed_year',
-            'billed_month',
-            'billed_date',
             {
-                "fields": ['domain_id', 'project_id', 'billed_date'],
+                "fields": ['domain_id', 'data_source_id', '-billed_month', 'account', 'region_code',
+                           'usd_cost', 'usage_quantity'],
+                "name": "COMPOUND_INDEX_FOR_SYNC_JOB_1"
+            },
+            {
+                "fields": ['domain_id', 'data_source_id', 'job_id', '-billed_at', 'account'],
+                "name": "COMPOUND_INDEX_FOR_SYNC_JOB_2"
+            },
+            {
+                "fields": ['domain_id', '-billed_date', 'project_id', 'provider', 'service_account_id',
+                           'usd_cost', 'usage_quantity'],
                 "name": "COMPOUND_INDEX_FOR_SEARCH"
             },
+            {
+                "fields": ['domain_id', 'cost_id', 'project_id'],
+                "name": "COMPOUND_INDEX_FOR_DELETE"
+            }
         ]
     }
 
@@ -106,23 +102,13 @@ class MonthlyCost(MongoModel):
             'user_projects': 'project_id'
         },
         'indexes': [
-            'provider',
-            'region_code',
-            'region_key',
-            'category',
-            'product',
-            'account',
-            'usage_type',
-            'resource_group',
-            'service_account_id',
-            'project_id',
-            'data_source_id',
-            'job_id',
-            'domain_id',
-            'billed_year',
-            'billed_month',
             {
-                "fields": ['domain_id', 'project_id', 'billed_month'],
+                "fields": ['domain_id', 'data_source_id', 'job_id', '-billed_month'],
+                "name": "COMPOUND_INDEX_FOR_SYNC_JOB"
+            },
+            {
+                "fields": ['domain_id', '-billed_month', 'project_id', 'provider', 'service_account_id',
+                           'usd_cost', 'usage_quantity'],
                 "name": "COMPOUND_INDEX_FOR_SEARCH"
             },
         ]
@@ -145,7 +131,9 @@ class CostQueryHistory(MongoModel):
             'updated_at'
         ],
         'indexes': [
-            'query_hash',
-            'domain_id',
+            {
+                "fields": ['domain_id', 'query_hash'],
+                "name": "COMPOUND_INDEX_FOR_SEARCH"
+            },
         ]
     }
