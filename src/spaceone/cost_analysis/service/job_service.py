@@ -401,7 +401,7 @@ class JobService(BaseService):
         }
         cost_vos, total_count = self.cost_mgr.list_costs(query)
 
-        _LOGGER.debug(f'[_is_large_data] cost count ({billed_month}): {total_count}')
+        _LOGGER.debug(f'[_is_large_data] cost count ({billed_month}): {total_count} => {total_count >= 100000}')
 
         # Split query by region_code if cost count exceeds 100k
         if total_count >= 100000:
