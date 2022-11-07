@@ -339,7 +339,15 @@ class JobService(BaseService):
             accounts = self._list_accounts_from_cost_data(data_source_id, domain_id, billed_month)
 
             for account in accounts:
-                self._aggregate_monthly_cost_data(data_source_id, domain_id, job_id, billed_month, account)
+                if self._is_large_data(data_source_id, domain_id, billed_month, account):
+                    regions = self._list_regions_from_cost_data(data_source_id, domain_id, billed_month, account)
+
+                    for region_code in regions:
+                        self._aggregate_monthly_cost_data(data_source_id, domain_id, job_id, billed_month, account,
+                                                          region_code)
+
+                else:
+                    self._aggregate_monthly_cost_data(data_source_id, domain_id, job_id, billed_month, account)
 
         self._delete_aggregated_cost_data(data_source_id, domain_id, job_id, changed_start)
 
@@ -361,7 +369,47 @@ class JobService(BaseService):
 
         return accounts
 
-    def _aggregate_monthly_cost_data(self, data_source_id, domain_id, job_id, billed_month, account):
+    def _list_regions_from_cost_data(self, data_source_id, domain_id, billed_month, account):
+        query = {
+            'distinct': 'region_code',
+            'filter': [
+                {'k': 'data_source_id', 'v': data_source_id, 'o': 'eq'},
+                {'k': 'domain_id', 'v': domain_id, 'o': 'eq'},
+                {'k': 'billed_month', 'v': billed_month, 'o': 'eq'},
+                {'k': 'account', 'v': account, 'o': 'eq'},
+            ],
+            'target': 'PRIMARY'  # Execute a query to primary DB
+        }
+        _LOGGER.debug(f'[_list_regions_from_cost_data] query: {query}')
+        response = self.cost_mgr.stat_costs(query)
+        regions = response.get('results', [])
+
+        _LOGGER.debug(f'[_list_regions_from_cost_data] regions: {regions}')
+
+        return regions
+
+    def _is_large_data(self, data_source_id, domain_id, billed_month, account):
+        query = {
+            'count_only': True,
+            'filter': [
+                {'k': 'data_source_id', 'v': data_source_id, 'o': 'eq'},
+                {'k': 'domain_id', 'v': domain_id, 'o': 'eq'},
+                {'k': 'billed_month', 'v': billed_month, 'o': 'eq'},
+                {'k': 'account', 'v': account, 'o': 'eq'},
+            ],
+            'target': 'PRIMARY'  # Execute a query to primary DB
+        }
+        cost_vos, total_count = self.cost_mgr.list_costs(query)
+
+        _LOGGER.debug(f'[_is_large_data] cost count ({billed_month}): {total_count}')
+
+        # Split query by region_code if cost count exceeds 100k
+        if total_count >= 100000:
+            return True
+        else:
+            return False
+
+    def _aggregate_monthly_cost_data(self, data_source_id, domain_id, job_id, billed_month, account, region_code=None):
         query = {
             'aggregate': [
                 {
@@ -399,6 +447,9 @@ class JobService(BaseService):
             ],
             'target': 'PRIMARY'  # Execute a query to primary DB
         }
+
+        if region_code:
+            query['filter'].append({'k': 'region_code', 'v': region_code, 'o': 'eq'})
 
         _LOGGER.debug(f'[_aggregate_monthly_cost_data] query: {query}')
         response = self.cost_mgr.stat_costs(query)
