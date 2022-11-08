@@ -52,8 +52,7 @@ class Cost(MongoModel):
         },
         'indexes': [
             {
-                "fields": ['domain_id', 'data_source_id', '-billed_month', 'account', 'region_code',
-                           'usd_cost', 'usage_quantity'],
+                "fields": ['domain_id', 'data_source_id', '-billed_month', 'account', 'product'],
                 "name": "COMPOUND_INDEX_FOR_SYNC_JOB_1"
             },
             {
