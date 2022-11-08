@@ -340,11 +340,11 @@ class JobService(BaseService):
 
             for account in accounts:
                 if self._is_large_data(data_source_id, domain_id, billed_month, account):
-                    regions = self._list_regions_from_cost_data(data_source_id, domain_id, billed_month, account)
+                    products = self._list_products_from_cost_data(data_source_id, domain_id, billed_month, account)
 
-                    for region_code in regions:
+                    for product in products:
                         self._aggregate_monthly_cost_data(data_source_id, domain_id, job_id, billed_month, account,
-                                                          region_code)
+                                                          product)
 
                 else:
                     self._aggregate_monthly_cost_data(data_source_id, domain_id, job_id, billed_month, account)
@@ -369,9 +369,9 @@ class JobService(BaseService):
 
         return accounts
 
-    def _list_regions_from_cost_data(self, data_source_id, domain_id, billed_month, account):
+    def _list_products_from_cost_data(self, data_source_id, domain_id, billed_month, account):
         query = {
-            'distinct': 'region_code',
+            'distinct': 'product',
             'filter': [
                 {'k': 'data_source_id', 'v': data_source_id, 'o': 'eq'},
                 {'k': 'domain_id', 'v': domain_id, 'o': 'eq'},
@@ -380,13 +380,13 @@ class JobService(BaseService):
             ],
             'target': 'PRIMARY'  # Execute a query to primary DB
         }
-        _LOGGER.debug(f'[_list_regions_from_cost_data] query: {query}')
+        _LOGGER.debug(f'[_list_products_from_cost_data] query: {query}')
         response = self.cost_mgr.stat_costs(query)
-        regions = response.get('results', [])
+        products = response.get('results', [])
 
-        _LOGGER.debug(f'[_list_regions_from_cost_data] regions: {regions}')
+        _LOGGER.debug(f'[_list_products_from_cost_data] products: {products}')
 
-        return regions
+        return products
 
     def _is_large_data(self, data_source_id, domain_id, billed_month, account):
         query = {
@@ -403,13 +403,13 @@ class JobService(BaseService):
 
         _LOGGER.debug(f'[_is_large_data] cost count ({billed_month}): {total_count} => {total_count >= 100000}')
 
-        # Split query by region_code if cost count exceeds 100k
+        # Split query by product if cost count exceeds 100k
         if total_count >= 100000:
             return True
         else:
             return False
 
-    def _aggregate_monthly_cost_data(self, data_source_id, domain_id, job_id, billed_month, account, region_code=None):
+    def _aggregate_monthly_cost_data(self, data_source_id, domain_id, job_id, billed_month, account, product=None):
         query = {
             'aggregate': [
                 {
@@ -448,8 +448,8 @@ class JobService(BaseService):
             'target': 'PRIMARY'  # Execute a query to primary DB
         }
 
-        if region_code:
-            query['filter'].append({'k': 'region_code', 'v': region_code, 'o': 'eq'})
+        if product:
+            query['filter'].append({'k': 'product', 'v': product, 'o': 'eq'})
 
         _LOGGER.debug(f'[_aggregate_monthly_cost_data] query: {query}')
         response = self.cost_mgr.stat_costs(query)
