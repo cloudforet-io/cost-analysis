@@ -442,30 +442,11 @@ class JobService(BaseService):
         }
 
         if is_large:
-            page_count = 1
-            page_size = 10000
-            while True:
-                query['page'] = {
-                    'start': page_count,
-                    'limit': page_size
-                }
+            query['allow_disk_use'] = True
 
-                _LOGGER.debug(f'[_aggregate_monthly_cost_data] query: {query}')
-                response = self.cost_mgr.stat_costs(query)
-                results = response.get('results', [])
-
-                if len(results) == 0:
-                    break
-
-                self._create_monthly_cost_data(results, data_source_id, domain_id, job_id, billed_month)
-                page_count += page_size
-        else:
-            _LOGGER.debug(f'[_aggregate_monthly_cost_data] query: {query}')
-            response = self.cost_mgr.stat_costs(query)
-            results = response.get('results', [])
-            self._create_monthly_cost_data(results, data_source_id, domain_id, job_id, billed_month)
-
-    def _create_monthly_cost_data(self, results, data_source_id, domain_id, job_id, billed_month):
+        _LOGGER.debug(f'[_aggregate_monthly_cost_data] query: {query}')
+        response = self.cost_mgr.stat_costs(query)
+        results = response.get('results', [])
         for aggregated_cost_data in results:
             aggregated_cost_data['data_source_id'] = data_source_id
             aggregated_cost_data['job_id'] = job_id
@@ -473,7 +454,7 @@ class JobService(BaseService):
             self.cost_mgr.create_monthly_cost(aggregated_cost_data)
 
         _LOGGER.debug(
-            f'[_create_monthly_cost_data] create monthly costs ({billed_month}): {job_id} (count = {len(results)})')
+            f'[_aggregate_monthly_cost_data] create monthly costs ({billed_month}): {job_id} (count = {len(results)})')
 
     def _delete_aggregated_cost_data(self, data_source_id, domain_id, job_id, changed_start):
         changed_start_month = changed_start.strftime('%Y-%m')
