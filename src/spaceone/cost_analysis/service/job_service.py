@@ -397,7 +397,7 @@ class JobService(BaseService):
         _LOGGER.debug(f'[_is_large_data] cost count ({billed_month}): {total_count} => {total_count >= 100000}')
 
         # Split query by product if cost count exceeds 100k
-        if total_count >= 50000:
+        if total_count >= 100000:
             return True
         else:
             return False
