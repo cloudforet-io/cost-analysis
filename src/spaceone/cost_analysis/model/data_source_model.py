@@ -38,7 +38,9 @@ class DataSource(MongoModel):
             'plugin_info',
             'template',
             'tags',
-            'last_synchronized_at'
+            'last_synchronized_at',
+            'cost_tag_keys',
+            'cost_additional_info_keys'
         ],
         'minimal_fields': [
             'data_source_id',
