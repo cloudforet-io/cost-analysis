@@ -25,6 +25,8 @@ class DataSource(MongoModel):
     plugin_info = EmbeddedDocumentField(PluginInfo, default=None, null=True)
     template = DictField(default={})
     tags = DictField(default={})
+    cost_tag_keys = ListField(StringField())
+    cost_additional_info_keys = ListField(StringField())
     domain_id = StringField(max_length=40)
     created_at = DateTimeField(auto_now_add=True)
     last_synchronized_at = DateTimeField(default=None, null=True)
@@ -54,6 +56,8 @@ class DataSource(MongoModel):
             'state',
             'data_source_type',
             'provider',
-            'domain_id'
+            'domain_id',
+            'cost_tag_keys',
+            'cost_additional_info_keys',
         ]
     }
