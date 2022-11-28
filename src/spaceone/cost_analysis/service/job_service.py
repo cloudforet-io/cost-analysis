@@ -269,6 +269,7 @@ class JobService(BaseService):
                             changed_start = changed_vo.start
 
                     self._aggregate_cost_data(job_vo, changed_start)
+                    self._update_tag_and_additional_info_keys(job_vo.data_source_id, domain_id)
                     self._update_budget_usage(domain_id)
                     self.cost_mgr.remove_stat_cache(domain_id)
 
@@ -287,6 +288,62 @@ class JobService(BaseService):
 
             elif job_vo.status == 'CANCELED':
                 self._rollback_cost_data(job_vo)
+
+    def _update_tag_and_additional_info_keys(self, data_source_id, domain_id):
+        tag_keys = self._list_tag_keys_from_cost_data(data_source_id, domain_id)
+        additional_info_keys = self._list_additional_info_keys_from_cost_data(data_source_id, domain_id)
+
+        data_source_vo = self.data_source_mgr.get_data_source(data_source_id, domain_id)
+        self.data_source_mgr.update_data_source_by_vo({
+            'cost_tag_keys': tag_keys,
+            'cost_additional_info_keys': additional_info_keys
+        }, data_source_vo)
+
+    def _list_tag_keys_from_cost_data(self, data_source_id, domain_id):
+        tag_keys = []
+
+        query = {
+            'distinct': 'tags',
+            'filter': [
+                {'k': 'data_source_id', 'v': data_source_id, 'o': 'eq'},
+                {'k': 'domain_id', 'v': domain_id, 'o': 'eq'},
+            ],
+            'target': 'PRIMARY'  # Execute a query to primary DB
+        }
+
+        _LOGGER.debug(f'[_list_tag_keys_from_cost_data] query: {query}')
+        response = self.cost_mgr.stat_monthly_costs(query)
+        for tags in response.get('results', []):
+            for key in tags.keys():
+                if key not in tag_keys:
+                    tag_keys.append(key)
+
+        _LOGGER.debug(f'[_list_tag_keys_from_cost_data] keys: {tag_keys}')
+
+        return tag_keys
+
+    def _list_additional_info_keys_from_cost_data(self, data_source_id, domain_id):
+        additional_info_keys = []
+
+        query = {
+            'distinct': 'additional_info',
+            'filter': [
+                {'k': 'data_source_id', 'v': data_source_id, 'o': 'eq'},
+                {'k': 'domain_id', 'v': domain_id, 'o': 'eq'},
+            ],
+            'target': 'PRIMARY'  # Execute a query to primary DB
+        }
+
+        _LOGGER.debug(f'[_list_additional_info_keys_from_cost_data] query: {query}')
+        response = self.cost_mgr.stat_monthly_costs(query)
+        for additional_info in response.get('results', []):
+            for key in additional_info.keys():
+                if key not in additional_info_keys:
+                    additional_info_keys.append(key)
+
+        _LOGGER.debug(f'[_list_additional_info_keys_from_cost_data] keys: {additional_info_keys}')
+
+        return additional_info_keys
 
     def _update_budget_usage(self, domain_id):
         budget_mgr: BudgetManager = self.locator.get_manager('BudgetManager')
