@@ -262,12 +262,24 @@ class CostService(BaseService):
         query['page'] = self._set_page_limit(query.get('page'))
         query['filter'] = self._change_project_group_filter(query.get('filter', []), params['domain_id'])
 
-        query_hash = utils.dict_to_hash(query)
+        if self._is_distinct_query(query):
+            page, query = self._get_page_from_query(query)
+            search, query = self._get_search_value_from_query(query)
+            query_hash = utils.dict_to_hash(query)
 
-        if self.cost_mgr.is_monthly_stat_query(query):
-            return self.cost_mgr.stat_monthly_costs_with_cache(query, query_hash, domain_id)
+            response = self.cost_mgr.stat_monthly_costs_with_cache(query, query_hash, domain_id)
+            response = self._search_results(response, search)
+
+            if page:
+                response = self.cost_mgr.page_results(response, page)
+
+            return response
         else:
-            return self.cost_mgr.stat_costs_with_cache(query, query_hash, domain_id)
+            query_hash = utils.dict_to_hash(query)
+            if self.cost_mgr.is_monthly_stat_query(query):
+                return self.cost_mgr.stat_monthly_costs_with_cache(query, query_hash, domain_id)
+            else:
+                return self.cost_mgr.stat_costs_with_cache(query, query_hash, domain_id)
 
     @staticmethod
     def _add_domain_filter(query_filter, domain_id):
@@ -363,3 +375,51 @@ class CostService(BaseService):
 
         page['limit'] = limit
         return page
+
+    @staticmethod
+    def _is_distinct_query(query):
+        if 'distinct' in query:
+            return True
+        else:
+            return False
+
+    def _get_page_from_query(self, query):
+        if 'page' in query:
+            page = query['page']
+            del query['page']
+        else:
+            page = None
+
+        return page, query
+
+    def _get_search_value_from_query(self, query):
+        distinct = query['distinct']
+
+        search = None
+        changed_filter = []
+        for condition in query.get('filter', []):
+            key = condition.get('key', condition.get('k'))
+            value = condition.get('value', condition.get('v'))
+            operator = condition.get('operator', condition.get('o'))
+
+            if key == distinct and operator == 'contain':
+                search = value
+            else:
+                changed_filter.append(condition)
+
+        query['filter'] = changed_filter
+
+        return search, query
+
+    @staticmethod
+    def _search_results(response, search):
+        search = search.lower()
+        changed_results = []
+
+        for result in response.get('results', []):
+            if search in result.lower():
+                changed_results.append(result)
+
+        return {
+            'results': changed_results,
+        }
