@@ -268,7 +268,9 @@ class CostService(BaseService):
             query_hash = utils.dict_to_hash(query)
 
             response = self.cost_mgr.stat_monthly_costs_with_cache(query, query_hash, domain_id)
-            response = self._search_results(response, search)
+
+            if search:
+                response = self._search_results(response, search)
 
             if page:
                 response = self.cost_mgr.page_results(response, page)
