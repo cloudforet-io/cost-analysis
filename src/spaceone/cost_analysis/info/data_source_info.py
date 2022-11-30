@@ -38,6 +38,8 @@ def DataSourceInfo(data_source_vo: DataSource, minimal=False):
             'plugin_info': PluginInfo(data_source_vo.plugin_info),
             'template': change_struct_type(data_source_vo.template),
             'tags': change_struct_type(data_source_vo.tags),
+            'cost_tag_keys': data_source_vo.cost_tag_keys,
+            'cost_additional_info_keys': data_source_vo.cost_additional_info_keys,
             'domain_id': data_source_vo.domain_id,
             'created_at': utils.datetime_to_iso8601(data_source_vo.created_at),
             'last_synchronized_at': utils.datetime_to_iso8601(data_source_vo.last_synchronized_at)
