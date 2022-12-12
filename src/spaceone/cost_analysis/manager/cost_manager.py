@@ -93,7 +93,7 @@ class CostManager(BaseManager):
         return history_model.query(**query)
 
     @cache.cacheable(key='stat-costs-history:{domain_id}:{query_hash}', expire=600)
-    def create_cost_query_history(self, query, query_hash, granularity, start, end, domain_id):
+    def create_cost_query_history(self, domain_id, query, query_hash, granularity=None, start=None, end=None):
         def _rollback(history_vo):
             _LOGGER.info(f'[create_cost_query_history._rollback] Delete cost query history: {query_hash}')
             history_vo.delete()
