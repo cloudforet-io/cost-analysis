@@ -118,9 +118,9 @@ class CostQueryHistory(MongoModel):
     query_hash = StringField(max_length=255)
     query_options = DictField(default={})
     domain_id = StringField(max_length=40)
-    granularity = StringField(max_length=40)
-    start = DateField()
-    end = DateField()
+    granularity = StringField(max_length=40, default=None, null=True)
+    start = DateField(defulat=None, null=True)
+    end = DateField(default=None, null=True)
     updated_at = DateTimeField(auto_now=True)
 
     meta = {
