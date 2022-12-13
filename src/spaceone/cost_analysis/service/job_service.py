@@ -200,9 +200,9 @@ class JobService(BaseService):
 
                         self._check_cost_data(cost_data)
                         self._create_cost_data(cost_data, job_task_vo)
-                        tag_keys = self._append_tag_keys(tag_keys, cost_data.get('tags', {}))
-                        additional_info_keys = self._append_additional_info_keys(additional_info_keys,
-                                                                                 cost_data.get('additional_info'))
+
+                        tag_keys = self._append_tag_keys(tag_keys, cost_data)
+                        additional_info_keys = self._append_additional_info_keys(additional_info_keys, cost_data)
 
                     if self._is_job_canceled(job_id, domain_id):
                         self.job_task_mgr.change_canceled_status(job_task_vo)
@@ -225,14 +225,18 @@ class JobService(BaseService):
         self._close_job(job_id, domain_id)
 
     @staticmethod
-    def _append_tag_keys(tags_keys, cost_tags):
+    def _append_tag_keys(tags_keys, cost_data):
+        cost_tags = cost_data.get('tags', {})
+
         for key in cost_tags.keys():
             if key not in tags_keys:
                 tags_keys.append(key)
         return tags_keys
 
     @staticmethod
-    def _append_additional_info_keys(additional_info_keys, cost_additional_info):
+    def _append_additional_info_keys(additional_info_keys, cost_data):
+        cost_additional_info = cost_data.get('additional_info')
+
         for key in cost_additional_info.keys():
             if key not in additional_info_keys:
                 additional_info_keys.append(key)
