@@ -180,6 +180,8 @@ class JobService(BaseService):
                 secret_id = plugin_info.get('secret_id')
                 options = plugin_info.get('options', {})
                 schema = plugin_info.get('schema')
+                tag_keys = data_source_vo.cost_tag_keys
+                additional_info_keys = data_source_vo.cost_additional_info_keys
 
                 endpoint, updated_version = self.ds_plugin_mgr.get_data_source_plugin_endpoint(plugin_info, domain_id)
 
@@ -199,6 +201,9 @@ class JobService(BaseService):
                         self._check_cost_data(cost_data)
                         self._create_cost_data(cost_data, job_task_vo)
 
+                        tag_keys = self._append_tag_keys(tag_keys, cost_data)
+                        additional_info_keys = self._append_additional_info_keys(additional_info_keys, cost_data)
+
                     if self._is_job_canceled(job_id, domain_id):
                         self.job_task_mgr.change_canceled_status(job_task_vo)
                         is_canceled = True
@@ -211,12 +216,31 @@ class JobService(BaseService):
                     _LOGGER.debug(f'[get_cost_data] end job ({job_task_id}): {end_dt}')
                     _LOGGER.debug(f'[get_cost_data] total job time ({job_task_id}): {end_dt - start_dt}')
 
+                    self._update_tag_and_additional_info_keys(data_source_vo, tag_keys, additional_info_keys)
                     self.job_task_mgr.change_success_status(job_task_vo, count)
 
             except Exception as e:
                 self.job_task_mgr.change_error_status(job_task_vo, e)
 
         self._close_job(job_id, domain_id)
+
+    @staticmethod
+    def _append_tag_keys(tags_keys, cost_data):
+        cost_tags = cost_data.get('tags', {})
+
+        for key in cost_tags.keys():
+            if key not in tags_keys:
+                tags_keys.append(key)
+        return tags_keys
+
+    @staticmethod
+    def _append_additional_info_keys(additional_info_keys, cost_data):
+        cost_additional_info = cost_data.get('additional_info')
+
+        for key in cost_additional_info.keys():
+            if key not in additional_info_keys:
+                additional_info_keys.append(key)
+        return additional_info_keys
 
     def _get_secret_data(self, secret_id, domain_id):
         secret_mgr: SecretManager = self.locator.get_manager('SecretManager')
@@ -269,7 +293,6 @@ class JobService(BaseService):
                             changed_start = changed_vo.start
 
                     self._aggregate_cost_data(job_vo, changed_start)
-                    self._update_tag_and_additional_info_keys(job_vo.data_source_id, domain_id)
                     self._update_budget_usage(domain_id)
                     self.cost_mgr.remove_stat_cache(domain_id)
 
@@ -289,61 +312,11 @@ class JobService(BaseService):
             elif job_vo.status == 'CANCELED':
                 self._rollback_cost_data(job_vo)
 
-    def _update_tag_and_additional_info_keys(self, data_source_id, domain_id):
-        tag_keys = self._list_tag_keys_from_cost_data(data_source_id, domain_id)
-        additional_info_keys = self._list_additional_info_keys_from_cost_data(data_source_id, domain_id)
-
-        data_source_vo = self.data_source_mgr.get_data_source(data_source_id, domain_id)
+    def _update_tag_and_additional_info_keys(self, data_source_vo, tag_keys, additional_info_keys):
         self.data_source_mgr.update_data_source_by_vo({
             'cost_tag_keys': tag_keys,
             'cost_additional_info_keys': additional_info_keys
         }, data_source_vo)
-
-    def _list_tag_keys_from_cost_data(self, data_source_id, domain_id):
-        tag_keys = []
-
-        query = {
-            'distinct': 'tags',
-            'filter': [
-                {'k': 'data_source_id', 'v': data_source_id, 'o': 'eq'},
-                {'k': 'domain_id', 'v': domain_id, 'o': 'eq'},
-            ],
-            'target': 'PRIMARY'  # Execute a query to primary DB
-        }
-
-        _LOGGER.debug(f'[_list_tag_keys_from_cost_data] query: {query}')
-        response = self.cost_mgr.stat_monthly_costs(query)
-        for tags in response.get('results', []):
-            for key in tags.keys():
-                if key not in tag_keys:
-                    tag_keys.append(key)
-
-        _LOGGER.debug(f'[_list_tag_keys_from_cost_data] keys: {tag_keys}')
-
-        return tag_keys
-
-    def _list_additional_info_keys_from_cost_data(self, data_source_id, domain_id):
-        additional_info_keys = []
-
-        query = {
-            'distinct': 'additional_info',
-            'filter': [
-                {'k': 'data_source_id', 'v': data_source_id, 'o': 'eq'},
-                {'k': 'domain_id', 'v': domain_id, 'o': 'eq'},
-            ],
-            'target': 'PRIMARY'  # Execute a query to primary DB
-        }
-
-        _LOGGER.debug(f'[_list_additional_info_keys_from_cost_data] query: {query}')
-        response = self.cost_mgr.stat_monthly_costs(query)
-        for additional_info in response.get('results', []):
-            for key in additional_info.keys():
-                if key not in additional_info_keys:
-                    additional_info_keys.append(key)
-
-        _LOGGER.debug(f'[_list_additional_info_keys_from_cost_data] keys: {additional_info_keys}')
-
-        return additional_info_keys
 
     def _update_budget_usage(self, domain_id):
         budget_mgr: BudgetManager = self.locator.get_manager('BudgetManager')
@@ -623,18 +596,23 @@ class JobService(BaseService):
 
     def _create_cache_by_history(self, history_vo: CostQueryHistory, domain_id):
         query = history_vo.query_options
+        query_hash = history_vo.query_hash
         granularity = history_vo.granularity
         start = history_vo.start
         end = history_vo.end
 
         # Original Date Range
-        self._create_cache(copy.deepcopy(query), granularity, start, end, domain_id)
+        self._create_cache(domain_id, copy.deepcopy(query), query_hash, granularity, start, end)
 
-    def _create_cache(self, query, granularity, start, end, domain_id):
-        query = self.cost_mgr.add_date_range_filter(query, granularity, start, end)
-        query_hash_with_date_range = utils.dict_to_hash(query)
+    def _create_cache(self, domain_id, query, query_hash, granularity, start, end):
+        if granularity and start and end:
+            query = self.cost_mgr.add_date_range_filter(query, granularity, start, end)
+            query_hash_with_date_range = utils.dict_to_hash(query)
 
-        if self.cost_mgr.is_monthly_cost(granularity, start, end):
-            self.cost_mgr.stat_monthly_costs_with_cache(query, query_hash_with_date_range, domain_id, target='PRIMARY')
+            if self.cost_mgr.is_monthly_cost(granularity, start, end):
+                self.cost_mgr.stat_monthly_costs_with_cache(query, query_hash_with_date_range, domain_id,
+                                                            target='PRIMARY')
+            else:
+                self.cost_mgr.stat_costs_with_cache(query, query_hash_with_date_range, domain_id, target='PRIMARY')
         else:
-            self.cost_mgr.stat_costs_with_cache(query, query_hash_with_date_range, domain_id, target='PRIMARY')
+            self.cost_mgr.stat_monthly_costs_with_cache(query, query_hash, domain_id, target='PRIMARY')
