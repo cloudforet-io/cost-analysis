@@ -16,6 +16,7 @@ class BudgetUsageManager(BaseManager):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.budget_mgr: BudgetManager = self.locator.get_manager('BudgetManager')
         self.budget_usage_model: BudgetUsage = self.locator.get_model('BudgetUsage')
 
     def create_budget_usages(self, budget_vo: Budget):
@@ -68,9 +69,10 @@ class BudgetUsageManager(BaseManager):
         self.transaction.add_rollback(_rollback, budget_usage_vo.to_dict())
         return budget_usage_vo.update(params)
 
-    def update_cost_usage(self, budget_vo: Budget):
-        _LOGGER.info(f'[update_cost_usage] Update Budget Usage: {budget_vo.budget_id}')
+    def update_cost_usage(self, budget_id, domain_id):
+        _LOGGER.info(f'[update_cost_usage] Update Budget Usage: {budget_id}')
         cost_mgr: CostManager = self.locator.get_manager('CostManager')
+        budget_vo = self.budget_mgr.get_budget(budget_id, domain_id)
         self._update_total_budget_usage(budget_vo, cost_mgr)
         self._update_monthly_budget_usage(budget_vo, cost_mgr)
 
@@ -84,16 +86,14 @@ class BudgetUsageManager(BaseManager):
         return self.budget_usage_model.stat(**query)
 
     def _update_total_budget_usage(self, budget_vo: Budget, cost_mgr: CostManager):
-        budget_mgr: BudgetManager = self.locator.get_manager('BudgetManager')
-
         query = self._make_cost_stat_query(budget_vo, True)
         result = cost_mgr.stat_monthly_costs(query)
         if len(result.get('results', [])) > 0:
             total_usage_usd_cost = result['results'][0].get('usd_cost')
             if total_usage_usd_cost:
-                budget_mgr.update_budget_by_vo({'total_usage_usd_cost': total_usage_usd_cost}, budget_vo)
+                self.budget_mgr.update_budget_by_vo({'total_usage_usd_cost': total_usage_usd_cost}, budget_vo)
         else:
-            budget_mgr.update_budget_by_vo({'total_usage_usd_cost': 0}, budget_vo)
+            self.budget_mgr.update_budget_by_vo({'total_usage_usd_cost': 0}, budget_vo)
 
     def _update_monthly_budget_usage(self, budget_vo: Budget, cost_mgr: CostManager):
         update_data = {}
