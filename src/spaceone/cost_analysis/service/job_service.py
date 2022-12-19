@@ -226,7 +226,7 @@ class JobService(BaseService):
 
     @staticmethod
     def _append_tag_keys(tags_keys, cost_data):
-        cost_tags = cost_data.get('tags', {})
+        cost_tags = cost_data.get('tags') or {}
 
         for key in cost_tags.keys():
             if key not in tags_keys:
@@ -235,7 +235,7 @@ class JobService(BaseService):
 
     @staticmethod
     def _append_additional_info_keys(additional_info_keys, cost_data):
-        cost_additional_info = cost_data.get('additional_info')
+        cost_additional_info = cost_data.get('additional_info') or {}
 
         for key in cost_additional_info.keys():
             if key not in additional_info_keys:
