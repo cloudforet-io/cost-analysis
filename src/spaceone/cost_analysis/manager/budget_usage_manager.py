@@ -87,31 +87,33 @@ class BudgetUsageManager(BaseManager):
 
     def _update_total_budget_usage(self, budget_vo: Budget, cost_mgr: CostManager):
         query = self._make_cost_stat_query(budget_vo, True)
-        result = cost_mgr.stat_monthly_costs(query)
-        if len(result.get('results', [])) > 0:
-            total_usage_usd_cost = result['results'][0].get('usd_cost')
-            if total_usage_usd_cost:
-                self.budget_mgr.update_budget_by_vo({'total_usage_usd_cost': total_usage_usd_cost}, budget_vo)
-        else:
-            self.budget_mgr.update_budget_by_vo({'total_usage_usd_cost': 0}, budget_vo)
+        _LOGGER.debug(f'[_update_total_budget_usage] query: {query}')
+        # result = cost_mgr.stat_monthly_costs(query)
+        # if len(result.get('results', [])) > 0:
+        #     total_usage_usd_cost = result['results'][0].get('usd_cost')
+        #     if total_usage_usd_cost:
+        #         self.budget_mgr.update_budget_by_vo({'total_usage_usd_cost': total_usage_usd_cost}, budget_vo)
+        # else:
+        #     self.budget_mgr.update_budget_by_vo({'total_usage_usd_cost': 0}, budget_vo)
 
     def _update_monthly_budget_usage(self, budget_vo: Budget, cost_mgr: CostManager):
         update_data = {}
         query = self._make_cost_stat_query(budget_vo)
-        result = cost_mgr.stat_monthly_costs(query)
-        for cost_usage_data in result.get('results', []):
-            date = cost_usage_data.get('date')
-            usd_cost = cost_usage_data.get('usd_cost', 0)
-
-            if date:
-                update_data[date] = usd_cost
-
-        budget_usage_vos = self.budget_usage_model.filter(budget_id=budget_vo.budget_id)
-        for budget_usage_vo in budget_usage_vos:
-            if budget_usage_vo.date in update_data:
-                budget_usage_vo.update({'usd_cost': update_data[budget_usage_vo.date]})
-            else:
-                budget_usage_vo.update({'usd_cost': 0})
+        _LOGGER.debug(f'[_update_monthly_budget_usage] query: {query}')
+        # result = cost_mgr.stat_monthly_costs(query)
+        # for cost_usage_data in result.get('results', []):
+        #     date = cost_usage_data.get('date')
+        #     usd_cost = cost_usage_data.get('usd_cost', 0)
+        #
+        #     if date:
+        #         update_data[date] = usd_cost
+        #
+        # budget_usage_vos = self.budget_usage_model.filter(budget_id=budget_vo.budget_id)
+        # for budget_usage_vo in budget_usage_vos:
+        #     if budget_usage_vo.date in update_data:
+        #         budget_usage_vo.update({'usd_cost': update_data[budget_usage_vo.date]})
+        #     else:
+        #         budget_usage_vo.update({'usd_cost': 0})
 
     def _make_cost_stat_query(self, budget_vo: Budget, is_accumulated=False):
         query = self._get_default_query()
