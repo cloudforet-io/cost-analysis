@@ -24,7 +24,7 @@ RUN echo "__path__ = __import__('pkgutil').extend_path(__path__, __name__)" >> $
 RUN echo "name = '${EXTENSION_NAME}'" >> ${EXTENSION_SRC_DIR}/${EXTENSION_NAME}/__init__.py
 
 ARG CACHEBUST=1
-RUN pip install --upgrade --pre spaceone-core spaceone-api
+RUN pip install --upgrade --pre spaceone-core spaceone-api==1.10.4.1
 
 COPY src ${SRC_DIR}
 WORKDIR ${SRC_DIR}
