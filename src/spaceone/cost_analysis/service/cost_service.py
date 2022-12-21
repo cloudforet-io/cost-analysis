@@ -241,6 +241,34 @@ class CostService(BaseService):
     @transaction(append_meta={'authorization.scope': 'PROJECT'})
     @check_required(['query', 'domain_id'])
     @append_query_filter(['domain_id', 'user_projects'])
+    def analyze_v2(self, params):
+        """
+        Args:
+            params (dict): {
+                'query': 'dict (spaceone.api.core.v1.TimeSeriesAnalyzeQuery)',
+                'domain_id': 'str',
+                'user_projects': 'list' // from meta
+            }
+
+        Returns:
+            values (list) : 'list of statistics data'
+
+        """
+
+        domain_id = params['domain_id']
+        query = params.get('query', {})
+        granularity = self._get_granularity(query)
+        pass
+
+    @staticmethod
+    def _get_granularity(query):
+        granularity = query.get('granularity')
+        if granularity is None:
+            raise ERROR_REQUIRED_PARAMETER(key='query.granularity')
+
+    @transaction(append_meta={'authorization.scope': 'PROJECT'})
+    @check_required(['query', 'domain_id'])
+    @append_query_filter(['domain_id', 'user_projects'])
     @append_keyword_filter(['cost_id'])
     @change_date_value()
     def stat(self, params):
