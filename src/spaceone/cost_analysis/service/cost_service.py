@@ -257,14 +257,41 @@ class CostService(BaseService):
 
         domain_id = params['domain_id']
         query = params.get('query', {})
-        granularity = self._get_granularity(query)
-        pass
+
+        # Mode service utils
+        self._check_granularity(query)
+        # Mode service utils
+        self._check_group_by(query)
+
+        # Mode service utils
+        query['page'] = self._set_page_limit(query.get('page'))
+
+        query['filter'] = query.get('filter', [])
+        query['filter'] = self._change_project_group_filter(query['filter'], domain_id)
+
+        return self.cost_mgr.analyze_costs(query, domain_id)
 
     @staticmethod
-    def _get_granularity(query):
+    def _check_granularity(query):
         granularity = query.get('granularity')
         if granularity is None:
             raise ERROR_REQUIRED_PARAMETER(key='query.granularity')
+
+    @staticmethod
+    def _check_group_by(query):
+        _AVAILABLE_GROUP_BY = ['provider', 'region_code', 'category', 'product', 'account', 'usage_type',
+                               'resource_group', 'resource', 'service_account_id', 'project_id', 'data_source_id']
+        group_by = query.get('group_by') or []
+
+        for key in group_by:
+            if key in _AVAILABLE_GROUP_BY:
+                pass
+            elif key.startswith('tags.'):
+                pass
+            elif key.startswith('additional_info.'):
+                pass
+            else:
+                raise ERROR_INVALID_PARAMETER_TYPE(key='query.group_by', type=_AVAILABLE_GROUP_BY)
 
     @transaction(append_meta={'authorization.scope': 'PROJECT'})
     @check_required(['query', 'domain_id'])
