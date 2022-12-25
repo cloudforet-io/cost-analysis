@@ -69,10 +69,9 @@ class BudgetUsageManager(BaseManager):
         self.transaction.add_rollback(_rollback, budget_usage_vo.to_dict())
         return budget_usage_vo.update(params)
 
-    def update_cost_usage(self, budget_id, domain_id):
-        _LOGGER.info(f'[update_cost_usage] Update Budget Usage: {budget_id}')
+    def update_cost_usage(self, budget_vo):
+        _LOGGER.info(f'[update_cost_usage] Update Budget Usage: {budget_vo.budget_id}')
         cost_mgr: CostManager = self.locator.get_manager('CostManager')
-        budget_vo = self.budget_mgr.get_budget(budget_id, domain_id)
         self._update_total_budget_usage(budget_vo, cost_mgr)
         self._update_monthly_budget_usage(budget_vo, cost_mgr)
 

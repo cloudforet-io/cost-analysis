@@ -2,9 +2,10 @@ import logging
 import copy
 import pandas as pd
 import numpy as np
-from datetime import date
+from datetime import date, datetime
+from dateutil.relativedelta import relativedelta
 
-from spaceone.core import cache
+from spaceone.core import cache, utils
 from spaceone.core.manager import BaseManager
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
@@ -88,6 +89,301 @@ class CostManager(BaseManager):
     def stat_monthly_costs(self, query):
         return self.monthly_cost_model.stat(**query)
 
+    def analyze_costs(self, query, domain_id):
+        granularity = query['granularity']
+        start, end = self._parse_date_range(query, granularity)
+        page_limit = query.get('page', {}).get('limit')
+
+        self._create_cost_query_history_v2(query, granularity, start, end, domain_id)
+        stat_query = self._make_stat_query(query, granularity, start, end)
+        query_hash = utils.dict_to_hash(stat_query)
+
+        if self.is_monthly_cost(granularity, start, end):
+            response = self.stat_monthly_costs_with_cache(stat_query, query_hash, domain_id)
+        else:
+            response = self.stat_costs_with_cache(stat_query, query_hash, domain_id)
+
+        if page_limit:
+            response['more'] = len(response['results']) > page_limit
+            response['results'] = response['results'][:page_limit]
+
+        return response
+
+    def _create_cost_query_history_v2(self, query, granularity, start, end, domain_id):
+        analyze_query = {
+            'group_by': query.get('group_by'),
+            'field_group': query.get('field_group'),
+            'fields': query.get('fields'),
+            'sort': query.get('sort'),
+            'page': query.get('page'),
+        }
+        query_hash = utils.dict_to_hash(analyze_query)
+        self.create_cost_query_history(domain_id, analyze_query, query_hash, granularity, start, end)
+
+    def _make_stat_query(self, query, granularity, start, end):
+        group_by = query.get('group_by') or []
+        fields = query.get('fields') or []
+        field_group = self._get_field_group(query.get('field_group'), granularity)
+        has_field_group = len(field_group) > 0
+        sort = query.get('sort') or []
+        page = query.get('page')
+
+        group_keys = self._make_group_keys(group_by, granularity)
+        group_fields = self._make_group_fields(fields)
+
+        stat_query = {
+            'filter': query.get('filter', []),
+            'filter_or': query.get('filter_or', []),
+            'aggregate': [
+                {
+                    'group': {
+                        'keys': group_keys,
+                        'fields': group_fields
+                    }
+                }
+            ]
+        }
+
+        if has_field_group > 0:
+            stat_query['aggregate'] += self._make_field_group_query(group_keys, group_fields, field_group)
+
+        if len(sort) > 0:
+            stat_query['aggregate'] += self._make_sort_query(sort, group_fields, has_field_group)
+
+        if page:
+            stat_query['aggregate'] += self._make_page_query(page)
+
+        stat_query = self.add_date_range_filter(stat_query, granularity, start, end)
+        return stat_query
+
+    def _make_page_query(self, page):
+        page_query = []
+        start = page.get('start')
+        limit = page.get('limit')
+
+        if limit:
+            if start:
+                page_query.append({
+                    'skip': start - 1
+                })
+
+            page_query.append({
+                'limit': limit + 1
+            })
+
+        return page_query
+
+    def _make_sort_query(self, sort, group_fields, has_field_group):
+        sort_query = {
+            'sort': {
+                'keys': []
+            }
+        }
+        if has_field_group:
+            group_field_names = []
+            for group_field in group_fields:
+                group_field_names.append(group_field['name'])
+
+            for condition in sort:
+                key = condition.get('key')
+                desc = condition.get('desc', False)
+
+                if key in group_field_names:
+                    key = f'_total_{key}'
+
+                sort_query['sort']['keys'].append({
+                    'key': key,
+                    'desc': desc
+                })
+        else:
+            sort_query['sort']['keys'] = sort
+
+        return [sort_query]
+
+    def _get_field_group(self, field_group, granularity):
+        field_group = field_group or []
+
+        if len(field_group) == 0 and granularity != 'ACCUMULATED':
+            field_group.append('date')
+
+        for field_group_key in field_group:
+            if field_group_key.startswith('_total_'):
+                raise ERROR_INVALID_PARAMETER(key='field_group',
+                                              reason='Field group keys cannot contain _total_ characters.')
+
+        return field_group
+
+    def _make_field_group_query(self, group_keys, group_fields, field_group):
+        field_group_query = {
+            'group': {
+                'keys': self._make_field_group_keys(group_keys, field_group),
+                'fields': self._make_field_group_fields(group_fields, field_group)
+            }
+        }
+
+        return [field_group_query]
+
+    def _make_field_group_keys(self, group_keys, field_group):
+        field_group_keys = []
+        for group_key in group_keys:
+            if group_key['name'] not in field_group:
+                if group_key['name'] == 'date':
+                    field_group_keys.append({
+                        'key': 'date',
+                        'name': 'date'
+                    })
+                else:
+                    field_group_keys.append(group_key)
+
+        return field_group_keys
+
+    def _make_field_group_fields(self, group_fields, field_group):
+        field_group_fields = []
+        for group_field in group_fields:
+            field_name = group_field['name']
+            operator = group_field['operator']
+
+            if operator in ['sum', 'average', 'max', 'min', 'count']:
+                field_group_fields.append({
+                    'key': field_name,
+                    'name': f'_total_{field_name}',
+                    'operator': 'sum' if operator == 'count' else operator
+                })
+
+            field_group_fields.append({
+                'name': field_name,
+                'operator': 'push',
+                'fields': self._make_field_group_push_fields(field_name, field_group)
+            })
+
+        return field_group_fields
+
+    def _make_field_group_push_fields(self, field_name, field_group):
+        push_fields = [
+            {
+                'name': 'value',
+                'key': field_name
+            }
+        ]
+
+        for field_group_key in field_group:
+            push_fields.append({
+                'name': field_group_key,
+                'key': field_group_key
+            })
+
+        return push_fields
+
+    def _make_group_fields(self, fields):
+        group_fields = []
+        for name, field_info in fields.items():
+            self._check_field_info(field_info)
+            operator = field_info['operator']
+            key = field_info.get('key')
+            fields = field_info.get('fields')
+
+            group_field = {
+                'name': name,
+                'operator': operator
+            }
+
+            if operator != 'count':
+                group_field['key'] = key
+
+            if operator == 'push':
+                group_field['fields'] = fields
+
+            group_fields.append(group_field)
+
+        return group_fields
+
+    def _check_field_info(self, field_info):
+        key = field_info.get('key')
+        operator = field_info.get('operator')
+        fields = field_info.get('fields', [])
+
+        if operator is None:
+            raise ERROR_REQUIRED_PARAMETER(key='query.fields.operator')
+
+        # Check Operator
+
+        if operator != 'count' and key is None:
+            raise ERROR_REQUIRED_PARAMETER(key='query.fields.key')
+
+        if operator == 'push' and len(fields) == 0:
+            raise ERROR_REQUIRED_PARAMETER(key='query.fields.fields')
+
+    def _make_group_keys(self, group_by, granularity):
+        group_keys = []
+        for key in group_by:
+            group_keys.append({
+                'key': key,
+                'name': key
+            })
+
+        if granularity == 'DAILY':
+            group_keys.append({
+                'key': 'billed_date',
+                'name': 'date'
+            })
+        elif granularity == 'MONTHLY':
+            group_keys.append({
+                'key': 'billed_month',
+                'name': 'date'
+            })
+
+        return group_keys
+
+    def _parse_date_range(self, query, granularity):
+        start_str = query.get('start')
+        end_str = query.get('end')
+
+        if start_str is None:
+            raise ERROR_REQUIRED_PARAMETER(key='query.start')
+
+        if end_str is None:
+            raise ERROR_REQUIRED_PARAMETER(key='query.End')
+
+        start = self._parse_start_time(start_str)
+        end = self._parse_end_time(end_str)
+
+        if start >= end:
+            raise ERROR_INVALID_DATE_RANGE(reason='End date must be greater than start date.')
+
+        if granularity in ['ACCUMULATED', 'MONTHLY']:
+            if start + relativedelta(months=12) < end:
+                raise ERROR_INVALID_DATE_RANGE(reason='Request up to a maximum of 12 months.')
+        elif granularity == 'DAILY':
+            if start + relativedelta(days=31) < end:
+                raise ERROR_INVALID_DATE_RANGE(reason='Request up to a maximum of 31 days.')
+
+        return start, end
+
+    def _parse_start_time(self, date_str):
+        return self._convert_date_from_string(date_str.strip(), 'start')
+
+    def _parse_end_time(self, date_str):
+        date = self._convert_date_from_string(date_str.strip(), 'end')
+
+        if len(date_str.strip()) == 7:
+            return date + relativedelta(months=1)
+        else:
+            return date + relativedelta(days=1)
+
+    @staticmethod
+    def _convert_date_from_string(date_str, key):
+        if len(date_str) == 7:
+            # Month (YYYY-MM)
+            date_format = '%Y-%m'
+        else:
+            # Date (YYYY-MM-DD)
+            date_format = '%Y-%m-%d'
+
+        try:
+            return datetime.strptime(date_str, date_format).date()
+        except Exception as e:
+            raise ERROR_INVALID_PARAMETER_TYPE(key=key, type=date_format)
+
     def list_cost_query_history(self, query={}):
         history_model: CostQueryHistory = self.locator.get_model('CostQueryHistory')
         return history_model.query(**query)
@@ -170,38 +466,6 @@ class CostManager(BaseManager):
             })
 
         return query
-
-    @staticmethod
-    def get_date_ranges_between_start_end(start, end):
-        date_ranges = []
-        is_first_day = start.day == 1
-        is_last_day = end.day == 1
-
-        for ts in pd.date_range(start, end, freq='MS'):
-            dt = ts.date()
-            if dt != start and dt != end:
-                date_ranges.append(dt)
-
-        if is_first_day and is_last_day:
-            return [
-                {'start': start, 'end': end}
-            ]
-        elif is_first_day and not is_last_day:
-            return [
-                {'start': start, 'end': date_ranges[-1]},
-                {'start': date_ranges[-1], 'end': end}
-            ]
-        elif not is_first_day and is_last_day:
-            return [
-                {'start': start, 'end': date_ranges[0]},
-                {'start': date_ranges[0], 'end': end}
-            ]
-        else:
-            return [
-                {'start': start, 'end': date_ranges[0]},
-                {'start': date_ranges[0], 'end': date_ranges[-1]},
-                {'start': date_ranges[-1], 'end': end}
-            ]
 
     def make_accumulated_query(self, group_by, limit, query_filter, include_others=False,
                                include_usage_quantity=False, has_project_group_id=False):
