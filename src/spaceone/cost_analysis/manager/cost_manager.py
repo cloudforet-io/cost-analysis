@@ -123,7 +123,8 @@ class CostManager(BaseManager):
     def _make_stat_query(self, query, granularity, start, end):
         group_by = query.get('group_by') or []
         fields = query.get('fields') or []
-        field_group = self._get_field_group(query.get('field_group'), granularity)
+        field_group = query.get('field_group') or []
+        self._check_field_group(field_group)
         has_field_group = len(field_group) > 0
         sort = query.get('sort') or []
         page = query.get('page')
@@ -200,18 +201,11 @@ class CostManager(BaseManager):
 
         return [sort_query]
 
-    def _get_field_group(self, field_group, granularity):
-        field_group = field_group or []
-
-        if len(field_group) == 0 and granularity != 'ACCUMULATED':
-            field_group.append('date')
-
+    def _check_field_group(self, field_group):
         for field_group_key in field_group:
             if field_group_key.startswith('_total_'):
                 raise ERROR_INVALID_PARAMETER(key='field_group',
                                               reason='Field group keys cannot contain _total_ characters.')
-
-        return field_group
 
     def _make_field_group_query(self, group_keys, group_fields, field_group):
         field_group_query = {
