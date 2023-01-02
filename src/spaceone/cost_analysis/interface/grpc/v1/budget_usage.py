@@ -22,3 +22,9 @@ class BudgetUsage(BaseAPI, budget_usage_pb2_grpc.BudgetUsageServicer):
 
         with self.locator.get_service('BudgetUsageService', metadata) as budget_usage_service:
             return self.locator.get_info('StatisticsInfo', budget_usage_service.stat(params))
+
+    def analyze(self, request, context):
+        params, metadata = self.parse_request(request, context)
+
+        with self.locator.get_service('BudgetUsageService', metadata) as budget_usage_service:
+            return self.locator.get_info('AnalyzeInfo', budget_usage_service.analyze(params))

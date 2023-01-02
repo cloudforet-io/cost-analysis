@@ -109,6 +109,7 @@ class CostService(BaseService):
                           'product', 'account', 'usage_type', 'resource_group', 'resource', 'service_account_id',
                           'project_id', 'data_source_id', 'domain_id', 'user_projects'])
     @append_keyword_filter(['cost_id'])
+    @set_query_page_limit(1000)
     def list(self, params):
         """ List costs
 
@@ -139,13 +140,13 @@ class CostService(BaseService):
         """
 
         query = params.get('query', {})
-        query['page'] = self._set_page_limit(query.get('page'))
         query['filter'] = self._change_project_group_filter(query.get('filter', []), params['domain_id'])
 
         return self.cost_mgr.list_costs(query)
 
     @transaction(append_meta={'authorization.scope': 'PROJECT'})
     @check_required(['granularity', 'start', 'end', 'domain_id'])
+    @set_query_page_limit(1000)
     def analyze(self, params):
         """
         Args:
@@ -174,7 +175,7 @@ class CostService(BaseService):
         group_by = params.get('group_by', [])
         query_filter = params.get('filter', [])
         limit = params.get('limit')
-        page = self._set_page_limit(params.get('page'))
+        page = params.get('page', {})
         sort = params.get('sort')
         include_usage_quantity = params.get('include_usage_quantity', False)
         include_others = params.get('include_others', False)
@@ -239,8 +240,9 @@ class CostService(BaseService):
         return response
 
     @transaction(append_meta={'authorization.scope': 'PROJECT'})
-    @check_required(['query', 'domain_id'])
+    @check_required(['query', 'query.granularity', 'query.start', 'query.end', 'query.fields', 'domain_id'])
     @append_query_filter(['domain_id', 'user_projects'])
+    @set_query_page_limit(1000)
     def analyze_v2(self, params):
         """
         Args:
@@ -258,45 +260,16 @@ class CostService(BaseService):
         domain_id = params['domain_id']
         query = params.get('query', {})
 
-        # Mode service utils
-        self._check_granularity(query)
-        # Mode service utils
-        self._check_group_by(query)
-
-        # Mode service utils
-        query['page'] = self._set_page_limit(query.get('page'))
-
-        query['filter'] = query.get('filter', [])
-        query['filter'] = self._change_project_group_filter(query['filter'], domain_id)
+        query_filter = query.get('filter', [])
+        query['filter'] = self._change_project_group_filter(query_filter, domain_id)
 
         return self.cost_mgr.analyze_costs(query, domain_id)
-
-    @staticmethod
-    def _check_granularity(query):
-        granularity = query.get('granularity')
-        if granularity is None:
-            raise ERROR_REQUIRED_PARAMETER(key='query.granularity')
-
-    @staticmethod
-    def _check_group_by(query):
-        _AVAILABLE_GROUP_BY = ['provider', 'region_code', 'category', 'product', 'account', 'usage_type',
-                               'resource_group', 'resource', 'service_account_id', 'project_id', 'data_source_id']
-        group_by = query.get('group_by') or []
-
-        for key in group_by:
-            if key in _AVAILABLE_GROUP_BY:
-                pass
-            elif key.startswith('tags.'):
-                pass
-            elif key.startswith('additional_info.'):
-                pass
-            else:
-                raise ERROR_INVALID_PARAMETER_TYPE(key='query.group_by', type=_AVAILABLE_GROUP_BY)
 
     @transaction(append_meta={'authorization.scope': 'PROJECT'})
     @check_required(['query', 'domain_id'])
     @append_query_filter(['domain_id', 'user_projects'])
     @append_keyword_filter(['cost_id'])
+    @set_query_page_limit(1000)
     @change_date_value()
     def stat(self, params):
         """
@@ -314,7 +287,6 @@ class CostService(BaseService):
 
         domain_id = params['domain_id']
         query = params.get('query', {})
-        query['page'] = self._set_page_limit(query.get('page'))
         query['filter'] = self._change_project_group_filter(query.get('filter', []), params['domain_id'])
 
         if self._is_distinct_query(query):
@@ -423,17 +395,6 @@ class CostService(BaseService):
             return datetime.strptime(date_str, date_format).date()
         except Exception as e:
             raise ERROR_INVALID_PARAMETER_TYPE(key=key, type=date_format)
-
-    @staticmethod
-    def _set_page_limit(page: dict = None):
-        page = page or {}
-        limit = page.get('limit', 1000)
-
-        if limit > 1000:
-            limit = 1000
-
-        page['limit'] = limit
-        return page
 
     @staticmethod
     def _is_distinct_query(query):
