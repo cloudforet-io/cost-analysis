@@ -56,7 +56,7 @@ class BudgetUsageService(BaseService):
                 'domain_id': 'str',
                 'query': 'dict (spaceone.api.core.v1.StatisticsQuery)',
                 'user_projects': 'list', // from meta,
-                'user_project_groups': 'list', // from meta
+                'user_project_groups': 'list' // from meta
             }
 
         Returns:
@@ -66,6 +66,37 @@ class BudgetUsageService(BaseService):
 
         query = self._set_user_project_or_project_group_filter(params)
         return self.budget_usage_mgr.stat_budget_usages(query)
+
+    @transaction(append_meta={'authorization.scope': 'PROJECT'})
+    @check_required(['query', 'query.granularity', 'query.fields', 'domain_id'])
+    @append_query_filter(['domain_id'])
+    @set_query_page_limit(1000)
+    def analyze(self, params):
+        """
+        Args:
+            params (dict): {
+                'query': 'dict (spaceone.api.core.v1.TimeSeriesAnalyzeQuery)',
+                'domain_id': 'str',
+                'user_projects': 'list', // from meta
+                'user_project_groups': 'list' // from meta
+            }
+
+        Returns:
+            values (list) : 'list of statistics data'
+
+        """
+
+        query = self._set_user_project_or_project_group_filter(params)
+        self._check_granularity(query['granularity'])
+
+        return self.budget_usage_mgr.analyze_budget_usages(query)
+
+    @staticmethod
+    def _check_granularity(granularity):
+        if granularity == 'DAILY':
+            raise ERROR_INVALID_PARAMETER(key='query.granularity',
+                                          reason='DAILY is not supported for granularity.'
+                                                 ' (granularity = ACCUMULATED | MONTHLY')
 
     @staticmethod
     def _set_user_project_or_project_group_filter(params):

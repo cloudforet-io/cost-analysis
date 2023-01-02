@@ -25,7 +25,7 @@ class BudgetUsageManager(BaseManager):
             end_dt = datetime.strptime(budget_vo.end, '%Y-%m')
 
             dts = [dt for dt in rrule(MONTHLY, dtstart=start_dt, until=end_dt)]
-            limit_per_month = int(budget_vo.limit / len(dts))
+            limit_per_month = round(budget_vo.limit / len(dts), 3)
 
             for dt in dts:
                 budget_usage_data = {
@@ -83,6 +83,9 @@ class BudgetUsageManager(BaseManager):
 
     def stat_budget_usages(self, query):
         return self.budget_usage_model.stat(**query)
+
+    def analyze_budget_usages(self, query):
+        return self.budget_usage_model.analyze(**query)
 
     def _update_total_budget_usage(self, budget_vo: Budget, cost_mgr: CostManager):
         query = self._make_cost_stat_query(budget_vo, True)
