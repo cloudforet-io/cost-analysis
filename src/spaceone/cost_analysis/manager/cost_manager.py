@@ -140,27 +140,18 @@ class CostManager(BaseManager):
                 raise ERROR_INVALID_DATE_RANGE(start=start_str, end=end_str,
                                                reason='Request up to a maximum of 31 days.')
 
+        if granularity == 'MONTHLY' and (start.day != 1 or end.day != 1):
+            raise ERROR_INVALID_DATE_RANGE(start=start_str, end=end_str,
+                                           reason='If the granularity is MONTHLY, '
+                                                  'the request must be in YYYY-MM format.')
+
         return start, end
 
     def _parse_start_time(self, date_str):
-        if len(date_str) == 7:
-            # Month (YYYY-MM)
-            date_format = '%Y-%m'
-        else:
-            # Date (YYYY-MM-DD)
-            date_format = '%Y-%m-%d'
-
-        return self._convert_date_from_string(date_str.strip(), 'start', date_format)
+        return self._convert_date_from_string(date_str.strip(), 'start')
 
     def _parse_end_time(self, date_str):
-        if len(date_str) == 7:
-            # Month (YYYY-MM)
-            date_format = '%Y-%m'
-        else:
-            # Date (YYYY-MM-DD)
-            date_format = '%Y-%m-%d'
-
-        date = self._convert_date_from_string(date_str.strip(), 'end', date_format)
+        date = self._convert_date_from_string(date_str.strip(), 'end')
 
         if len(date_str) == 7:
             return date + relativedelta(months=1)
@@ -168,7 +159,14 @@ class CostManager(BaseManager):
             return date + relativedelta(days=1)
 
     @staticmethod
-    def _convert_date_from_string(date_str, key, date_format):
+    def _convert_date_from_string(date_str, key):
+        if len(date_str) == 7:
+            # Month (YYYY-MM)
+            date_format = '%Y-%m'
+        else:
+            # Date (YYYY-MM-DD)
+            date_format = '%Y-%m-%d'
+
         try:
             return datetime.strptime(date_str, date_format).date()
         except Exception as e:
