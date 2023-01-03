@@ -140,6 +140,11 @@ class CostManager(BaseManager):
                 raise ERROR_INVALID_DATE_RANGE(start=start_str, end=end_str,
                                                reason='Request up to a maximum of 31 days.')
 
+        if granularity == 'MONTHLY' and (start.day != 1 or end.day != 1):
+            raise ERROR_INVALID_DATE_RANGE(start=start_str, end=end_str,
+                                           reason='If the granularity is MONTHLY, '
+                                                  'the request must be in YYYY-MM format.')
+
         return start, end
 
     def _parse_start_time(self, date_str):
