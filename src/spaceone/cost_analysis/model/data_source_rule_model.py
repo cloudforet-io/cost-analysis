@@ -20,6 +20,7 @@ class DataSourceRule(MongoModel):
     conditions = ListField(EmbeddedDocumentField(DataSourceRuleCondition), default=[])
     conditions_policy = StringField(max_length=20, choices=('ALL', 'ANY', 'ALWAYS'))
     actions = DictField(default={})
+    data_source_type = StringField(max_length=255, default='CUSTOM', choices=('MANAGED', 'CUSTOM'))
     options = EmbeddedDocumentField(DataSourceRuleOptions, default=DataSourceRuleOptions)
     tags = DictField(default={})
     data_source = ReferenceField('DataSource', reverse_delete_rule=CASCADE)
@@ -41,6 +42,7 @@ class DataSourceRule(MongoModel):
             'data_source_rule_id',
             'name',
             'order',
+            'data_source_type',
             'data_source_id'
         ],
         'ordering': ['order'],

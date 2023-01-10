@@ -1,3 +1,4 @@
+import copy
 import logging
 import functools
 from typing import List
@@ -69,8 +70,14 @@ class DataSourceRuleManager(BaseManager):
     def change_cost_data(self, cost_data):
         data_source_id = cost_data['data_source_id']
         domain_id = cost_data['domain_id']
-        data_source_rule_vos: List[DataSourceRule] = self._get_data_source_rules(data_source_id, domain_id)
+        managed_data_source_rule_vos, custom_data_source_rule_vos = self._get_data_source_rules(data_source_id, domain_id)
 
+        cost_data = self._apply_data_source_rule_to_cost_data(cost_data, managed_data_source_rule_vos, domain_id)
+        cost_data = self._apply_data_source_rule_to_cost_data(cost_data, custom_data_source_rule_vos, domain_id)
+
+        return cost_data
+
+    def _apply_data_source_rule_to_cost_data(self, cost_data, data_source_rule_vos, domain_id):
         for data_source_rule_vo in data_source_rule_vos:
             is_match = self._change_cost_data_by_rule(cost_data, data_source_rule_vo)
             if is_match:
@@ -203,27 +210,27 @@ class DataSourceRuleManager(BaseManager):
 
     def _get_data_source_rules(self, data_source_id, domain_id):
         if data_source_id in self._data_source_rule_info:
-            return self._data_source_rule_info[data_source_id]
+            return self._data_source_rule_info[data_source_id].get('managed', []), \
+                   self._data_source_rule_info[data_source_id].get('custom', [])
 
-        query = {
+        managed_query = self._make_data_source_rule_query(data_source_id, 'MANAGED', domain_id)
+        managed_data_source_rule_vos, total_count = self.list_data_source_rules(managed_query)
+
+        custom_query = self._make_data_source_rule_query(data_source_id, 'CUSTOM', domain_id)
+        custom_data_source_rule_vos, total_count = self.list_data_source_rules(custom_query)
+
+        self._data_source_rule_info[data_source_id]['managed'] = managed_data_source_rule_vos
+        self._data_source_rule_info[data_source_id]['custom'] = custom_data_source_rule_vos
+
+        return managed_data_source_rule_vos, custom_data_source_rule_vos
+
+    @staticmethod
+    def _make_data_source_rule_query(data_source_id, data_source_type, domain_id):
+        return {
             'filter': [
-                {
-                    'k': 'data_source_id',
-                    'v': data_source_id,
-                    'o': 'eq'
-                },
-                {
-                    'k': 'domain_id',
-                    'v': domain_id,
-                    'o': 'eq'
-                }
+                {'k': 'data_source_id', 'v': data_source_id, 'o': 'eq'},
+                {'k': 'domain_id', 'v': domain_id, 'o': 'eq'},
+                {'k': 'data_source_type', 'v': data_source_type, 'o': 'eq'}
             ],
-            'sort': {
-                'key': 'order'
-            }
+            'sort': {'key': 'order'}
         }
-
-        data_source_rule_vos, total_count = self.list_data_source_rules(query)
-        self._data_source_rule_info[data_source_id] = data_source_rule_vos
-
-        return data_source_rule_vos
