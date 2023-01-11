@@ -219,6 +219,7 @@ class DataSourceRuleManager(BaseManager):
         custom_query = self._make_data_source_rule_query(data_source_id, 'CUSTOM', domain_id)
         custom_data_source_rule_vos, total_count = self.list_data_source_rules(custom_query)
 
+        self._data_source_rule_info[data_source_id] = {}
         self._data_source_rule_info[data_source_id]['managed'] = managed_data_source_rule_vos
         self._data_source_rule_info[data_source_id]['custom'] = custom_data_source_rule_vos
 
