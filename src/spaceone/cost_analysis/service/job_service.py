@@ -609,10 +609,16 @@ class JobService(BaseService):
             query = self.cost_mgr.add_date_range_filter(query, granularity, start, end)
             query_hash_with_date_range = utils.dict_to_hash(query)
 
-            if self.cost_mgr.is_monthly_cost(granularity, start, end):
-                self.cost_mgr.stat_monthly_costs_with_cache(query, query_hash_with_date_range, domain_id,
-                                                            target='PRIMARY')
+            if 'granularity' in query:
+                if self.cost_mgr.is_monthly_cost(granularity, start, end):
+                    self.cost_mgr.analyze_monthly_costs_with_cache(query, query_hash, domain_id)
+                else:
+                    self.cost_mgr.analyze_costs_with_cache(query, query_hash, domain_id)
             else:
-                self.cost_mgr.stat_costs_with_cache(query, query_hash_with_date_range, domain_id, target='PRIMARY')
+                if self.cost_mgr.is_monthly_cost(granularity, start, end):
+                    self.cost_mgr.stat_monthly_costs_with_cache(query, query_hash_with_date_range, domain_id,
+                                                                target='PRIMARY')
+                else:
+                    self.cost_mgr.stat_costs_with_cache(query, query_hash_with_date_range, domain_id, target='PRIMARY')
         else:
             self.cost_mgr.stat_monthly_costs_with_cache(query, query_hash, domain_id, target='PRIMARY')
