@@ -611,7 +611,7 @@ class JobService(BaseService):
 
             _LOGGER.debug(f'[_create_cache] query: {query}')
 
-            if 'granularity' in query:
+            if 'group_by' in query:
                 if self.cost_mgr.is_monthly_cost(granularity, start, end):
                     self.cost_mgr.analyze_monthly_costs_with_cache(query, query_hash, domain_id)
                 else:
