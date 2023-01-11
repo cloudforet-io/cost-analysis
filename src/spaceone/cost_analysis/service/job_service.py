@@ -609,6 +609,8 @@ class JobService(BaseService):
             query = self.cost_mgr.add_date_range_filter(query, granularity, start, end)
             query_hash_with_date_range = utils.dict_to_hash(query)
 
+            _LOGGER.debug(f'[_create_cache] query: {query}')
+
             if 'granularity' in query:
                 if self.cost_mgr.is_monthly_cost(granularity, start, end):
                     self.cost_mgr.analyze_monthly_costs_with_cache(query, query_hash, domain_id)
