@@ -17,6 +17,9 @@ class DataSourcePluginConnector(BaseConnector):
     def __init__(self, transaction, config):
         super().__init__(transaction, config)
         self.client = None
+        self.secret_data = None
+        self.options = None
+        self.schema = None
 
     def initialize(self, endpoint):
         static_endpoint = self.config.get('endpoint')
@@ -26,6 +29,10 @@ class DataSourcePluginConnector(BaseConnector):
 
         e = parse_endpoint(endpoint)
         self.client = pygrpc.client(endpoint=f'{e.get("hostname")}:{e.get("port")}', version='plugin')
+
+        self.secret_data = self.config.get('secret_data')
+        self.options = self.config.get('options')
+        self.schema = self.config.get('schema')
 
     def init(self, options, domain_id):
         response = self.client.DataSource.init({
@@ -37,9 +44,9 @@ class DataSourcePluginConnector(BaseConnector):
 
     def verify(self, options, secret_data, schema, domain_id):
         params = {
-            'options': options,
-            'secret_data': secret_data,
-            'schema': schema,
+            'options': self.options or options,
+            'secret_data': self.secret_data or secret_data,
+            'schema': self.schema or schema,
             'domain_id': domain_id
         }
 
@@ -47,9 +54,9 @@ class DataSourcePluginConnector(BaseConnector):
 
     def get_tasks(self, options, secret_data, schema, domain_id, start=None, last_synchronized_at=None):
         params = {
-            'options': options,
-            'secret_data': secret_data,
-            'schema': schema,
+            'options': self.options or options,
+            'secret_data': self.secret_data or secret_data,
+            'schema': self.schema or schema,
             'start': start,
             'last_synchronized_at': last_synchronized_at,
             'domain_id': domain_id
@@ -60,9 +67,9 @@ class DataSourcePluginConnector(BaseConnector):
 
     def get_cost_data(self, options, secret_data, schema, task_options, domain_id):
         params = {
-            'options': options,
-            'secret_data': secret_data,
-            'schema': schema,
+            'options': self.options or options,
+            'secret_data': self.secret_data or secret_data,
+            'schema': self.schema or schema,
             'task_options': task_options,
             'domain_id': domain_id
         }
