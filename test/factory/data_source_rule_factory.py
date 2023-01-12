@@ -18,7 +18,7 @@ class DataSourceRuleFactory(factory.mongoengine.MongoEngineFactory):
     data_source_rule_id = factory.LazyAttribute(lambda o: utils.generate_id('rule'))
     name = factory.LazyAttribute(lambda o: utils.random_string())
     conditions_policy = 'ALWAYS'
-    data_source_type = 'CUSTOM'
+    rule_type = 'CUSTOM'
     options = {
         'stop_processing': True
     }

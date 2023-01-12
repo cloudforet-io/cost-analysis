@@ -41,7 +41,6 @@ class DataSourceRuleService(BaseService):
                 'actions': 'dict',
                 'options': 'dict',
                 'tags': 'dict',
-                'data_source_type': 'str',
                 'domain_id': 'str'
             }
 
@@ -54,7 +53,7 @@ class DataSourceRuleService(BaseService):
         conditions = params.get('conditions', [])
         conditions_policy = params['conditions_policy']
         actions = params['actions']
-        data_source_type = params.get('data_source_type', 'CUSTOM')
+        rule_type = params.get('rule_type', 'CUSTOM')
 
         if conditions_policy == 'ALWAYS':
             params['conditions'] = []
@@ -70,7 +69,7 @@ class DataSourceRuleService(BaseService):
         data_source_vo = data_source_mgr.get_data_source(data_source_id, domain_id)
 
         params['data_source'] = data_source_vo
-        params['order'] = self._get_highest_order(data_source_id, data_source_type, domain_id) + 1
+        params['order'] = self._get_highest_order(data_source_id, rule_type, domain_id) + 1
 
         return self.data_source_rule_mgr.create_data_source_rule(params)
 
@@ -103,7 +102,7 @@ class DataSourceRuleService(BaseService):
 
         data_source_rule_vo = self.data_source_rule_mgr.get_data_source_rule(data_source_rule_id, domain_id)
 
-        if data_source_rule_vo.data_source_type == 'MANAGED':
+        if data_source_rule_vo.rule_type == 'MANAGED':
             raise ERROR_NOT_ALLOWED_TO_UPDATE_RULE()
 
         if conditions_policy:
@@ -145,14 +144,14 @@ class DataSourceRuleService(BaseService):
         target_data_source_rule_vo: DataSourceRule = self.data_source_rule_mgr.get_data_source_rule(data_source_rule_id,
                                                                                                     domain_id)
 
-        if target_data_source_rule_vo.data_source_type == 'MANAGED':
+        if target_data_source_rule_vo.rule_type == 'MANAGED':
             raise ERROR_NOT_ALLOWED_TO_CHANGE_ORDER()
 
         if target_data_source_rule_vo.order == order:
             return target_data_source_rule_vo
 
         highest_order = self._get_highest_order(target_data_source_rule_vo.data_source_id,
-                                                target_data_source_rule_vo.data_source_type,
+                                                target_data_source_rule_vo.rule_type,
                                                 target_data_source_rule_vo.domain_id)
 
         if order > highest_order:
@@ -160,7 +159,7 @@ class DataSourceRuleService(BaseService):
                                           reason=f'There is no data source rules greater than the {str(order)} order.')
 
         data_source_rule_vos = self._get_all_data_source_rules(target_data_source_rule_vo.data_source_id,
-                                                               target_data_source_rule_vo.data_source_type,
+                                                               target_data_source_rule_vo.rule_type,
                                                                target_data_source_rule_vo.domain_id,
                                                                target_data_source_rule_vo.data_source_rule_id)
 
@@ -195,15 +194,15 @@ class DataSourceRuleService(BaseService):
 
         data_source_rule_vo: DataSourceRule = self.data_source_rule_mgr.get_data_source_rule(data_source_rule_id,
                                                                                              domain_id)
-        data_source_type = data_source_rule_vo.data_source_type
+        rule_type = data_source_rule_vo.rule_type
 
-        if data_source_type == 'MANAGED':
+        if rule_type == 'MANAGED':
             raise ERROR_NOT_ALLOWED_TO_DELETE_RULE()
 
         data_source_id = data_source_rule_vo.data_source_id
         self.data_source_rule_mgr.delete_data_source_rule_by_vo(data_source_rule_vo)
 
-        data_source_rule_vos = self._get_all_data_source_rules(data_source_id, data_source_type, domain_id)
+        data_source_rule_vos = self._get_all_data_source_rules(data_source_id, rule_type, domain_id)
 
         i = 0
         for data_source_rule_vo in data_source_rule_vos:
@@ -310,9 +309,9 @@ class DataSourceRuleService(BaseService):
             if 'source' not in actions['match_service_account']:
                 raise ERROR_REQUIRED_PARAMETER(key='actions.match_service_account.source')
 
-    def _get_highest_order(self, data_source_id, data_source_type, domain_id):
+    def _get_highest_order(self, data_source_id, rule_type, domain_id):
         data_source_rule_vos = self.data_source_rule_mgr.filter_data_source_rules(data_source_id=data_source_id,
-                                                                                  data_source_type=data_source_type,
+                                                                                  rule_type=rule_type,
                                                                                   domain_id=domain_id)
 
         return data_source_rule_vos.count()
@@ -322,7 +321,7 @@ class DataSourceRuleService(BaseService):
         if order <= 0:
             raise ERROR_INVALID_PARAMETER(key='order', reason='The order must be greater than 0.')
 
-    def _get_all_data_source_rules(self, data_source_id, data_source_type, domain_id, exclude_data_source_rule_id=None):
+    def _get_all_data_source_rules(self, data_source_id, rule_type, domain_id, exclude_data_source_rule_id=None):
         query = {
             'filter': [
                 {
@@ -336,8 +335,8 @@ class DataSourceRuleService(BaseService):
                     'o': 'eq'
                 },
                 {
-                    'k': 'data_source_type',
-                    'v': data_source_type,
+                    'k': 'rule_type',
+                    'v': rule_type,
                     'o': 'eq'
                 },
             ],
