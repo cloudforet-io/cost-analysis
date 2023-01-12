@@ -72,7 +72,7 @@ def DataSourceRuleInfo(data_source_rule_vo: DataSourceRule, minimal=False):
         'data_source_rule_id': data_source_rule_vo.data_source_rule_id,
         'name': data_source_rule_vo.name,
         'order': data_source_rule_vo.order,
-        'data_source_type': data_source_rule_vo.data_source_type,
+        'rule_type': data_source_rule_vo.rule_type,
         'data_source_id': data_source_rule_vo.data_source_id,
     }
 

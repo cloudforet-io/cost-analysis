@@ -226,12 +226,12 @@ class DataSourceRuleManager(BaseManager):
         return managed_data_source_rule_vos, custom_data_source_rule_vos
 
     @staticmethod
-    def _make_data_source_rule_query(data_source_id, data_source_type, domain_id):
+    def _make_data_source_rule_query(data_source_id, rule_type, domain_id):
         return {
             'filter': [
                 {'k': 'data_source_id', 'v': data_source_id, 'o': 'eq'},
                 {'k': 'domain_id', 'v': domain_id, 'o': 'eq'},
-                {'k': 'data_source_type', 'v': data_source_type, 'o': 'eq'}
+                {'k': 'rule_type', 'v': rule_type, 'o': 'eq'}
             ],
             'sort': {'key': 'order'}
         }
