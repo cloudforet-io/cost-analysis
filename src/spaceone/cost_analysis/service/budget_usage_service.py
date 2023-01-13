@@ -70,6 +70,7 @@ class BudgetUsageService(BaseService):
     @transaction(append_meta={'authorization.scope': 'PROJECT'})
     @check_required(['query', 'query.granularity', 'query.fields', 'domain_id'])
     @append_query_filter(['domain_id'])
+    @append_keyword_filter(['budget_id', 'name'])
     @set_query_page_limit(1000)
     def analyze(self, params):
         """
