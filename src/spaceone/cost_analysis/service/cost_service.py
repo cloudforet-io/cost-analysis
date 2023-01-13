@@ -242,6 +242,7 @@ class CostService(BaseService):
     @transaction(append_meta={'authorization.scope': 'PROJECT'})
     @check_required(['query', 'query.granularity', 'query.start', 'query.end', 'query.fields', 'domain_id'])
     @append_query_filter(['domain_id', 'user_projects'])
+    @append_keyword_filter(['cost_id'])
     @set_query_page_limit(1000)
     def analyze_v2(self, params):
         """
