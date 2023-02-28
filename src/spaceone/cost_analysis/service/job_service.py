@@ -323,7 +323,7 @@ class JobService(BaseService):
         budget_usage_mgr: BudgetUsageManager = self.locator.get_manager('BudgetUsageManager')
         budget_vos = budget_mgr.filter_budgets(domain_id=domain_id)
         for budget_vo in budget_vos:
-            budget_usage_mgr.update_cost_usage(budget_vo)
+            budget_usage_mgr.update_cost_usage(budget_vo.budget_id, budget_vo.domain_id)
 
     def _rollback_cost_data(self, job_vo: Job):
         cost_vos = self.cost_mgr.filter_costs(data_source_id=job_vo.data_source_id, domain_id=job_vo.domain_id,

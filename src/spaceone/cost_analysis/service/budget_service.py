@@ -84,7 +84,7 @@ class BudgetService(BaseService):
         # Create budget usages
         budget_usage_mgr: BudgetUsageManager = self.locator.get_manager('BudgetUsageManager')
         budget_usage_mgr.create_budget_usages(budget_vo)
-        budget_usage_mgr.update_cost_usage(budget_vo)
+        budget_usage_mgr.update_cost_usage(budget_vo.budget_id, budget_vo.domain_id)
 
         return budget_vo
 
