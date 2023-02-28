@@ -89,6 +89,8 @@ class BudgetUsageManager(BaseManager):
 
     def _update_total_budget_usage(self, budget_vo: Budget, cost_mgr: CostManager):
         query = self._make_cost_stat_query(budget_vo, True)
+        _LOGGER.debug(f'[_update_total_budget_usage]: query: {query}')
+
         result = cost_mgr.stat_monthly_costs(query)
         if len(result.get('results', [])) > 0:
             total_usage_usd_cost = result['results'][0].get('usd_cost')
@@ -100,6 +102,8 @@ class BudgetUsageManager(BaseManager):
     def _update_monthly_budget_usage(self, budget_vo: Budget, cost_mgr: CostManager):
         update_data = {}
         query = self._make_cost_stat_query(budget_vo)
+        _LOGGER.debug(f'[_update_monthly_budget_usage]: query: {query}')
+
         result = cost_mgr.stat_monthly_costs(query)
         for cost_usage_data in result.get('results', []):
             date = cost_usage_data.get('date')
