@@ -137,6 +137,12 @@ class BudgetUsageManager(BaseManager):
                 })
 
         query['filter'].append({
+            'key': 'domain_id',
+            'value': budget_vo.domain_id,
+            'operator': 'eq'
+        })
+
+        query['filter'].append({
             'key': 'billed_month',
             'value': budget_vo.start,
             'operator': 'gte'
