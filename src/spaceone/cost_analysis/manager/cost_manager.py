@@ -176,9 +176,12 @@ class CostManager(BaseManager):
         analyze_query = {
             'group_by': query.get('group_by'),
             'field_group': query.get('field_group'),
-            'fields': query.get('fields'),
-            'sort': query.get('sort'),
+            'filter': query.get('filter'),
+            'filter_or': query.get('filter_or'),
             'page': query.get('page'),
+            'sort': query.get('sort'),
+            'fields': query.get('fields'),
+            'select': query.get('select'),
         }
         query_hash = utils.dict_to_hash(analyze_query)
         self.create_cost_query_history(domain_id, analyze_query, query_hash, granularity, start, end)
