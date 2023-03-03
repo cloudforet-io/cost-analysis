@@ -89,7 +89,7 @@ class CostManager(BaseManager):
     def stat_monthly_costs(self, query):
         return self.monthly_cost_model.stat(**query)
 
-    # @cache.cacheable(key='analyze-costs:{domain_id}:{query_hash}', expire=3600 * 24)
+    @cache.cacheable(key='analyze-costs:{domain_id}:{query_hash}', expire=3600 * 24)
     def analyze_costs_with_cache(self, query, query_hash, domain_id, target='SECONDARY_PREFERRED'):
         query['target'] = target
         query['date_field'] = 'billed_date'
@@ -176,9 +176,12 @@ class CostManager(BaseManager):
         analyze_query = {
             'group_by': query.get('group_by'),
             'field_group': query.get('field_group'),
-            'fields': query.get('fields'),
-            'sort': query.get('sort'),
+            'filter': query.get('filter'),
+            'filter_or': query.get('filter_or'),
             'page': query.get('page'),
+            'sort': query.get('sort'),
+            'fields': query.get('fields'),
+            'select': query.get('select'),
         }
         query_hash = utils.dict_to_hash(analyze_query)
         self.create_cost_query_history(domain_id, analyze_query, query_hash, granularity, start, end)
