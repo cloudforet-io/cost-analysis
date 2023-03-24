@@ -322,8 +322,12 @@ class JobService(BaseService):
         budget_mgr: BudgetManager = self.locator.get_manager('BudgetManager')
         budget_usage_mgr: BudgetUsageManager = self.locator.get_manager('BudgetUsageManager')
         budget_vos = budget_mgr.filter_budgets(domain_id=domain_id)
+        budget_ids = []
         for budget_vo in budget_vos:
-            budget_usage_mgr.update_cost_usage(budget_vo.budget_id, budget_vo.domain_id)
+            budget_ids.append(budget_vo.budget_id)
+
+        for budget_id in budget_ids:
+            budget_usage_mgr.update_cost_usage(budget_id, domain_id)
 
     def _rollback_cost_data(self, job_vo: Job):
         cost_vos = self.cost_mgr.filter_costs(data_source_id=job_vo.data_source_id, domain_id=job_vo.domain_id,
@@ -426,8 +430,8 @@ class JobService(BaseService):
 
         _LOGGER.debug(f'[_is_large_data] cost count ({billed_month}): {total_count} => {total_count >= 50000}')
 
-        # Split query by product if cost count exceeds 50k
-        if total_count >= 50000:
+        # Allow disk use if cost count exceeds 30k
+        if total_count >= 30000:
             return True
         else:
             return False
