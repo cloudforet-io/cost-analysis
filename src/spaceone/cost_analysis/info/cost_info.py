@@ -28,6 +28,7 @@ def CostInfo(cost_vo: Cost, minimal=False):
             'original_currency': cost_vo.original_currency,
             'original_cost': cost_vo.original_cost,
             'usage_quantity': cost_vo.usage_quantity,
+            'usage_unit': cost_vo.usage_unit,
             'tags': change_struct_type(cost_vo.tags),
             'additional_info': change_struct_type(cost_vo.additional_info),
             'service_account_id': cost_vo.service_account_id,
