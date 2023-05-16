@@ -17,7 +17,6 @@ def CostInfo(cost_vo: Cost, minimal=False):
         'product': cost_vo.product,
         'account': cost_vo.account,
         'usage_type': cost_vo.usage_type,
-        'resource_group': cost_vo.resource_group,
         'resource': cost_vo.resource,
         'data_source_id': cost_vo.data_source_id,
         'billed_at': utils.datetime_to_iso8601(cost_vo.billed_at)
