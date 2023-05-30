@@ -37,7 +37,6 @@ class CostManager(BaseManager):
 
         if 'usd_cost' not in params:
             original_currency = params['original_currency']
-            original_cost = params['original_cost']
 
             if original_currency == 'USD':
                 params['usd_cost'] = params['original_cost']
