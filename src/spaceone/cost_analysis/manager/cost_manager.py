@@ -42,14 +42,17 @@ class CostManager(BaseManager):
             if original_currency == 'USD':
                 params['usd_cost'] = params['original_cost']
             else:
-                self._load_exchange_rate_map(params['domain_id'])
-
-                rate = self.exchange_rate_map.get(original_currency)
-
-                if rate is None:
-                    raise ERROR_UNSUPPORTED_CURRENCY(supported_currency=list(self.exchange_rate_map.keys()))
-
-                params['usd_cost'] = round(original_cost / rate, 15)
+                params['usd_cost'] = 0
+                # Exchange rate handling is deprecated.
+                # The cost value provided by the individual CSP is used as it is, and the USD cost value provided by the plugin is used as it is.
+                #
+                # self._load_exchange_rate_map(params['domain_id'])
+                # rate = self.exchange_rate_map.get(original_currency)
+                #
+                # if rate is None:
+                #     raise ERROR_UNSUPPORTED_CURRENCY(supported_currency=list(self.exchange_rate_map.keys()))
+                #
+                # params['usd_cost'] = round(original_cost / rate, 15)
 
         params['billed_year'] = params['billed_at'].strftime('%Y')
         params['billed_month'] = params['billed_at'].strftime('%Y-%m')
