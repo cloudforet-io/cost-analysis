@@ -38,7 +38,7 @@ class DataSourcePluginConnector(BaseConnector):
         response = self.client.DataSource.init({
             'options': options,
             'domain_id': domain_id
-        }, metadata=self.transaction.get_connection_meta())
+        })
 
         return self._change_message(response)
 
@@ -50,7 +50,7 @@ class DataSourcePluginConnector(BaseConnector):
             'domain_id': domain_id
         }
 
-        self.client.DataSource.verify(params, metadata=self.transaction.get_connection_meta())
+        self.client.DataSource.verify(params)
 
     def get_tasks(self, options, secret_data, schema, domain_id, start=None, last_synchronized_at=None):
         params = {
@@ -62,7 +62,7 @@ class DataSourcePluginConnector(BaseConnector):
             'domain_id': domain_id
         }
 
-        response = self.client.Job.get_tasks(params, metadata=self.transaction.get_connection_meta())
+        response = self.client.Job.get_tasks(params)
         return self._change_message(response)
 
     def get_cost_data(self, options, secret_data, schema, task_options, domain_id):
@@ -74,7 +74,7 @@ class DataSourcePluginConnector(BaseConnector):
             'domain_id': domain_id
         }
 
-        response_stream = self.client.Cost.get_data(params, metadata=self.transaction.get_connection_meta())
+        response_stream = self.client.Cost.get_data(params)
         return self._process_stream(response_stream)
 
     def _process_stream(self, response_stream):
