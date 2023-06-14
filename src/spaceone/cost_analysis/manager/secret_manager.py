@@ -1,5 +1,6 @@
 import logging
 
+from spaceone.core import config
 from spaceone.core.manager import BaseManager
 from spaceone.core.connector.space_connector import SpaceConnector
 from spaceone.core import utils
@@ -12,7 +13,9 @@ class SecretManager(BaseManager):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.secret_connector: SpaceConnector = self.locator.get_connector('SpaceConnector', service='secret')
+        self.secret_connector: SpaceConnector = self.locator.get_connector('SpaceConnector',
+                                                                           service='secret',
+                                                                           token=config.get_global('TOKEN'))
 
     def create_secret(self, domain_id, secret_data, schema):
         def _rollback(secret_id):
