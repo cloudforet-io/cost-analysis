@@ -2,6 +2,7 @@ import logging
 from datetime import datetime
 
 from spaceone.core import queue, utils
+from spaceone.core.token import get_token
 from spaceone.core.manager import BaseManager
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.manager.job_manager import JobManager
@@ -50,7 +51,7 @@ class JobTaskManager(BaseManager):
             'stages': [{
                 'locator': 'SERVICE',
                 'name': 'JobService',
-                'metadata': self.transaction.meta,
+                'metadata': {'token': get_token(), 'domain_id': params.get('domain_id')},
                 'method': 'get_cost_data',
                 'params': {
                     'params': params
