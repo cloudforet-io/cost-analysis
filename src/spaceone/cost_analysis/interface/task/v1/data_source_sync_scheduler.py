@@ -5,15 +5,15 @@ from spaceone.core import config
 from spaceone.core import utils
 from spaceone.core.token import get_token
 from spaceone.core.locator import Locator
-from spaceone.core.scheduler import HourlyScheduler
+from spaceone.core.scheduler import HourlyScheduler, IntervalScheduler
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class DataSourceSyncScheduler(HourlyScheduler):
+class DataSourceSyncScheduler(IntervalScheduler):
 
-    def __init__(self, queue, interval, minute=':00'):
-        super().__init__(queue, interval, minute)
+    def __init__(self, queue, interval):
+        super().__init__(queue, interval)
         self.locator = Locator()
         self._init_config()
         self._create_metadata()
@@ -31,7 +31,7 @@ class DataSourceSyncScheduler(HourlyScheduler):
         }
 
     def create_task(self):
-        if datetime.utcnow().hour == self._data_source_sync_hour:
+        if datetime.utcnow().hour in [4, 5, 6, 7, 8, 9, 10, 11, 12]:
             stp = {
                 'name': 'data_source_sync_schedule',
                 'version': 'v1',

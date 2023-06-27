@@ -71,8 +71,8 @@ application_scheduler:
     data_source_sync_scheduler:
       backend: spaceone.cost_analysis.interface.task.v1.data_source_sync_scheduler.DataSourceSyncScheduler
       queue: cost_analysis_q
-      interval: 1
-      minute: ':00'
+      interval: 300
+#      minute: ':00'
 
 # Overwrite worker config
 application_worker:
