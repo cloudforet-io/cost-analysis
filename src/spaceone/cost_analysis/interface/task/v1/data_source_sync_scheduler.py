@@ -12,11 +12,12 @@ _LOGGER = logging.getLogger(__name__)
 
 class DataSourceSyncScheduler(IntervalScheduler):
 
-    def __init__(self, queue, interval):
+    def __init__(self, queue, interval, minute=':00'):
         super().__init__(queue, interval)
         self.locator = Locator()
         self._init_config()
         self._create_metadata()
+        self.minute = minute
 
     def _init_config(self):
         self._token = get_token('TOKEN')
