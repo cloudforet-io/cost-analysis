@@ -1,5 +1,6 @@
 import logging
 
+from spaceone.core import config
 from spaceone.core import utils
 from spaceone.core.manager import BaseManager
 from spaceone.cost_analysis.error import *
@@ -91,8 +92,7 @@ class DataSourcePluginManager(BaseManager):
             _LOGGER.debug(f'[_create_data_source_rules_by_metadata] create data source rules: {data_source_id} / '
                           f'rule count = {len(data_source_rules)}')
             metadata = {
-                'transaction_id': self.transaction.id,
-                'token': self.transaction.get_meta('token'),
+                'token': config.get_global('TOKEN'),
                 'service': 'cost_analysis',
                 'resource': 'DataSourceRule',
                 'verb': 'create'
