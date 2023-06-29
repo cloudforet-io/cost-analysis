@@ -27,8 +27,6 @@ class DataSourceRuleService(BaseService):
         self.data_source_rule_mgr: DataSourceRuleManager = self.locator.get_manager('DataSourceRuleManager')
 
     @transaction(append_meta={'authorization.scope': 'DOMAIN'})
-    @check_required(['data_source_id', 'conditions_policy', 'actions', 'domain_id'])
-    @change_date_value(['start', 'end'])
     def create(self, params):
         """Create data source rule
 
@@ -47,7 +45,11 @@ class DataSourceRuleService(BaseService):
         Returns:
             data_source_rule_vo (object)
         """
+        return self.create_data_source_rule(params)
 
+    @check_required(['data_source_id', 'conditions_policy', 'actions', 'domain_id'])
+    @change_date_value(['start', 'end'])
+    def create_data_source_rule(self, params):
         domain_id = params['domain_id']
         data_source_id = params['data_source_id']
         conditions = params.get('conditions', [])
@@ -163,12 +165,12 @@ class DataSourceRuleService(BaseService):
                                                                target_data_source_rule_vo.domain_id,
                                                                target_data_source_rule_vo.data_source_rule_id)
 
-        data_source_rule_vos.insert(order-1, target_data_source_rule_vo)
+        data_source_rule_vos.insert(order - 1, target_data_source_rule_vo)
 
         i = 0
         for data_source_rule_vo in data_source_rule_vos:
             if target_data_source_rule_vo != data_source_rule_vo:
-                self.data_source_rule_mgr.update_data_source_rule_by_vo({'order': i+1}, data_source_rule_vo)
+                self.data_source_rule_mgr.update_data_source_rule_by_vo({'order': i + 1}, data_source_rule_vo)
 
             i += 1
 
@@ -206,7 +208,7 @@ class DataSourceRuleService(BaseService):
 
         i = 0
         for data_source_rule_vo in data_source_rule_vos:
-            self.data_source_rule_mgr.update_data_source_rule_by_vo({'order': i+1}, data_source_rule_vo)
+            self.data_source_rule_mgr.update_data_source_rule_by_vo({'order': i + 1}, data_source_rule_vo)
             i += 1
 
     @transaction(append_meta={'authorization.scope': 'DOMAIN'})
