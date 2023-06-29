@@ -49,7 +49,8 @@ class DataSourcePluginManager(BaseManager):
         endpoint, updated_version = self.get_data_source_plugin_endpoint(plugin_info, data_source_vo.domain_id)
 
         if updated_version:
-            _LOGGER.debug(f'[get_data_source_plugin_endpoint_by_vo] upgrade plugin version: {plugin_info["version"]} -> {updated_version}')
+            _LOGGER.debug(
+                f'[get_data_source_plugin_endpoint_by_vo] upgrade plugin version: {plugin_info["version"]} -> {updated_version}')
             self.upgrade_data_source_plugin_version(data_source_vo, endpoint, updated_version)
 
         return endpoint
@@ -91,17 +92,10 @@ class DataSourcePluginManager(BaseManager):
         if len(data_source_rules) > 0:
             _LOGGER.debug(f'[_create_data_source_rules_by_metadata] create data source rules: {data_source_id} / '
                           f'rule count = {len(data_source_rules)}')
-            metadata = {
-                'token': config.get_global('TOKEN'),
-                'service': 'cost_analysis',
-                'resource': 'DataSourceRule',
-                'verb': 'create'
-            }
 
             data_source_rule_svc: DataSourceRuleService = self.locator.get_service('DataSourceRuleService', metadata)
-
             for data_source_rule_params in data_source_rules:
                 data_source_rule_params['data_source_id'] = data_source_id
                 data_source_rule_params['domain_id'] = domain_id
                 data_source_rule_params['rule_type'] = 'MANAGED'
-                data_source_rule_svc.create(data_source_rule_params)
+                data_source_rule_svc.create_data_source_rule(data_source_rule_params)
