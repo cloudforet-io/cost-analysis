@@ -10,14 +10,12 @@ from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.model.job_task_model import JobTask
 from spaceone.cost_analysis.model.job_model import Job
 from spaceone.cost_analysis.model.data_source_model import DataSource
-from spaceone.cost_analysis.model.cost_model import CostQueryHistory
 from spaceone.cost_analysis.manager.cost_manager import CostManager
 from spaceone.cost_analysis.manager.job_manager import JobManager
 from spaceone.cost_analysis.manager.job_task_manager import JobTaskManager
 from spaceone.cost_analysis.manager.data_source_plugin_manager import DataSourcePluginManager
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.secret_manager import SecretManager
-from spaceone.cost_analysis.manager.budget_manager import BudgetManager
 from spaceone.cost_analysis.manager.budget_usage_manager import BudgetUsageManager
 
 _LOGGER = logging.getLogger(__name__)
@@ -36,6 +34,7 @@ class JobService(BaseService):
         self.job_task_mgr: JobTaskManager = self.locator.get_manager('JobTaskManager')
         self.data_source_mgr: DataSourceManager = self.locator.get_manager('DataSourceManager')
         self.ds_plugin_mgr: DataSourcePluginManager = self.locator.get_manager('DataSourcePluginManager')
+        self.budget_usage_mgr: BudgetUsageManager = self.locator.get_manager('BudgetUsageManager')
 
     @transaction(append_meta={'authorization.scope': 'SYSTEM'})
     def create_jobs_by_data_source(self, params):
@@ -293,11 +292,11 @@ class JobService(BaseService):
                             changed_start = changed_vo.start
 
                     self._aggregate_cost_data(job_vo, changed_start)
-                    self._update_budget_usage(domain_id)
+                    self.budget_usage_mgr.update_budget_usage(domain_id)
                     self.cost_mgr.remove_stat_cache(domain_id)
 
                     if not no_preload_cache:
-                        self._preload_cost_stat_queries(domain_id)
+                        self.job_mgr.preload_cost_stat_queries(domain_id)
 
                     self._update_last_sync_time(job_vo)
                     self.job_mgr.change_success_status(job_vo)
@@ -317,17 +316,6 @@ class JobService(BaseService):
             'cost_tag_keys': tag_keys,
             'cost_additional_info_keys': additional_info_keys
         }, data_source_vo)
-
-    def _update_budget_usage(self, domain_id):
-        budget_mgr: BudgetManager = self.locator.get_manager('BudgetManager')
-        budget_usage_mgr: BudgetUsageManager = self.locator.get_manager('BudgetUsageManager')
-        budget_vos = budget_mgr.filter_budgets(domain_id=domain_id)
-        budget_ids = []
-        for budget_vo in budget_vos:
-            budget_ids.append(budget_vo.budget_id)
-
-        for budget_id in budget_ids:
-            budget_usage_mgr.update_cost_usage(budget_id, domain_id)
 
     def _rollback_cost_data(self, job_vo: Job):
         cost_vos = self.cost_mgr.filter_costs(data_source_id=job_vo.data_source_id, domain_id=job_vo.domain_id,
@@ -579,52 +567,3 @@ class JobService(BaseService):
                 self.job_mgr.change_canceled_status(job_vo)
 
         return False
-
-    def _preload_cost_stat_queries(self, domain_id):
-        cost_query_cache_time = config.get_global('COST_QUERY_CACHE_TIME', 7)
-        cache_time = datetime.utcnow() - timedelta(days=cost_query_cache_time)
-
-        query = {
-            'filter': [
-                {'k': 'domain_id', 'v': domain_id, 'o': 'eq'},
-                {'k': 'updated_at', 'v': cache_time, 'o': 'gte'},
-            ]
-        }
-
-        _LOGGER.debug(f'[_preload_cost_stat_queries] cost_query_cache_time: {cost_query_cache_time} days')
-
-        history_vos, total_count = self.cost_mgr.list_cost_query_history(query)
-        for history_vo in history_vos:
-            _LOGGER.debug(f'[_preload_cost_stat_queries] create query cache: {history_vo.query_hash}')
-            self._create_cache_by_history(history_vo, domain_id)
-
-    def _create_cache_by_history(self, history_vo: CostQueryHistory, domain_id):
-        query = history_vo.query_options
-        query_hash = history_vo.query_hash
-        granularity = history_vo.granularity
-        start = history_vo.start
-        end = history_vo.end
-
-        # Original Date Range
-        self._create_cache(domain_id, copy.deepcopy(query), query_hash, granularity, start, end)
-
-    def _create_cache(self, domain_id, query, query_hash, granularity, start, end):
-        if granularity and start and end:
-            query = self.cost_mgr.add_date_range_filter(query, granularity, start, end)
-            query_hash_with_date_range = utils.dict_to_hash(query)
-
-            _LOGGER.debug(f'[_create_cache] query: {query}')
-
-            if 'group_by' in query:
-                if self.cost_mgr.is_monthly_cost(granularity, start, end):
-                    self.cost_mgr.analyze_monthly_costs_with_cache(query, query_hash, domain_id)
-                else:
-                    self.cost_mgr.analyze_costs_with_cache(query, query_hash, domain_id)
-            else:
-                if self.cost_mgr.is_monthly_cost(granularity, start, end):
-                    self.cost_mgr.stat_monthly_costs_with_cache(query, query_hash_with_date_range, domain_id,
-                                                                target='PRIMARY')
-                else:
-                    self.cost_mgr.stat_costs_with_cache(query, query_hash_with_date_range, domain_id, target='PRIMARY')
-        else:
-            self.cost_mgr.stat_monthly_costs_with_cache(query, query_hash, domain_id, target='PRIMARY')

@@ -11,6 +11,8 @@ from spaceone.cost_analysis.manager.data_source_plugin_manager import DataSource
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.job_manager import JobManager
 from spaceone.cost_analysis.manager.job_task_manager import JobTaskManager
+from spaceone.cost_analysis.manager.cost_manager import CostManager
+from spaceone.cost_analysis.manager.budget_usage_manager import BudgetUsageManager
 from spaceone.cost_analysis.model.data_source_model import DataSource
 
 _LOGGER = logging.getLogger(__name__)
@@ -26,6 +28,9 @@ class DataSourceService(BaseService):
         super().__init__(*args, **kwargs)
         self.data_source_mgr: DataSourceManager = self.locator.get_manager('DataSourceManager')
         self.ds_plugin_mgr: DataSourcePluginManager = self.locator.get_manager('DataSourcePluginManager')
+        self.cost_mgr: CostManager = self.locator.get_manager('CostManager')
+        self.budget_usage_mgr: BudgetUsageManager = self.locator.get_manager('BudgetUsageManager')
+        self.job_mgr: JobManager = self.locator.get_manager('JobManager')
 
     @transaction(append_meta={'authorization.scope': 'DOMAIN'})
     @check_required(['name', 'data_source_type', 'domain_id'])
@@ -173,6 +178,7 @@ class DataSourceService(BaseService):
         Args:
             params (dict): {
                 'data_source_id': 'str',
+                'cascade_delete_cost: 'bool',
                 'domain_id': 'str'
             }
 
@@ -181,9 +187,18 @@ class DataSourceService(BaseService):
         """
 
         data_source_id = params['data_source_id']
+        cascade_delete_cost = params.get('cascade_delete_cost', True)
         domain_id = params['domain_id']
 
         data_source_vo: DataSource = self.data_source_mgr.get_data_source(data_source_id, domain_id)
+
+        if cascade_delete_cost:
+            self.cost_mgr.delete_cost_with_datasource(data_source_id=data_source_id, domain_id=domain_id)
+            self.cost_mgr.delete_monthly_cost_with_datasource(data_source_id=data_source_id, domain_id=domain_id)
+
+            self.budget_usage_mgr.update_budget_usage(domain_id)
+            self.cost_mgr.remove_stat_cache(domain_id)
+            self.job_mgr.preload_cost_stat_queries(domain_id)
 
         if data_source_vo.plugin_info:
             secret_id = data_source_vo.plugin_info.secret_id
