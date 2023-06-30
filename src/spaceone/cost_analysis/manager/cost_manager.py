@@ -73,6 +73,20 @@ class CostManager(BaseManager):
         cost_vo: Cost = self.get_cost(cost_id, domain_id)
         cost_vo.delete()
 
+    def delete_cost_with_datasource(self, domain_id, data_source_id):
+        _LOGGER.debug(f'[delete_cost_with_datasource] data_source_id: {data_source_id}')
+        cost_vos = self.cost_model.filter(domain_id=domain_id, data_source_id=data_source_id)
+        total_cost_count = cost_vos.count()
+        cost_vos.delete()
+        _LOGGER.debug(f'[delete_cost_with_datasource] {total_cost_count} cost data deleted')
+
+    def delete_monthly_cost_with_datasource(self, domain_id, data_source_id):
+        _LOGGER.debug(f'[delete_monthly_cost_with_datasource] data_source_id: {data_source_id}')
+        monthly_vos = self.monthly_cost_model.filter(domain_id=domain_id, data_source_id=data_source_id)
+        total_monthly_cost_count = monthly_vos.count()
+        monthly_vos.delete()
+        _LOGGER.debug(f'[delete_monthly_cost_with_datasource] {total_monthly_cost_count} monthly cost data deleted')
+
     def get_cost(self, cost_id, domain_id, only=None):
         return self.cost_model.get(cost_id=cost_id, domain_id=domain_id, only=only)
 

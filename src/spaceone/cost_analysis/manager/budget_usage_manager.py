@@ -77,6 +77,15 @@ class BudgetUsageManager(BaseManager):
         self._update_total_budget_usage(budget_vo, cost_mgr)
         self._update_monthly_budget_usage(budget_vo, cost_mgr)
 
+    def update_budget_usage(self, domain_id):
+        budget_vos = self.budget_mgr.filter_budgets(domain_id=domain_id)
+        budget_ids = []
+        for budget_vo in budget_vos:
+            budget_ids.append(budget_vo.budget_id)
+
+        for budget_id in budget_ids:
+            self.update_cost_usage(budget_id, domain_id)
+
     def filter_budget_usages(self, **conditions):
         return self.budget_usage_model.filter(**conditions)
 
