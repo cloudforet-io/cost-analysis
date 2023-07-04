@@ -28,7 +28,7 @@ class DataSource(MongoModel):
     name = StringField(max_length=255, unique_with='domain_id')
     state = StringField(max_length=20, default='ENABLED', choices=('ENABLED', 'DISABLED'))
     data_source_type = StringField(max_length=20, choices=('LOCAL', 'EXTERNAL'))
-    secret_type = StringField(max_length=20, default='MANUAL', choices=('MANUAL', 'USE_SERVICE_ACCOUNT_SECRET'))
+    secret_type = StringField(max_length=32, default='MANUAL', choices=('MANUAL', 'USE_SERVICE_ACCOUNT_SECRET'))
     secret_filter = EmbeddedDocumentField(SecretFilter, default=None, null=True)
     provider = StringField(max_length=40, default=None, null=True)
     plugin_info = EmbeddedDocumentField(PluginInfo, default=None, null=True)
