@@ -32,12 +32,18 @@ class DataSourcePluginManager(BaseManager):
     def verify_plugin(self, options, secret_data, schema, domain_id):
         self.dsp_connector.verify(options, secret_data, schema, domain_id)
 
-    def get_tasks(self, options, secret_data, schema, params, domain_id):
-        start = params.get('start')
-        last_synchronized_at = utils.datetime_to_iso8601(params.get('last_synchronized_at'))
-
+    def get_tasks(self, options, secret_id, secret_data, schema, start, last_synchronized_at, domain_id):
         response = self.dsp_connector.get_tasks(options, secret_data, schema, domain_id, start, last_synchronized_at)
-        return response.get('tasks', []), response.get('changed', [])
+        tasks = response.get('tasks', [])
+
+        for task in tasks:
+            task.update({
+                'secret_id': secret_id,
+                'secret_data': secret_data,
+                'schema': schema
+            })
+
+        return tasks, response.get('changed', [])
 
     def get_cost_data(self, options, secret_data, schema, task_options, domain_id):
         return self.dsp_connector.get_cost_data(options, secret_data, schema, task_options, domain_id)
