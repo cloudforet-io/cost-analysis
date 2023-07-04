@@ -7,6 +7,19 @@ from spaceone.cost_analysis.model.data_source_model import DataSource
 __all__ = ['DataSourceInfo', 'DataSourcesInfo']
 
 
+def SecretFilterInfo(secret_filter_vo):
+    if secret_filter_vo:
+        info = {
+            'state': secret_filter_vo.state,
+            'secrets': secret_filter_vo.secrets,
+            'service_accounts': secret_filter_vo.service_accounts,
+            'schemas': secret_filter_vo.schemas
+        }
+        return data_source_pb2.SecretFilter(**info)
+    else:
+        return None
+
+
 def PluginInfo(vo):
     if vo:
         info = {
@@ -30,12 +43,14 @@ def DataSourceInfo(data_source_vo: DataSource, minimal=False):
         'name': data_source_vo.name,
         'state': data_source_vo.state,
         'data_source_type': data_source_vo.data_source_type,
+        'secret_type': data_source_vo.secret_type,
         'provider': data_source_vo.provider
     }
 
     if not minimal:
         info.update({
             'plugin_info': PluginInfo(data_source_vo.plugin_info),
+            'secret_filter': SecretFilterInfo(data_source_vo.secret_filter),
             'template': change_struct_type(data_source_vo.template),
             'tags': change_struct_type(data_source_vo.tags),
             'cost_tag_keys': data_source_vo.cost_tag_keys,

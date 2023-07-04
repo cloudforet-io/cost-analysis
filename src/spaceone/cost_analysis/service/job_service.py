@@ -1,11 +1,10 @@
-import copy
 import datetime
 import logging
 from dateutil import rrule
 from datetime import timedelta, datetime
 
 from spaceone.core.service import *
-from spaceone.core import utils, config
+from spaceone.core import utils
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.model.job_task_model import JobTask
 from spaceone.cost_analysis.model.job_model import Job
@@ -17,6 +16,7 @@ from spaceone.cost_analysis.manager.data_source_plugin_manager import DataSource
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.secret_manager import SecretManager
 from spaceone.cost_analysis.manager.budget_usage_manager import BudgetUsageManager
+
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,7 +49,7 @@ class JobService(BaseService):
 
         for data_source_vo in self._get_all_data_sources():
             try:
-                self._sync_data_source(data_source_vo)
+                self.create_cost_job(data_source_vo, {})
             except Exception as e:
                 _LOGGER.error(f'[create_jobs_by_data_source] sync error: {e}', exc_info=True)
 
@@ -152,6 +152,8 @@ class JobService(BaseService):
             params (dict): {
                 'task_options': 'dict',
                 'job_task_id': 'str',
+                'secret_id': 'str',
+                'secret_data': 'dict',
                 'domain_id': 'str'
             }
 
@@ -161,7 +163,9 @@ class JobService(BaseService):
 
         task_options = params['task_options']
         job_task_id = params['job_task_id']
+        secret_data = params.get('secret_data')
         domain_id = params['domain_id']
+        cost_data_options= {}
 
         job_task_vo: JobTask = self.job_task_mgr.get_job_task(job_task_id, domain_id)
 
@@ -176,16 +180,21 @@ class JobService(BaseService):
                 data_source_vo: DataSource = self.data_source_mgr.get_data_source(job_task_vo.data_source_id, domain_id)
                 plugin_info = data_source_vo.plugin_info.to_dict()
 
-                secret_id = plugin_info.get('secret_id')
                 options = plugin_info.get('options', {})
                 schema = plugin_info.get('schema')
                 tag_keys = data_source_vo.cost_tag_keys
                 additional_info_keys = data_source_vo.cost_additional_info_keys
+                secret_type = data_source_vo.secret_type
+
+                if secret_type == 'USE_SERVICE_ACCOUNT_SECRET':
+                    service_account_id, project_id = self._get_service_account_id_and_project_id(params.get('secret_id'),
+                                                                                                 domain_id)
+                    cost_data_options.update({
+                        'service_account_id': service_account_id,
+                        'project_id': project_id
+                    })
 
                 endpoint, updated_version = self.ds_plugin_mgr.get_data_source_plugin_endpoint(plugin_info, domain_id)
-
-                secret_data = self._get_secret_data(secret_id, domain_id)
-
                 self.ds_plugin_mgr.initialize(endpoint)
                 start_dt = datetime.utcnow()
 
@@ -198,7 +207,7 @@ class JobService(BaseService):
                         count += 1
 
                         self._check_cost_data(cost_data)
-                        self._create_cost_data(cost_data, job_task_vo)
+                        self._create_cost_data(cost_data, job_task_vo, cost_data_options)
 
                         tag_keys = self._append_tag_keys(tag_keys, cost_data)
                         additional_info_keys = self._append_additional_info_keys(additional_info_keys, cost_data)
@@ -222,6 +231,93 @@ class JobService(BaseService):
                 self.job_task_mgr.change_error_status(job_task_vo, e)
 
         self._close_job(job_id, domain_id)
+
+    def list_secret_ids_from_secret_type(self, data_source_vo, secret_type, domain_id):
+        secret_ids = []
+
+        if secret_type == 'MANUAL':
+            secret_ids = [data_source_vo.plugin_info.secret_id]
+
+        elif secret_type == 'USE_SERVICE_ACCOUNT_SECRET':
+            provider = data_source_vo.provider
+            secret_filter = data_source_vo.secret_filter
+            secret_ids = self.list_secret_ids_from_secret_filter(secret_filter, provider, domain_id)
+
+        return secret_ids
+
+    def create_cost_job(self, data_source_vo: DataSource, job_options):
+        tasks = []
+        changed = []
+
+        data_source_id = data_source_vo.data_source_id
+        domain_id = data_source_vo.domain_id
+        endpoint = self.ds_plugin_mgr.get_data_source_plugin_endpoint_by_vo(data_source_vo)
+        options = data_source_vo.plugin_info.options
+        schema = data_source_vo.plugin_info.schema
+
+        secret_type = data_source_vo.secret_type
+        secret_ids = self.list_secret_ids_from_secret_type(data_source_vo, secret_type, domain_id)
+
+        self.ds_plugin_mgr.initialize(endpoint)
+        params = {'last_synchronized_at': data_source_vo.last_synchronized_at}
+        start, last_synchronized_at = self.get_start_last_synchronized_at(params)
+
+        for secret_id in secret_ids:
+            secret_data = self._get_secret_data(secret_id, domain_id)
+            single_tasks, single_changed = self.ds_plugin_mgr.get_tasks(options, secret_id, secret_data, schema, start,
+                                                                        last_synchronized_at, domain_id)
+            tasks.extend(single_tasks)
+            changed.extend(single_changed)
+
+        _LOGGER.debug(f'[sync] get_tasks: {tasks}')
+        _LOGGER.debug(f'[sync] changed: {changed}')
+
+        # Add Job Options
+        job_vo = self.job_mgr.create_job(data_source_id, domain_id, job_options, len(tasks), changed)
+
+        if self._check_duplicate_job(data_source_id, domain_id, job_vo):
+            self.job_mgr.change_error_status(job_vo, ERROR_DUPLICATE_JOB(data_source_id=data_source_id))
+        else:
+            if len(tasks) > 0:
+                for task in tasks:
+                    job_task_vo = None
+                    task_options = task['task_options']
+                    try:
+                        job_task_vo = self.job_task_mgr.create_job_task(job_vo.job_id, data_source_id, domain_id,
+                                                                        task_options)
+                        self.job_task_mgr.push_job_task({
+                            'task_options': task_options,
+                            'secret_id': task.get('secret_id'),
+                            'secret_data': task.get('secret_data', {}),
+                            'job_task_id': job_task_vo.job_task_id,
+                            'domain_id': domain_id
+                        })
+                    except Exception as e:
+                        if job_task_vo:
+                            self.job_task_mgr.change_error_status(job_task_vo, e)
+            else:
+                job_vo = self.job_mgr.change_success_status(job_vo)
+                self.data_source_mgr.update_data_source_by_vo({'last_synchronized_at': job_vo.created_at},
+                                                              data_source_vo)
+
+        return job_vo
+
+    def _get_service_account_id_and_project_id(self, secret_id, domain_id):
+        service_account_id = None
+        project_id = None
+
+        secret_mgr: SecretManager = self.locator.get_manager(SecretManager)
+
+        if secret_id:
+            _query = {'filter': [{'k': 'secret_id', 'v': secret_id, 'o': 'eq'}]}
+            response = secret_mgr.list_secrets(_query, domain_id)
+            results = response.get('results', [])
+            if results:
+                secret_info = results[0]
+                service_account_id = secret_info.get('service_account_id')
+                project_id = secret_info.get('project_id')
+
+        return service_account_id, project_id
 
     @staticmethod
     def _append_tag_keys(tags_keys, cost_data):
@@ -260,13 +356,19 @@ class JobService(BaseService):
             _LOGGER.error(f'[_check_cost_data] cost_data: {cost_data}')
             raise ERROR_REQUIRED_PARAMETER(key='plugin_cost_data.billed_at')
 
-    def _create_cost_data(self, cost_data, job_task_vo):
+    def _create_cost_data(self, cost_data, job_task_vo, cost_options):
         cost_data['original_currency'] = cost_data.get('currency', 'USD')
         cost_data['original_cost'] = cost_data.get('cost', 0)
         cost_data['job_id'] = job_task_vo.job_id
         cost_data['data_source_id'] = job_task_vo.data_source_id
         cost_data['domain_id'] = job_task_vo.domain_id
         cost_data['billed_at'] = utils.iso8601_to_datetime(cost_data['billed_at'])
+
+        if 'service_account_id' in cost_options:
+            cost_data['service_account_id'] = cost_options['service_account_id']
+
+        if 'project_id' in cost_options:
+            cost_data['project_id'] = cost_options['project_id']
 
         self.cost_mgr.create_cost(cost_data, execute_rollback=False)
 
@@ -498,50 +600,51 @@ class JobService(BaseService):
 
         _LOGGER.debug(f'[_delete_aggregated_cost_data] delete monthly costs after {changed_start_month}: {job_id}')
 
-    def _sync_data_source(self, data_source_vo: DataSource):
-        data_source_id = data_source_vo.data_source_id
-        domain_id = data_source_vo.domain_id
-        endpoint = self.ds_plugin_mgr.get_data_source_plugin_endpoint_by_vo(data_source_vo)
-        secret_id = data_source_vo.plugin_info.secret_id
-        options = data_source_vo.plugin_info.options
-        schema = data_source_vo.plugin_info.schema
-        secret_data = self._get_secret_data(secret_id, domain_id)
-
-        _LOGGER.debug(f'[create_jobs_by_data_source] sync data source: {data_source_id}')
-
-        params = {'last_synchronized_at': data_source_vo.last_synchronized_at}
-
-        self.ds_plugin_mgr.initialize(endpoint)
-        tasks, changed = self.ds_plugin_mgr.get_tasks(options, secret_data, schema, params, domain_id)
-
-        _LOGGER.debug(f'[sync] get_tasks: {tasks}')
-        _LOGGER.debug(f'[sync] changed: {changed}')
-
-        # Add Job Options
-        job_vo = self.job_mgr.create_job(data_source_id, domain_id, {}, len(tasks), changed)
-
-        if self._check_duplicate_job(data_source_id, domain_id, job_vo):
-            self.job_mgr.change_error_status(job_vo, ERROR_DUPLICATE_JOB(data_source_id=data_source_id))
-        else:
-            if len(tasks) > 0:
-                for task in tasks:
-                    job_task_vo = None
-                    task_options = task['task_options']
-                    try:
-                        job_task_vo = self.job_task_mgr.create_job_task(job_vo.job_id, data_source_id, domain_id,
-                                                                        task_options)
-                        self.job_task_mgr.push_job_task({
-                            'task_options': task_options,
-                            'job_task_id': job_task_vo.job_task_id,
-                            'domain_id': domain_id
-                        })
-                    except Exception as e:
-                        if job_task_vo:
-                            self.job_task_mgr.change_error_status(job_task_vo, e)
-            else:
-                job_vo = self.job_mgr.change_success_status(job_vo)
-                self.data_source_mgr.update_data_source_by_vo({'last_synchronized_at': job_vo.created_at},
-                                                              data_source_vo)
+    # def _sync_data_source(self, data_source_vo: DataSource):
+    #     data_source_id = data_source_vo.data_source_id
+    #     domain_id = data_source_vo.domain_id
+    #     endpoint = self.ds_plugin_mgr.get_data_source_plugin_endpoint_by_vo(data_source_vo)
+    #     secret_id = data_source_vo.plugin_info.secret_id
+    #     options = data_source_vo.plugin_info.options
+    #     schema = data_source_vo.plugin_info.schema
+    #     secret_data = self._get_secret_data(secret_id, domain_id)
+    #
+    #     _LOGGER.debug(f'[create_jobs_by_data_source] sync data source: {data_source_id}')
+    #
+    #     params = {'last_synchronized_at': data_source_vo.last_synchronized_at}
+    #
+    #     self.ds_plugin_mgr.initialize(endpoint)
+    #     start, last_synchronized_at = self.get_start_last_synchronized_at(params)
+    #     tasks, changed = self.ds_plugin_mgr.get_tasks(options, secret_data, schema, start, last_synchronized_at, domain_id)
+    #
+    #     _LOGGER.debug(f'[sync] get_tasks: {tasks}')
+    #     _LOGGER.debug(f'[sync] changed: {changed}')
+    #
+    #     # Add Job Options
+    #     job_vo = self.job_mgr.create_job(data_source_id, domain_id, {}, len(tasks), changed)
+    #
+    #     if self._check_duplicate_job(data_source_id, domain_id, job_vo):
+    #         self.job_mgr.change_error_status(job_vo, ERROR_DUPLICATE_JOB(data_source_id=data_source_id))
+    #     else:
+    #         if len(tasks) > 0:
+    #             for task in tasks:
+    #                 job_task_vo = None
+    #                 task_options = task['task_options']
+    #                 try:
+    #                     job_task_vo = self.job_task_mgr.create_job_task(job_vo.job_id, data_source_id, domain_id,
+    #                                                                     task_options)
+    #                     self.job_task_mgr.push_job_task({
+    #                         'task_options': task_options,
+    #                         'job_task_id': job_task_vo.job_task_id,
+    #                         'domain_id': domain_id
+    #                     })
+    #                 except Exception as e:
+    #                     if job_task_vo:
+    #                         self.job_task_mgr.change_error_status(job_task_vo, e)
+    #         else:
+    #             job_vo = self.job_mgr.change_success_status(job_vo)
+    #             self.data_source_mgr.update_data_source_by_vo({'last_synchronized_at': job_vo.created_at},
+    #                                                           data_source_vo)
 
     def _get_all_data_sources(self):
         return self.data_source_mgr.filter_data_sources(state='ENABLED', data_source_type='EXTERNAL')
@@ -567,3 +670,9 @@ class JobService(BaseService):
                 self.job_mgr.change_canceled_status(job_vo)
 
         return False
+
+    @staticmethod
+    def get_start_last_synchronized_at(params):
+        start = params.get('start')
+        last_synchronized_at = utils.datetime_to_iso8601(params.get('last_synchronized_at'))
+        return start, last_synchronized_at

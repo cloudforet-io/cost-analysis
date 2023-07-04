@@ -4,13 +4,12 @@ from datetime import datetime, timedelta
 from spaceone.core.service import *
 from spaceone.core import utils
 from spaceone.cost_analysis.error import *
-from spaceone.cost_analysis.model.job_model import Job
+from spaceone.cost_analysis.service.job_service import JobService
 from spaceone.cost_analysis.manager.repository_manager import RepositoryManager
 from spaceone.cost_analysis.manager.secret_manager import SecretManager
 from spaceone.cost_analysis.manager.data_source_plugin_manager import DataSourcePluginManager
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.job_manager import JobManager
-from spaceone.cost_analysis.manager.job_task_manager import JobTaskManager
 from spaceone.cost_analysis.manager.cost_manager import CostManager
 from spaceone.cost_analysis.manager.budget_usage_manager import BudgetUsageManager
 from spaceone.cost_analysis.model.data_source_model import DataSource
@@ -41,6 +40,8 @@ class DataSourceService(BaseService):
             params (dict): {
                 'name': 'str',
                 'data_source_type': 'str',
+                'secret_type': 'str',
+                'secret_filter': 'dict',
                 'provider': 'str',
                 'template': 'dict',
                 'plugin_info': 'dict',
@@ -57,8 +58,12 @@ class DataSourceService(BaseService):
 
         if data_source_type == 'EXTERNAL':
             plugin_info = params.get('plugin_info', {})
+            secret_type = params.get('secret_type', 'MANUAL')
 
-            self._validate_plugin_info(plugin_info)
+            if secret_type == 'USE_SERVICE_ACCOUNT_SECRET' and 'provider' not in params:
+                raise ERROR_REQUIRED_PARAMETER(key='provider')
+
+            self._validate_plugin_info(plugin_info, secret_type)
             self._check_plugin(plugin_info['plugin_id'], domain_id)
 
             # Update metadata
@@ -73,7 +78,7 @@ class DataSourceService(BaseService):
             params['plugin_info']['metadata'] = plugin_metadata
 
             secret_data = plugin_info.get('secret_data')
-            if secret_data:
+            if secret_type == 'MANUAL' and secret_data:
                 self._verify_plugin(endpoint, plugin_info, domain_id)
 
                 secret_mgr: SecretManager = self.locator.get_manager('SecretManager')
@@ -225,9 +230,7 @@ class DataSourceService(BaseService):
         Returns:
             None
         """
-
-        job_mgr: JobManager = self.locator.get_manager('JobManager')
-        job_task_mgr: JobTaskManager = self.locator.get_manager('JobTaskManager')
+        job_service: JobService = self.locator.get_service('JobService')
 
         data_source_id = params['data_source_id']
         domain_id = params['domain_id']
@@ -244,43 +247,7 @@ class DataSourceService(BaseService):
         if data_source_vo.data_source_type == 'LOCAL':
             raise ERROR_NOT_ALLOW_SYNC_COMMAND(data_source_id=data_source_id)
 
-        endpoint = self.ds_plugin_mgr.get_data_source_plugin_endpoint_by_vo(data_source_vo)
-        secret_id = data_source_vo.plugin_info.secret_id
-        options = data_source_vo.plugin_info.options
-        schema = data_source_vo.plugin_info.schema
-        secret_data = self._get_secret_data(secret_id, domain_id)
-
-        self._check_duplicate_job(data_source_id, domain_id, job_mgr)
-
-        params['last_synchronized_at'] = data_source_vo.last_synchronized_at
-
-        self.ds_plugin_mgr.initialize(endpoint)
-        tasks, changed = self.ds_plugin_mgr.get_tasks(options, secret_data, schema, params, domain_id)
-
-        _LOGGER.debug(f'[sync] get_tasks: {tasks}')
-        _LOGGER.debug(f'[sync] changed: {changed}')
-
-        job_vo = job_mgr.create_job(data_source_id, domain_id, job_options, len(tasks), changed)
-
-        if len(tasks) > 0:
-            for task in tasks:
-                job_task_vo = None
-                task_options = task['task_options']
-                try:
-                    job_task_vo = job_task_mgr.create_job_task(job_vo.job_id, data_source_id, domain_id, task_options)
-                    job_task_mgr.push_job_task({
-                        'task_options': task_options,
-                        'job_task_id': job_task_vo.job_task_id,
-                        'domain_id': domain_id
-                    })
-                except Exception as e:
-                    if job_task_vo:
-                        job_task_mgr.change_error_status(job_task_vo, e)
-        else:
-            job_vo = job_mgr.change_success_status(job_vo)
-            self.data_source_mgr.update_data_source_by_vo({'last_synchronized_at': job_vo.created_at}, data_source_vo)
-
-        return job_vo
+        return job_service.create_cost_job(data_source_vo, job_options)
 
     @transaction(append_meta={'authorization.scope': 'DOMAIN'})
     @check_required(['data_source_id', 'domain_id'])
@@ -439,13 +406,26 @@ class DataSourceService(BaseService):
         query = params.get('query', {})
         return self.data_source_mgr.stat_data_sources(query)
 
-    @staticmethod
-    def _validate_plugin_info(plugin_info):
-        if 'plugin_id' not in plugin_info:
-            raise ERROR_REQUIRED_PARAMETER(key='plugin_info.plugin_id')
+    def list_secret_ids_from_secret_type(self, data_source_vo, secret_type, domain_id):
+        secret_ids = []
 
-        if plugin_info.get('upgrade_mode', 'AUTO') == 'MANUAL' and 'version' not in plugin_info:
-            raise ERROR_REQUIRED_PARAMETER(key='plugin_info.version')
+        if secret_type == 'MANUAL':
+            secret_ids = [data_source_vo.plugin_info.secret_id]
+
+        elif secret_type == 'USE_SERVICE_ACCOUNT_SECRET':
+            provider = data_source_vo.provider
+            secret_filter = data_source_vo.secret_filter
+            secret_ids = self.list_secret_ids_from_secret_filter(secret_filter, provider, domain_id)
+
+        return secret_ids
+
+    def list_secret_ids_from_secret_filter(self, secret_filter, provider, domain_id):
+        secret_manager: SecretManager = self.locator.get_manager(SecretManager)
+
+        _filter = self._set_secret_filter(secret_filter, provider)
+        query = {'filter': _filter} if _filter else {}
+        response = secret_manager.list_secrets(query, domain_id)
+        return [secret_info.get('secret_id') for secret_info in response.get('results', [])]
 
     def _check_plugin(self, plugin_id, domain_id):
         repo_mgr: RepositoryManager = self.locator.get_manager('RepositoryManager')
@@ -477,6 +457,23 @@ class DataSourceService(BaseService):
         return secret_data
 
     @staticmethod
+    def _validate_plugin_info(plugin_info, secret_type):
+        if 'plugin_id' not in plugin_info:
+            raise ERROR_REQUIRED_PARAMETER(key='plugin_info.plugin_id')
+
+        if plugin_info.get('upgrade_mode', 'AUTO') == 'MANUAL' and 'version' not in plugin_info:
+            raise ERROR_REQUIRED_PARAMETER(key='plugin_info.version')
+
+        if secret_type == 'MANUAL' and plugin_info.get('secret_data') is None:
+            raise ERROR_REQUIRED_PARAMETER(key='plugin_info.secret_data')
+
+    @staticmethod
+    def get_start_last_synchronized_at(params):
+        start = params.get('start')
+        last_synchronized_at = utils.datetime_to_iso8601(params.get('last_synchronized_at'))
+        return start, last_synchronized_at
+
+    @staticmethod
     def _check_duplicate_job(data_source_id, domain_id, job_mgr: JobManager):
         job_vos = job_mgr.filter_jobs(data_source_id=data_source_id, domain_id=domain_id, status='IN_PROGRESS')
 
@@ -487,3 +484,36 @@ class DataSourceService(BaseService):
                 raise ERROR_DUPLICATE_JOB(data_source_id=data_source_id)
             else:
                 job_mgr.change_canceled_status(job_vo)
+
+    @staticmethod
+    def _set_secret_filter(secret_filter, provider):
+        _filter = []
+
+        if provider:
+            _filter.append({'k': 'provider', 'v': provider, 'o': 'eq'})
+
+        if secret_filter and secret_filter.get('state') == 'ENABLED':
+            if 'secrets' in secret_filter and secret_filter['secrets']:
+                _filter.append({'k': 'secret_id', 'v': secret_filter['secrets'], 'o': 'in'})
+            if 'service_accounts' in secret_filter and secret_filter['service_accounts']:
+                _filter.append({'k': 'service_account_id', 'v': secret_filter['service_accounts'], 'o': 'in'})
+            if 'schemas' in secret_filter and secret_filter['schemas']:
+                _filter.append({'k': 'schema', 'v': secret_filter['schemas'], 'o': 'in'})
+
+        return _filter
+
+    @staticmethod
+    def _get_start_time(start, last_synchronized_at=None):
+
+        if start:
+            start_time: datetime = start
+        elif last_synchronized_at:
+            start_time: datetime = last_synchronized_at - timedelta(days=7)
+            start_time = start_time.replace(day=1)
+        else:
+            start_time: datetime = datetime.utcnow() - timedelta(days=365)
+            start_time = start_time.replace(day=1)
+
+        start_time = start_time.replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
+
+        return start_time
