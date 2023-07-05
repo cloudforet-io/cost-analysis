@@ -48,7 +48,7 @@ class DataSource(MongoModel):
             'name',
             'state',
             'plugin_info',
-            'secret_filter'
+            'secret_filter',
             'template',
             'tags',
             'last_synchronized_at',
