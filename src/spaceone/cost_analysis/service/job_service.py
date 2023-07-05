@@ -245,6 +245,14 @@ class JobService(BaseService):
 
         return secret_ids
 
+    def list_secret_ids_from_secret_filter(self, secret_filter, provider, domain_id):
+        secret_manager: SecretManager = self.locator.get_manager(SecretManager)
+
+        _filter = self._set_secret_filter(secret_filter, provider)
+        query = {'filter': _filter} if _filter else {}
+        response = secret_manager.list_secrets(query, domain_id)
+        return [secret_info.get('secret_id') for secret_info in response.get('results', [])]
+
     def create_cost_job(self, data_source_vo: DataSource, job_options):
         tasks = []
         changed = []
