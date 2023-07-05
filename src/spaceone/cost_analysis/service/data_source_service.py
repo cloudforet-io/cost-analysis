@@ -1,8 +1,5 @@
 import logging
-from datetime import datetime, timedelta
-
 from spaceone.core.service import *
-from spaceone.core import utils
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.service.job_service import JobService
 from spaceone.cost_analysis.manager.repository_manager import RepositoryManager
@@ -12,6 +9,7 @@ from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.job_manager import JobManager
 from spaceone.cost_analysis.manager.cost_manager import CostManager
 from spaceone.cost_analysis.manager.budget_usage_manager import BudgetUsageManager
+from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 from spaceone.cost_analysis.model.data_source_model import DataSource
 
 _LOGGER = logging.getLogger(__name__)
@@ -66,6 +64,9 @@ class DataSourceService(BaseService):
             self._validate_plugin_info(plugin_info, secret_type)
             self._check_plugin(plugin_info['plugin_id'], domain_id)
 
+            if 'secret_filter' in params:
+                self.validate_secret_filter(params['secret_filter'], params['domain_id'])
+
             # Update metadata
             endpoint, updated_version = self.ds_plugin_mgr.get_data_source_plugin_endpoint(plugin_info, domain_id)
             if updated_version:
@@ -115,6 +116,7 @@ class DataSourceService(BaseService):
             params (dict): {
                 'data_source_id': 'str',
                 'name': 'str',
+                'secret_filter': 'dict',
                 'template': 'dict',
                 'tags': 'dict'
                 'domain_id': 'str'
@@ -126,6 +128,12 @@ class DataSourceService(BaseService):
         data_source_id = params['data_source_id']
         domain_id = params['domain_id']
         data_source_vo: DataSource = self.data_source_mgr.get_data_source(data_source_id, domain_id)
+
+        if 'secret_filter' in params:
+            if data_source_vo.secret_type == 'USE_SERVICE_ACCOUNT_SECRET':
+                self.validate_secret_filter(params['secret_filter'], params['domain_id'])
+            else:
+                del params['secret_filter']
 
         if 'template' in params:
             # check template
@@ -405,6 +413,28 @@ class DataSourceService(BaseService):
 
         query = params.get('query', {})
         return self.data_source_mgr.stat_data_sources(query)
+
+    def validate_secret_filter(self, secret_filter, domain_id):
+        if 'secrets' in secret_filter:
+            _query = {'filter': [{'k': 'secret_id', 'v': secret_filter['secrets'], 'o': 'in'}]}
+            secret_mgr: SecretManager = self.locator.get_manager(SecretManager)
+            response = secret_mgr.list_secrets(_query, domain_id)
+            if response.get('total_count', 0) != len(secret_filter['secrets']):
+                raise ERROR_INVALID_PARAMETER(key='secret_filter.secrets', reason='Secrets not found')
+
+        if 'service_accounts' in secret_filter:
+            _query = {'filter': [{'k': 'service_account_id', 'v': secret_filter['service_accounts'], 'o': 'in'}]}
+            identity_mgr: IdentityManager = self.locator.get_manager(IdentityManager)
+            response = identity_mgr.list_service_accounts(_query, domain_id)
+            if response.get('total_count', 0) != len(secret_filter['service_accounts']):
+                raise ERROR_INVALID_PARAMETER(key='secret_filter.service_accounts', reason='Service accounts not found')
+
+        if 'schemas' in secret_filter:
+            _query = {'filter': [{'k': 'name', 'v': secret_filter['schemas'], 'o': 'in'}]}
+            repo_mgr: RepositoryManager = self.locator.get_manager(RepositoryManager)
+            response = repo_mgr.list_schemas(_query, domain_id)
+            if response.get('total_count', 0) != len(secret_filter['schemas']):
+                raise ERROR_INVALID_PARAMETER(key='secret_filter.schema', reason='Schema not found')
 
     def _check_plugin(self, plugin_id, domain_id):
         repo_mgr: RepositoryManager = self.locator.get_manager('RepositoryManager')
