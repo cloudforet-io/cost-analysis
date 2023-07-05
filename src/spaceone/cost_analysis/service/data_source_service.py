@@ -139,7 +139,6 @@ class DataSourceService(BaseService):
             # check template
             pass
 
-        _LOGGER.debug(f'[update] params: {params}')
         return self.data_source_mgr.update_data_source_by_vo(params, data_source_vo)
 
     @transaction(append_meta={'authorization.scope': 'DOMAIN'})
