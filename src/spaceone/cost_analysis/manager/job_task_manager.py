@@ -43,7 +43,8 @@ class JobTaskManager(BaseManager):
     def stat_job_tasks(self, query):
         return self.job_task_model.stat(**query)
 
-    def push_job_task(self, params):
+    @staticmethod
+    def push_job_task(params):
         task = {
             'name': 'sync_data_source',
             'version': 'v1',
