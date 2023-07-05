@@ -310,6 +310,23 @@ class JobService(BaseService):
 
         return job_vo
 
+    @staticmethod
+    def _set_secret_filter(secret_filter, provider):
+        _filter = []
+
+        if provider:
+            _filter.append({'k': 'provider', 'v': provider, 'o': 'eq'})
+
+        if secret_filter and secret_filter.get('state') == 'ENABLED':
+            if 'secrets' in secret_filter and secret_filter['secrets']:
+                _filter.append({'k': 'secret_id', 'v': secret_filter['secrets'], 'o': 'in'})
+            if 'service_accounts' in secret_filter and secret_filter['service_accounts']:
+                _filter.append({'k': 'service_account_id', 'v': secret_filter['service_accounts'], 'o': 'in'})
+            if 'schemas' in secret_filter and secret_filter['schemas']:
+                _filter.append({'k': 'schema', 'v': secret_filter['schemas'], 'o': 'in'})
+
+        return _filter
+
     def _get_service_account_id_and_project_id(self, secret_id, domain_id):
         service_account_id = None
         project_id = None
