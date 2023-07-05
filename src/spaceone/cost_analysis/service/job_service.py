@@ -185,6 +185,7 @@ class JobService(BaseService):
                 tag_keys = data_source_vo.cost_tag_keys
                 additional_info_keys = data_source_vo.cost_additional_info_keys
                 secret_type = data_source_vo.secret_type
+                options.update({'secret_type': secret_type})
 
                 if secret_type == 'USE_SERVICE_ACCOUNT_SECRET':
                     service_account_id, project_id = self._get_service_account_id_and_project_id(params.get('secret_id'),
@@ -264,6 +265,7 @@ class JobService(BaseService):
         schema = data_source_vo.plugin_info.schema
 
         secret_type = data_source_vo.secret_type
+        options.update({'secret_type': secret_type})
         secret_ids = self.list_secret_ids_from_secret_type(data_source_vo, secret_type, domain_id)
 
         self.ds_plugin_mgr.initialize(endpoint)
