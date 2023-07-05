@@ -446,53 +446,14 @@ class DataSourceService(BaseService):
         if secret_type == 'MANUAL' and plugin_info.get('secret_data') is None:
             raise ERROR_REQUIRED_PARAMETER(key='plugin_info.secret_data')
 
-    @staticmethod
-    def get_start_last_synchronized_at(params):
-        start = params.get('start')
-        last_synchronized_at = utils.datetime_to_iso8601(params.get('last_synchronized_at'))
-        return start, last_synchronized_at
-
-    @staticmethod
-    def _check_duplicate_job(data_source_id, domain_id, job_mgr: JobManager):
-        job_vos = job_mgr.filter_jobs(data_source_id=data_source_id, domain_id=domain_id, status='IN_PROGRESS')
-
-        duplicate_job_time = datetime.utcnow() - timedelta(minutes=1)
-
-        for job_vo in job_vos:
-            if job_vo.created_at >= duplicate_job_time:
-                raise ERROR_DUPLICATE_JOB(data_source_id=data_source_id)
-            else:
-                job_mgr.change_canceled_status(job_vo)
-
-    @staticmethod
-    def _set_secret_filter(secret_filter, provider):
-        _filter = []
-
-        if provider:
-            _filter.append({'k': 'provider', 'v': provider, 'o': 'eq'})
-
-        if secret_filter and secret_filter.get('state') == 'ENABLED':
-            if 'secrets' in secret_filter and secret_filter['secrets']:
-                _filter.append({'k': 'secret_id', 'v': secret_filter['secrets'], 'o': 'in'})
-            if 'service_accounts' in secret_filter and secret_filter['service_accounts']:
-                _filter.append({'k': 'service_account_id', 'v': secret_filter['service_accounts'], 'o': 'in'})
-            if 'schemas' in secret_filter and secret_filter['schemas']:
-                _filter.append({'k': 'schema', 'v': secret_filter['schemas'], 'o': 'in'})
-
-        return _filter
-
-    @staticmethod
-    def _get_start_time(start, last_synchronized_at=None):
-
-        if start:
-            start_time: datetime = start
-        elif last_synchronized_at:
-            start_time: datetime = last_synchronized_at - timedelta(days=7)
-            start_time = start_time.replace(day=1)
-        else:
-            start_time: datetime = datetime.utcnow() - timedelta(days=365)
-            start_time = start_time.replace(day=1)
-
-        start_time = start_time.replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
-
-        return start_time
+    # @staticmethod
+    # def _check_duplicate_job(data_source_id, domain_id, job_mgr: JobManager):
+    #     job_vos = job_mgr.filter_jobs(data_source_id=data_source_id, domain_id=domain_id, status='IN_PROGRESS')
+    #
+    #     duplicate_job_time = datetime.utcnow() - timedelta(minutes=1)
+    #
+    #     for job_vo in job_vos:
+    #         if job_vo.created_at >= duplicate_job_time:
+    #             raise ERROR_DUPLICATE_JOB(data_source_id=data_source_id)
+    #         else:
+    #             job_mgr.change_canceled_status(job_vo)
