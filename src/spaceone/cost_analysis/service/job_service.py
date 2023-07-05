@@ -240,7 +240,7 @@ class JobService(BaseService):
 
         elif secret_type == 'USE_SERVICE_ACCOUNT_SECRET':
             provider = data_source_vo.provider
-            secret_filter = data_source_vo.secret_filter
+            secret_filter = data_source_vo.secret_filter.to_dict()
             secret_ids = self.list_secret_ids_from_secret_filter(secret_filter, provider, domain_id)
 
         return secret_ids
