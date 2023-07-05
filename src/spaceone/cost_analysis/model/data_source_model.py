@@ -22,6 +22,9 @@ class SecretFilter(EmbeddedDocument):
     service_accounts = ListField(StringField(max_length=40), default=None, null=True)
     schemas = ListField(StringField(max_length=40), default=None, null=True)
 
+    def to_dict(self):
+        return dict(self.to_mongo())
+
 
 class DataSource(MongoModel):
     data_source_id = StringField(max_length=40, generate_id='ds', unique=True)
