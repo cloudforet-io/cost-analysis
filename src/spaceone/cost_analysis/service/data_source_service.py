@@ -406,27 +406,6 @@ class DataSourceService(BaseService):
         query = params.get('query', {})
         return self.data_source_mgr.stat_data_sources(query)
 
-    def list_secret_ids_from_secret_type(self, data_source_vo, secret_type, domain_id):
-        secret_ids = []
-
-        if secret_type == 'MANUAL':
-            secret_ids = [data_source_vo.plugin_info.secret_id]
-
-        elif secret_type == 'USE_SERVICE_ACCOUNT_SECRET':
-            provider = data_source_vo.provider
-            secret_filter = data_source_vo.secret_filter
-            secret_ids = self.list_secret_ids_from_secret_filter(secret_filter, provider, domain_id)
-
-        return secret_ids
-
-    def list_secret_ids_from_secret_filter(self, secret_filter, provider, domain_id):
-        secret_manager: SecretManager = self.locator.get_manager(SecretManager)
-
-        _filter = self._set_secret_filter(secret_filter, provider)
-        query = {'filter': _filter} if _filter else {}
-        response = secret_manager.list_secrets(query, domain_id)
-        return [secret_info.get('secret_id') for secret_info in response.get('results', [])]
-
     def _check_plugin(self, plugin_id, domain_id):
         repo_mgr: RepositoryManager = self.locator.get_manager('RepositoryManager')
         repo_mgr.get_plugin(plugin_id, domain_id)
