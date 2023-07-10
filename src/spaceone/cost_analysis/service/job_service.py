@@ -635,52 +635,6 @@ class JobService(BaseService):
 
         _LOGGER.debug(f'[_delete_aggregated_cost_data] delete monthly costs after {changed_start_month}: {job_id}')
 
-    # def _sync_data_source(self, data_source_vo: DataSource):
-    #     data_source_id = data_source_vo.data_source_id
-    #     domain_id = data_source_vo.domain_id
-    #     endpoint = self.ds_plugin_mgr.get_data_source_plugin_endpoint_by_vo(data_source_vo)
-    #     secret_id = data_source_vo.plugin_info.secret_id
-    #     options = data_source_vo.plugin_info.options
-    #     schema = data_source_vo.plugin_info.schema
-    #     secret_data = self._get_secret_data(secret_id, domain_id)
-    #
-    #     _LOGGER.debug(f'[create_jobs_by_data_source] sync data source: {data_source_id}')
-    #
-    #     params = {'last_synchronized_at': data_source_vo.last_synchronized_at}
-    #
-    #     self.ds_plugin_mgr.initialize(endpoint)
-    #     start, last_synchronized_at = self.get_start_last_synchronized_at(params)
-    #     tasks, changed = self.ds_plugin_mgr.get_tasks(options, secret_data, schema, start, last_synchronized_at, domain_id)
-    #
-    #     _LOGGER.debug(f'[sync] get_tasks: {tasks}')
-    #     _LOGGER.debug(f'[sync] changed: {changed}')
-    #
-    #     # Add Job Options
-    #     job_vo = self.job_mgr.create_job(data_source_id, domain_id, {}, len(tasks), changed)
-    #
-    #     if self._check_duplicate_job(data_source_id, domain_id, job_vo):
-    #         self.job_mgr.change_error_status(job_vo, ERROR_DUPLICATE_JOB(data_source_id=data_source_id))
-    #     else:
-    #         if len(tasks) > 0:
-    #             for task in tasks:
-    #                 job_task_vo = None
-    #                 task_options = task['task_options']
-    #                 try:
-    #                     job_task_vo = self.job_task_mgr.create_job_task(job_vo.job_id, data_source_id, domain_id,
-    #                                                                     task_options)
-    #                     self.job_task_mgr.push_job_task({
-    #                         'task_options': task_options,
-    #                         'job_task_id': job_task_vo.job_task_id,
-    #                         'domain_id': domain_id
-    #                     })
-    #                 except Exception as e:
-    #                     if job_task_vo:
-    #                         self.job_task_mgr.change_error_status(job_task_vo, e)
-    #         else:
-    #             job_vo = self.job_mgr.change_success_status(job_vo)
-    #             self.data_source_mgr.update_data_source_by_vo({'last_synchronized_at': job_vo.created_at},
-    #                                                           data_source_vo)
-
     def _get_all_data_sources(self):
         return self.data_source_mgr.filter_data_sources(state='ENABLED', data_source_type='EXTERNAL')
 
