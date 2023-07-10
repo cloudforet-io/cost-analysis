@@ -268,7 +268,11 @@ class JobService(BaseService):
         options = data_source_vo.plugin_info.options
         schema = data_source_vo.plugin_info.schema
 
-        secret_type = data_source_vo.secret_type
+        if data_source_vo.secret_type:
+            secret_type = data_source_vo.secret_type
+        else:
+            secret_type = 'MANUAL'
+
         options.update({'secret_type': secret_type})
         secret_ids = self.list_secret_ids_from_secret_type(data_source_vo, secret_type, domain_id)
 
