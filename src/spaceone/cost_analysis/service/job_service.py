@@ -277,7 +277,11 @@ class JobService(BaseService):
         secret_ids = self.list_secret_ids_from_secret_type(data_source_vo, secret_type, domain_id)
 
         self.ds_plugin_mgr.initialize(endpoint)
-        params = {'last_synchronized_at': data_source_vo.last_synchronized_at}
+        params = {
+            'last_synchronized_at': data_source_vo.last_synchronized_at,
+            'start': job_options.get('start')
+        }
+
         start, last_synchronized_at = self.get_start_last_synchronized_at(params)
 
         for secret_id in secret_ids:
