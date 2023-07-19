@@ -103,7 +103,7 @@ class JobTaskManager(BaseManager):
         job_vo = self.job_mgr.get_job(job_task_vo.job_id, job_task_vo.domain_id)
         self.job_mgr.decrease_remained_tasks(job_vo)
 
-    def change_error_status(self, job_task_vo: JobTask, e):
+    def change_error_status(self, job_task_vo: JobTask, e, secret_type):
         if not isinstance(e, ERROR_BASE):
             e = ERROR_UNKNOWN(message=str(e))
 
@@ -117,5 +117,7 @@ class JobTaskManager(BaseManager):
         })
 
         job_vo = self.job_mgr.get_job(job_task_vo.job_id, job_task_vo.domain_id)
-        self.job_mgr.change_error_status(job_vo, ERROR_JOB_TASK())
         self.job_mgr.decrease_remained_tasks(job_vo)
+
+        if secret_type != 'USE_SERVICE_ACCOUNT_SECRET':
+            self.job_mgr.change_error_status(job_vo, ERROR_JOB_TASK())

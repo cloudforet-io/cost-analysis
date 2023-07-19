@@ -169,6 +169,10 @@ class JobService(BaseService):
 
         job_task_vo: JobTask = self.job_task_mgr.get_job_task(job_task_id, domain_id)
 
+        data_source_vo: DataSource = self.data_source_mgr.get_data_source(job_task_vo.data_source_id, domain_id)
+        plugin_info = data_source_vo.plugin_info.to_dict()
+        secret_type = data_source_vo.secret_type
+
         job_id = job_task_vo.job_id
 
         if self._is_job_canceled(job_id, domain_id):
@@ -177,9 +181,6 @@ class JobService(BaseService):
             job_task_vo = self.job_task_mgr.change_in_progress_status(job_task_vo)
 
             try:
-                data_source_vo: DataSource = self.data_source_mgr.get_data_source(job_task_vo.data_source_id, domain_id)
-                plugin_info = data_source_vo.plugin_info.to_dict()
-
                 options = plugin_info.get('options', {})
                 schema = plugin_info.get('schema')
                 tag_keys = data_source_vo.cost_tag_keys
@@ -229,7 +230,7 @@ class JobService(BaseService):
                     self.job_task_mgr.change_success_status(job_task_vo, count)
 
             except Exception as e:
-                self.job_task_mgr.change_error_status(job_task_vo, e)
+                self.job_task_mgr.change_error_status(job_task_vo, e, secret_type)
 
         self._close_job(job_id, domain_id)
 
@@ -316,7 +317,7 @@ class JobService(BaseService):
                         })
                     except Exception as e:
                         if job_task_vo:
-                            self.job_task_mgr.change_error_status(job_task_vo, e)
+                            self.job_task_mgr.change_error_status(job_task_vo, e, secret_type)
             else:
                 job_vo = self.job_mgr.change_success_status(job_vo)
                 self.data_source_mgr.update_data_source_by_vo({'last_synchronized_at': job_vo.created_at},
