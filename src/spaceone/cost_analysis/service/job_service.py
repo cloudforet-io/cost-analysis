@@ -286,11 +286,17 @@ class JobService(BaseService):
         start, last_synchronized_at = self.get_start_last_synchronized_at(params)
 
         for secret_id in secret_ids:
-            secret_data = self._get_secret_data(secret_id, domain_id)
-            single_tasks, single_changed = self.ds_plugin_mgr.get_tasks(options, secret_id, secret_data, schema, start,
-                                                                        last_synchronized_at, domain_id)
-            tasks.extend(single_tasks)
-            changed.extend(single_changed)
+            try:
+                secret_data = self._get_secret_data(secret_id, domain_id)
+                single_tasks, single_changed = self.ds_plugin_mgr.get_tasks(options, secret_id, secret_data, schema, start,
+                                                                            last_synchronized_at, domain_id)
+                tasks.extend(single_tasks)
+                changed.extend(single_changed)
+            except Exception as e:
+                _LOGGER.error(f'[create_cost_job] get_tasks error: {e}', exc_info=True)
+
+                if secret_type == 'MANUAL':
+                    raise ERROR_GET_JOB_TASKS(secret_id=secret_id, data_source_id=data_source_id, reason=e)
 
         _LOGGER.debug(f'[sync] get_tasks: {tasks}')
         _LOGGER.debug(f'[sync] changed: {changed}')
