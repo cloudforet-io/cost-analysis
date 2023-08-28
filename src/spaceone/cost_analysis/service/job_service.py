@@ -566,8 +566,8 @@ class JobService(BaseService):
 
         _LOGGER.debug(f'[_is_large_data] cost count ({billed_month}): {total_count} => {total_count >= 50000}')
 
-        # Allow disk use if cost count exceeds 30k
-        if total_count >= 30000:
+        # Allow disk use if cost count exceeds 20k
+        if total_count >= 20000:
             return True
         else:
             return False
