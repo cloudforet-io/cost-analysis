@@ -16,8 +16,8 @@ def ChangedInfo(changed_vos: List[Changed]):
 
     for vo in changed_vos:
         info = {
-            'start': utils.datetime_to_iso8601(vo.start),
-            'end': utils.datetime_to_iso8601(vo.end),
+            'start': vo.start,
+            'end': vo.end,
             'filter': change_struct_type(vo.filter)
         }
 
