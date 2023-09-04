@@ -1,6 +1,5 @@
 import logging
 
-from spaceone.core import utils
 from spaceone.core.manager import BaseManager
 from spaceone.cost_analysis.manager.plugin_manager import PluginManager
 from spaceone.cost_analysis.manager.data_source_rule_manager import DataSourceRuleManager
@@ -39,7 +38,6 @@ class DataSourcePluginManager(BaseManager):
         for task in tasks:
             task.update({
                 'secret_id': secret_id,
-                'secret_data': secret_data,
                 'schema': schema
             })
 
