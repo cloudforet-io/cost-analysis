@@ -3,12 +3,13 @@ from datetime import datetime
 from dateutil.rrule import rrule, MONTHLY, YEARLY
 
 from spaceone.core.service import *
-from spaceone.core import utils
 from spaceone.cost_analysis.error import *
+from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.budget_manager import BudgetManager
 from spaceone.cost_analysis.manager.budget_usage_manager import BudgetUsageManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 from spaceone.cost_analysis.model.budget_model import Budget
+from spaceone.cost_analysis.model.data_source_model import DataSource
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -24,22 +25,22 @@ class BudgetService(BaseService):
         self.budget_mgr: BudgetManager = self.locator.get_manager('BudgetManager')
 
     @transaction(append_meta={'authorization.scope': 'PROJECT'})
-    @check_required(['time_unit', 'start', 'end', 'domain_id'])
-    # @change_date_value(['start', 'end'])
+    @check_required(['data_source_id', 'time_unit', 'start', 'end', 'domain_id'])
     def create(self, params):
         """Register budget
 
         Args:
             params (dict): {
+                'data_source_id': 'str',
                 'name': 'str',
                 'project_id': 'str',
                 'project_group_id': 'str',
                 'limit': 'float',
                 'planned_limits': 'list',
-                'cost_types': 'dict',
                 'time_unit': 'str',
                 'start': 'str',
                 'end': 'str',
+                'provider_filter': 'dict',
                 'notifications': 'list',
                 'tags': 'dict',
                 'domain_id': 'str'
@@ -50,6 +51,7 @@ class BudgetService(BaseService):
         """
 
         domain_id = params['domain_id']
+        data_source_id = params['data_source_id']
         project_id = params.get('project_id')
         project_group_id = params.get('project_group_id')
         limit = params.get('limit')
@@ -57,10 +59,24 @@ class BudgetService(BaseService):
         time_unit = params['time_unit']
         start = params['start']
         end = params['end']
+        provider_filter = params.get('provider_filter', {})
+        provider_filter_state = provider_filter.get('state', 'DISABLED')
         notifications = params.get('notifications', [])
 
         self._check_target(project_id, project_group_id, domain_id)
         self._check_time_period(start, end)
+
+        # Check Provider Filter
+        if provider_filter_state == 'ENABLED':
+            if len(provider_filter.get('providers', [])) == 0:
+                raise ERROR_PROVIDER_FILTER_IS_EMPTY()
+        else:
+            params['provider_filter']['providers'] = []
+
+        data_source_mgr: DataSourceManager = self.locator.get_manager('DataSourceManager')
+        data_source_vo: DataSource = data_source_mgr.get_data_source(data_source_id, domain_id)
+        data_source_metadata = data_source_vo.plugin_info.get('metadata', {})
+        params['currency'] = data_source_metadata['currency']
 
         if time_unit == 'TOTAL':
             if limit is None:
@@ -100,7 +116,6 @@ class BudgetService(BaseService):
                 'name': 'str',
                 'limit': 'float',
                 'planned_limits': 'list',
-                'end': 'date',
                 'tags': 'dict'
                 'domain_id': 'str'
             }
@@ -108,21 +123,14 @@ class BudgetService(BaseService):
         Returns:
             budget_vo (object)
         """
+
         budget_id = params['budget_id']
         domain_id = params['domain_id']
-        end = params.get('end')
         planned_limits = params.get('planned_limits')
 
         budget_usage_mgr: BudgetUsageManager = self.locator.get_manager('BudgetUsageManager')
 
         budget_vo: Budget = self.budget_mgr.get_budget(budget_id, domain_id)
-
-        if end:
-            if budget_vo.end > end:
-                raise
-
-            if planned_limits is None:
-                raise
 
         # Check limit and Planned Limits
 
@@ -202,7 +210,7 @@ class BudgetService(BaseService):
 
     @transaction(append_meta={'authorization.scope': 'PROJECT'})
     @check_required(['domain_id'])
-    @append_query_filter(['budget_id', 'name', 'project_id', 'project_group_id', 'time_unit', 'domain_id'])
+    @append_query_filter(['budget_id', 'name', 'project_id', 'project_group_id', 'data_source_id', 'domain_id'])
     @append_keyword_filter(['budget_id', 'name'])
     def list(self, params):
         """ List budgets
@@ -213,7 +221,7 @@ class BudgetService(BaseService):
                 'name': 'str',
                 'project_id': 'str',
                 'project_group_id': 'str',
-                'time_unit': 'str',
+                'data_source_id': 'str',
                 'domain_id': 'str',
                 'query': 'dict (spaceone.api.core.v1.Query)',
                 'user_projects': 'list', // from meta,
@@ -271,11 +279,7 @@ class BudgetService(BaseService):
 
     def _check_planned_limits(self, start, end, time_unit, planned_limits):
         planned_limits_dict = self._convert_planned_limits_data_type(planned_limits)
-
-        if time_unit == 'MONTHLY':
-            date_format = '%Y-%m'
-        else:
-            date_format = '%Y'
+        date_format = '%Y-%m'
 
         try:
             start_dt = datetime.strptime(start, date_format)
