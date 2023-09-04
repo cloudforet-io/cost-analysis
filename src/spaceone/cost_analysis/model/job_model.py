@@ -9,8 +9,8 @@ class Error(EmbeddedDocument):
 
 
 class Changed(EmbeddedDocument):
-    start = DateTimeField(required=True)
-    end = DateTimeField(default=None, null=True)
+    start = StringField(max_length=7, required=True)
+    end = StringField(max_length=7, default=None, null=True)
     filter = DictField()
 
 
