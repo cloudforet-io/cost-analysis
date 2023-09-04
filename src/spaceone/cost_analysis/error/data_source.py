@@ -15,3 +15,8 @@ class ERROR_NOT_ALLOW_SYNC_COMMAND(ERROR_INVALID_ARGUMENT):
 
 class ERROR_DATA_SOURCE_STATE(ERROR_INVALID_ARGUMENT):
     _message = 'Data source is disabled (data_source_id = {data_source_id})'
+
+
+class ERROR_NOT_ALLOW_SECRET_FILTER(ERROR_INVALID_ARGUMENT):
+    _message = 'USE_SERVICE_ACCOUNT_SECRET type dose not allow secret filter. (data_source_id = {data_source_id})'
+
