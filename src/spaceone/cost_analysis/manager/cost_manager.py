@@ -163,8 +163,8 @@ class CostManager(BaseManager):
         end_str = query.get('end')
         granularity = query.get('granularity')
 
-        start = self._parse_start_time(start_str)
-        end = self._parse_end_time(end_str)
+        start = self._parse_start_time(start_str, granularity)
+        end = self._parse_end_time(end_str, granularity)
         now = datetime.utcnow().date()
 
         if start >= end:
@@ -189,23 +189,33 @@ class CostManager(BaseManager):
                 raise ERROR_INVALID_DATE_RANGE(start=start_str, end=end_str,
                                                reason='For MONTHLY, you cannot request data older than 3 years.')
         elif granularity == 'YEARLY':
-            if start + relativedelta(months=36) < now:
+            if start + relativedelta(years=3) < now:
                 raise ERROR_INVALID_DATE_RANGE(start=start_str, end=end_str,
                                                reason='For YEARLY, you cannot request data older than 3 years.')
 
-    def _parse_start_time(self, date_str):
-        return self._convert_date_from_string(date_str.strip(), 'start')
+    def _parse_start_time(self, date_str, granularity):
+        return self._convert_date_from_string(date_str.strip(), 'start', granularity)
 
-    def _parse_end_time(self, date_str):
-        end_date = self._convert_date_from_string(date_str.strip(), 'end')
-        return end_date + relativedelta(months=1)
+    def _parse_end_time(self, date_str, granularity):
+        end = self._convert_date_from_string(date_str.strip(), 'end', granularity)
+
+        if granularity == 'YEARLY':
+            return end + relativedelta(years=1)
+        else:
+            return end + relativedelta(months=1)
 
     @staticmethod
-    def _convert_date_from_string(date_str, key):
-        try:
-            return datetime.strptime(date_str, '%Y-%m').date()
-        except Exception as e:
-            raise ERROR_INVALID_PARAMETER_TYPE(key=key, type='YYYY-MM')
+    def _convert_date_from_string(date_str, key, granularity):
+        if granularity == 'YEARLY':
+            try:
+                return datetime.strptime(date_str, '%Y').date()
+            except Exception as e:
+                raise ERROR_INVALID_PARAMETER_TYPE(key=key, type='YYYY')
+        else:
+            try:
+                return datetime.strptime(date_str, '%Y-%m').date()
+            except Exception as e:
+                raise ERROR_INVALID_PARAMETER_TYPE(key=key, type='YYYY-MM')
 
     @staticmethod
     def _get_billed_at_from_billed_date(billed_date):
