@@ -1,6 +1,6 @@
+import copy
 import datetime
 import logging
-from dateutil import rrule
 from datetime import timedelta, datetime
 
 from spaceone.core.service import *
@@ -21,9 +21,9 @@ from spaceone.cost_analysis.manager.budget_usage_manager import BudgetUsageManag
 _LOGGER = logging.getLogger(__name__)
 
 
-@authentication_handler
-@authorization_handler
-@mutation_handler
+@authentication_handler(exclude=['create_jobs_by_data_source', 'get_cost_data'])
+@authorization_handler(exclude=['create_jobs_by_data_source', 'get_cost_data'])
+@mutation_handler(exclude=['create_jobs_by_data_source', 'get_cost_data'])
 @event_handler
 class JobService(BaseService):
 
@@ -153,7 +153,6 @@ class JobService(BaseService):
                 'task_options': 'dict',
                 'job_task_id': 'str',
                 'secret_id': 'str',
-                'secret_data': 'dict',
                 'domain_id': 'str'
             }
 
@@ -163,9 +162,9 @@ class JobService(BaseService):
 
         task_options = params['task_options']
         job_task_id = params['job_task_id']
-        secret_data = params.get('secret_data')
+        secret_id = params['secret_id']
         domain_id = params['domain_id']
-        cost_data_options= {}
+        cost_data_options = {}
 
         job_task_vo: JobTask = self.job_task_mgr.get_job_task(job_task_id, domain_id)
 
@@ -173,6 +172,7 @@ class JobService(BaseService):
         plugin_info = data_source_vo.plugin_info.to_dict()
         secret_type = data_source_vo.secret_type
 
+        data_source_id = data_source_vo.data_source_id
         job_id = job_task_vo.job_id
 
         if self._is_job_canceled(job_id, domain_id):
@@ -187,6 +187,8 @@ class JobService(BaseService):
                 additional_info_keys = data_source_vo.cost_additional_info_keys
                 secret_type = data_source_vo.secret_type
                 options.update({'secret_type': secret_type})
+
+                secret_data = self._get_secret_data(secret_id, domain_id)
 
                 if secret_type == 'USE_SERVICE_ACCOUNT_SECRET':
                     service_account_id, project_id = self._get_service_account_id_and_project_id(params.get('secret_id'),
@@ -232,32 +234,7 @@ class JobService(BaseService):
             except Exception as e:
                 self.job_task_mgr.change_error_status(job_task_vo, e, secret_type)
 
-        self._close_job(job_id, domain_id)
-
-    def list_secret_ids_from_secret_type(self, data_source_vo, secret_type, domain_id):
-        secret_ids = []
-
-        if secret_type == 'MANUAL':
-            secret_ids = [data_source_vo.plugin_info.secret_id]
-
-        elif secret_type == 'USE_SERVICE_ACCOUNT_SECRET':
-            secret_filter = {}
-            provider = data_source_vo.provider
-
-            if data_source_vo.secret_filter:
-                secret_filter = data_source_vo.secret_filter.to_dict()
-
-            secret_ids = self.list_secret_ids_from_secret_filter(secret_filter, provider, domain_id)
-
-        return secret_ids
-
-    def list_secret_ids_from_secret_filter(self, secret_filter, provider, domain_id):
-        secret_manager: SecretManager = self.locator.get_manager(SecretManager)
-
-        _filter = self._set_secret_filter(secret_filter, provider)
-        query = {'filter': _filter} if _filter else {}
-        response = secret_manager.list_secrets(query, domain_id)
-        return [secret_info.get('secret_id') for secret_info in response.get('results', [])]
+        self._close_job(job_id, domain_id, data_source_id)
 
     def create_cost_job(self, data_source_vo: DataSource, job_options):
         tasks = []
@@ -275,7 +252,7 @@ class JobService(BaseService):
             secret_type = 'MANUAL'
 
         options.update({'secret_type': secret_type})
-        secret_ids = self.list_secret_ids_from_secret_type(data_source_vo, secret_type, domain_id)
+        secret_ids = self._list_secret_ids_from_secret_type(data_source_vo, secret_type, domain_id)
 
         self.ds_plugin_mgr.initialize(endpoint)
         params = {
@@ -283,13 +260,13 @@ class JobService(BaseService):
             'start': job_options.get('start')
         }
 
-        start, last_synchronized_at = self.get_start_last_synchronized_at(params)
+        start, last_synchronized_at = self._get_start_last_synchronized_at(params)
 
         for secret_id in secret_ids:
             try:
                 secret_data = self._get_secret_data(secret_id, domain_id)
-                single_tasks, single_changed = self.ds_plugin_mgr.get_tasks(options, secret_id, secret_data, schema, start,
-                                                                            last_synchronized_at, domain_id)
+                single_tasks, single_changed = self.ds_plugin_mgr.get_tasks(options, secret_id, secret_data, schema,
+                                                                            start, last_synchronized_at, domain_id)
                 tasks.extend(single_tasks)
                 changed.extend(single_changed)
             except Exception as e:
@@ -298,7 +275,8 @@ class JobService(BaseService):
                 if secret_type == 'MANUAL':
                     raise ERROR_GET_JOB_TASKS(secret_id=secret_id, data_source_id=data_source_id, reason=e)
 
-        _LOGGER.debug(f'[sync] get_tasks: {tasks}')
+        for task in tasks:
+            _LOGGER.debug(f'[sync] task options: {task["task_options"]}')
         _LOGGER.debug(f'[sync] changed: {changed}')
 
         # Add Job Options
@@ -330,6 +308,31 @@ class JobService(BaseService):
                                                               data_source_vo)
 
         return job_vo
+
+    def _list_secret_ids_from_secret_type(self, data_source_vo, secret_type, domain_id):
+        secret_ids = []
+
+        if secret_type == 'MANUAL':
+            secret_ids = [data_source_vo.plugin_info.secret_id]
+
+        elif secret_type == 'USE_SERVICE_ACCOUNT_SECRET':
+            secret_filter = {}
+            provider = data_source_vo.provider
+
+            if data_source_vo.secret_filter:
+                secret_filter = data_source_vo.secret_filter.to_dict()
+
+            secret_ids = self._list_secret_ids_from_secret_filter(secret_filter, provider, domain_id)
+
+        return secret_ids
+
+    def _list_secret_ids_from_secret_filter(self, secret_filter, provider, domain_id):
+        secret_manager: SecretManager = self.locator.get_manager(SecretManager)
+
+        _filter = self._set_secret_filter(secret_filter, provider)
+        query = {'filter': _filter} if _filter else {}
+        response = secret_manager.list_secrets(query, domain_id)
+        return [secret_info.get('secret_id') for secret_info in response.get('results', [])]
 
     @staticmethod
     def _set_secret_filter(secret_filter, provider):
@@ -394,21 +397,17 @@ class JobService(BaseService):
 
     @staticmethod
     def _check_cost_data(cost_data):
-        if 'currency' not in cost_data:
+        if 'billed_date' not in cost_data:
             _LOGGER.error(f'[_check_cost_data] cost_data: {cost_data}')
-            raise ERROR_REQUIRED_PARAMETER(key='plugin_cost_data.currency')
-
-        if 'billed_at' not in cost_data:
-            _LOGGER.error(f'[_check_cost_data] cost_data: {cost_data}')
-            raise ERROR_REQUIRED_PARAMETER(key='plugin_cost_data.billed_at')
+            raise ERROR_REQUIRED_PARAMETER(key='plugin_cost_data.billed_date')
 
     def _create_cost_data(self, cost_data, job_task_vo, cost_options):
-        cost_data['original_currency'] = cost_data.get('currency', 'USD')
-        cost_data['original_cost'] = cost_data.get('cost', 0)
+        cost_data['cost'] = cost_data.get('cost', 0)
         cost_data['job_id'] = job_task_vo.job_id
+        cost_data['job_task_id'] = job_task_vo.job_task_id
         cost_data['data_source_id'] = job_task_vo.data_source_id
         cost_data['domain_id'] = job_task_vo.domain_id
-        cost_data['billed_at'] = utils.iso8601_to_datetime(cost_data['billed_at'])
+        cost_data['billed_date'] = cost_data['billed_date']
 
         if 'service_account_id' in cost_options:
             cost_data['service_account_id'] = cost_options['service_account_id']
@@ -426,31 +425,31 @@ class JobService(BaseService):
         else:
             return False
 
-    def _close_job(self, job_id, domain_id):
+    def _close_job(self, job_id, domain_id, data_source_id):
         job_vo: Job = self.job_mgr.get_job(job_id, domain_id)
         no_preload_cache = job_vo.options.get('no_preload_cache', False)
 
         if job_vo.remained_tasks == 0:
             if job_vo.status == 'IN_PROGRESS':
                 try:
-                    changed_start = None
+                    self._aggregate_cost_data(job_vo)
+
                     for changed_vo in job_vo.changed:
                         self._delete_changed_cost_data(job_vo, changed_vo.start, changed_vo.end, changed_vo.filter)
-                        if changed_start is None or changed_start > changed_vo.start:
-                            changed_start = changed_vo.start
 
-                    self._aggregate_cost_data(job_vo, changed_start)
-                    self.budget_usage_mgr.update_budget_usage(domain_id)
-                    self.cost_mgr.remove_stat_cache(domain_id)
-
-                    if not no_preload_cache:
-                        self.job_mgr.preload_cost_stat_queries(domain_id)
-
-                    self._update_last_sync_time(job_vo)
-                    self.job_mgr.change_success_status(job_vo)
                 except Exception as e:
+                    self._rollback_cost_data(job_vo)
                     self.job_mgr.change_error_status(job_vo, e)
                     raise e
+
+                self.budget_usage_mgr.update_budget_usage(domain_id, data_source_id)
+                self.cost_mgr.remove_stat_cache(domain_id, data_source_id)
+
+                if not no_preload_cache:
+                    self.job_mgr.preload_cost_stat_queries(domain_id, data_source_id)
+
+                self._update_last_sync_time(job_vo)
+                self.job_mgr.change_success_status(job_vo)
 
             elif job_vo.status == 'ERROR':
                 self._rollback_cost_data(job_vo)
@@ -472,15 +471,21 @@ class JobService(BaseService):
         _LOGGER.debug(f'[_close_job] delete cost data created by job: {job_vo.job_id} (count = {cost_vos.count()})')
         cost_vos.delete()
 
+        monthly_cost_vos = self.cost_mgr.filter_monthly_costs(data_source_id=job_vo.data_source_id,
+                                                              domain_id=job_vo.domain_id, job_id=job_vo.job_id)
+
+        _LOGGER.debug(f'[_close_job] delete monthly cost data created by job: {job_vo.job_id} (count = {cost_vos.count()})')
+        monthly_cost_vos.delete()
+
     def _update_last_sync_time(self, job_vo: Job):
         self.data_source_mgr: DataSourceManager = self.locator.get_manager('DataSourceManager')
         data_source_vo = self.data_source_mgr.get_data_source(job_vo.data_source_id, job_vo.domain_id)
         self.data_source_mgr.update_data_source_by_vo({'last_synchronized_at': job_vo.created_at}, data_source_vo)
 
-    def _delete_changed_cost_data(self, job_vo: Job, start, end, _filter):
+    def _delete_changed_cost_data(self, job_vo: Job, start, end, change_filter):
         query = {
             'filter': [
-                {'k': 'billed_at', 'v': start, 'o': 'gte'},
+                {'k': 'billed_month', 'v': start, 'o': 'gte'},
                 {'k': 'data_source_id', 'v': job_vo.data_source_id, 'o': 'eq'},
                 {'k': 'domain_id', 'v': job_vo.domain_id, 'o': 'eq'},
                 {'k': 'job_id', 'v': job_vo.job_id, 'o': 'not'},
@@ -488,163 +493,100 @@ class JobService(BaseService):
         }
 
         if end:
-            query['filter'].append({'k': 'billed_at', 'v': end, 'o': 'lt'})
+            query['filter'].append({'k': 'billed_month', 'v': end, 'o': 'lte'})
 
-        for key, value in _filter.items():
+        for key, value in change_filter.items():
             query['filter'].append({'k': key, 'v': value, 'o': 'eq'})
 
         _LOGGER.debug(f'[_delete_changed_cost_data] query: {query}')
-        cost_vos, total_count = self.cost_mgr.list_costs(query)
+
+        cost_vos, total_count = self.cost_mgr.list_costs(copy.deepcopy(query))
         cost_vos.delete()
         _LOGGER.debug(f'[_delete_changed_cost_data] delete costs (count = {total_count})')
 
-    def _aggregate_cost_data(self, job_vo: Job, changed_start):
+        monthly_cost_vos, total_count = self.cost_mgr.list_monthly_costs(copy.deepcopy(query))
+        monthly_cost_vos.delete()
+        _LOGGER.debug(f'[_delete_changed_cost_data] delete monthly costs (count = {total_count})')
+
+    def _aggregate_cost_data(self, job_vo: Job):
         data_source_id = job_vo.data_source_id
         domain_id = job_vo.domain_id
         job_id = job_vo.job_id
-        changed_start = changed_start.replace(day=1)
+        job_task_ids = self._get_job_task_ids(job_id, domain_id)
 
-        for dt in rrule.rrule(rrule.MONTHLY, dtstart=changed_start, until=datetime.utcnow()):
-            billed_month = dt.strftime('%Y-%m')
-            accounts = self._list_accounts_from_cost_data(data_source_id, domain_id, billed_month)
+        for job_task_id in job_task_ids:
+            for billed_month in self._distinct_billed_month(data_source_id, domain_id, job_id, job_task_id):
+                self._aggregate_monthly_cost_data(data_source_id, domain_id, job_id, job_task_id, billed_month)
 
-            for account in accounts:
-                is_large = self._is_large_data(data_source_id, domain_id, billed_month, account)
-                self._aggregate_monthly_cost_data(data_source_id, domain_id, job_id, billed_month, account, is_large)
-
-        self._delete_aggregated_cost_data(data_source_id, domain_id, job_id, changed_start)
-
-    def _list_accounts_from_cost_data(self, data_source_id, domain_id, billed_month):
+    def _distinct_billed_month(self, data_source_id, domain_id, job_id, job_task_id):
         query = {
-            'distinct': 'account',
+            'distinct': 'billed_month',
             'filter': [
                 {'k': 'data_source_id', 'v': data_source_id, 'o': 'eq'},
                 {'k': 'domain_id', 'v': domain_id, 'o': 'eq'},
-                {'k': 'billed_month', 'v': billed_month, 'o': 'eq'},
+                {'k': 'job_id', 'v': job_id, 'o': 'eq'},
+                {'k': 'job_task_id', 'v': job_task_id, 'o': 'eq'},
             ],
             'target': 'PRIMARY'  # Execute a query to primary DB
         }
-        _LOGGER.debug(f'[_list_accounts_from_cost_data] query: {query}')
+        _LOGGER.debug(f'[_distinct_cost_data] query: {query}')
         response = self.cost_mgr.stat_costs(query)
-        accounts = response.get('results', [])
+        values = response.get('results', [])
 
-        _LOGGER.debug(f'[_list_accounts_from_cost_data] accounts: {accounts}')
+        _LOGGER.debug(f'[_distinct_cost_data] billed_month: {values}')
 
-        return accounts
+        return values
 
-    def _list_products_from_cost_data(self, data_source_id, domain_id, billed_month, account):
+    def _aggregate_monthly_cost_data(self, data_source_id, domain_id, job_id, job_task_id, billed_month):
         query = {
-            'distinct': 'product',
-            'filter': [
-                {'k': 'data_source_id', 'v': data_source_id, 'o': 'eq'},
-                {'k': 'domain_id', 'v': domain_id, 'o': 'eq'},
-                {'k': 'billed_month', 'v': billed_month, 'o': 'eq'},
-                {'k': 'account', 'v': account, 'o': 'eq'},
+            'group_by': [
+                'usage_unit',
+                'provider',
+                'region_code',
+                'region_key',
+                'product',
+                'usage_type',
+                'resource',
+                'tags',
+                'additional_info',
+                'service_account_id',
+                'project_id',
+                'billed_year'
             ],
-            'target': 'PRIMARY'  # Execute a query to primary DB
-        }
-        _LOGGER.debug(f'[_list_products_from_cost_data] query: {query}')
-        response = self.cost_mgr.stat_costs(query)
-        products = response.get('results', [])
-
-        _LOGGER.debug(f'[_list_products_from_cost_data] products: {products}')
-
-        return products
-
-    def _is_large_data(self, data_source_id, domain_id, billed_month, account):
-        query = {
-            'count_only': True,
-            'filter': [
-                {'k': 'data_source_id', 'v': data_source_id, 'o': 'eq'},
-                {'k': 'domain_id', 'v': domain_id, 'o': 'eq'},
-                {'k': 'billed_month', 'v': billed_month, 'o': 'eq'},
-                {'k': 'account', 'v': account, 'o': 'eq'},
-            ],
-            'target': 'PRIMARY'  # Execute a query to primary DB
-        }
-        cost_vos, total_count = self.cost_mgr.list_costs(query)
-
-        _LOGGER.debug(f'[_is_large_data] cost count ({billed_month}): {total_count} => {total_count >= 50000}')
-
-        # Allow disk use if cost count exceeds 30k
-        if total_count >= 30000:
-            return True
-        else:
-            return False
-
-    def _aggregate_monthly_cost_data(self, data_source_id, domain_id, job_id, billed_month, account, is_large):
-        query = {
-            'aggregate': [
-                {
-                    'group': {
-                        'keys': [
-                            {'key': 'provider', 'name': 'provider'},
-                            {'key': 'region_code', 'name': 'region_code'},
-                            {'key': 'region_key', 'name': 'region_key'},
-                            {'key': 'category', 'name': 'category'},
-                            {'key': 'product', 'name': 'product'},
-                            {'key': 'account', 'name': 'account'},
-                            {'key': 'usage_type', 'name': 'usage_type'},
-                            {'key': 'resource_group', 'name': 'resource_group'},
-                            {'key': 'resource', 'name': 'resource'},
-                            {'key': 'tags', 'name': 'tags'},
-                            {'key': 'additional_info', 'name': 'additional_info'},
-                            {'key': 'service_account_id', 'name': 'service_account_id'},
-                            {'key': 'project_id', 'name': 'project_id'},
-                            {'key': 'data_source_id', 'name': 'data_source_id'},
-                            {'key': 'billed_month', 'name': 'billed_month'},
-                            {'key': 'billed_year', 'name': 'billed_year'},
-                        ],
-                        'fields': [
-                            {'key': 'usd_cost', 'name': 'usd_cost', 'operator': 'sum'},
-                            {'key': 'usage_quantity', 'name': 'usage_quantity', 'operator': 'sum'},
-                        ]
-                    }
+            'fields': {
+                'cost': {
+                    'key': 'cost',
+                    'operator': 'sum'
+                },
+                'usage_quantity': {
+                    'key': 'usage_quantity',
+                    'operator': 'sum'
                 }
-            ],
+            },
             'filter': [
                 {'k': 'data_source_id', 'v': data_source_id, 'o': 'eq'},
-                {'k': 'domain_id', 'v': domain_id, 'o': 'eq'},
                 {'k': 'billed_month', 'v': billed_month, 'o': 'eq'},
-                {'k': 'account', 'v': account, 'o': 'eq'},
+                {'k': 'job_id', 'v': job_id, 'o': 'eq'},
+                {'k': 'job_task_id', 'v': job_task_id, 'o': 'eq'},
+                {'k': 'domain_id', 'v': domain_id, 'o': 'eq'},
             ],
-            'target': 'PRIMARY'  # Execute a query to primary DB
+            'target': 'PRIMARY',        # Execute a query to primary DB
+            'allow_disk_use': True      # Allow disk use for large data
         }
-
-        if is_large:
-            query['allow_disk_use'] = True
 
         _LOGGER.debug(f'[_aggregate_monthly_cost_data] query: {query}')
-        response = self.cost_mgr.stat_costs(query)
+        response = self.cost_mgr.analyze_costs(query)
         results = response.get('results', [])
         for aggregated_cost_data in results:
             aggregated_cost_data['data_source_id'] = data_source_id
+            aggregated_cost_data['billed_month'] = billed_month
             aggregated_cost_data['job_id'] = job_id
+            aggregated_cost_data['job_task_id'] = job_id
             aggregated_cost_data['domain_id'] = domain_id
             self.cost_mgr.create_monthly_cost(aggregated_cost_data)
 
         _LOGGER.debug(
             f'[_aggregate_monthly_cost_data] create monthly costs ({billed_month}): {job_id} (count = {len(results)})')
-
-    def _delete_aggregated_cost_data(self, data_source_id, domain_id, job_id, changed_start):
-        changed_start_month = changed_start.strftime('%Y-%m')
-        changed_start_year = changed_start.strftime('%Y')
-
-        # Delete Monthly Cost
-        query = {
-            'filter': [
-                {'k': 'data_source_id', 'v': data_source_id, 'o': 'eq'},
-                {'k': 'domain_id', 'v': domain_id, 'o': 'eq'},
-                {'k': 'job_id', 'v': job_id, 'o': 'not'},
-                {'k': 'billed_month', 'v': changed_start_month, 'o': 'gte'},
-            ]
-        }
-
-        _LOGGER.debug(f'[_delete_aggregated_cost_data] query: {query}')
-        monthly_cost_vos, total_count = self.cost_mgr.list_monthly_costs(query)
-        monthly_cost_vos.delete()
-
-        _LOGGER.debug(f'[_delete_aggregated_cost_data] delete monthly costs after {changed_start_month}: {job_id}')
 
     def _get_all_data_sources(self):
         return self.data_source_mgr.filter_data_sources(state='ENABLED', data_source_type='EXTERNAL')
@@ -672,7 +614,16 @@ class JobService(BaseService):
         return False
 
     @staticmethod
-    def get_start_last_synchronized_at(params):
+    def _get_start_last_synchronized_at(params):
         start = params.get('start')
         last_synchronized_at = utils.datetime_to_iso8601(params.get('last_synchronized_at'))
         return start, last_synchronized_at
+
+    def _get_job_task_ids(self, job_id, domain_id):
+        job_task_ids = []
+        job_task_vos = self.job_task_mgr.filter_job_tasks(job_id=job_id, domain_id=domain_id)
+
+        for job_task_vo in job_task_vos:
+            job_task_ids.append(job_task_vo.job_task_id)
+
+        return job_task_ids

@@ -52,7 +52,7 @@ class JobTaskManager(BaseManager):
             'stages': [{
                 'locator': 'SERVICE',
                 'name': 'JobService',
-                'metadata': {'token': get_token(), 'domain_id': params.get('domain_id')},
+                'metadata': {},
                 'method': 'get_cost_data',
                 'params': {
                     'params': params

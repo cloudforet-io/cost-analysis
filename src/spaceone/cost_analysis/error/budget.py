@@ -39,3 +39,6 @@ class ERROR_THRESHOLD_IS_WRONG(ERROR_INVALID_ARGUMENT):
 
 class ERROR_THRESHOLD_IS_WRONG_IN_PERCENT_TYPE(ERROR_INVALID_ARGUMENT):
     _message = 'In percentage type, the threshold must be less than 100. (key = notifications, value = {value})'
+
+class ERROR_PROVIDER_FILTER_IS_EMPTY(ERROR_INVALID_ARGUMENT):
+    _message = 'Provider filter is empty. (key = provider_filter.providers, value = [])'

@@ -3,7 +3,7 @@ from typing import List
 from spaceone.api.cost_analysis.v1 import budget_pb2
 from spaceone.core.pygrpc.message_type import *
 from spaceone.core import utils
-from spaceone.cost_analysis.model.budget_model import Budget, PlannedLimit, Notification
+from spaceone.cost_analysis.model.budget_model import Budget, PlannedLimit, Notification, ProviderFilter
 
 __all__ = ['BudgetInfo', 'BudgetsInfo']
 
@@ -43,20 +43,33 @@ def BudgetNotificationsInfo(notification_vos: List[Notification]):
     return notifications_info
 
 
+def ProviderFilterInfo(provider_filter_vo: ProviderFilter):
+    if provider_filter_vo is None:
+        return None
+
+    info = {
+        'state': provider_filter_vo.state,
+        'providers': list(provider_filter_vo.providers)
+    }
+
+    return budget_pb2.ProviderFilter(**info)
+
+
 def BudgetInfo(budget_vo: Budget, minimal=False):
     info = {
         'budget_id': budget_vo.budget_id,
         'name': budget_vo.name,
         'limit': budget_vo.limit,
-        'total_usage_usd_cost': budget_vo.total_usage_usd_cost,
+        'currency': budget_vo.currency,
+        'provider_filter': ProviderFilterInfo(budget_vo.provider_filter),
         'project_id': budget_vo.project_id,
         'project_group_id': budget_vo.project_group_id,
+        'data_source_id': budget_vo.data_source_id,
     }
 
     if not minimal:
         info.update({
             'planned_limits': PlannedLimitsInfo(budget_vo.planned_limits),
-            'cost_types': change_struct_type(budget_vo.cost_types.to_dict()) if budget_vo.cost_types else None,
             'time_unit': budget_vo.time_unit,
             'start': budget_vo.start,
             'end': budget_vo.end,

@@ -1,12 +1,11 @@
 import logging
-from datetime import datetime
-from dateutil.relativedelta import relativedelta
 
 from spaceone.core.service import *
 from spaceone.core import utils
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.manager.cost_manager import CostManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
+from spaceone.cost_analysis.model.cost_model import Cost
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -22,30 +21,26 @@ class CostService(BaseService):
         self.cost_mgr: CostManager = self.locator.get_manager('CostManager')
 
     @transaction(append_meta={'authorization.scope': 'PROJECT'})
-    @check_required(['original_cost', 'original_currency', 'data_source_id', 'domain_id'])
-    @change_timestamp_value(['billed_at'], timestamp_format='iso8601')
+    @check_required(['cost', 'data_source_id', 'billed_date', 'domain_id'])
     def create(self, params):
         """Register cost
 
         Args:
             params (dict): {
-                'original_cost': 'float',
-                'original_currency': 'str',
+                'cost': 'float',
                 'usage_quantity': 'float',
+                'usage_unit': 'str',
                 'provider': 'str',
                 'region_code': 'str',
-                'category': 'str',
                 'product': 'str',
-                'account': 'str',
                 'usage_type': 'str',
-                'resource_group': 'str',
                 'resource': 'str',
                 'tags': 'dict',
                 'additional_info': 'dict',
                 'service_account_id': 'str',
                 'project_id': 'str',
                 'data_source_id': 'str',
-                'billed_at': 'datetime',
+                'billed_date': 'str',
                 'domain_id': 'str'
             }
 
@@ -55,11 +50,9 @@ class CostService(BaseService):
 
         # validation check (service_account_id / project_id / data_source_id)
 
-        params['billed_at'] = params.get('billed_at') or datetime.utcnow()
+        cost_vo: Cost = self.cost_mgr.create_cost(params)
 
-        cost_vo = self.cost_mgr.create_cost(params)
-
-        self.cost_mgr.remove_stat_cache(params['domain_id'])
+        self.cost_mgr.remove_stat_cache(params['domain_id'], params['data_source_id'])
 
         return cost_vo
 
@@ -78,9 +71,13 @@ class CostService(BaseService):
             None
         """
 
-        self.cost_mgr.remove_stat_cache(params['domain_id'])
+        domain_id = params['domain_id']
 
-        self.cost_mgr.delete_cost(params['cost_id'], params['domain_id'])
+        cost_vo: Cost = self.cost_mgr.get_cost(params['cost_id'], params['domain_id'])
+
+        self.cost_mgr.remove_stat_cache(domain_id, cost_vo.data_source_id)
+
+        self.cost_mgr.delete_cost_by_vo(cost_vo)
 
     @transaction(append_meta={'authorization.scope': 'PROJECT'})
     @check_required(['cost_id', 'domain_id'])
@@ -104,10 +101,9 @@ class CostService(BaseService):
         return self.cost_mgr.get_cost(cost_id, domain_id, params.get('only'))
 
     @transaction(append_meta={'authorization.scope': 'PROJECT'})
-    @check_required(['domain_id'])
-    @append_query_filter(['cost_id', 'original_currency', 'provider', 'region_code', 'region_key', 'category',
-                          'product', 'account', 'usage_type', 'resource_group', 'resource', 'service_account_id',
-                          'project_id', 'data_source_id', 'domain_id', 'user_projects'])
+    @check_required(['data_source_id', 'domain_id'])
+    @append_query_filter(['cost_id', 'provider', 'region_code', 'region_key', 'product', 'usage_type', 'resource',
+                          'service_account_id', 'project_id', 'data_source_id', 'domain_id', 'user_projects'])
     @append_keyword_filter(['cost_id'])
     @set_query_page_limit(1000)
     def list(self, params):
@@ -116,18 +112,15 @@ class CostService(BaseService):
         Args:
             params (dict): {
                 'cost_id': 'str',
-                'original_currency': 'str',
                 'provider': 'str',
                 'region_code': 'str',
                 'region_key': 'str',
-                'category': 'str',
                 'product': 'str',
-                'account': 'str',
                 'usage_type': 'str',
-                'resource_group': 'str',
                 'resource': 'str',
                 'service_account_id': 'str',
                 'project_id': 'str',
+                'project_group_id': 'str',
                 'data_source_id': 'str'
                 'domain_id': 'str',
                 'query': 'dict (spaceone.api.core.v1.Query)',
@@ -145,110 +138,17 @@ class CostService(BaseService):
         return self.cost_mgr.list_costs(query)
 
     @transaction(append_meta={'authorization.scope': 'PROJECT'})
-    @check_required(['granularity', 'start', 'end', 'domain_id'])
+    @check_required(['query', 'query.granularity', 'query.start', 'query.end', 'query.fields', 'data_source_id',
+                     'domain_id'])
+    @append_query_filter(['data_source_id', 'domain_id', 'user_projects'])
+    @append_keyword_filter(['cost_id'])
     @set_query_page_limit(1000)
     def analyze(self, params):
         """
         Args:
             params (dict): {
-                'granularity': 'str',
-                'start': 'str',
-                'end': 'str',
-                'group_by': 'list',
-                'filter': 'list',
-                'limit': 'int',
-                'page': 'dict',
-                'sort': 'dict',
-                'include_usage_quantity': 'bool',
-                'include_others': 'bool',
-                'domain_id': 'str',
-                'user_projects': 'list' // from meta
-            }
-
-        Returns:
-            values (list) : 'list of statistics data'
-
-        """
-
-        domain_id = params['domain_id']
-        granularity = params['granularity']
-        group_by = params.get('group_by', [])
-        query_filter = params.get('filter', [])
-        limit = params.get('limit')
-        page = params.get('page', {})
-        sort = params.get('sort')
-        include_usage_quantity = params.get('include_usage_quantity', False)
-        include_others = params.get('include_others', False)
-        has_project_group_id = 'project_group_id' in group_by
-
-        if limit:
-            if limit > 1000:
-                limit = 1000
-
-            page = None
-
-        start = self._parse_start_time(params['start'])
-        end = self._parse_end_time(params['end'])
-
-        if start >= end:
-            raise ERROR_INVALID_DATE_RANGE(reason='End date must be greater than start date.')
-
-        if granularity in ['ACCUMULATED', 'MONTHLY']:
-            if start + relativedelta(months=12) < end:
-                raise ERROR_INVALID_DATE_RANGE(reason='Request up to a maximum of 12 months.')
-        elif granularity == 'DAILY':
-            if start + relativedelta(days=31) < end:
-                raise ERROR_INVALID_DATE_RANGE(reason='Request up to a maximum of 31 days.')
-
-        query_filter = self._add_domain_filter(query_filter, domain_id)
-
-        if 'user_projects' in params:
-            query_filter = self._add_user_projects_filter(query_filter, params['user_projects'])
-
-        query_filter = self._change_project_group_filter(query_filter, domain_id)
-
-        if granularity == 'ACCUMULATED':
-            query = self.cost_mgr.make_accumulated_query(group_by, limit, query_filter, include_others,
-                                                         include_usage_quantity, has_project_group_id)
-        else:
-            query = self.cost_mgr.make_trend_query(granularity, group_by, limit, query_filter, include_others,
-                                                   include_usage_quantity, has_project_group_id)
-
-        query_hash = utils.dict_to_hash(query)
-
-        self.cost_mgr.create_cost_query_history(domain_id, query, query_hash, granularity, start, end)
-
-        query = self.cost_mgr.add_date_range_filter(query, granularity, start, end)
-        query_hash_with_date_range = utils.dict_to_hash(query)
-
-        if self.cost_mgr.is_monthly_cost(granularity, start, end):
-            response = self.cost_mgr.stat_monthly_costs_with_cache(query, query_hash_with_date_range, domain_id)
-        else:
-            response = self.cost_mgr.stat_costs_with_cache(query, query_hash_with_date_range, domain_id)
-
-        if has_project_group_id:
-            response = self.cost_mgr.sum_costs_by_project_group(response, granularity, group_by, domain_id,
-                                                                include_usage_quantity)
-
-        if include_others and limit:
-            response = self.cost_mgr.sum_costs_over_limit(response, granularity, limit, include_usage_quantity)
-        elif has_project_group_id and limit:
-            response = self.cost_mgr.slice_results(response, limit)
-        elif page:
-            response = self.cost_mgr.page_results(response, page)
-
-        return response
-
-    @transaction(append_meta={'authorization.scope': 'PROJECT'})
-    @check_required(['query', 'query.granularity', 'query.start', 'query.end', 'query.fields', 'domain_id'])
-    @append_query_filter(['domain_id', 'user_projects'])
-    @append_keyword_filter(['cost_id'])
-    @set_query_page_limit(1000)
-    def analyze_v2(self, params):
-        """
-        Args:
-            params (dict): {
                 'query': 'dict (spaceone.api.core.v1.TimeSeriesAnalyzeQuery)',
+                'data_source_id': 'str',
                 'domain_id': 'str',
                 'user_projects': 'list' // from meta
             }
@@ -259,16 +159,17 @@ class CostService(BaseService):
         """
 
         domain_id = params['domain_id']
+        data_source_id = params['data_source_id']
         query = params.get('query', {})
 
         query_filter = query.get('filter', [])
         query['filter'] = self._change_project_group_filter(query_filter, domain_id)
 
-        return self.cost_mgr.analyze_costs(query, domain_id)
+        return self.cost_mgr.analyze_costs_by_granularity(query, domain_id, data_source_id)
 
     @transaction(append_meta={'authorization.scope': 'PROJECT'})
     @check_required(['query', 'domain_id'])
-    @append_query_filter(['domain_id', 'user_projects'])
+    @append_query_filter(['data_source_id', 'domain_id', 'user_projects'])
     @append_keyword_filter(['cost_id'])
     @set_query_page_limit(1000)
     @change_date_value()
@@ -276,8 +177,9 @@ class CostService(BaseService):
         """
         Args:
             params (dict): {
-                'domain_id': 'str',
                 'query': 'dict (spaceone.api.core.v1.StatisticsQuery)',
+                'data_source_id': 'str',
+                'domain_id': 'str',
                 'user_projects': 'list' // from meta
             }
 
@@ -287,6 +189,8 @@ class CostService(BaseService):
         """
 
         domain_id = params['domain_id']
+        data_source_id = params['domain_id']
+
         query = params.get('query', {})
         query['filter'] = self._change_project_group_filter(query.get('filter', []), params['domain_id'])
 
@@ -295,43 +199,19 @@ class CostService(BaseService):
             search, query = self._get_search_value_from_query(query)
             query_hash = utils.dict_to_hash(query)
 
-            self.cost_mgr.create_cost_query_history(domain_id, query, query_hash)
+            self.cost_mgr.create_cost_query_history(query, query_hash, domain_id, data_source_id)
 
-            response = self.cost_mgr.stat_monthly_costs_with_cache(query, query_hash, domain_id)
+            response = self.cost_mgr.stat_monthly_costs_with_cache(query, query_hash, domain_id, data_source_id)
 
             if search:
                 response = self._search_results(response, search)
 
             if page:
-                response = self.cost_mgr.page_results(response, page)
+                response = self._page_results(response, page)
 
             return response
         else:
-            query_hash = utils.dict_to_hash(query)
-            if self.cost_mgr.is_monthly_stat_query(query):
-                return self.cost_mgr.stat_monthly_costs_with_cache(query, query_hash, domain_id)
-            else:
-                return self.cost_mgr.stat_costs_with_cache(query, query_hash, domain_id)
-
-    @staticmethod
-    def _add_domain_filter(query_filter, domain_id):
-        query_filter.append({
-            'k': 'domain_id',
-            'v': domain_id,
-            'o': 'eq'
-        })
-
-        return query_filter
-
-    @staticmethod
-    def _add_user_projects_filter(query_filter, user_projects):
-        query_filter.append({
-            'k': 'project_id',
-            'v': user_projects,
-            'o': 'in'
-        })
-
-        return query_filter
+            raise ERROR_NOT_SUPPORT_QUERY_OPTION(query_option='aggregate')
 
     def _change_project_group_filter(self, query_filter, domain_id):
         changed_filter = []
@@ -372,31 +252,6 @@ class CostService(BaseService):
 
         return changed_filter
 
-    def _parse_start_time(self, date_str):
-        return self._convert_date_from_string(date_str.strip(), 'start')
-
-    def _parse_end_time(self, date_str):
-        date = self._convert_date_from_string(date_str.strip(), 'end')
-
-        if len(date_str.strip()) == 7:
-            return date + relativedelta(months=1)
-        else:
-            return date + relativedelta(days=1)
-
-    @staticmethod
-    def _convert_date_from_string(date_str, key):
-        if len(date_str) == 7:
-            # Month (YYYY-MM)
-            date_format = '%Y-%m'
-        else:
-            # Date (YYYY-MM-DD)
-            date_format = '%Y-%m-%d'
-
-        try:
-            return datetime.strptime(date_str, date_format).date()
-        except Exception as e:
-            raise ERROR_INVALID_PARAMETER_TYPE(key=key, type=date_format)
-
     @staticmethod
     def _is_distinct_query(query):
         if 'distinct' in query:
@@ -404,7 +259,8 @@ class CostService(BaseService):
         else:
             return False
 
-    def _get_page_from_query(self, query):
+    @staticmethod
+    def _get_page_from_query(query):
         if 'page' in query:
             page = query['page']
             del query['page']
@@ -413,7 +269,8 @@ class CostService(BaseService):
 
         return page, query
 
-    def _get_search_value_from_query(self, query):
+    @staticmethod
+    def _get_search_value_from_query(query):
         distinct = query['distinct']
 
         search = None
@@ -444,3 +301,21 @@ class CostService(BaseService):
         return {
             'results': changed_results,
         }
+
+    @staticmethod
+    def _page_results(response, page):
+        results = response.get('results', [])
+        response = {
+            'total_count': len(results)
+        }
+
+        if 'limit' in page and page['limit'] > 0:
+            start = page.get('start', 1)
+            if start < 1:
+                start = 1
+
+            response['results'] = results[start - 1:start + page['limit'] - 1]
+        else:
+            response['results'] = results
+
+        return response

@@ -32,12 +32,13 @@ class BudgetUsageManager(BaseManager):
                     'budget_id': budget_vo.budget_id,
                     'name': budget_vo.name,
                     'date': dt.strftime("%Y-%m"),
-                    'usd_cost': 0,
+                    'cost': 0,
                     'limit': limit_per_month,
-                    'cost_types': budget_vo.cost_types.to_dict() if budget_vo.cost_types else None,
+                    'currency': budget_vo.currency,
                     'budget': budget_vo,
                     'project_id': budget_vo.project_id,
                     'project_group_id': budget_vo.project_group_id,
+                    'data_source_id': budget_vo.data_source_id,
                     'domain_id': budget_vo.domain_id
                 }
 
@@ -49,12 +50,13 @@ class BudgetUsageManager(BaseManager):
                     'budget_id': budget_vo.budget_id,
                     'name': budget_vo.name,
                     'date': planned_limit['date'],
-                    'usd_cost': 0,
+                    'cost': 0,
                     'limit': planned_limit.limit,
-                    'cost_types': budget_vo.cost_types.to_dict() if budget_vo.cost_types else None,
+                    'currency': budget_vo.currency,
                     'budget': budget_vo,
                     'project_id': budget_vo.project_id,
                     'project_group_id': budget_vo.project_group_id,
+                    'data_source_id': budget_vo.data_source_id,
                     'domain_id': budget_vo.domain_id
                 }
 
@@ -74,17 +76,12 @@ class BudgetUsageManager(BaseManager):
         cost_mgr: CostManager = self.locator.get_manager('CostManager')
 
         budget_vo = self.budget_mgr.get_budget(budget_id, domain_id)
-        self._update_total_budget_usage(budget_vo, cost_mgr)
         self._update_monthly_budget_usage(budget_vo, cost_mgr)
 
-    def update_budget_usage(self, domain_id):
-        budget_vos = self.budget_mgr.filter_budgets(domain_id=domain_id)
-        budget_ids = []
+    def update_budget_usage(self, domain_id, data_source_id):
+        budget_vos = self.budget_mgr.filter_budgets(domain_id=domain_id, data_source_id=data_source_id)
         for budget_vo in budget_vos:
-            budget_ids.append(budget_vo.budget_id)
-
-        for budget_id in budget_ids:
-            self.update_cost_usage(budget_id, domain_id)
+            self.update_cost_usage(budget_vo.budget_id, domain_id)
 
     def filter_budget_usages(self, **conditions):
         return self.budget_usage_model.filter(**conditions)
@@ -98,30 +95,15 @@ class BudgetUsageManager(BaseManager):
     def analyze_budget_usages(self, query):
         return self.budget_usage_model.analyze(**query)
 
-    def _update_total_budget_usage(self, budget_vo: Budget, cost_mgr: CostManager):
-        query = self._make_cost_stat_query(budget_vo, True)
-        _LOGGER.debug(f'[_update_total_budget_usage]: query: {query}')
-
-        result = cost_mgr.stat_monthly_costs(query)
-        if len(result.get('results', [])) > 0:
-            total_usage_usd_cost = result['results'][0].get('usd_cost')
-            if total_usage_usd_cost:
-                self.budget_mgr.update_budget_by_vo({'total_usage_usd_cost': total_usage_usd_cost}, budget_vo)
-        else:
-            self.budget_mgr.update_budget_by_vo({'total_usage_usd_cost': 0}, budget_vo)
-
     def _update_monthly_budget_usage(self, budget_vo: Budget, cost_mgr: CostManager):
         update_data = {}
-        query = self._make_cost_stat_query(budget_vo)
+        query = self._make_cost_analyze_query(budget_vo)
         _LOGGER.debug(f'[_update_monthly_budget_usage]: query: {query}')
 
-        result = cost_mgr.stat_monthly_costs(query)
+        result = cost_mgr.analyze_costs_by_granularity(query, budget_vo.domain_id, budget_vo.data_source_id)
         for cost_usage_data in result.get('results', []):
-            date = cost_usage_data.get('date')
-            usd_cost = cost_usage_data.get('usd_cost', 0)
-
-            if date:
-                update_data[date] = usd_cost
+            if date := cost_usage_data.get('date'):
+                update_data[date] = cost_usage_data.get('cost', 0)
 
         budget_usage_vos = self.budget_usage_model.filter(budget_id=budget_vo.budget_id)
         for budget_usage_vo in budget_usage_vos:
@@ -130,45 +112,25 @@ class BudgetUsageManager(BaseManager):
             else:
                 budget_usage_vo.update({'usd_cost': 0})
 
-    def _make_cost_stat_query(self, budget_vo: Budget, is_accumulated=False):
-        query = self._get_default_query()
-
-        if not is_accumulated:
-            if budget_vo.time_unit == 'YEARLY':
-                query['aggregate'][0]['group']['keys'].append({
-                    'key': 'billed_year',
-                    'name': 'date'
-                })
-            else:
-                query['aggregate'][0]['group']['keys'].append({
-                    'key': 'billed_month',
-                    'name': 'date'
-                })
-
-        query['filter'].append({
-            'key': 'domain_id',
-            'value': budget_vo.domain_id,
-            'operator': 'eq'
-        })
-
-        query['filter'].append({
-            'key': 'billed_month',
-            'value': budget_vo.start,
-            'operator': 'gte'
-        })
-
-        query['filter'].append({
-            'key': 'billed_month',
-            'value': budget_vo.end,
-            'operator': 'lte'
-        })
+    def _make_cost_analyze_query(self, budget_vo: Budget):
+        query = {
+            'granularity': 'MONTHLY',
+            'start': budget_vo.start,
+            'end': budget_vo.end,
+            'fields': {
+                'cost': {
+                    'key': 'cost',
+                    'operator': 'sum'
+                }
+            },
+            'filter': [
+                {'k': 'domain_id', 'v': budget_vo.domain_id, 'o': 'eq'},
+            ]
+        }
 
         if budget_vo.project_id:
-            query['filter'].append({
-                'key': 'project_id',
-                'value': budget_vo.project_id,
-                'operator': 'eq'
-            })
+            query['filter'].append({'k': 'project_id', 'v': budget_vo.project_id, 'o': 'eq'})
+
         else:
             identity_mgr: IdentityManager = self.locator.get_manager('IdentityManager')
             response = identity_mgr.list_projects_in_project_group(budget_vo.project_group_id,
@@ -178,39 +140,9 @@ class BudgetUsageManager(BaseManager):
             for project_info in response.get('results', []):
                 project_ids.append(project_info['project_id'])
 
-            query['filter'].append({
-                'key': 'project_id',
-                'value': project_ids,
-                'operator': 'in'
-            })
+            query['filter'].append({'k': 'project_id', 'v': project_ids, 'o': 'in'})
 
-        if budget_vo.cost_types:
-            for key, values in budget_vo.cost_types.to_dict().items():
-                if values:
-                    query['filter'].append({
-                        'key': key,
-                        'value': values,
-                        'operator': 'in'
-                    })
+        if budget_vo.provider_filter.state == 'ENABLED':
+            query['filter'].append({'k': 'provider', 'v': budget_vo.provider_filter.providers, 'o': 'in'})
 
         return query
-
-    @staticmethod
-    def _get_default_query():
-        return {
-            'aggregate': [
-                {
-                    'group': {
-                        'keys': [],
-                        'fields': [
-                            {
-                                'name': 'usd_cost',
-                                'key': 'usd_cost',
-                                'operator': 'sum'
-                            }
-                        ]
-                    }
-                }
-            ],
-            'filter': []
-        }

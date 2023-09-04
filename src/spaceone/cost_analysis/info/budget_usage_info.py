@@ -12,13 +12,16 @@ def BudgetUsageInfo(budget_usage_vo: BudgetUsage, minimal=False):
         'budget_id': budget_usage_vo.budget_id,
         'name': budget_usage_vo.name,
         'date': budget_usage_vo.date,
-        'usd_cost': budget_usage_vo.usd_cost,
-        'limit': budget_usage_vo.limit
+        'cost': budget_usage_vo.cost,
+        'limit': budget_usage_vo.limit,
+        'currency': budget_usage_vo.currency,
+        'project_id': budget_usage_vo.project_id,
+        'project_group_id': budget_usage_vo.project_group_id,
+        'data_source_id': budget_usage_vo.data_source_id,
     }
 
     if not minimal:
         info.update({
-            'cost_types': change_struct_type(budget_usage_vo.cost_types.to_dict()) if budget_usage_vo.cost_types else None,
             'domain_id': budget_usage_vo.domain_id,
             'updated_at': utils.datetime_to_iso8601(budget_usage_vo.updated_at)
         })

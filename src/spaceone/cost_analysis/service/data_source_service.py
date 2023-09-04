@@ -55,6 +55,8 @@ class DataSourceService(BaseService):
         data_source_type = params['data_source_type']
 
         if data_source_type == 'EXTERNAL':
+            params['template'] = None
+
             plugin_info = params.get('plugin_info', {})
             secret_type = params.get('secret_type', 'MANUAL')
 
@@ -90,10 +92,14 @@ class DataSourceService(BaseService):
 
         else:
             params['plugin_info'] = None
+            params['secret_type'] = None
+            params['secret_filter'] = None
 
-        if 'template' in params:
-            # check template
-            pass
+            if template := params.get('template'):
+                # Check Template
+                pass
+            else:
+                raise ERROR_REQUIRED_PARAMETER(key='template')
 
         data_source_vo: DataSource = self.data_source_mgr.register_data_source(params)
 
@@ -102,8 +108,6 @@ class DataSourceService(BaseService):
             metadata = data_source_vo.plugin_info.metadata
 
             self.ds_plugin_mgr.create_data_source_rules_by_metadata(metadata, data_source_id, domain_id)
-
-            # TODO: set template from plugin metadata
 
         return data_source_vo
 
@@ -133,11 +137,14 @@ class DataSourceService(BaseService):
             if data_source_vo.secret_type == 'USE_SERVICE_ACCOUNT_SECRET':
                 self.validate_secret_filter(params['secret_filter'], params['domain_id'])
             else:
-                del params['secret_filter']
+                raise ERROR_NOT_ALLOW_SECRET_FILTER(data_source_id=data_source_id)
 
         if 'template' in params:
-            # check template
-            pass
+            if data_source_vo.data_source_type == 'LOCAL':
+                # Check Template
+                pass
+            else:
+                raise ERROR_NOT_ALLOW_PLUGIN_SETTINGS(data_source_id=data_source_id)
 
         return self.data_source_mgr.update_data_source_by_vo(params, data_source_vo)
 
@@ -206,12 +213,10 @@ class DataSourceService(BaseService):
         data_source_vo: DataSource = self.data_source_mgr.get_data_source(data_source_id, domain_id)
 
         if cascade_delete_cost:
-            self.cost_mgr.delete_cost_with_datasource(data_source_id=data_source_id, domain_id=domain_id)
-            self.cost_mgr.delete_monthly_cost_with_datasource(data_source_id=data_source_id, domain_id=domain_id)
-
-            self.budget_usage_mgr.update_budget_usage(domain_id)
-            self.cost_mgr.remove_stat_cache(domain_id)
-            self.job_mgr.preload_cost_stat_queries(domain_id)
+            self.cost_mgr.delete_cost_with_datasource(domain_id, data_source_id)
+            self.budget_usage_mgr.update_budget_usage(domain_id, data_source_id)
+            self.cost_mgr.remove_stat_cache(domain_id, data_source_id)
+            self.job_mgr.preload_cost_stat_queries(domain_id, data_source_id)
 
         if data_source_vo.plugin_info:
             secret_id = data_source_vo.plugin_info.secret_id
@@ -336,8 +341,6 @@ class DataSourceService(BaseService):
             'plugin_info': plugin_info
         }
 
-        # TODO: set template from plugin metadata
-
         data_source_vo = self.data_source_mgr.update_data_source_by_vo(params, data_source_vo)
 
         self.ds_plugin_mgr.delete_data_source_rules(data_source_id, domain_id)
@@ -379,7 +382,7 @@ class DataSourceService(BaseService):
                 'data_source_id': 'str',
                 'name': 'str',
                 'state': 'str',
-                'cost_analysis_type': 'str',
+                'data_source_type': 'str',
                 'provider': 'str',
                 'domain_id': 'str',
                 'query': 'dict (spaceone.api.core.v1.Query)'
@@ -475,15 +478,3 @@ class DataSourceService(BaseService):
 
         if secret_type == 'MANUAL' and plugin_info.get('secret_data') is None:
             raise ERROR_REQUIRED_PARAMETER(key='plugin_info.secret_data')
-
-    # @staticmethod
-    # def _check_duplicate_job(data_source_id, domain_id, job_mgr: JobManager):
-    #     job_vos = job_mgr.filter_jobs(data_source_id=data_source_id, domain_id=domain_id, status='IN_PROGRESS')
-    #
-    #     duplicate_job_time = datetime.utcnow() - timedelta(minutes=1)
-    #
-    #     for job_vo in job_vos:
-    #         if job_vo.created_at >= duplicate_job_time:
-    #             raise ERROR_DUPLICATE_JOB(data_source_id=data_source_id)
-    #         else:
-    #             job_mgr.change_canceled_status(job_vo)

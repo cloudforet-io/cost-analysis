@@ -9,6 +9,7 @@ class CostQuerySet(MongoModel):
     options = DictField(default={})
     tags = DictField(default={})
     user_id = StringField(max_length=40)
+    data_source_id = StringField(max_length=40)
     domain_id = StringField(max_length=40)
     created_at = DateTimeField(auto_now_add=True)
     updated_at = DateTimeField(auto_now=True)
@@ -22,7 +23,8 @@ class CostQuerySet(MongoModel):
         'minimal_fields': [
             'cost_query_set_id',
             'name',
-            'user_id'
+            'user_id',
+            'data_source_id'
         ],
         'ordering': [
             'name'
@@ -30,6 +32,7 @@ class CostQuerySet(MongoModel):
         'indexes': [
             'name',
             'user_id',
+            'data_source_id',
             'domain_id'
         ]
     }

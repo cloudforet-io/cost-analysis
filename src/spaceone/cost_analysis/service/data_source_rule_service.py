@@ -2,7 +2,6 @@ import logging
 import fnmatch
 
 from spaceone.core.service import *
-from spaceone.core import utils
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.manager.data_source_rule_manager import DataSourceRuleManager
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager

@@ -1,8 +1,6 @@
 import logging
 
 from spaceone.core.service import *
-from spaceone.core import utils
-from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.manager.cost_query_set_manager import CostQuerySetManager
 from spaceone.cost_analysis.model.cost_query_set_model import CostQuerySet
 
@@ -20,13 +18,14 @@ class CostQuerySetService(BaseService):
         self.cost_query_set_mgr: CostQuerySetManager = self.locator.get_manager('CostQuerySetManager')
 
     @transaction(append_meta={'authorization.scope': 'USER'})
-    @check_required(['name', 'options', 'domain_id'])
+    @check_required(['data_source_id', 'name', 'options', 'domain_id'])
     @change_date_value(['start', 'end'])
     def create(self, params):
         """Register cost_query_set
 
         Args:
             params (dict): {
+                'data_source_id': 'str',
                 'name': 'str',
                 'options': 'str',
                 'tags': 'dict',
@@ -105,8 +104,8 @@ class CostQuerySetService(BaseService):
         return self.cost_query_set_mgr.get_cost_query_set(cost_query_set_id, domain_id, params.get('only'))
 
     @transaction(append_meta={'authorization.scope': 'USER'})
-    @check_required(['domain_id'])
-    @append_query_filter(['cost_query_set_id', 'name', 'user_id', 'domain_id'])
+    @check_required(['data_source_id', 'domain_id'])
+    @append_query_filter(['data_source_id', 'cost_query_set_id', 'name', 'user_id', 'domain_id'])
     @append_keyword_filter(['cost_query_set_id', 'name'])
     def list(self, params):
         """ List cost_query_sets
@@ -129,8 +128,8 @@ class CostQuerySetService(BaseService):
         return self.cost_query_set_mgr.list_cost_query_sets(query)
 
     @transaction(append_meta={'authorization.scope': 'USER'})
-    @check_required(['query', 'domain_id'])
-    @append_query_filter(['domain_id'])
+    @check_required(['query', 'data_source_id', 'domain_id'])
+    @append_query_filter(['data_source_id', 'domain_id'])
     @append_keyword_filter(['cost_query_set_id', 'name'])
     def stat(self, params):
         """

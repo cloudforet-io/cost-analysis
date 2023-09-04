@@ -32,10 +32,7 @@ class JobManager(BaseManager):
                 self.change_timeout_status(job_vo)
                 running_job_count -= 1
 
-        if running_job_count > 0:
-            return True
-        else:
-            return False
+        return running_job_count > 0
 
     def create_job(self, data_source_id, domain_id, job_options, total_tasks, changed=None):
         job_options['no_preload_cache'] = job_options.get('no_preload_cache', False)
@@ -54,17 +51,7 @@ class JobManager(BaseManager):
             })
 
         if changed:
-            data['changed'] = []
-            for changed_info in changed:
-                start = utils.iso8601_to_datetime(changed_info['start'])
-                end = utils.iso8601_to_datetime(changed_info['end']) if 'end' in changed_info else None
-                _filter = changed_info.get('filter', {})
-
-                data['changed'].append({
-                    'start': start,
-                    'end': end,
-                    'filter': _filter
-                })
+            data['changed'] = changed
 
         job_vo = self.job_model.create(data)
 
@@ -86,13 +73,14 @@ class JobManager(BaseManager):
     def stat_jobs(self, query):
         return self.job_model.stat(**query)
 
-    def preload_cost_stat_queries(self, domain_id):
-        cost_query_cache_time = config.get_global('COST_QUERY_CACHE_TIME', 7)
+    def preload_cost_stat_queries(self, domain_id, data_source_id):
+        cost_query_cache_time = config.get_global('COST_QUERY_CACHE_TIME', 3)
         cache_time = datetime.utcnow() - timedelta(days=cost_query_cache_time)
 
         query = {
             'filter': [
                 {'k': 'domain_id', 'v': domain_id, 'o': 'eq'},
+                {'k': 'data_source_id', 'v': data_source_id, 'o': 'eq'},
                 {'k': 'updated_at', 'v': cache_time, 'o': 'gte'},
             ]
         }
@@ -107,33 +95,21 @@ class JobManager(BaseManager):
     def _create_cache_by_history(self, history_vo: CostQueryHistory, domain_id):
         query = history_vo.query_options
         query_hash = history_vo.query_hash
-        granularity = history_vo.granularity
-        start = history_vo.start
-        end = history_vo.end
+        data_source_id = history_vo.data_source_id
 
         # Original Date Range
-        self._create_cache(domain_id, copy.deepcopy(query), query_hash, granularity, start, end)
+        self._create_cache(copy.deepcopy(query), query_hash, domain_id, data_source_id)
 
-    def _create_cache(self, domain_id, query, query_hash, granularity, start, end):
-        if granularity and start and end:
-            query = self.cost_mgr.add_date_range_filter(query, granularity, start, end)
-            query_hash_with_date_range = utils.dict_to_hash(query)
-
-            _LOGGER.debug(f'[_create_cache] query: {query}')
-
-            if 'group_by' in query:
-                if self.cost_mgr.is_monthly_cost(granularity, start, end):
-                    self.cost_mgr.analyze_monthly_costs_with_cache(query, query_hash, domain_id)
-                else:
-                    self.cost_mgr.analyze_costs_with_cache(query, query_hash, domain_id)
-            else:
-                if self.cost_mgr.is_monthly_cost(granularity, start, end):
-                    self.cost_mgr.stat_monthly_costs_with_cache(query, query_hash_with_date_range, domain_id,
-                                                                target='PRIMARY')
-                else:
-                    self.cost_mgr.stat_costs_with_cache(query, query_hash_with_date_range, domain_id, target='PRIMARY')
+    def _create_cache(self, query, query_hash, domain_id, data_source_id):
+        if granularity := query.get('granularity'):
+            if granularity == 'DAILY':
+                self.cost_mgr.analyze_costs_with_cache(query, query_hash, domain_id, data_source_id)
+            elif granularity == 'MONTHLY':
+                self.cost_mgr.analyze_monthly_costs_with_cache(query, query_hash, domain_id, data_source_id)
+            elif granularity == 'YEARLY':
+                self.cost_mgr.analyze_yearly_costs_with_cache(query, query_hash, domain_id, data_source_id)
         else:
-            self.cost_mgr.stat_monthly_costs_with_cache(query, query_hash, domain_id, target='PRIMARY')
+            self.cost_mgr.stat_monthly_costs_with_cache(query, query_hash, domain_id, data_source_id)
 
     @staticmethod
     def decrease_remained_tasks(job_vo: Job):
