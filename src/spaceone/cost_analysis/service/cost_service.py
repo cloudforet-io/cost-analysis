@@ -189,7 +189,6 @@ class CostService(BaseService):
         """
 
         domain_id = params['domain_id']
-        data_source_id = params['domain_id']
 
         query = params.get('query', {})
         query['filter'] = self._change_project_group_filter(query.get('filter', []), params['domain_id'])
@@ -199,9 +198,9 @@ class CostService(BaseService):
             search, query = self._get_search_value_from_query(query)
             query_hash = utils.dict_to_hash(query)
 
-            self.cost_mgr.create_cost_query_history(query, query_hash, domain_id, data_source_id)
+            self.cost_mgr.create_cost_query_history(query, query_hash, domain_id, 'global')
 
-            response = self.cost_mgr.stat_monthly_costs_with_cache(query, query_hash, domain_id, data_source_id)
+            response = self.cost_mgr.stat_monthly_costs_with_cache(query, query_hash, domain_id, 'global')
 
             if search:
                 response = self._search_results(response, search)
