@@ -95,14 +95,27 @@ class CostManager(BaseManager):
     def stat_monthly_costs_with_cache(self, query, query_hash, domain_id, data_source_id):
         return self.stat_monthly_costs(query)
 
-    @cache.cacheable(key='analyze-costs:daily:{domain_id}:{data_source_id}:{query_hash}', expire=3600 * 24)
+    # @cache.cacheable(key='analyze-costs:daily:{domain_id}:{data_source_id}:{query_hash}', expire=3600 * 24)
     def analyze_costs_with_cache(self, query, query_hash, domain_id, data_source_id, target='SECONDARY_PREFERRED'):
+        start = query['start']
+        if len(start) == 4:
+            query['start_field'] = 'billed_year'
+            query['end_field'] = 'billed_year'
+        elif len(start) == 7:
+            query['start_field'] = 'billed_month'
+            query['end_field'] = 'billed_month'
+
         query['target'] = target
         query['date_field'] = 'billed_date'
         return self.cost_model.analyze(**query)
 
     @cache.cacheable(key='analyze-costs:monthly:{domain_id}:{data_source_id}:{query_hash}', expire=3600 * 24)
     def analyze_monthly_costs_with_cache(self, query, query_hash, domain_id, data_source_id, target='SECONDARY_PREFERRED'):
+        start = query['start']
+        if len(start) == 4:
+            query['start_field'] = 'billed_year'
+            query['end_field'] = 'billed_year'
+
         query['target'] = target
         query['date_field'] = 'billed_month'
         return self.monthly_cost_model.analyze(**query)
@@ -167,6 +180,10 @@ class CostManager(BaseManager):
         end = self._parse_end_time(end_str, granularity)
         now = datetime.utcnow().date()
 
+        if len(start_str) != len(end_str):
+            raise ERROR_INVALID_DATE_RANGE(start=start_str, end=end_str,
+                                           reason='Start date and end date must be the same format.')
+
         if start >= end:
             raise ERROR_INVALID_DATE_RANGE(start=start_str, end=end_str,
                                            reason='End date must be greater than start date.')
@@ -201,21 +218,38 @@ class CostManager(BaseManager):
 
         if granularity == 'YEARLY':
             return end + relativedelta(years=1)
-        else:
+        elif granularity == 'MONTHLY':
             return end + relativedelta(months=1)
+        else:
+            return end + relativedelta(days=1)
 
     @staticmethod
     def _convert_date_from_string(date_str, key, granularity):
         if granularity == 'YEARLY':
-            try:
-                return datetime.strptime(date_str, '%Y').date()
-            except Exception as e:
-                raise ERROR_INVALID_PARAMETER_TYPE(key=key, type='YYYY')
+            date_format = '%Y'
+            date_type = 'YYYY'
+        elif granularity == 'MONTHLY':
+            if len(date_str) == 4:
+                date_format = '%Y'
+                date_type = 'YYYY'
+            else:
+                date_format = '%Y-%m'
+                date_type = 'YYYY-MM'
         else:
-            try:
-                return datetime.strptime(date_str, '%Y-%m').date()
-            except Exception as e:
-                raise ERROR_INVALID_PARAMETER_TYPE(key=key, type='YYYY-MM')
+            if len(date_str) == 4:
+                date_format = '%Y'
+                date_type = 'YYYY'
+            elif len(date_str) == 7:
+                date_format = '%Y-%m'
+                date_type = 'YYYY-MM'
+            else:
+                date_format = '%Y-%m-%d'
+                date_type = 'YYYY-MM-DD'
+
+        try:
+            return datetime.strptime(date_str, date_format).date()
+        except Exception as e:
+            raise ERROR_INVALID_PARAMETER_TYPE(key=key, type=date_type)
 
     @staticmethod
     def _get_billed_at_from_billed_date(billed_date):
