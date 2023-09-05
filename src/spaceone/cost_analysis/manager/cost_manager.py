@@ -18,6 +18,7 @@ class CostManager(BaseManager):
         super().__init__(*args, **kwargs)
         self.cost_model: Cost = self.locator.get_model('Cost')
         self.monthly_cost_model: MonthlyCost = self.locator.get_model('MonthlyCost')
+        self.cost_query_history_model: CostQueryHistory = self.locator.get_model('CostQueryHistory')
         self.data_source_rule_mgr: DataSourceRuleManager = self.locator.get_manager('DataSourceRuleManager')
         self.exchange_rate_map = None
 
@@ -63,6 +64,9 @@ class CostManager(BaseManager):
 
         monthly_cost_vos = self.monthly_cost_model.filter(domain_id=domain_id, data_source_id=data_source_id)
         monthly_cost_vos.delete()
+
+        history_vos = self.cost_query_history_model.filter(domain_id=domain_id, data_source_id=data_source_id)
+        history_vos.delete()
 
     def get_cost(self, cost_id, domain_id, only=None):
         return self.cost_model.get(cost_id=cost_id, domain_id=domain_id, only=only)
