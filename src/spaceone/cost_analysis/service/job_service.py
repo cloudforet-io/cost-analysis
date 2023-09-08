@@ -563,9 +563,10 @@ class JobService(BaseService):
                     'operator': 'sum'
                 }
             },
+            'start': billed_month,
+            'end': billed_month,
             'filter': [
                 {'k': 'data_source_id', 'v': data_source_id, 'o': 'eq'},
-                {'k': 'billed_month', 'v': billed_month, 'o': 'eq'},
                 {'k': 'job_id', 'v': job_id, 'o': 'eq'},
                 {'k': 'job_task_id', 'v': job_task_id, 'o': 'eq'},
                 {'k': 'domain_id', 'v': domain_id, 'o': 'eq'},
