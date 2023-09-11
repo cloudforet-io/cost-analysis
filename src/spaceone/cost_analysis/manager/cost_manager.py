@@ -90,33 +90,23 @@ class CostManager(BaseManager):
         return self.monthly_cost_model.stat(**query)
 
     def analyze_costs(self, query, target='SECONDARY_PREFERRED'):
-        start = query['start']
-        if len(start) == 4:
-            query['start_field'] = 'billed_year'
-            query['end_field'] = 'billed_year'
-        elif len(start) == 7:
-            query['start_field'] = 'billed_month'
-            query['end_field'] = 'billed_month'
-
         query['target'] = target
         query['date_field'] = 'billed_date'
+        query['date_field_format'] = '%Y-%m-%d'
         _LOGGER.debug(f'[analyze_costs] query: {query}')
         return self.cost_model.analyze(**query)
 
     def analyze_monthly_costs(self, query, target='SECONDARY_PREFERRED'):
-        start = query['start']
-        if len(start) == 4:
-            query['start_field'] = 'billed_year'
-            query['end_field'] = 'billed_year'
-
         query['target'] = target
         query['date_field'] = 'billed_month'
+        query['date_field_format'] = '%Y-%m'
         _LOGGER.debug(f'[analyze_monthly_costs] query: {query}')
         return self.monthly_cost_model.analyze(**query)
 
     def analyze_yearly_costs(self, query, target='SECONDARY_PREFERRED'):
         query['target'] = target
         query['date_field'] = 'billed_year'
+        query['date_field_format'] = '%Y'
         _LOGGER.debug(f'[analyze_yearly_costs] query: {query}')
         return self.monthly_cost_model.analyze(**query)
 

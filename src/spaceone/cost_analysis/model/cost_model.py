@@ -44,8 +44,12 @@ class Cost(MongoModel):
         },
         'indexes': [
             {
-                "fields": ['domain_id', 'data_source_id', 'job_id', 'job_task_id', '-billed_month'],
-                "name": "COMPOUND_INDEX_FOR_SYNC_JOB"
+                "fields": ['domain_id', 'data_source_id', 'job_id', 'job_task_id', '-billed_date'],
+                "name": "COMPOUND_INDEX_FOR_SYNC_JOB_1"
+            },
+            {
+                "fields": ['domain_id', 'data_source_id', 'job_id', '-billed_month'],
+                "name": "COMPOUND_INDEX_FOR_SYNC_JOB_2"
             },
             {
                 "fields": ['domain_id', 'data_source_id', '-billed_date', 'project_id', 'cost'],
@@ -87,7 +91,7 @@ class MonthlyCost(MongoModel):
         },
         'indexes': [
             {
-                "fields": ['domain_id', 'data_source_id', 'job_id', 'job_task_id', '-billed_month'],
+                "fields": ['domain_id', 'data_source_id', 'job_id', '-billed_month'],
                 "name": "COMPOUND_INDEX_FOR_SYNC_JOB"
             },
             {

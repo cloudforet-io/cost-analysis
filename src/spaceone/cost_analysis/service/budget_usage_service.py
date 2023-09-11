@@ -19,14 +19,16 @@ class BudgetUsageService(BaseService):
 
     @transaction(append_meta={'authorization.scope': 'PROJECT'})
     @check_required(['domain_id'])
-    @append_query_filter(['budget_id', 'name', 'date', 'domain_id'])
+    @append_query_filter(['budget_id', 'data_source_id', 'name', 'date', 'domain_id'])
     @append_keyword_filter(['budget_id', 'name'])
+    @set_query_page_limit(1000)
     def list(self, params):
         """ List budget_usages
 
         Args:
             params (dict): {
                 'budget_id': 'str',
+                'data_source_id': 'str',
                 'name': 'str',
                 'date': 'str',
                 'domain_id': 'str',
@@ -45,13 +47,14 @@ class BudgetUsageService(BaseService):
 
     @transaction(append_meta={'authorization.scope': 'PROJECT'})
     @check_required(['query', 'domain_id'])
-    @append_query_filter(['domain_id'])
+    @append_query_filter(['data_source_id', 'domain_id'])
     @append_keyword_filter(['budget_id', 'name'])
+    @set_query_page_limit(1000)
     def stat(self, params):
         """
         Args:
             params (dict): {
-                'budget_id': 'str',
+                'data_source_id': 'str',
                 'domain_id': 'str',
                 'query': 'dict (spaceone.api.core.v1.StatisticsQuery)',
                 'user_projects': 'list', // from meta,
@@ -67,8 +70,8 @@ class BudgetUsageService(BaseService):
         return self.budget_usage_mgr.stat_budget_usages(query)
 
     @transaction(append_meta={'authorization.scope': 'PROJECT'})
-    @check_required(['query', 'query.granularity', 'query.fields', 'domain_id'])
-    @append_query_filter(['domain_id'])
+    @check_required(['query', 'query.fields', 'domain_id'])
+    @append_query_filter(['data_source_id', 'domain_id'])
     @append_keyword_filter(['budget_id', 'name'])
     @set_query_page_limit(1000)
     def analyze(self, params):
@@ -87,16 +90,15 @@ class BudgetUsageService(BaseService):
         """
 
         query = self._set_user_project_or_project_group_filter(params)
-        self._check_granularity(query['granularity'])
+        self._check_granularity(query.get('granularity'))
 
         return self.budget_usage_mgr.analyze_budget_usages(query)
 
     @staticmethod
     def _check_granularity(granularity):
-        if granularity == 'DAILY':
+        if granularity and granularity != 'MONTHLY':
             raise ERROR_INVALID_PARAMETER(key='query.granularity',
-                                          reason='DAILY is not supported for granularity.'
-                                                 ' (granularity = ACCUMULATED | MONTHLY')
+                                          reason='Granularity is only MONTHLY.')
 
     @staticmethod
     def _set_user_project_or_project_group_filter(params):
