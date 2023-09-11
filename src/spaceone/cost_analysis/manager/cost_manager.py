@@ -80,6 +80,15 @@ class CostManager(BaseManager):
     def stat_costs(self, query):
         return self.cost_model.stat(**query)
 
+    def filter_monthly_costs(self, **conditions):
+        return self.monthly_cost_model.filter(**conditions)
+
+    def list_monthly_costs(self, query={}):
+        return self.monthly_cost_model.query(**query)
+
+    def stat_monthly_costs(self, query):
+        return self.monthly_cost_model.stat(**query)
+
     def analyze_costs(self, query, target='SECONDARY_PREFERRED'):
         start = query['start']
         if len(start) == 4:
@@ -91,16 +100,8 @@ class CostManager(BaseManager):
 
         query['target'] = target
         query['date_field'] = 'billed_date'
+        _LOGGER.debug(f'[analyze_costs] query: {query}')
         return self.cost_model.analyze(**query)
-
-    def filter_monthly_costs(self, **conditions):
-        return self.monthly_cost_model.filter(**conditions)
-
-    def list_monthly_costs(self, query={}):
-        return self.monthly_cost_model.query(**query)
-
-    def stat_monthly_costs(self, query):
-        return self.monthly_cost_model.stat(**query)
 
     def analyze_monthly_costs(self, query, target='SECONDARY_PREFERRED'):
         start = query['start']
@@ -110,26 +111,28 @@ class CostManager(BaseManager):
 
         query['target'] = target
         query['date_field'] = 'billed_month'
+        _LOGGER.debug(f'[analyze_monthly_costs] query: {query}')
         return self.monthly_cost_model.analyze(**query)
 
     def analyze_yearly_costs(self, query, target='SECONDARY_PREFERRED'):
         query['target'] = target
         query['date_field'] = 'billed_year'
+        _LOGGER.debug(f'[analyze_yearly_costs] query: {query}')
         return self.monthly_cost_model.analyze(**query)
 
     @cache.cacheable(key='stat-costs:monthly:{domain_id}:{domain_id}:{query_hash}', expire=3600 * 24)
     def stat_monthly_costs_with_cache(self, query, query_hash, domain_id, data_source_id):
         return self.stat_monthly_costs(query)
 
-    @cache.cacheable(key='analyze-costs:daily:{domain_id}:{data_source_id}:{query_hash}', expire=3600 * 24)
+    # @cache.cacheable(key='analyze-costs:daily:{domain_id}:{data_source_id}:{query_hash}', expire=3600 * 24)
     def analyze_costs_with_cache(self, query, query_hash, domain_id, data_source_id, target='SECONDARY_PREFERRED'):
         return self.analyze_costs(query, target)
 
-    @cache.cacheable(key='analyze-costs:monthly:{domain_id}:{data_source_id}:{query_hash}', expire=3600 * 24)
+    # @cache.cacheable(key='analyze-costs:monthly:{domain_id}:{data_source_id}:{query_hash}', expire=3600 * 24)
     def analyze_monthly_costs_with_cache(self, query, query_hash, domain_id, data_source_id, target='SECONDARY_PREFERRED'):
         return self.analyze_monthly_costs(query, target)
 
-    @cache.cacheable(key='analyze-costs:yearly:{domain_id}:{data_source_id}:{query_hash}', expire=3600 * 24)
+    # @cache.cacheable(key='analyze-costs:yearly:{domain_id}:{data_source_id}:{query_hash}', expire=3600 * 24)
     def analyze_yearly_costs_with_cache(self, query, query_hash, domain_id, data_source_id, target='SECONDARY_PREFERRED'):
         return self.analyze_yearly_costs(query, target)
 
