@@ -438,19 +438,24 @@ class JobService(BaseService):
                         self._delete_changed_cost_data(job_vo, changed_vo.start, changed_vo.end, changed_vo.filter)
 
                 except Exception as e:
+                    _LOGGER.error(f'[_close_job] aggregate cost data error: {e}', exc_info=True)
                     self._rollback_cost_data(job_vo)
                     self.job_mgr.change_error_status(job_vo, e)
                     raise e
 
-                self.cost_mgr.remove_stat_cache(domain_id, data_source_id)
+                try:
+                    self.cost_mgr.remove_stat_cache(domain_id, data_source_id)
 
-                if not no_preload_cache:
-                    self.job_mgr.preload_cost_stat_queries(domain_id, data_source_id)
+                    if not no_preload_cache:
+                        self.job_mgr.preload_cost_stat_queries(domain_id, data_source_id)
 
-                self.budget_usage_mgr.update_budget_usage(domain_id, data_source_id)
+                    self.budget_usage_mgr.update_budget_usage(domain_id, data_source_id)
 
-                self._update_last_sync_time(job_vo)
-                self.job_mgr.change_success_status(job_vo)
+                    self._update_last_sync_time(job_vo)
+                    self.job_mgr.change_success_status(job_vo)
+                except Exception as e:
+                    _LOGGER.error(f'[_close_job] cache and budget update error: {e}', exc_info=True)
+                    self.job_mgr.change_error_status(job_vo, e)
 
             elif job_vo.status == 'ERROR':
                 self._rollback_cost_data(job_vo)
