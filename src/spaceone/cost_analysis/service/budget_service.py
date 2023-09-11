@@ -71,11 +71,14 @@ class BudgetService(BaseService):
             if len(provider_filter.get('providers', [])) == 0:
                 raise ERROR_PROVIDER_FILTER_IS_EMPTY()
         else:
-            params['provider_filter']['providers'] = []
+            params['provider_filter'] = {
+                'state': 'DISABLED',
+                'providers': []
+            }
 
         data_source_mgr: DataSourceManager = self.locator.get_manager('DataSourceManager')
         data_source_vo: DataSource = data_source_mgr.get_data_source(data_source_id, domain_id)
-        data_source_metadata = data_source_vo.plugin_info.get('metadata', {})
+        data_source_metadata = data_source_vo.plugin_info.metadata
         params['currency'] = data_source_metadata['currency']
 
         if time_unit == 'TOTAL':
