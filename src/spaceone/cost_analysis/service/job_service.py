@@ -442,11 +442,12 @@ class JobService(BaseService):
                     self.job_mgr.change_error_status(job_vo, e)
                     raise e
 
-                self.budget_usage_mgr.update_budget_usage(domain_id, data_source_id)
                 self.cost_mgr.remove_stat_cache(domain_id, data_source_id)
 
                 if not no_preload_cache:
                     self.job_mgr.preload_cost_stat_queries(domain_id, data_source_id)
+
+                self.budget_usage_mgr.update_budget_usage(domain_id, data_source_id)
 
                 self._update_last_sync_time(job_vo)
                 self.job_mgr.change_success_status(job_vo)

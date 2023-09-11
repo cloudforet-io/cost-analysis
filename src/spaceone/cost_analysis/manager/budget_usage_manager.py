@@ -108,9 +108,9 @@ class BudgetUsageManager(BaseManager):
         budget_usage_vos = self.budget_usage_model.filter(budget_id=budget_vo.budget_id)
         for budget_usage_vo in budget_usage_vos:
             if budget_usage_vo.date in update_data:
-                budget_usage_vo.update({'usd_cost': update_data[budget_usage_vo.date]})
+                budget_usage_vo.update({'cost': update_data[budget_usage_vo.date]})
             else:
-                budget_usage_vo.update({'usd_cost': 0})
+                budget_usage_vo.update({'cost': 0})
 
     def _make_cost_analyze_query(self, budget_vo: Budget):
         query = {
@@ -125,6 +125,7 @@ class BudgetUsageManager(BaseManager):
             },
             'filter': [
                 {'k': 'domain_id', 'v': budget_vo.domain_id, 'o': 'eq'},
+                {'k': 'data_source_id', 'v': budget_vo.data_source_id, 'o': 'eq'},
             ]
         }
 
@@ -142,7 +143,7 @@ class BudgetUsageManager(BaseManager):
 
             query['filter'].append({'k': 'project_id', 'v': project_ids, 'o': 'in'})
 
-        if budget_vo.provider_filter.state == 'ENABLED':
+        if budget_vo.provider_filter and budget_vo.provider_filter.state == 'ENABLED':
             query['filter'].append({'k': 'provider', 'v': budget_vo.provider_filter.providers, 'o': 'in'})
 
         return query
