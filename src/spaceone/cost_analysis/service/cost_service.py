@@ -172,7 +172,6 @@ class CostService(BaseService):
     @append_query_filter(['data_source_id', 'domain_id', 'user_projects'])
     @append_keyword_filter(['cost_id'])
     @set_query_page_limit(1000)
-    @change_date_value()
     def stat(self, params):
         """
         Args:

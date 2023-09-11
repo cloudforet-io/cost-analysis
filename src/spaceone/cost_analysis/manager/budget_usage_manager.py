@@ -93,6 +93,8 @@ class BudgetUsageManager(BaseManager):
         return self.budget_usage_model.stat(**query)
 
     def analyze_budget_usages(self, query):
+        query['date_field'] = 'date'
+        query['date_field_format'] = '%Y-%m'
         return self.budget_usage_model.analyze(**query)
 
     def _update_monthly_budget_usage(self, budget_vo: Budget, cost_mgr: CostManager):
