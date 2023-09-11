@@ -575,7 +575,6 @@ class JobService(BaseService):
             'allow_disk_use': True      # Allow disk use for large data
         }
 
-        _LOGGER.debug(f'[_aggregate_monthly_cost_data] query: {query}')
         response = self.cost_mgr.analyze_costs(query)
         results = response.get('results', [])
         for aggregated_cost_data in results:
