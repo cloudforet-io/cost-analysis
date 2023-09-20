@@ -98,6 +98,16 @@ class BudgetService(BaseService):
         # Check Notifications
         self._check_notifications(notifications)
 
+        # Check Duplicated Budget
+        budget_vos = self.budget_mgr.filter_budgets(
+            data_source_id=data_source_id,
+            project_id=project_id,
+            project_group_id=project_group_id,
+            domain_id=domain_id
+        )
+        if budget_vos.count() > 0:
+            raise ERROR_BUDGET_ALREADY_EXIST(data_source_id=data_source_id, target=project_id or project_group_id)
+
         budget_vo = self.budget_mgr.create_budget(params)
 
         # Create budget usages
