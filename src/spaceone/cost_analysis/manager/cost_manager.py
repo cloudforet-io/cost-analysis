@@ -8,6 +8,7 @@ from spaceone.core.manager import BaseManager
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.model.cost_model import Cost, MonthlyCost, CostQueryHistory
 from spaceone.cost_analysis.manager.data_source_rule_manager import DataSourceRuleManager
+from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ class CostManager(BaseManager):
         self.monthly_cost_model: MonthlyCost = self.locator.get_model('MonthlyCost')
         self.cost_query_history_model: CostQueryHistory = self.locator.get_model('CostQueryHistory')
         self.data_source_rule_mgr: DataSourceRuleManager = self.locator.get_manager('DataSourceRuleManager')
-        self.exchange_rate_map = None
+        self.project_group_map = None
 
     def create_cost(self, params, execute_rollback=True):
         def _rollback(cost_vo):
@@ -28,6 +29,12 @@ class CostManager(BaseManager):
                          f'Delete cost : {cost_vo.name} '
                          f'({cost_vo.cost_id})')
             cost_vo.delete()
+
+        if self.project_group_map is None:
+            self.project_group_map = self._get_project_group_map(params['domain_id'])
+
+        if 'project_id' in params:
+            params['project_group_id'] = self.project_group_map.get(params['project_id'])
 
         if 'region_code' in params and 'provider' in params:
             params['region_key'] = f'{params["provider"]}.{params["region_code"]}'
@@ -129,16 +136,19 @@ class CostManager(BaseManager):
     def analyze_costs_by_granularity(self, query, domain_id, data_source_id):
         self._check_date_range(query)
         granularity = query['granularity']
+
         # Save query history to speed up data loading
         query_hash = utils.dict_to_hash(query)
         self.create_cost_query_history(query, query_hash, domain_id, data_source_id)
 
         if granularity == 'DAILY':
-            return self.analyze_costs_with_cache(query, query_hash, domain_id, data_source_id)
+            response = self.analyze_costs_with_cache(query, query_hash, domain_id, data_source_id)
         elif granularity == 'MONTHLY':
-            return self.analyze_monthly_costs_with_cache(query, query_hash, domain_id, data_source_id)
-        elif granularity == 'YEARLY':
-            return self.analyze_yearly_costs_with_cache(query, query_hash, domain_id, data_source_id)
+            response = self.analyze_monthly_costs_with_cache(query, query_hash, domain_id, data_source_id)
+        else:
+            response = self.analyze_yearly_costs_with_cache(query, query_hash, domain_id, data_source_id)
+
+        return response
 
     @cache.cacheable(key='cost-query-history:{domain_id}:{data_source_id}:{query_hash}', expire=600)
     def create_cost_query_history(self, query, query_hash, domain_id, data_source_id):
@@ -259,3 +269,13 @@ class CostManager(BaseManager):
             return datetime.strptime(billed_date, date_format)
         except Exception as e:
             raise ERROR_INVALID_PARAMETER_TYPE(key='billed_date', type='YYYY-MM-DD')
+
+    @cache.cacheable(key='project-group-map:{domain_id}', expire=600)
+    def _get_project_group_map(self, domain_id):
+        project_group_map = {}
+        identity_mgr: IdentityManager = self.locator.get_manager('IdentityManager')
+        response = identity_mgr.list_projects({'only': ['project_id', 'project_group_id']}, domain_id)
+        for project_info in response.get('results', []):
+            project_group_map[project_info['project_id']] = project_info['project_group_info']['project_group_id']
+
+        return project_group_map

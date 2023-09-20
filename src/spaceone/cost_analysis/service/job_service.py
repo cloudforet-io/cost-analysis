@@ -557,6 +557,7 @@ class JobService(BaseService):
                 'additional_info',
                 'service_account_id',
                 'project_id',
+                'project_group_id',
                 'billed_year'
             ],
             'fields': {

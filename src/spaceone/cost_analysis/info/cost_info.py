@@ -28,6 +28,7 @@ def CostInfo(cost_vo: Cost, minimal=False):
             'additional_info': change_struct_type(cost_vo.additional_info),
             'service_account_id': cost_vo.service_account_id,
             'project_id': cost_vo.project_id,
+            'project_group_id': cost_vo.project_group_id,
             'data_source_id': cost_vo.data_source_id,
             'domain_id': cost_vo.domain_id,
             'billed_year': cost_vo.billed_year,
