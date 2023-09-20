@@ -2,6 +2,7 @@ import copy
 import datetime
 import logging
 from datetime import timedelta, datetime
+from dateutil.relativedelta import relativedelta
 
 from spaceone.core.service import *
 from spaceone.core import utils
@@ -440,7 +441,14 @@ class JobService(BaseService):
                 except Exception as e:
                     _LOGGER.error(f'[_close_job] aggregate cost data error: {e}', exc_info=True)
                     self._rollback_cost_data(job_vo)
-                    self.job_mgr.change_error_status(job_vo, e)
+                    self.job_mgr.change_error_status(job_vo, f'aggregate cost data error: {e}')
+                    raise e
+
+                try:
+                    self._delete_old_cost_data(domain_id, data_source_id)
+                except Exception as e:
+                    _LOGGER.error(f'[_close_job] delete old cost data error: {e}', exc_info=True)
+                    self.job_mgr.change_error_status(job_vo, f'delete old cost data error: {e}')
                     raise e
 
                 try:
@@ -453,9 +461,11 @@ class JobService(BaseService):
 
                     self._update_last_sync_time(job_vo)
                     self.job_mgr.change_success_status(job_vo)
+
                 except Exception as e:
                     _LOGGER.error(f'[_close_job] cache and budget update error: {e}', exc_info=True)
-                    self.job_mgr.change_error_status(job_vo, e)
+                    self.job_mgr.change_error_status(job_vo, f'cache and budget update error: {e}')
+                    raise e
 
             elif job_vo.status == 'ERROR':
                 self._rollback_cost_data(job_vo)
@@ -487,6 +497,35 @@ class JobService(BaseService):
         self.data_source_mgr: DataSourceManager = self.locator.get_manager('DataSourceManager')
         data_source_vo = self.data_source_mgr.get_data_source(job_vo.data_source_id, job_vo.domain_id)
         self.data_source_mgr.update_data_source_by_vo({'last_synchronized_at': job_vo.created_at}, data_source_vo)
+
+    def _delete_old_cost_data(self, data_source_id, domain_id):
+        now = datetime.utcnow().date()
+        old_billed_month = (now - relativedelta(months=12)).strftime('%Y-%m')
+        old_billed_year = (now - relativedelta(months=36)).strftime('%Y')
+
+        cost_delete_query = {
+            'filter': [
+                {'k': 'billed_month', 'v': old_billed_month, 'o': 'lt'},
+                {'k': 'data_source_id', 'v': data_source_id, 'o': 'eq'},
+                {'k': 'domain_id', 'v': domain_id, 'o': 'eq'}
+            ]
+        }
+
+        cost_vos, total_count = self.cost_mgr.list_costs(cost_delete_query)
+        _LOGGER.debug(f'[_delete_old_cost_data] delete costs (count = {total_count})')
+        cost_vos.delete()
+
+        monthly_cost_delete_query = {
+            'filter': [
+                {'k': 'billed_year', 'v': old_billed_year, 'o': 'lt'},
+                {'k': 'data_source_id', 'v': data_source_id, 'o': 'eq'},
+                {'k': 'domain_id', 'v': domain_id, 'o': 'eq'}
+            ]
+        }
+
+        monthly_cost_vos, total_count = self.cost_mgr.list_monthly_costs(monthly_cost_delete_query)
+        _LOGGER.debug(f'[_delete_old_cost_data] delete monthly costs (count = {total_count})')
+        monthly_cost_vos.delete()
 
     def _delete_changed_cost_data(self, job_vo: Job, start, end, change_filter):
         query = {
