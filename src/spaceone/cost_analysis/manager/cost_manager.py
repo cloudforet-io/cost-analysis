@@ -1,7 +1,6 @@
 import logging
 import copy
 from datetime import datetime
-import pandas as pd
 from dateutil.relativedelta import relativedelta
 
 from spaceone.core import cache, utils
