@@ -33,9 +33,6 @@ class CostManager(BaseManager):
         if self.project_group_map is None:
             self.project_group_map = self._get_project_group_map(params['domain_id'])
 
-        if 'project_id' in params:
-            params['project_group_id'] = self.project_group_map.get(params['project_id'])
-
         if 'region_code' in params and 'provider' in params:
             params['region_key'] = f'{params["provider"]}.{params["region_code"]}'
 
@@ -45,6 +42,9 @@ class CostManager(BaseManager):
         params['billed_month'] = billed_at.strftime('%Y-%m')
 
         params = self.data_source_rule_mgr.change_cost_data(params)
+
+        if 'project_id' in params:
+            params['project_group_id'] = self.project_group_map.get(params['project_id'])
 
         cost_vo: Cost = self.cost_model.create(params)
 
