@@ -103,7 +103,8 @@ class CostService(BaseService):
     @transaction(append_meta={'authorization.scope': 'PROJECT'})
     @check_required(['data_source_id', 'domain_id'])
     @append_query_filter(['cost_id', 'provider', 'region_code', 'region_key', 'product', 'usage_type', 'resource',
-                          'service_account_id', 'project_id', 'data_source_id', 'domain_id', 'user_projects'])
+                          'service_account_id', 'project_id', 'project_group_id', 'data_source_id', 'domain_id',
+                          'user_projects'])
     @append_keyword_filter(['cost_id'])
     @set_query_page_limit(1000)
     def list(self, params):
@@ -133,8 +134,6 @@ class CostService(BaseService):
         """
 
         query = params.get('query', {})
-        query['filter'] = self._change_project_group_filter(query.get('filter', []), params['domain_id'])
-
         return self.cost_mgr.list_costs(query)
 
     @transaction(append_meta={'authorization.scope': 'PROJECT'})
@@ -162,9 +161,6 @@ class CostService(BaseService):
         data_source_id = params['data_source_id']
         query = params.get('query', {})
 
-        query_filter = query.get('filter', [])
-        query['filter'] = self._change_project_group_filter(query_filter, domain_id)
-
         return self.cost_mgr.analyze_costs_by_granularity(query, domain_id, data_source_id)
 
     @transaction(append_meta={'authorization.scope': 'PROJECT'})
@@ -188,9 +184,7 @@ class CostService(BaseService):
         """
 
         domain_id = params['domain_id']
-
         query = params.get('query', {})
-        query['filter'] = self._change_project_group_filter(query.get('filter', []), params['domain_id'])
 
         if self._is_distinct_query(query):
             page, query = self._get_page_from_query(query)
@@ -210,45 +204,6 @@ class CostService(BaseService):
             return response
         else:
             raise ERROR_NOT_SUPPORT_QUERY_OPTION(query_option='aggregate')
-
-    def _change_project_group_filter(self, query_filter, domain_id):
-        changed_filter = []
-        project_group_query = {
-            'filter': [],
-            'only': ['project_group_id']
-        }
-
-        for condition in query_filter:
-            key = condition.get('key', condition.get('k'))
-            value = condition.get('value', condition.get('v'))
-            operator = condition.get('operator', condition.get('o'))
-
-            if not all([key, operator]):
-                raise ERROR_DB_QUERY(reason='filter condition should have key, value and operator.')
-
-            if key == 'project_group_id':
-                project_group_query['filter'].append(condition)
-            else:
-                changed_filter.append(condition)
-
-        if len(project_group_query['filter']) > 0:
-            identity_mgr: IdentityManager = self.locator.get_manager('IdentityManager')
-            response = identity_mgr.list_project_groups(project_group_query, domain_id)
-            project_group_ids = []
-            project_ids = []
-            for project_group_info in response.get('results', []):
-                project_group_ids.append(project_group_info['project_group_id'])
-
-            for project_group_id in project_group_ids:
-                response = identity_mgr.list_projects_in_project_group(project_group_id, domain_id, True,
-                                                                       {'only': ['project_id']})
-                for project_info in response.get('results', []):
-                    if project_info['project_id'] not in project_ids:
-                        project_ids.append(project_info['project_id'])
-
-            changed_filter.append({'k': 'project_id', 'v': project_ids, 'o': 'in'})
-
-        return changed_filter
 
     @staticmethod
     def _is_distinct_query(query):
