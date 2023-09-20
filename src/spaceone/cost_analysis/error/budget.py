@@ -42,3 +42,7 @@ class ERROR_THRESHOLD_IS_WRONG_IN_PERCENT_TYPE(ERROR_INVALID_ARGUMENT):
 
 class ERROR_PROVIDER_FILTER_IS_EMPTY(ERROR_INVALID_ARGUMENT):
     _message = 'Provider filter is empty. (key = provider_filter.providers, value = [])'
+
+
+class ERROR_BUDGET_ALREADY_EXIST(ERROR_INVALID_ARGUMENT):
+    _message = 'Budget already exist. (data_source_id = {data_source_id}, target = {target})'
