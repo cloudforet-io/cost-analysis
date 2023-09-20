@@ -3,9 +3,12 @@ from datetime import datetime
 from dateutil.rrule import rrule, MONTHLY
 
 from spaceone.core.manager import BaseManager
+from spaceone.core import utils
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
+from spaceone.cost_analysis.manager.notification_manager import NotificationManager
 from spaceone.cost_analysis.manager.cost_manager import CostManager
 from spaceone.cost_analysis.manager.budget_manager import BudgetManager
+from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.model.budget_usage_model import BudgetUsage
 from spaceone.cost_analysis.model.budget_model import Budget
 
@@ -18,6 +21,9 @@ class BudgetUsageManager(BaseManager):
         super().__init__(*args, **kwargs)
         self.budget_mgr: BudgetManager = self.locator.get_manager('BudgetManager')
         self.budget_usage_model: BudgetUsage = self.locator.get_model('BudgetUsage')
+        self.identity_mgr: IdentityManager = self.locator.get_manager('IdentityManager')
+        self.notification_mgr: NotificationManager = self.locator.get_manager('NotificationManager')
+        self.data_source_mgr: DataSourceManager = self.locator.get_manager('DataSourceManager')
 
     def create_budget_usages(self, budget_vo: Budget):
         if budget_vo.time_unit == 'TOTAL':
@@ -84,6 +90,144 @@ class BudgetUsageManager(BaseManager):
         budget_vos = self.budget_mgr.filter_budgets(domain_id=domain_id, data_source_id=data_source_id)
         for budget_vo in budget_vos:
             self.update_cost_usage(budget_vo.budget_id, domain_id)
+            self.notify_budget_usage(budget_vo)
+
+    def notify_budget_usage(self, budget_vo: Budget):
+        budget_id = budget_vo.budget_id
+        domain_id = budget_vo.domain_id
+        current_month = datetime.now().strftime('%Y-%m')
+        updated_notifications = []
+        is_changed = False
+        for notification in budget_vo.notifications:
+            if current_month not in notification.notified_months:
+                unit = notification.unit
+                threshold = notification.threshold
+                notification_type = notification.notification_type
+                is_notify = False
+
+                if budget_vo.time_unit == 'MONTHLY':
+                    budget_usage_vos = self.filter_budget_usages(budget_id=budget_id, domain_id=domain_id)
+                    total_budget_usage = sum([budget_usage_vo.cost for budget_usage_vo in budget_usage_vos])
+                    budget_limit = budget_vo.limit
+                else:
+                    budget_usage_vos = self.filter_budget_usages(budget_id=budget_id, domain_id=domain_id,
+                                                                 date=current_month)
+                    total_budget_usage = budget_usage_vos[0].cost
+                    budget_limit = budget_usage_vos[0].limit
+
+                if budget_limit == 0:
+                    _LOGGER.debug(f'[notify_budget_usage] budget_limit is 0: {budget_id}')
+                    continue
+
+                budget_percentage = round(total_budget_usage / budget_limit * 100, 2)
+
+                if unit == 'PERCENT':
+                    if budget_percentage > threshold:
+                        is_notify = True
+                        is_changed = True
+                else:
+                    if total_budget_usage > threshold:
+                        is_notify = True
+                        is_changed = True
+
+                if is_notify:
+                    _LOGGER.debug(f'[notify_budget_usage] notify event: {budget_id} (level: {notification_type})')
+                    self._notify_message(budget_vo, current_month, total_budget_usage, budget_limit,
+                                         budget_percentage, threshold, unit, notification_type)
+
+                    updated_notifications.append({
+                        'threshold': threshold,
+                        'unit': unit,
+                        'notification_type': notification_type,
+                        'notified_months': notification.notified_months + [current_month]
+                    })
+                else:
+                    if unit == 'PERCENT':
+                        _LOGGER.debug(f'[notify_budget_usage] skip notification: {budget_id} '
+                                      f'(usage percent: {budget_percentage}%, threshold: {threshold}%)')
+                    else:
+                        _LOGGER.debug(f'[notify_budget_usage] skip notification: {budget_id} '
+                                      f'(usage cost: {total_budget_usage}, threshold: {threshold})')
+
+                    updated_notifications.append(notification.to_dict())
+
+            else:
+                updated_notifications.append(notification.to_dict())
+
+        if is_changed:
+            budget_vo.update({'notifications': updated_notifications})
+
+    def _notify_message(self, budget_vo: Budget, current_month, total_budget_usage, budget_limit, budget_percentage,
+                        threshold, unit, notification_type):
+        data_source_name = self.data_source_mgr.get_data_source(budget_vo.data_source_id, budget_vo.domain_id).name
+        project_name = self.identity_mgr.get_project_name(budget_vo.project_id, budget_vo.domain_id)
+
+        if unit == 'PERCENT':
+            threshold_str = f'{int(threshold)}%'
+        else:
+            threshold_str = format(int(threshold), ',')
+
+        description = f'Please check the budget usage and increase the budget limit if necessary.\n\n'
+        description += (f'Budget Usage (Currency: {budget_vo.currency}): \n'
+                        f'- Usage Cost: {format(round(total_budget_usage, 2), ",")}\n'
+                        f'- Limit: {format(budget_limit, ",")}\n'
+                        f'- Percentage: {budget_percentage}%\n'
+                        f'- Threshold: > {threshold_str}\n')
+
+        if budget_vo.time_unit == 'MONTHLY':
+            period = f'{current_month} ~ {current_month}'
+        else:
+            period = f'{budget_vo.start} ~ {budget_vo.end}'
+
+        message = {
+            'resource_type': 'identity.Project',
+            'resource_id': budget_vo.project_id,
+            'notification_type': 'WARNING' if notification_type == 'WARNING' else 'ERROR',
+            'topic': 'cost_analysis.Budget',
+            'message': {
+                'title': f'Budget usage exceeded - {budget_vo.name}',
+                'description': description,
+                'tags': [
+                    {
+                        'key': 'Budget ID',
+                        'value': budget_vo.budget_id,
+                        'options': {
+                            'short': True
+                        }
+                    },
+                    {
+                        'key': 'Budget Name',
+                        'value': budget_vo.name,
+                        'options': {
+                            'short': True
+                        }
+                    },
+                    {
+                        'key': 'Data Source',
+                        'value': data_source_name,
+                        'options': {
+                            'short': True
+                        }
+                    },
+                    {
+                        'key': 'Period',
+                        'value': period,
+                        'options': {
+                            'short': True
+                        }
+                    },
+                    {
+                        'key': 'Project',
+                        'value': project_name,
+                    }
+                ],
+                'occurred_at': utils.datetime_to_iso8601(datetime.utcnow()),
+            },
+            'notification_level': 'ALL',
+            'domain_id': budget_vo.domain_id
+        }
+
+        self.notification_mgr.create_notification(message)
 
     def filter_budget_usages(self, **conditions):
         return self.budget_usage_model.filter(**conditions)

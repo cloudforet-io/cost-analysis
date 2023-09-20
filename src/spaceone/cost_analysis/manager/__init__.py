@@ -12,3 +12,4 @@ from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 from spaceone.cost_analysis.manager.secret_manager import SecretManager
 from spaceone.cost_analysis.manager.job_manager import JobManager
 from spaceone.cost_analysis.manager.job_task_manager import JobTaskManager
+from spaceone.cost_analysis.manager.notification_manager import NotificationManager

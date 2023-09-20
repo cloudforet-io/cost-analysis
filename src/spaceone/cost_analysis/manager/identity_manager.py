@@ -4,7 +4,6 @@ from spaceone.core import config
 from spaceone.core.manager import BaseManager
 from spaceone.core.connector.space_connector import SpaceConnector
 from spaceone.core import cache
-from spaceone.cost_analysis.error import *
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -18,6 +17,15 @@ class IdentityManager(BaseManager):
 
     def list_projects(self, query, domain_id):
         return self.identity_connector.dispatch('Project.list', {'query': query, 'domain_id': domain_id})
+
+    @cache.cacheable(key='project-name:{domain_id}:{project_id}', expire=300)
+    def get_project_name(self, project_id, domain_id):
+        try:
+            project_info = self.get_project(project_id, domain_id)
+            return f'{project_info["project_group_info"]["name"]} > {project_info["name"]}'
+        except Exception as e:
+            _LOGGER.error(f'[get_project_name] API Error: {e}')
+            return project_id
 
     def get_project(self, project_id, domain_id):
         return self.identity_connector.dispatch('Project.get', {'project_id': project_id, 'domain_id': domain_id})

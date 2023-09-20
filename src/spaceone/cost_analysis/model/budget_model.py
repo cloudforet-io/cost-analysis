@@ -20,6 +20,10 @@ class Notification(EmbeddedDocument):
     threshold = FloatField(required=True)
     unit = StringField(max_length=20, required=True, choices=('PERCENT', 'ACTUAL_COST'))
     notification_type = StringField(max_length=20, required=True, choices=('CRITICAL', 'WARNING'))
+    notified_months = ListField(StringField(), default=[])
+
+    def to_dict(self):
+        return dict(self.to_mongo())
 
 
 class Budget(MongoModel):
@@ -29,7 +33,7 @@ class Budget(MongoModel):
     planned_limits = ListField(EmbeddedDocumentField(PlannedLimit), default=[])
     currency = StringField()
     provider_filter = EmbeddedDocumentField(ProviderFilter, required=True)
-    time_unit = StringField(max_length=20, choices=('TOTAL', 'MONTHLY', 'YEARLY'))
+    time_unit = StringField(max_length=20, choices=('TOTAL', 'MONTHLY'))
     start = StringField(required=True, max_length=7)
     end = StringField(required=True, max_length=7)
     notifications = ListField(EmbeddedDocumentField(Notification), default=[])
