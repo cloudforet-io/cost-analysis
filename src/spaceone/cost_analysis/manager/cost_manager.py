@@ -203,7 +203,7 @@ class CostManager(BaseManager):
                 raise ERROR_INVALID_DATE_RANGE(start=start_str, end=end_str,
                                                reason='Request up to a maximum of 1 month.')
 
-            if start + relativedelta(months=12) < now:
+            if start + relativedelta(months=12) < now.replace(day=1):
                 raise ERROR_INVALID_DATE_RANGE(start=start_str, end=end_str,
                                                reason='For DAILY, you cannot request data older than 1 year.')
 
@@ -212,11 +212,11 @@ class CostManager(BaseManager):
                 raise ERROR_INVALID_DATE_RANGE(start=start_str, end=end_str,
                                                reason='Request up to a maximum of 12 months.')
 
-            if start + relativedelta(months=36) < now:
+            if start + relativedelta(months=36) < now.replace(day=1):
                 raise ERROR_INVALID_DATE_RANGE(start=start_str, end=end_str,
                                                reason='For MONTHLY, you cannot request data older than 3 years.')
         elif granularity == 'YEARLY':
-            if start + relativedelta(years=3) < now:
+            if start + relativedelta(years=3) < now.replace(month=1, day=1):
                 raise ERROR_INVALID_DATE_RANGE(start=start_str, end=end_str,
                                                reason='For YEARLY, you cannot request data older than 3 years.')
 

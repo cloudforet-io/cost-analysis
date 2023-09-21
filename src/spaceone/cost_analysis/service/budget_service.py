@@ -96,7 +96,7 @@ class BudgetService(BaseService):
                 params['limit'] += planned_limit.get('limit', 0)
 
         # Check Notifications
-        self._check_notifications(notifications)
+        self._check_notifications(notifications, project_id, project_group_id)
 
         # Check Duplicated Budget
         budget_vos = self.budget_mgr.filter_budgets(
@@ -114,6 +114,7 @@ class BudgetService(BaseService):
         budget_usage_mgr: BudgetUsageManager = self.locator.get_manager('BudgetUsageManager')
         budget_usage_mgr.create_budget_usages(budget_vo)
         budget_usage_mgr.update_cost_usage(budget_vo.budget_id, budget_vo.domain_id)
+        budget_usage_mgr.notify_budget_usage(budget_vo)
 
         return budget_vo
 
@@ -154,6 +155,9 @@ class BudgetService(BaseService):
             for budget_usage_vo in budget_usage_vos:
                 budget_usage_mgr.update_budget_usage_by_vo({'name': params['name']}, budget_usage_vo)
 
+        budget_usage_mgr.update_cost_usage(budget_vo.budget_id, budget_vo.domain_id)
+        budget_usage_mgr.notify_budget_usage(budget_vo)
+
         return budget_vo
 
     @transaction(append_meta={'authorization.scope': 'PROJECT'})
@@ -175,11 +179,11 @@ class BudgetService(BaseService):
         domain_id = params['domain_id']
         notifications = params.get('notifications', [])
 
-        # Check Notifications
-        self._check_notifications(notifications)
-        params['notifications'] = notifications
-
         budget_vo: Budget = self.budget_mgr.get_budget(budget_id, domain_id)
+
+        # Check Notifications
+        self._check_notifications(notifications, budget_vo.project_id, budget_vo.project_group_id)
+        params['notifications'] = notifications
 
         return self.budget_mgr.update_budget_by_vo(params, budget_vo)
 
@@ -332,7 +336,10 @@ class BudgetService(BaseService):
         return planned_limits_dict
 
     @staticmethod
-    def _check_notifications(notifications):
+    def _check_notifications(notifications, project_id, project_group_id):
+        if project_group_id and project_id is None:
+            raise ERROR_NOTIFICATION_IS_NOT_SUPPORTED_IN_PROJECT_GROUP(target=project_group_id)
+
         for notification in notifications:
             unit = notification.get('unit')
             notification_type = notification.get('notification_type')

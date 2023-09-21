@@ -46,3 +46,7 @@ class ERROR_PROVIDER_FILTER_IS_EMPTY(ERROR_INVALID_ARGUMENT):
 
 class ERROR_BUDGET_ALREADY_EXIST(ERROR_INVALID_ARGUMENT):
     _message = 'Budget already exist. (data_source_id = {data_source_id}, target = {target})'
+
+
+class ERROR_NOTIFICATION_IS_NOT_SUPPORTED_IN_PROJECT_GROUP(ERROR_INVALID_ARGUMENT):
+    _message = 'Notification is not supported in project group. (target = {target})'
