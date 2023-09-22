@@ -121,7 +121,7 @@ class CostQueryHistory(MongoModel):
         ],
         'indexes': [
             {
-                "fields": ['domain_id', 'domain_id', 'query_hash'],
+                "fields": ['domain_id', 'data_source_id', 'query_hash'],
                 "name": "COMPOUND_INDEX_FOR_SEARCH"
             },
         ]
