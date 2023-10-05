@@ -337,7 +337,7 @@ class BudgetService(BaseService):
 
     @staticmethod
     def _check_notifications(notifications, project_id, project_group_id):
-        if project_group_id and project_id is None:
+        if len(notifications) > 0 and project_group_id and project_id is None:
             raise ERROR_NOTIFICATION_IS_NOT_SUPPORTED_IN_PROJECT_GROUP(target=project_group_id)
 
         for notification in notifications:
