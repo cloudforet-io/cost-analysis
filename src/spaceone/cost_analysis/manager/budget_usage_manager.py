@@ -132,15 +132,18 @@ class BudgetUsageManager(BaseManager):
 
                 if is_notify:
                     _LOGGER.debug(f'[notify_budget_usage] notify event: {budget_id} (level: {notification_type})')
-                    self._notify_message(budget_vo, current_month, total_budget_usage, budget_limit,
-                                         budget_percentage, threshold, unit, notification_type)
+                    try:
+                        self._notify_message(budget_vo, current_month, total_budget_usage, budget_limit,
+                                             budget_percentage, threshold, unit, notification_type)
 
-                    updated_notifications.append({
-                        'threshold': threshold,
-                        'unit': unit,
-                        'notification_type': notification_type,
-                        'notified_months': notification.notified_months + [current_month]
-                    })
+                        updated_notifications.append({
+                            'threshold': threshold,
+                            'unit': unit,
+                            'notification_type': notification_type,
+                            'notified_months': notification.notified_months + [current_month]
+                        })
+                    except Exception as e:
+                        _LOGGER.error(f'[notify_budget_usage] Failed to notify message ({budget_id}): {e}')
                 else:
                     if unit == 'PERCENT':
                         _LOGGER.debug(f'[notify_budget_usage] skip notification: {budget_id} '
