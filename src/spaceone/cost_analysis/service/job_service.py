@@ -617,11 +617,10 @@ class JobService(BaseService):
                 {'k': 'job_task_id', 'v': job_task_id, 'o': 'eq'},
                 {'k': 'domain_id', 'v': domain_id, 'o': 'eq'},
             ],
-            'target': 'PRIMARY',        # Execute a query to primary DB
             'allow_disk_use': True      # Allow disk use for large data
         }
 
-        response = self.cost_mgr.analyze_costs(query)
+        response = self.cost_mgr.analyze_costs(query, target='PRIMARY')
         results = response.get('results', [])
         for aggregated_cost_data in results:
             aggregated_cost_data['data_source_id'] = data_source_id
