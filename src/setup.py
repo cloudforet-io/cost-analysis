@@ -29,8 +29,6 @@ setup(
     install_requires=[
         'spaceone-core',
         'spaceone-api',
-        'mongoengine',
-        'redis',
         'boto3',
         'pandas',
         'numpy'
