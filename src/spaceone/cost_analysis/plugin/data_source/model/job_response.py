@@ -15,4 +15,4 @@ class Changed(BaseModel):
 
 class TasksResponse(BaseModel):
     tasks: List[Task]
-    changed: List[Changed]
+    changed: List[Changed] = []
