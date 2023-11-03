@@ -60,3 +60,6 @@ class PluginMetadata(BaseModel):
 
 class PluginResponse(BaseModel):
     metadata: PluginMetadata
+
+    class Config:
+        use_enum_values = True
