@@ -1,11 +1,4 @@
-CONNECTORS = {
-}
-
 LOG = {
-    # '<package>': {
-    #     'level': 'DEBUG',
-    #     'handlers': ['console']
-    # },
     'filters': {
         'masking': {
             'rules': {
