@@ -53,7 +53,7 @@ class SupportedSecretType(str, Enum):
 
 
 class PluginMetadata(BaseModel):
-    data_source_rules: List[DataSourceRule]
+    data_source_rules: List[DataSourceRule] = []
     supported_secret_types: List[SupportedSecretType] = [SupportedSecretType.manual]
     currency: str = 'USD'
 
