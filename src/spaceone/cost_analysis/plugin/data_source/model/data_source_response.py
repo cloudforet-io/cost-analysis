@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Union
 from enum import Enum
 from pydantic import BaseModel
 
@@ -16,10 +16,10 @@ class MatchProject(BaseModel):
 
 
 class Actions(BaseModel):
-    match_service_account: MatchServiceAccount
-    match_project: MatchProject
-    change_project: str
-    add_additional_info: dict
+    match_service_account: Union[MatchServiceAccount, None] = None
+    match_project: Union[MatchProject, None] = None
+    change_project: Union[str, None] = None
+    add_additional_info: Union[dict, None] = None
 
 
 class Condition(BaseModel):
@@ -29,7 +29,7 @@ class Condition(BaseModel):
 
 
 class Options(BaseModel):
-    stop_processing: bool
+    stop_processing: bool = False
 
 
 class State(str, Enum):
