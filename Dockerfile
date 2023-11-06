@@ -9,7 +9,8 @@ ENV PACKAGE_VERSION=$PACKAGE_VERSION
 
 COPY pkg/pip_requirements.txt pip_requirements.txt
 
-RUN pip install --upgrade -r pip_requirements.txt
+RUN pip install --upgrade pip && \
+    pip install --upgrade -r pip_requirements.txt
 
 COPY src ${SRC_DIR}
 WORKDIR ${SRC_DIR}
