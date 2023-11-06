@@ -21,4 +21,4 @@ RUN pip install --upgrade spaceone-api
 EXPOSE ${SPACEONE_PORT}
 
 ENTRYPOINT ["spaceone"]
-CMD ["grpc", "spaceone.cost_analysis", "-m", "/opt"]
+CMD ["run", "grpc-server", "spaceone.cost_analysis", "-m", "/opt"]
