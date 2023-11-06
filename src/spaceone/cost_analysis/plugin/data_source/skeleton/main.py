@@ -1,3 +1,4 @@
+from typing import Generator
 from spaceone.cost_analysis.plugin.data_source.lib.server import DataSourcePluginServer
 
 app = DataSourcePluginServer()
@@ -64,7 +65,7 @@ def job_get_tasks(params: dict) -> dict:
 
 
 @app.route('Cost.get_data')
-def cost_get_data(params: dict) -> dict:
+def cost_get_data(params: dict) -> Generator[dict, None, None]:
     """ Get external cost data
 
     Args:
