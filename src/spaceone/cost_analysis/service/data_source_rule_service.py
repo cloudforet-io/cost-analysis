@@ -296,18 +296,16 @@ class DataSourceRuleService(BaseService):
                                                      f'({" | ".join(_SUPPORTED_CONDITION_OPERATORS)})')
 
     def _check_actions(self, actions, domain_id):
-        if 'change_project' in actions:
-            project_id = actions['change_project']
-
+        if project_id := actions.get('change_project'):
             identity_mgr: IdentityManager = self.locator.get_manager('IdentityManager')
             identity_mgr.get_project(project_id, domain_id)
 
-        if 'match_project' in actions:
-            if 'source' not in actions['match_project']:
+        if match_project := actions.get('match_project'):
+            if 'source' not in match_project:
                 raise ERROR_REQUIRED_PARAMETER(key='actions.match_project.source')
 
-        if 'match_service_account' in actions:
-            if 'source' not in actions['match_service_account']:
+        if match_service_account := actions.get('match_service_account'):
+            if 'source' not in match_service_account:
                 raise ERROR_REQUIRED_PARAMETER(key='actions.match_service_account.source')
 
     def _get_highest_order(self, data_source_id, rule_type, domain_id):
