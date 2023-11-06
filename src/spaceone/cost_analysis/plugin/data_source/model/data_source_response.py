@@ -44,7 +44,7 @@ class DataSourceRule(BaseModel):
     conditions_policy: State
     actions: Actions
     options: Options = {}
-    tags: dict
+    tags: dict = {}
 
 
 class SupportedSecretType(str, Enum):

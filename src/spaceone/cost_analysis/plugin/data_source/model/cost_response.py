@@ -13,9 +13,9 @@ class Cost(BaseModel):
     product: Union[str, None] = None
     usage_type: Union[str, None] = None
     resource: Union[str, None] = None
-    tags: dict
-    additional_info: dict
-    data: dict
+    tags: dict = {}
+    additional_info: dict = {}
+    # data: dict = {}
     billed_date: str
 
 
