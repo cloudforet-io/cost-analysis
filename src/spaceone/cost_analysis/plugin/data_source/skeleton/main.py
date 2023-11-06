@@ -9,8 +9,8 @@ def data_source_init(params: dict) -> dict:
 
     Args:
         params (DataSourceInitRequest): {
-            'options': 'dict',    # Required
-            'domain_id': 'str'
+            'options': 'dict',      # Required
+            'domain_id': 'str'      # Required
         }
 
     Returns:
@@ -30,7 +30,7 @@ def data_source_verify(params: dict) -> None:
             'options': 'dict',      # Required
             'secret_data': 'dict',  # Required
             'schema': 'str',
-            'domain_id': 'str'
+            'domain_id': 'str'      # Required
         }
 
     Returns:
@@ -50,7 +50,7 @@ def job_get_tasks(params: dict) -> dict:
             'schema': 'str',
             'start': 'str',
             'last_synchronized_at': 'datetime',
-            'domain_id': 'str'
+            'domain_id': 'str'      # Required
         }
 
     Returns:
@@ -73,7 +73,7 @@ def cost_get_data(params: dict) -> dict:
             'secret_data': 'dict',  # Required
             'schema': 'str',
             'task_options': 'dict',
-            'domain_id': 'str'
+            'domain_id': 'str'      # Required
         }
 
     Returns:
