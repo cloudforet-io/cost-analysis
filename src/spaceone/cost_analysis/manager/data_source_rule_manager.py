@@ -88,10 +88,10 @@ class DataSourceRuleManager(BaseManager):
 
     def _change_cost_data_with_actions(self, cost_data, actions, domain_id):
         for action, value in actions.items():
-            if action == 'change_project':
+            if action == 'change_project' and value:
                 cost_data['project_id'] = value
 
-            elif action == 'match_project':
+            elif action == 'match_project' and value:
                 source = value['source']
                 target_key = value.get('target', 'project_id')
                 target_value = utils.get_dict_value(cost_data, source)
@@ -100,7 +100,7 @@ class DataSourceRuleManager(BaseManager):
                     if project_info:
                         cost_data['project_id'] = project_info['project_id']
 
-            elif action == 'match_service_account':
+            elif action == 'match_service_account' and value:
                 source = value['source']
                 target_key = value.get('target', 'service_account_id')
                 target_value = utils.get_dict_value(cost_data, source)
@@ -110,7 +110,7 @@ class DataSourceRuleManager(BaseManager):
                         cost_data['service_account_id'] = service_account_info['service_account_id']
                         cost_data['project_id'] = service_account_info.get('project_info', {}).get('project_id')
 
-            if action == 'add_additional_info':
+            if action == 'add_additional_info' and value:
                 cost_data['additional_info'] = cost_data.get('additional_info', {})
                 cost_data['additional_info'].update(value)
 
