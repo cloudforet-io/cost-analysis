@@ -15,6 +15,7 @@ class CostReportResponse(BaseModel):
     report_year: Union[str, None] = None
     report_month: Union[str, None] = None
     workspace_name: Union[str, None] = None
+    bank_name: Union[str, None] = None
     cost_report_config_id: Union[str, None] = None
     workspace_id: Union[str, None] = None
     domain_id: Union[str, None] = None

@@ -13,6 +13,7 @@ class CostReport(MongoModel):
     report_year = StringField(max_length=10)
     report_month = StringField(max_length=10)
     workspace_name = StringField(max_length=255)
+    bank_name = StringField(max_length=255)
     cost_report_config_id = StringField(max_length=40)
     workspace_id = StringField(max_length=40)
     domain_id = StringField(max_length=40)
