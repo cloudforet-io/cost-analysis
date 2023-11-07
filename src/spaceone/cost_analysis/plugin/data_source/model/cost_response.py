@@ -15,7 +15,7 @@ class Cost(BaseModel):
     resource: Union[str, None] = None
     tags: dict = {}
     additional_info: dict = {}
-    # data: dict = {}
+    data: dict = {}
     billed_date: str
 
 
