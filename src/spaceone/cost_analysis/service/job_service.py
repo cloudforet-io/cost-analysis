@@ -186,6 +186,7 @@ class JobService(BaseService):
                 schema = plugin_info.get('schema')
                 tag_keys = data_source_vo.cost_tag_keys
                 additional_info_keys = data_source_vo.cost_additional_info_keys
+                data_keys = data_source_vo.cost_data_keys
                 secret_type = data_source_vo.secret_type
                 options.update({'secret_type': secret_type})
 
@@ -216,6 +217,7 @@ class JobService(BaseService):
 
                         tag_keys = self._append_tag_keys(tag_keys, cost_data)
                         additional_info_keys = self._append_additional_info_keys(additional_info_keys, cost_data)
+                        data_keys = self._append_data_keys(data_keys, cost_data)
 
                     if self._is_job_canceled(job_id, domain_id):
                         self.job_task_mgr.change_canceled_status(job_task_vo)
@@ -229,7 +231,7 @@ class JobService(BaseService):
                     _LOGGER.debug(f'[get_cost_data] end job ({job_task_id}): {end_dt}')
                     _LOGGER.debug(f'[get_cost_data] total job time ({job_task_id}): {end_dt - start_dt}')
 
-                    self._update_tag_and_additional_info_keys(data_source_vo, tag_keys, additional_info_keys)
+                    self._update_keys(data_source_vo, tag_keys, additional_info_keys, data_keys)
                     self.job_task_mgr.change_success_status(job_task_vo, count)
 
             except Exception as e:
@@ -387,6 +389,15 @@ class JobService(BaseService):
                 additional_info_keys.append(key)
         return additional_info_keys
 
+    @staticmethod
+    def _append_data_keys(data_keys, cost_data):
+        cost_data_info = cost_data.get('data') or {}
+
+        for key in cost_data_info.keys():
+            if key not in data_keys:
+                data_keys.append(key)
+        return data_keys
+
     def _get_secret_data(self, secret_id, domain_id):
         secret_mgr: SecretManager = self.locator.get_manager('SecretManager')
         if secret_id:
@@ -474,10 +485,11 @@ class JobService(BaseService):
             elif job_vo.status == 'CANCELED':
                 self._rollback_cost_data(job_vo)
 
-    def _update_tag_and_additional_info_keys(self, data_source_vo, tag_keys, additional_info_keys):
+    def _update_keys(self, data_source_vo, tag_keys, additional_info_keys, data_keys):
         self.data_source_mgr.update_data_source_by_vo({
             'cost_tag_keys': tag_keys,
-            'cost_additional_info_keys': additional_info_keys
+            'cost_additional_info_keys': additional_info_keys,
+            'cost_data_keys': data_keys
         }, data_source_vo)
 
     def _rollback_cost_data(self, job_vo: Job):

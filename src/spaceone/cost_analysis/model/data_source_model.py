@@ -39,6 +39,7 @@ class DataSource(MongoModel):
     tags = DictField(default={})
     cost_tag_keys = ListField(StringField())
     cost_additional_info_keys = ListField(StringField())
+    cost_data_keys = ListField(StringField())
     domain_id = StringField(max_length=40)
     created_at = DateTimeField(auto_now_add=True)
     last_synchronized_at = DateTimeField(default=None, null=True)
@@ -53,7 +54,8 @@ class DataSource(MongoModel):
             'tags',
             'last_synchronized_at',
             'cost_tag_keys',
-            'cost_additional_info_keys'
+            'cost_additional_info_keys',
+            'cost_data_keys'
         ],
         'minimal_fields': [
             'data_source_id',
@@ -71,8 +73,6 @@ class DataSource(MongoModel):
             'state',
             'data_source_type',
             'provider',
-            'domain_id',
-            'cost_tag_keys',
-            'cost_additional_info_keys',
+            'domain_id'
         ]
     }
