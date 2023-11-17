@@ -74,7 +74,7 @@ class JobManager(BaseManager):
         return self.job_model.stat(**query)
 
     def preload_cost_stat_queries(self, domain_id, data_source_id):
-        cost_query_cache_time = config.get_global('COST_QUERY_CACHE_TIME', 3)
+        cost_query_cache_time = config.get_global('COST_QUERY_CACHE_TIME', 4)
         cache_time = datetime.utcnow() - timedelta(days=cost_query_cache_time)
 
         query = {
