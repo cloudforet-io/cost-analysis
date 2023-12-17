@@ -32,17 +32,13 @@ class BudgetUsage(MongoModel):
     meta = {
         "updatable_fields": ["name", "cost", "limit"],
         "minimal_fields": ["budget_id", "name", "date", "usd_cost", "limit"],
-        "change_query_keys": {
-            "user_projects": "project_id",
-            "user_project_groups": "project_group_id",
-        },
+        "change_query_keys": {"user_projects": "project_id"},
         "ordering": ["budget_id", "date"],
         "indexes": [
             "budget_id",
             "name",
             "date",
             "project_id",
-            "project_group_id",
             "data_source_id",
             "domain_id",
         ],
