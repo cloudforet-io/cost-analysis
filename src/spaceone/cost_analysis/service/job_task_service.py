@@ -11,38 +11,46 @@ _LOGGER = logging.getLogger(__name__)
 @mutation_handler
 @event_handler
 class JobTaskService(BaseService):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.job_task_mgr: JobTaskManager = self.locator.get_manager('JobTaskManager')
+        self.job_task_mgr: JobTaskManager = self.locator.get_manager("JobTaskManager")
 
-    @transaction(append_meta={'authorization.scope': 'DOMAIN'})
-    @check_required(['job_task_id', 'domain_id'])
+    @transaction(
+        permission="cost-analysis:JobTask.read",
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
+    )
+    @check_required(["job_task_id", "domain_id"])
     def get(self, params):
-        """ Get job_task
+        """Get job_task
 
         Args:
             params (dict): {
                 'job_task_id': 'str',
                 'domain_id': 'str',
-                'only': 'list
             }
 
         Returns:
             job_task_vo (object)
         """
 
-        job_task_id = params['job_task_id']
-        domain_id = params['domain_id']
+        job_task_id = params["job_task_id"]
+        workspace_id = params.get("workspace_id")
+        domain_id = params["domain_id"]
 
-        return self.job_task_mgr.get_job_task(job_task_id, domain_id, params.get('only'))
+        return self.job_task_mgr.get_job_task(job_task_id, domain_id, workspace_id)
 
-    @transaction(append_meta={'authorization.scope': 'DOMAIN'})
-    @check_required(['domain_id'])
-    @append_query_filter(['job_task_id', 'status', 'job_id', 'data_source_id', 'domain_id'])
-    @append_keyword_filter(['job_task_id'])
+    @transaction(
+        permission="cost-analysis:JobTask.read",
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
+    )
+    @change_value_by_rule("APPEND", "workspace_id", "*")
+    @check_required(["domain_id"])
+    @append_query_filter(
+        ["job_task_id", "status", "job_id", "data_source_id", "domain_id"]
+    )
+    @append_keyword_filter(["job_task_id"])
     def list(self, params):
-        """ List job_tasks
+        """List job_tasks
 
         Args:
             params (dict): {
@@ -50,6 +58,7 @@ class JobTaskService(BaseService):
                 'status': 'str',
                 'job_id': 'str',
                 'data_source_id': 'str',
+                'workspace_id': 'list',
                 'domain_id': 'str',
                 'query': 'dict (spaceone.api.core.v1.Query)'
             }
@@ -59,13 +68,17 @@ class JobTaskService(BaseService):
             total_count
         """
 
-        query = params.get('query', {})
+        query = params.get("query", {})
         return self.job_task_mgr.list_job_tasks(query)
 
-    @transaction(append_meta={'authorization.scope': 'DOMAIN'})
-    @check_required(['query', 'domain_id'])
-    @append_query_filter(['domain_id'])
-    @append_keyword_filter(['job_task_id'])
+    @transaction(
+        permission="cost-analysis:JobTask.read",
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
+    )
+    @change_value_by_rule("APPEND", "workspace_id", "*")
+    @check_required(["query", "domain_id"])
+    @append_query_filter(["domain_id"])
+    @append_keyword_filter(["job_task_id"])
     def stat(self, params):
         """
         Args:
@@ -79,5 +92,5 @@ class JobTaskService(BaseService):
 
         """
 
-        query = params.get('query', {})
+        query = params.get("query", {})
         return self.job_task_mgr.stat_job_tasks(query)
