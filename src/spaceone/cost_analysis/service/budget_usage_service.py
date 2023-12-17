@@ -12,29 +12,43 @@ _LOGGER = logging.getLogger(__name__)
 @mutation_handler
 @event_handler
 class BudgetUsageService(BaseService):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.budget_usage_mgr: BudgetUsageManager = self.locator.get_manager('BudgetUsageManager')
+        self.budget_usage_mgr: BudgetUsageManager = self.locator.get_manager(
+            "BudgetUsageManager"
+        )
 
-    @transaction(append_meta={'authorization.scope': 'PROJECT'})
-    @check_required(['domain_id'])
-    @append_query_filter(['budget_id', 'data_source_id', 'name', 'date', 'domain_id'])
-    @append_keyword_filter(['budget_id', 'name'])
+    @transaction(
+        permission="cost-analysis:BudgetUsage.read",
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
+    )
+    @check_required(["domain_id"])
+    @append_query_filter(
+        [
+            "budget_id",
+            "data_source_id",
+            "name",
+            "date",
+            "project_id",
+            "workspace_id",
+            "domain_id",
+        ]
+    )
+    @append_keyword_filter(["budget_id", "name"])
     @set_query_page_limit(1000)
     def list(self, params):
-        """ List budget_usages
+        """List budget_usages
 
         Args:
             params (dict): {
+                'query': 'dict (spaceone.api.core.v1.Query)',
                 'budget_id': 'str',
                 'data_source_id': 'str',
                 'name': 'str',
                 'date': 'str',
+                'project_id': 'str',
+                'workspace_id': str,
                 'domain_id': 'str',
-                'query': 'dict (spaceone.api.core.v1.Query)',
-                'user_projects': 'list', // from meta,
-                'user_project_groups': 'list', // from meta
             }
 
         Returns:
@@ -45,20 +59,22 @@ class BudgetUsageService(BaseService):
         query = self._set_user_project_or_project_group_filter(params)
         return self.budget_usage_mgr.list_budget_usages(query)
 
-    @transaction(append_meta={'authorization.scope': 'PROJECT'})
-    @check_required(['query', 'domain_id'])
-    @append_query_filter(['data_source_id', 'domain_id'])
-    @append_keyword_filter(['budget_id', 'name'])
+    @transaction(
+        permission="cost-analysis:BudgetUsage.read",
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
+    )
+    @check_required(["query", "domain_id"])
+    @append_query_filter(["budget_id", "data_source_id", "domain_id"])
+    @append_keyword_filter(["budget_id", "name"])
     @set_query_page_limit(1000)
     def stat(self, params):
         """
         Args:
             params (dict): {
-                'data_source_id': 'str',
-                'domain_id': 'str',
                 'query': 'dict (spaceone.api.core.v1.StatisticsQuery)',
-                'user_projects': 'list', // from meta,
-                'user_project_groups': 'list' // from meta
+                "budget_id": "str",
+                'data_source_id': 'str',
+                'domain_id': 'str'
             }
 
         Returns:
@@ -69,19 +85,20 @@ class BudgetUsageService(BaseService):
         query = self._set_user_project_or_project_group_filter(params)
         return self.budget_usage_mgr.stat_budget_usages(query)
 
-    @transaction(append_meta={'authorization.scope': 'PROJECT'})
-    @check_required(['query', 'query.fields', 'domain_id'])
-    @append_query_filter(['data_source_id', 'domain_id'])
-    @append_keyword_filter(['budget_id', 'name'])
+    @transaction(
+        permission="cost-analysis:BudgetUsage.read",
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
+    )
+    @check_required(["query", "query.fields", "domain_id"])
+    @append_query_filter(["data_source_id", "domain_id"])
+    @append_keyword_filter(["budget_id", "name"])
     @set_query_page_limit(1000)
     def analyze(self, params):
         """
         Args:
             params (dict): {
                 'query': 'dict (spaceone.api.core.v1.TimeSeriesAnalyzeQuery)',
-                'domain_id': 'str',
-                'user_projects': 'list', // from meta
-                'user_project_groups': 'list' // from meta
+                'domain_id': 'str'
             }
 
         Returns:
@@ -90,27 +107,32 @@ class BudgetUsageService(BaseService):
         """
 
         query = self._set_user_project_or_project_group_filter(params)
-        self._check_granularity(query.get('granularity'))
+        self._check_granularity(query.get("granularity"))
 
         return self.budget_usage_mgr.analyze_budget_usages(query)
 
     @staticmethod
     def _check_granularity(granularity):
-        if granularity and granularity != 'MONTHLY':
-            raise ERROR_INVALID_PARAMETER(key='query.granularity',
-                                          reason='Granularity is only MONTHLY.')
+        if granularity and granularity != "MONTHLY":
+            raise ERROR_INVALID_PARAMETER(
+                key="query.granularity", reason="Granularity is only MONTHLY."
+            )
 
     @staticmethod
     def _set_user_project_or_project_group_filter(params):
-        query = params.get('query', {})
-        query['filter'] = query.get('filter', [])
+        query = params.get("query", {})
+        query["filter"] = query.get("filter", [])
 
-        if 'user_projects' in params:
-            user_projects = params['user_projects'] + [None]
-            query['filter'].append({'k': 'user_projects', 'v': user_projects, 'o': 'in'})
+        if "user_projects" in params:
+            user_projects = params["user_projects"] + [None]
+            query["filter"].append(
+                {"k": "user_projects", "v": user_projects, "o": "in"}
+            )
 
-        if 'user_project_groups' in params:
-            user_project_groups = params['user_project_groups'] + [None]
-            query['filter'].append({'k': 'user_project_groups', 'v': user_project_groups, 'o': 'in'})
+        if "user_project_groups" in params:
+            user_project_groups = params["user_project_groups"] + [None]
+            query["filter"].append(
+                {"k": "user_project_groups", "v": user_project_groups, "o": "in"}
+            )
 
         return query
