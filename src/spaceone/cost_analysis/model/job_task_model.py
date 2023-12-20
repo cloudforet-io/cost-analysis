@@ -17,7 +17,7 @@ class JobTask(MongoModel):
     resource_group = StringField(max_length=40, choices=["DOMAIN", "WORKSPACE"])
     job_id = StringField(max_length=40, required=True)
     data_source_id = StringField(max_length=40, required=True)
-    workspcae_id = StringField(max_length=40, default=None, null=True)
+    workspace_id = StringField(max_length=40, default=None, null=True)
     domain_id = StringField(max_length=40, required=True)
     created_at = DateTimeField(auto_now_add=True)
     started_at = DateTimeField(default=None, null=True)
@@ -40,6 +40,7 @@ class JobTask(MongoModel):
             "created_count",
             "job_id",
             "data_source_id",
+            "workspace_id",
         ],
         "ordering": ["-created_at"],
         "indexes": [

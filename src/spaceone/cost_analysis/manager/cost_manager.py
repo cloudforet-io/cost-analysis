@@ -26,9 +26,8 @@ class CostManager(BaseManager):
         self.data_source_rule_mgr: DataSourceRuleManager = self.locator.get_manager(
             "DataSourceRuleManager"
         )
-        self.project_group_map = None
 
-    def create_cost(self, params, execute_rollback=True):
+    def create_cost(self, params: dict, execute_rollback=True):
         def _rollback(cost_vo):
             _LOGGER.info(
                 f"[create_cost._rollback] "
@@ -36,9 +35,6 @@ class CostManager(BaseManager):
                 f"({cost_vo.cost_id})"
             )
             cost_vo.delete()
-
-        if self.project_group_map is None:
-            self.project_group_map = self._get_project_group_map(params["domain_id"])
 
         if "region_code" in params and "provider" in params:
             params["region_key"] = f'{params["provider"]}.{params["region_code"]}'
@@ -49,11 +45,6 @@ class CostManager(BaseManager):
         params["billed_month"] = billed_at.strftime("%Y-%m")
 
         params = self.data_source_rule_mgr.change_cost_data(params)
-
-        if "project_id" in params:
-            params["project_group_id"] = self.project_group_map.get(
-                params["project_id"]
-            )
 
         cost_vo: Cost = self.cost_model.create(params)
 
@@ -340,17 +331,3 @@ class CostManager(BaseManager):
             return datetime.strptime(billed_date, date_format)
         except Exception as e:
             raise ERROR_INVALID_PARAMETER_TYPE(key="billed_date", type="YYYY-MM-DD")
-
-    @cache.cacheable(key="project-group-map:{domain_id}", expire=600)
-    def _get_project_group_map(self, domain_id):
-        project_group_map = {}
-        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
-        response = identity_mgr.list_projects(
-            {"only": ["project_id", "project_group_id"]}, domain_id
-        )
-        for project_info in response.get("results", []):
-            project_group_map[project_info["project_id"]] = project_info[
-                "project_group_info"
-            ]["project_group_id"]
-
-        return project_group_map

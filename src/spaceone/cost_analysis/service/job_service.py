@@ -521,6 +521,7 @@ class JobService(BaseService):
         cost_data["job_id"] = job_task_vo.job_id
         cost_data["job_task_id"] = job_task_vo.job_task_id
         cost_data["data_source_id"] = job_task_vo.data_source_id
+        cost_data["workspace_id"] = job_task_vo.workspace_id
         cost_data["domain_id"] = job_task_vo.domain_id
         cost_data["billed_date"] = cost_data["billed_date"]
 
