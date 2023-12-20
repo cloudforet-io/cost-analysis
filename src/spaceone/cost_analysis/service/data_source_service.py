@@ -77,7 +77,7 @@ class DataSourceService(BaseService):
                 raise ERROR_REQUIRED_PARAMETER(key="provider")
 
             self._validate_plugin_info(plugin_info, secret_type)
-            self._check_plugin(plugin_info["plugin_id"], domain_id)
+            self._check_plugin(plugin_info["plugin_id"])
 
             if "secret_filter" in params:
                 self.validate_secret_filter(
@@ -543,9 +543,9 @@ class DataSourceService(BaseService):
                     key="secret_filter.schema", reason="Schema not found"
                 )
 
-    def _check_plugin(self, plugin_id, domain_id):
+    def _check_plugin(self, plugin_id):
         repo_mgr: RepositoryManager = self.locator.get_manager("RepositoryManager")
-        repo_mgr.get_plugin(plugin_id, domain_id)
+        repo_mgr.get_plugin(plugin_id)
 
     def _init_plugin(self, endpoint, options, domain_id):
         self.ds_plugin_mgr.initialize(endpoint)
