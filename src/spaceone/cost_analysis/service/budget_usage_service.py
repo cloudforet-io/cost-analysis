@@ -12,6 +12,8 @@ _LOGGER = logging.getLogger(__name__)
 @mutation_handler
 @event_handler
 class BudgetUsageService(BaseService):
+    resource = "BudgetUsage"
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.budget_usage_mgr: BudgetUsageManager = self.locator.get_manager(

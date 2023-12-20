@@ -46,9 +46,10 @@ class BudgetUsageManager(BaseManager):
                     "currency": budget_vo.currency,
                     "provider_filter": budget_vo.provider_filter.to_dict(),
                     "budget": budget_vo,
-                    "project_id": budget_vo.project_id,
-                    "project_group_id": budget_vo.project_group_id,
+                    "resource_group": budget_vo.resource_group,
                     "data_source_id": budget_vo.data_source_id,
+                    "project_id": budget_vo.project_id,
+                    "workspace_id": budget_vo.workspace_id,
                     "domain_id": budget_vo.domain_id,
                 }
 
@@ -65,9 +66,10 @@ class BudgetUsageManager(BaseManager):
                     "currency": budget_vo.currency,
                     "provider_filter": budget_vo.provider_filter.to_dict(),
                     "budget": budget_vo,
-                    "project_id": budget_vo.project_id,
-                    "project_group_id": budget_vo.project_group_id,
+                    "resource_group": budget_vo.resource_group,
                     "data_source_id": budget_vo.data_source_id,
+                    "project_id": budget_vo.project_id,
+                    "workspace_id": budget_vo.workspace_id,
                     "domain_id": budget_vo.domain_id,
                 }
 

@@ -22,6 +22,8 @@ _LOGGER = logging.getLogger(__name__)
 @mutation_handler
 @event_handler
 class DataSourceService(BaseService):
+    resource = "DataSource"
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.data_source_mgr = DataSourceManager()
@@ -130,11 +132,13 @@ class DataSourceService(BaseService):
         data_source_vo: DataSource = self.data_source_mgr.register_data_source(params)
 
         if data_source_type == "EXTERNAL":
+            resource_group = data_source_vo.resource_group
+            workspace_id = data_source_vo.workspace_id
             data_source_id = data_source_vo.data_source_id
             metadata = data_source_vo.plugin_info.metadata
 
             self.ds_plugin_mgr.create_data_source_rules_by_metadata(
-                metadata, data_source_id, domain_id
+                metadata, resource_group, data_source_id, workspace_id, domain_id
             )
 
         return data_source_vo
@@ -276,9 +280,11 @@ class DataSourceService(BaseService):
             params, data_source_vo
         )
 
+        resource_group = data_source_vo.resource_group
+        workspace_id = data_source_vo.workspace_id
         self.ds_plugin_mgr.delete_data_source_rules(data_source_id, domain_id)
         self.ds_plugin_mgr.create_data_source_rules_by_metadata(
-            plugin_metadata, data_source_id, domain_id
+            plugin_metadata, resource_group, data_source_id, workspace_id, domain_id
         )
 
         return data_source_vo
@@ -582,8 +588,8 @@ class DataSourceService(BaseService):
             raise ERROR_REQUIRED_PARAMETER(key="plugin_info.plugin_id")
 
         if (
-                plugin_info.get("upgrade_mode", "AUTO") == "MANUAL"
-                and "version" not in plugin_info
+            plugin_info.get("upgrade_mode", "AUTO") == "MANUAL"
+            and "version" not in plugin_info
         ):
             raise ERROR_REQUIRED_PARAMETER(key="plugin_info.version")
 

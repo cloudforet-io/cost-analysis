@@ -31,6 +31,8 @@ _SUPPORTED_CONDITION_OPERATORS = ["eq", "contain", "not", "not_contain"]
 @mutation_handler
 @event_handler
 class DataSourceRuleService(BaseService):
+    resource = "DataSourceRule"
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.data_source_rule_mgr: DataSourceRuleManager = self.locator.get_manager(

@@ -15,6 +15,8 @@ _LOGGER = logging.getLogger(__name__)
 @mutation_handler
 @event_handler
 class CostService(BaseService):
+    resource = "Cost"
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.cost_mgr: CostManager = self.locator.get_manager("CostManager")

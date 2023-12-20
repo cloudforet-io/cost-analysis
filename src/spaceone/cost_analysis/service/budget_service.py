@@ -36,7 +36,6 @@ class BudgetService(BaseService):
             "start",
             "end",
             "resource_group",
-            "workspace_id",
             "domain_id",
         ]
     )
@@ -45,17 +44,17 @@ class BudgetService(BaseService):
 
         Args:
             params (dict): {
-                'data_source_id': 'str',
+                'data_source_id': 'str',    # required
                 'name': 'str',
                 'limit': 'float',
                 'planned_limits': 'list',
-                'time_unit': 'str',
-                'start': 'str',
-                'end': 'str',
+                'time_unit': 'str',         # required
+                'start': 'str',             # required
+                'end': 'str',               # required
                 'provider_filter': 'dict',
                 'notifications': 'list',
                 'tags': 'dict',
-                'resource_group': 'str',
+                'resource_group': 'str',    # required
                 'project_id': 'str',
                 'workspace_id': 'str',      # injected from auth
                 'domain_id': 'str'          # injected from auth
@@ -81,7 +80,10 @@ class BudgetService(BaseService):
         # self._check_target(project_id, project_group_id, domain_id)
         self._check_time_period(start, end)
 
-        if resource_group == "PROJECT":
+        if resource_group == "WORKSPACE":
+            params["project_id"] = "*"
+
+        else:
             identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
             identity_mgr.get_project(project_id)
 
@@ -95,9 +97,7 @@ class BudgetService(BaseService):
         data_source_mgr: DataSourceManager = self.locator.get_manager(
             "DataSourceManager"
         )
-        data_source_vo: DataSource = data_source_mgr.get_data_source(
-            data_source_id, domain_id
-        )
+        data_source_vo: DataSource = data_source_mgr.get_data_source(data_source_id)
         data_source_metadata = data_source_vo.plugin_info.metadata
         params["currency"] = data_source_metadata.get("currency", "USD")
 
@@ -177,7 +177,9 @@ class BudgetService(BaseService):
         )
 
         budget_vo: Budget = self.budget_mgr.get_budget(
-            budget_id, workspace_id, domain_id
+            budget_id,
+            domain_id,
+            workspace_id,
         )
 
         # Check limit and Planned Limits
@@ -223,7 +225,7 @@ class BudgetService(BaseService):
         notifications = params.get("notifications", [])
 
         budget_vo: Budget = self.budget_mgr.get_budget(
-            budget_id, workspace_id, domain_id
+            budget_id, domain_id, workspace_id
         )
 
         # Check Notifications
@@ -242,9 +244,9 @@ class BudgetService(BaseService):
 
         Args:
             params (dict): {
-                'budget_id': 'str',
-                'workspace_id': 'str',
-                'domain_id': 'str'
+                'budget_id': 'str',     # required
+                'workspace_id': 'str',  # injected from auth (optional)
+                'domain_id': 'str'      # injected from auth
             }
 
         Returns:
@@ -259,7 +261,6 @@ class BudgetService(BaseService):
         permission="cost-analysis:Budget.read",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
-    @change_value_by_rule("APPEND", "workspace_id", "*")
     @check_required(["budget_id", "domain_id"])
     def get(self, params):
         """Get budget
@@ -286,6 +287,7 @@ class BudgetService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
     @check_required(["domain_id"])
+    @change_value_by_rule("APPEND", "workspace_id", "*")
     @append_query_filter(
         [
             "budget_id",
@@ -307,11 +309,10 @@ class BudgetService(BaseService):
                 'budget_id': 'str',
                 'name': 'str',
                 'time_unit': 'str',
-                'project_group_id': 'str',
+                'data_source_id': 'str',
                 'project_id': 'str',
                 'workspace_id': 'str',
                 'domain_id': 'str',
-                'data_source_id': 'str',
             }
 
         Returns:
@@ -326,6 +327,7 @@ class BudgetService(BaseService):
         permission="cost-analysis:Budget.read",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
+    @change_value_by_rule("APPEND", "workspace_id", "*")
     @check_required(["query", "domain_id"])
     @append_query_filter(["domain_id"])
     @append_keyword_filter(["budget_id", "name"])

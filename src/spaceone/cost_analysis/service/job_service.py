@@ -72,9 +72,9 @@ class JobService(BaseService):
 
         Args:
             params (dict): {
-                'job_id': 'str',
-                'workspace_id': 'str',
-                'domain_id': 'str'
+                'job_id': 'str',        # required
+                'workspace_id': 'str',  # injected from auth
+                'domain_id': 'str'      # injected from auth
             }
 
         Returns:
@@ -85,7 +85,7 @@ class JobService(BaseService):
         workspace_id = params["workspace_id"]
         domain_id = params["domain_id"]
 
-        job_vo = self.job_mgr.get_job(job_id, domain_id)
+        job_vo = self.job_mgr.get_job(job_id, domain_id, workspace_id)
 
         if job_vo.status != "IN_PROGRESS":
             raise ERROR_JOB_STATE(job_state=job_vo.status)
@@ -96,16 +96,15 @@ class JobService(BaseService):
         permission="cost-analysis:Job.read",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
-    @change_value_by_rule("APPEND", "workspace_id", "*")
     @check_required(["job_id", "domain_id"])
     def get(self, params):
         """Get job
 
         Args:
             params (dict): {
-                'job_id': 'str',
-                'domain_id': 'str',
-                'only': 'list
+                'job_id': 'str',        # required
+                'workspace_id': 'str',  # injected from auth
+                'domain_id': 'str',     # injected from auth
             }
 
         Returns:
@@ -131,12 +130,12 @@ class JobService(BaseService):
 
         Args:
             params (dict): {
-                'job_id': 'str',
+                'query': 'dict (spaceone.api.core.v1.Query)'
                 'status': 'str',
                 'data_source_id': 'str',
-                'workspace_id': 'str',
-                'domain_id': 'str',
-                'query': 'dict (spaceone.api.core.v1.Query)'
+                'job_id': 'str',
+                'workspace_id': 'list',
+                'domain_id': 'str',                             # injected from auth
             }
 
         Returns:
@@ -159,9 +158,9 @@ class JobService(BaseService):
         """
         Args:
             params (dict): {
-                'domain_id': 'str',
-                'workspace_id': 'str,
                 'query': 'dict (spaceone.api.core.v1.StatisticsQuery)'
+                'workspace_id': 'list,
+                'domain_id': 'str',
             }
 
         Returns:

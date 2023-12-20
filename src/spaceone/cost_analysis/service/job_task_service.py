@@ -11,6 +11,8 @@ _LOGGER = logging.getLogger(__name__)
 @mutation_handler
 @event_handler
 class JobTaskService(BaseService):
+    resource = "JobTask"
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.job_task_mgr: JobTaskManager = self.locator.get_manager("JobTaskManager")
