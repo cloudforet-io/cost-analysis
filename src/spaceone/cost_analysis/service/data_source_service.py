@@ -43,9 +43,9 @@ class DataSourceService(BaseService):
             params (dict): {
                 'name': 'str',
                 'data_source_type': 'str',
+                'provider': 'str',
                 'secret_type': 'str',
                 'secret_filter': 'dict',
-                'provider': 'str',
                 'template': 'dict',
                 'plugin_info': 'dict',
                 'tags': 'dict',
@@ -60,9 +60,10 @@ class DataSourceService(BaseService):
 
         domain_id = params["domain_id"]
         data_source_type = params["data_source_type"]
+        resource_group = params["resource_group"]
 
         # Check permission by resource group
-        if params["resource_group"] == "WORKSPACE":
+        if resource_group == "WORKSPACE":
             self.identity_mgr.get_workspace(params["workspace_id"])
         else:
             params["workspace_id"] = "*"
@@ -106,7 +107,10 @@ class DataSourceService(BaseService):
 
                 secret_mgr: SecretManager = self.locator.get_manager("SecretManager")
                 secret_id = secret_mgr.create_secret(
-                    domain_id, secret_data, plugin_info.get("schema")
+                    secret_data,
+                    plugin_info.get("schema_id"),
+                    resource_group,
+                    params["workspace_id"],
                 )
 
                 params["plugin_info"]["secret_id"] = secret_id
@@ -178,144 +182,6 @@ class DataSourceService(BaseService):
                 raise ERROR_NOT_ALLOW_PLUGIN_SETTINGS(data_source_id=data_source_id)
 
         return self.data_source_mgr.update_data_source_by_vo(params, data_source_vo)
-
-    @transaction(
-        permission="cost-analysis:DataSource.write",
-        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
-    )
-    @check_required(["data_source_id", "domain_id"])
-    def enable(self, params):
-        """Enable data source
-
-        Args:
-            params (dict): {
-                'data_source_id': 'str',  # required
-                'domain_id': 'str'        # injected from auth
-            }
-
-        Returns:
-            data_source_vo (object)
-        """
-
-        data_source_id = params["data_source_id"]
-        domain_id = params["domain_id"]
-        data_source_vo: DataSource = self.data_source_mgr.get_data_source(
-            data_source_id, domain_id
-        )
-
-        return self.data_source_mgr.update_data_source_by_vo(
-            {"state": "ENABLED"}, data_source_vo
-        )
-
-    @transaction(
-        permission="cost-analysis:DataSource.write",
-        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
-    )
-    @check_required(["data_source_id", "domain_id"])
-    def disable(self, params):
-        """Disable data source
-
-        Args:
-            params (dict): {
-                'data_source_id': 'str',    # required
-                'domain_id': 'str'          # injected from auth
-            }
-
-        Returns:
-            data_source_vo (object)
-        """
-
-        data_source_id = params["data_source_id"]
-        domain_id = params["domain_id"]
-        data_source_vo: DataSource = self.data_source_mgr.get_data_source(
-            data_source_id, domain_id
-        )
-
-        return self.data_source_mgr.update_data_source_by_vo(
-            {"state": "DISABLED"}, data_source_vo
-        )
-
-    @transaction(
-        permission="cost-analysis:DataSource.write",
-        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
-    )
-    @check_required(["data_source_id", "domain_id"])
-    def deregister(self, params):
-        """Deregister data source
-
-        Args:
-            params (dict): {
-                'data_source_id': 'str',        # required
-                'cascade_delete_cost: 'bool',
-                'domain_id': 'str'              # injected from auth
-            }
-
-        Returns:
-            None
-        """
-
-        data_source_id = params["data_source_id"]
-        cascade_delete_cost = params.get("cascade_delete_cost", True)
-        domain_id = params["domain_id"]
-
-        data_source_vo: DataSource = self.data_source_mgr.get_data_source(
-            data_source_id, domain_id
-        )
-
-        if cascade_delete_cost:
-            self.cost_mgr.delete_cost_with_datasource(domain_id, data_source_id)
-            self.budget_usage_mgr.update_budget_usage(domain_id, data_source_id)
-            self.cost_mgr.remove_stat_cache(domain_id, data_source_id)
-            self.job_mgr.preload_cost_stat_queries(domain_id, data_source_id)
-
-        if data_source_vo.plugin_info:
-            secret_id = data_source_vo.plugin_info.secret_id
-
-            if secret_id:
-                secret_mgr: SecretManager = self.locator.get_manager("SecretManager")
-                secret_mgr.delete_secret(secret_id, domain_id)
-
-        self.data_source_mgr.deregister_data_source_by_vo(data_source_vo)
-
-    @transaction(
-        permission="cost-analysis:DataSource.write",
-        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
-    )
-    @check_required(["data_source_id", "domain_id"])
-    def sync(self, params):
-        """Sync data with data source
-
-        Args:
-            params (dict): {
-                'data_source_id': 'str',        # required
-                'start': 'datetime',
-                'no_preload_cache': 'bool',
-                'domain_id': 'str'              # injected from auth
-            }
-
-        Returns:
-            None
-        """
-        job_service: JobService = self.locator.get_service("JobService")
-
-        data_source_id = params["data_source_id"]
-        domain_id = params["domain_id"]
-        job_options = {
-            "no_preload_cache": params.get("no_preload_cache", False),
-            "start": params.get("start"),
-        }
-
-        data_source_vo: DataSource = self.data_source_mgr.get_data_source(
-            data_source_id, domain_id
-        )
-
-        if data_source_vo.state == "DISABLED":
-            raise ERROR_DATA_SOURCE_STATE(data_source_id=data_source_id)
-
-        if data_source_vo.data_source_type == "LOCAL":
-            raise ERROR_NOT_ALLOW_SYNC_COMMAND(data_source_id=data_source_id)
-
-        return job_service.create_cost_job(data_source_vo, job_options)
 
     @transaction(
         permission="cost-analysis:DataSource.write",
@@ -418,6 +284,144 @@ class DataSourceService(BaseService):
         return data_source_vo
 
     @transaction(
+        permission="cost-analysis:DataSource.write",
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
+    )
+    @check_required(["data_source_id", "domain_id"])
+    def enable(self, params):
+        """Enable data source
+
+        Args:
+            params (dict): {
+                'data_source_id': 'str',  # required
+                'domain_id': 'str'        # injected from auth
+            }
+
+        Returns:
+            data_source_vo (object)
+        """
+
+        data_source_id = params["data_source_id"]
+        domain_id = params["domain_id"]
+        data_source_vo: DataSource = self.data_source_mgr.get_data_source(
+            data_source_id, domain_id
+        )
+
+        return self.data_source_mgr.update_data_source_by_vo(
+            {"state": "ENABLED"}, data_source_vo
+        )
+
+    @transaction(
+        permission="cost-analysis:DataSource.write",
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
+    )
+    @check_required(["data_source_id", "domain_id"])
+    def disable(self, params):
+        """Disable data source
+
+        Args:
+            params (dict): {
+                'data_source_id': 'str',    # required
+                'domain_id': 'str'          # injected from auth
+            }
+
+        Returns:
+            data_source_vo (object)
+        """
+
+        data_source_id = params["data_source_id"]
+        domain_id = params["domain_id"]
+        data_source_vo: DataSource = self.data_source_mgr.get_data_source(
+            data_source_id, domain_id
+        )
+
+        return self.data_source_mgr.update_data_source_by_vo(
+            {"state": "DISABLED"}, data_source_vo
+        )
+
+    @transaction(
+        permission="cost-analysis:DataSource.write",
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
+    )
+    @check_required(["data_source_id", "domain_id"])
+    def deregister(self, params):
+        """Deregister data source
+
+        Args:
+            params (dict): {
+                'data_source_id': 'str',        # required
+                'cascade_delete_cost: 'bool',
+                'domain_id': 'str'              # injected from auth
+            }
+
+        Returns:
+            None
+        """
+
+        data_source_id = params["data_source_id"]
+        cascade_delete_cost = params.get("cascade_delete_cost", True)
+        domain_id = params["domain_id"]
+
+        data_source_vo: DataSource = self.data_source_mgr.get_data_source(
+            data_source_id, domain_id
+        )
+
+        if cascade_delete_cost:
+            self.cost_mgr.delete_cost_with_datasource(domain_id, data_source_id)
+            self.budget_usage_mgr.update_budget_usage(domain_id, data_source_id)
+            self.cost_mgr.remove_stat_cache(domain_id, data_source_id)
+            self.job_mgr.preload_cost_stat_queries(domain_id, data_source_id)
+
+        if data_source_vo.plugin_info:
+            secret_id = data_source_vo.plugin_info.secret_id
+
+            if secret_id:
+                secret_mgr: SecretManager = self.locator.get_manager("SecretManager")
+                secret_mgr.delete_secret(secret_id)
+
+        self.data_source_mgr.deregister_data_source_by_vo(data_source_vo)
+
+    @transaction(
+        permission="cost-analysis:DataSource.write",
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
+    )
+    @check_required(["data_source_id", "domain_id"])
+    def sync(self, params):
+        """Sync data with data source
+
+        Args:
+            params (dict): {
+                'data_source_id': 'str',        # required
+                'start': 'datetime',
+                'no_preload_cache': 'bool',
+                'domain_id': 'str'              # injected from auth
+            }
+
+        Returns:
+            None
+        """
+        job_service: JobService = self.locator.get_service("JobService")
+
+        data_source_id = params["data_source_id"]
+        domain_id = params["domain_id"]
+        job_options = {
+            "no_preload_cache": params.get("no_preload_cache", False),
+            "start": params.get("start"),
+        }
+
+        data_source_vo: DataSource = self.data_source_mgr.get_data_source(
+            data_source_id, domain_id
+        )
+
+        if data_source_vo.state == "DISABLED":
+            raise ERROR_DATA_SOURCE_STATE(data_source_id=data_source_id)
+
+        if data_source_vo.data_source_type == "LOCAL":
+            raise ERROR_NOT_ALLOW_SYNC_COMMAND(data_source_id=data_source_id)
+
+        return job_service.create_cost_job(data_source_vo, job_options)
+
+    @transaction(
         permission="cost-analysis:DataSource.read",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
@@ -508,7 +512,7 @@ class DataSourceService(BaseService):
                 "filter": [{"k": "secret_id", "v": secret_filter["secrets"], "o": "in"}]
             }
             secret_mgr: SecretManager = self.locator.get_manager(SecretManager)
-            response = secret_mgr.list_secrets(_query, domain_id)
+            response = secret_mgr.list_secrets(_query)
             if response.get("total_count", 0) != len(secret_filter["secrets"]):
                 raise ERROR_INVALID_PARAMETER(
                     key="secret_filter.secrets", reason="Secrets not found"
@@ -578,8 +582,8 @@ class DataSourceService(BaseService):
             raise ERROR_REQUIRED_PARAMETER(key="plugin_info.plugin_id")
 
         if (
-            plugin_info.get("upgrade_mode", "AUTO") == "MANUAL"
-            and "version" not in plugin_info
+                plugin_info.get("upgrade_mode", "AUTO") == "MANUAL"
+                and "version" not in plugin_info
         ):
             raise ERROR_REQUIRED_PARAMETER(key="plugin_info.version")
 
