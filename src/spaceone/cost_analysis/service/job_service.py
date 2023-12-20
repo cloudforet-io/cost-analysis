@@ -535,7 +535,7 @@ class JobService(BaseService):
     def _is_job_failed(self, job_id, domain_id):
         job_vo: Job = self.job_mgr.get_job(job_id, domain_id)
 
-        if ["CANCELED", "FAILURE"] in job_vo.status:
+        if job_vo.status in ["CANCELED", "FAILURE"]:
             return True
         else:
             return False
