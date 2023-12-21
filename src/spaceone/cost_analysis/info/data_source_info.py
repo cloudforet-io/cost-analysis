@@ -40,6 +40,7 @@ def PluginInfo(vo):
 def DataSourceInfo(data_source_vo: DataSource, minimal=False):
     info = {
         "data_source_id": data_source_vo.data_source_id,
+        "workspace_id": data_source_vo.workspace_id,
         "name": data_source_vo.name,
         "state": data_source_vo.state,
         "data_source_type": data_source_vo.data_source_type,

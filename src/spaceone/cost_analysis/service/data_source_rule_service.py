@@ -76,12 +76,12 @@ class DataSourceRuleService(BaseService):
     )
     @change_date_value(["start", "end"])
     def create_data_source_rule(self, params):
-        domain_id = params["domain_id"]
-        data_source_id = params["data_source_id"]
-        conditions = params.get("conditions", [])
-        conditions_policy = params["conditions_policy"]
-        actions = params["actions"]
-        rule_type = params.get("rule_type", "CUSTOM")
+        domain_id: str = params["domain_id"]
+        data_source_id: str = params["data_source_id"]
+        conditions: list = params.get("conditions", [])
+        conditions_policy: str = params["conditions_policy"]
+        actions: dict = params["actions"]
+        rule_type: str = params.get("rule_type", "CUSTOM")
 
         identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
 
@@ -98,7 +98,7 @@ class DataSourceRuleService(BaseService):
             else:
                 self._check_conditions(conditions)
 
-        self._check_actions(actions, domain_id)
+        self._check_actions(actions)
 
         data_source_mgr: DataSourceManager = self.locator.get_manager(
             "DataSourceManager"
@@ -159,7 +159,7 @@ class DataSourceRuleService(BaseService):
                     self._check_conditions(conditions)
 
         if "actions" in params:
-            self._check_actions(params["actions"], domain_id)
+            self._check_actions(params["actions"])
 
         return self.data_source_rule_mgr.update_data_source_rule_by_vo(
             params, data_source_rule_vo
@@ -391,10 +391,10 @@ class DataSourceRuleService(BaseService):
                     f'({" | ".join(_SUPPORTED_CONDITION_OPERATORS)})',
                 )
 
-    def _check_actions(self, actions, domain_id):
+    def _check_actions(self, actions: dict) -> None:
         if project_id := actions.get("change_project"):
             identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
-            identity_mgr.get_project(project_id, domain_id)
+            identity_mgr.get_project(project_id)
 
         if match_project := actions.get("match_project"):
             if "source" not in match_project:

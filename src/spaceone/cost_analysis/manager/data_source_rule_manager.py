@@ -61,7 +61,8 @@ class DataSourceRuleManager(BaseManager):
         )
         self.delete_data_source_rule_by_vo(data_source_rule_vo)
 
-    def delete_data_source_rule_by_vo(self, data_source_rule_vo):
+    @staticmethod
+    def delete_data_source_rule_by_vo(data_source_rule_vo):
         data_source_rule_vo.delete()
 
     def get_data_source_rule(self, data_source_rule_id, domain_id, workspace_id=None):

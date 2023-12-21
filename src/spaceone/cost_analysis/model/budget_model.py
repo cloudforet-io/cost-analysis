@@ -45,7 +45,7 @@ class Budget(MongoModel):
     resource_group = StringField(max_length=40, choices=("WORKSPACE", "PROJECT"))
     project_id = StringField(max_length=40, default=None, null=True)
     data_source_id = StringField(max_length=40)
-    workspace_id = StringField(max_length=40)
+    workspace_id = StringField(max_length=40, default=None, null=True)
     domain_id = StringField(max_length=40)
     created_at = DateTimeField(auto_now_add=True)
     updated_at = DateTimeField(auto_now=True)

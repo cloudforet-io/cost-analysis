@@ -28,7 +28,7 @@ class BudgetUsageManager(BaseManager):
             "DataSourceManager"
         )
 
-    def create_budget_usages(self, budget_vo: Budget):
+    def create_budget_usages(self, budget_vo: Budget) -> None:
         if budget_vo.time_unit == "TOTAL":
             start_dt = datetime.strptime(budget_vo.start, "%Y-%m")
             end_dt = datetime.strptime(budget_vo.end, "%Y-%m")
@@ -86,7 +86,7 @@ class BudgetUsageManager(BaseManager):
         self.transaction.add_rollback(_rollback, budget_usage_vo.to_dict())
         return budget_usage_vo.update(params)
 
-    def update_cost_usage(self, budget_id, workspace_id, domain_id):
+    def update_cost_usage(self, budget_id: str, workspace_id: str, domain_id: str):
         _LOGGER.info(f"[update_cost_usage] Update Budget Usage: {budget_id}")
         cost_mgr: CostManager = self.locator.get_manager("CostManager")
 
@@ -98,7 +98,9 @@ class BudgetUsageManager(BaseManager):
             domain_id=domain_id, data_source_id=data_source_id
         )
         for budget_vo in budget_vos:
-            self.update_cost_usage(budget_vo.budget_id, domain_id)
+            self.update_cost_usage(
+                budget_vo.budget_id, budget_vo.workspace_id, domain_id
+            )
             self.notify_budget_usage(budget_vo)
 
     def notify_budget_usage(self, budget_vo: Budget):

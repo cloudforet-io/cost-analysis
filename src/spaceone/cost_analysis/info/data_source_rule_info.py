@@ -85,7 +85,7 @@ def DataSourceRuleInfo(data_source_rule_vo: DataSourceRule, minimal=False):
                 "actions": DataSourceRuleActionsInfo(data_source_rule_vo.actions),
                 "options": DataSourceRuleOptionsInfo(data_source_rule_vo.options),
                 "tags": change_struct_type(data_source_rule_vo.tags),
-                "workspcae_id": data_source_rule_vo.workspace_id,
+                "workspace_id": data_source_rule_vo.workspace_id,
                 "domain_id": data_source_rule_vo.domain_id,
                 "created_at": utils.datetime_to_iso8601(data_source_rule_vo.created_at),
             }

@@ -21,7 +21,7 @@ class Cost(MongoModel):
     data_source_id = StringField(max_length=40)
     job_id = StringField(max_length=40, default=None, null=True)
     job_task_id = StringField(max_length=40, default=None, null=True)
-    workspace_id = StringField(max_length=40)
+    workspace_id = StringField(max_length=40, default=None, null=True)
     domain_id = StringField(max_length=40)
     billed_year = StringField(max_length=4, required=True)
     billed_month = StringField(max_length=7, required=True)

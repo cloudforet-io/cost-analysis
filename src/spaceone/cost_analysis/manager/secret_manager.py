@@ -13,7 +13,7 @@ class SecretManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.secret_connector: SpaceConnector = self.locator.get_connector(
-            "SpaceConnector", service="secret", token=config.get_global("TOKEN")
+            SpaceConnector, service="secret", token=config.get_global("TOKEN")
         )
 
     def create_secret(

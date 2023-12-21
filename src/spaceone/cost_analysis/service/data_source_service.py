@@ -43,8 +43,8 @@ class DataSourceService(BaseService):
 
         Args:
             params (dict): {
-                'name': 'str',
-                'data_source_type': 'str',
+                'name': 'str',              # required
+                'data_source_type': 'str',  # required
                 'provider': 'str',
                 'secret_type': 'str',
                 'secret_filter': 'dict',
@@ -438,7 +438,7 @@ class DataSourceService(BaseService):
         Args:
             params (dict): {
                 'data_source_id': 'str',  # required
-                'workspace_id': 'list'
+                'workspace_id': 'str'
                 'domain_id': 'str',      # injected from auth
             }
 
@@ -448,10 +448,10 @@ class DataSourceService(BaseService):
 
         data_source_id = params["data_source_id"]
         domain_id = params["domain_id"]
-        workspcae_id = params.get("workspace_id")
+        workspace_id = params.get("workspace_id")
 
         return self.data_source_mgr.get_data_source(
-            data_source_id, domain_id, workspcae_id
+            data_source_id, domain_id, workspace_id
         )
 
     @transaction(
@@ -492,6 +492,7 @@ class DataSourceService(BaseService):
         permission="cost-analysis:DataSource.read",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
+    @change_value_by_rule("APPEND", "workspace_id", "*")
     @check_required(["query", "domain_id"])
     @append_query_filter(["domain_id"])
     @change_tag_filter("tags")
@@ -535,7 +536,7 @@ class DataSourceService(BaseService):
                 ]
             }
             identity_mgr: IdentityManager = self.locator.get_manager(IdentityManager)
-            response = identity_mgr.list_service_accounts(_query, domain_id)
+            response = identity_mgr.list_service_accounts(_query)
             if response.get("total_count", 0) != len(secret_filter["service_accounts"]):
                 raise ERROR_INVALID_PARAMETER(
                     key="secret_filter.service_accounts",

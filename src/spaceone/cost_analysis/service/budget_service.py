@@ -10,6 +10,7 @@ from spaceone.cost_analysis.manager.budget_usage_manager import BudgetUsageManag
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 from spaceone.cost_analysis.model.budget_model import Budget
 from spaceone.cost_analysis.model.data_source_model import DataSource
+from spaceone.cost_analysis.model.budget_usage_model import BudgetUsage
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -82,7 +83,6 @@ class BudgetService(BaseService):
 
         if resource_group == "WORKSPACE":
             params["project_id"] = "*"
-
         else:
             identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
             identity_mgr.get_project(project_id)
@@ -138,8 +138,12 @@ class BudgetService(BaseService):
         budget_usage_mgr: BudgetUsageManager = self.locator.get_manager(
             "BudgetUsageManager"
         )
-        budget_usage_vo = budget_usage_mgr.create_budget_usages(budget_vo)
-        budget_usage_mgr.update_cost_usage(budget_vo.budget_id, budget_vo.domain_id)
+        budget_usage_mgr.create_budget_usages(budget_vo)
+        budget_usage_mgr.update_cost_usage(
+            budget_vo.budget_id,
+            budget_vo.workspace_id,
+            budget_vo.domain_id,
+        )
         budget_usage_mgr.notify_budget_usage(budget_vo)
 
         return budget_vo
@@ -197,7 +201,9 @@ class BudgetService(BaseService):
                     {"name": params["name"]}, budget_usage_vo
                 )
 
-        budget_usage_mgr.update_cost_usage(budget_vo.budget_id, budget_vo.domain_id)
+        budget_usage_mgr.update_cost_usage(
+            budget_vo.budget_id, budget_vo.workspace_id, budget_vo.domain_id
+        )
         budget_usage_mgr.notify_budget_usage(budget_vo)
 
         return budget_vo
@@ -322,7 +328,7 @@ class BudgetService(BaseService):
             total_count
         """
 
-        query = self._set_user_project_or_project_group_filter(params)
+        query: dict = self._set_user_project_or_project_group_filter(params)
         return self.budget_mgr.list_budgets(query)
 
     @transaction(
@@ -351,7 +357,7 @@ class BudgetService(BaseService):
         query = self._set_user_project_or_project_group_filter(params)
         return self.budget_mgr.stat_budgets(query)
 
-    def _check_target(self, project_id, project_group_id, domain_id):
+    def _check_target(self, project_id, project_group_id):
         if project_id is None and project_group_id is None:
             raise ERROR_REQUIRED_PARAMETER(key="project_id or project_group_id")
 
@@ -361,9 +367,7 @@ class BudgetService(BaseService):
         identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
 
         if project_id:
-            identity_mgr.get_project(project_id, domain_id)
-        else:
-            identity_mgr.get_project_group(project_group_id, domain_id)
+            identity_mgr.get_project(project_id)
 
     @staticmethod
     def _check_time_period(start, end):

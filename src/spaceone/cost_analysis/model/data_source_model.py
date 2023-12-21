@@ -73,6 +73,7 @@ class DataSource(MongoModel):
         ],
         "minimal_fields": [
             "data_source_id",
+            "workspace_id",
             "name",
             "state",
             "data_source_type",

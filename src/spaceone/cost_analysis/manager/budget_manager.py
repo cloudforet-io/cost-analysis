@@ -55,7 +55,7 @@ class BudgetManager(BaseManager):
     def filter_budgets(self, **conditions):
         return self.budget_model.filter(**conditions)
 
-    def list_budgets(self, query={}):
+    def list_budgets(self, query: dict):
         return self.budget_model.query(**query)
 
     def stat_budgets(self, query):
