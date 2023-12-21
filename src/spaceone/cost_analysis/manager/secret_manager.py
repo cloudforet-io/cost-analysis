@@ -19,9 +19,8 @@ class SecretManager(BaseManager):
     def create_secret(
         self,
         secret_data: dict,
-        schema_id: str,
         resource_group: str,
-        workspace_id: str = None,
+        schema_id: str,
     ):
         def _rollback(secret_id: str):
             _LOGGER.info(f"[create_secret._rollback] Delete secret : {secret_id}")
@@ -29,13 +28,10 @@ class SecretManager(BaseManager):
 
         params = {
             "name": utils.generate_id("secret-cost-data-source"),
+            "resource_group": resource_group,
             "data": secret_data,
             "schema_id": schema_id,
-            "resource_group": resource_group,
         }
-
-        if workspace_id:
-            params["workspace_id"] = workspace_id
 
         token = self.transaction.get_meta("token")
         response = self.secret_connector.dispatch("Secret.create", params, token=token)

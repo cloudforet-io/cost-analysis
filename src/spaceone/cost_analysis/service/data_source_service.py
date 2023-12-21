@@ -66,7 +66,7 @@ class DataSourceService(BaseService):
 
         # Check permission by resource group
         if resource_group == "WORKSPACE":
-            self.identity_mgr.get_workspace(params["workspace_id"])
+            self.identity_mgr.check_workspace(params["workspace_id"], domain_id)
         else:
             params["workspace_id"] = "*"
 
@@ -110,9 +110,8 @@ class DataSourceService(BaseService):
                 secret_mgr: SecretManager = self.locator.get_manager("SecretManager")
                 secret_id = secret_mgr.create_secret(
                     secret_data,
-                    plugin_info.get("schema"),
                     resource_group,
-                    params["workspace_id"],
+                    plugin_info.get("schema_id"),
                 )
 
                 params["plugin_info"]["secret_id"] = secret_id

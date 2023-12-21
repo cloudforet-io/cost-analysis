@@ -86,7 +86,7 @@ class DataSourceRuleService(BaseService):
         identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
 
         if params["resource_group"] == "WORKSPACE":
-            identity_mgr.get_workspace(params["workspace_id"])
+            identity_mgr.check_workspace(params["workspace_id"], domain_id)
         else:
             params["workspace_id"] = "*"
 

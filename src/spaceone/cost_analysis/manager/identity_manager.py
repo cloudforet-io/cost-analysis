@@ -1,12 +1,23 @@
+import logging
+
 from spaceone.core.manager import BaseManager
 from spaceone.core.connector.space_connector import SpaceConnector
+from spaceone.core import config
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class IdentityManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.identity_conn: SpaceConnector = self.locator.get_connector(
-            SpaceConnector, service="identity"
+            SpaceConnector, service="identity", token=config.get_global("TOKEN")
+        )
+
+    def check_workspace(self, workspace_id: str, domain_id: str) -> None:
+        self.identity_conn.dispatch(
+            "Workspace.check",
+            {"workspace_id": workspace_id, "domain_id": domain_id},
         )
 
     def get_workspace(self, workspace_id: str) -> dict:
