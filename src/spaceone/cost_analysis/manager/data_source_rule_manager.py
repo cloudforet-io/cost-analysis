@@ -165,7 +165,6 @@ class DataSourceRuleManager(BaseManager):
         query = {
             "filter": [
                 {"k": target_key, "v": target_value, "o": "eq"},
-                {"k": "service_account_type", "v": "GENERAL", "o": "eq"},
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
             ],
             "only": ["service_account_id", "project_id"],
