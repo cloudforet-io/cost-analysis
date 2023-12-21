@@ -110,7 +110,7 @@ class DataSourceService(BaseService):
                 secret_mgr: SecretManager = self.locator.get_manager("SecretManager")
                 secret_id = secret_mgr.create_secret(
                     secret_data,
-                    plugin_info.get("schema_id"),
+                    plugin_info.get("schema"),
                     resource_group,
                     params["workspace_id"],
                 )
