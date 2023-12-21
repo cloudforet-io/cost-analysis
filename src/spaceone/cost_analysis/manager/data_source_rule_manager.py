@@ -173,7 +173,7 @@ class DataSourceRuleManager(BaseManager):
             "only": ["service_account_id", "project_info"],
         }
 
-        response = self.identity_mgr.list_service_accounts(query)
+        response = self.identity_mgr.list_service_accounts(query, domain_id)
         results = response.get("results", [])
         total_count = response.get("total_count", 0)
 

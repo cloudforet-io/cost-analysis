@@ -48,10 +48,10 @@ class IdentityManager(BaseManager):
             token=token,
         )
 
-    def list_service_accounts(self, query: dict) -> dict:
+    def list_service_accounts(self, query: dict, domain_id: str = None) -> dict:
         token = self.transaction.get_meta("token")
         return self.identity_conn.dispatch(
-            "ServiceAccount.list", {"query": query}, token=token
+            "ServiceAccount.list", {"query": query}, token=token, x_domain_id=domain_id
         )
 
     def get_project(self, project_id: str):
