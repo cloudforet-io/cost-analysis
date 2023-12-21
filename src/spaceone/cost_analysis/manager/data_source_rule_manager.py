@@ -145,9 +145,7 @@ class DataSourceRuleManager(BaseManager):
                         cost_data["service_account_id"] = service_account_info[
                             "service_account_id"
                         ]
-                        cost_data["project_id"] = service_account_info.get(
-                            "project_info", {}
-                        ).get("project_id")
+                        cost_data["project_id"] = service_account_info.get("project_id")
 
             if action == "add_additional_info" and value:
                 cost_data["additional_info"] = cost_data.get("additional_info", {})
@@ -170,7 +168,7 @@ class DataSourceRuleManager(BaseManager):
                 {"k": "service_account_type", "v": "GENERAL", "o": "eq"},
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
             ],
-            "only": ["service_account_id", "project_info"],
+            "only": ["service_account_id", "project_id"],
         }
 
         response = self.identity_mgr.list_service_accounts(query, domain_id)
