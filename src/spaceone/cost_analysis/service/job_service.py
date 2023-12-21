@@ -212,7 +212,7 @@ class JobService(BaseService):
 
             try:
                 options = plugin_info.get("options", {})
-                schema = plugin_info.get("schema")
+                schema_id = plugin_info.get("schema_id")
                 tag_keys = data_source_vo.cost_tag_keys
                 additional_info_keys = data_source_vo.cost_additional_info_keys
                 data_keys = data_source_vo.cost_data_keys
@@ -248,7 +248,7 @@ class JobService(BaseService):
                 is_canceled = False
                 _LOGGER.debug(f"[get_cost_data] start job ({job_task_id}): {start_dt}")
                 for costs_data in self.ds_plugin_mgr.get_cost_data(
-                        options, secret_data, schema, task_options, domain_id
+                    options, secret_data, schema_id, task_options, domain_id
                 ):
                     results = costs_data.get("results", [])
                     for cost_data in results:
@@ -295,20 +295,16 @@ class JobService(BaseService):
         tasks = []
         changed = []
 
-        data_source_id = data_source_vo.data_source_id
         resource_group = data_source_vo.resource_group
+        data_source_id = data_source_vo.data_source_id
+        workspace_id = data_source_vo.workspace_id
         domain_id = data_source_vo.domain_id
-
-        if resource_group == "WORKSPACE":
-            workspace_id = data_source_vo.workspace_id
-        else:
-            workspace_id = "*"
 
         endpoint = self.ds_plugin_mgr.get_data_source_plugin_endpoint_by_vo(
             data_source_vo
         )
         options = data_source_vo.plugin_info.options
-        schema = data_source_vo.plugin_info.schema
+        schema_id = data_source_vo.plugin_info.schema_id
 
         if data_source_vo.secret_type:
             secret_type = data_source_vo.secret_type
@@ -335,7 +331,7 @@ class JobService(BaseService):
                     options,
                     secret_id,
                     secret_data,
-                    schema,
+                    schema_id,
                     start,
                     last_synchronized_at,
                     domain_id,
@@ -376,7 +372,12 @@ class JobService(BaseService):
                     task_options = task["task_options"]
                     try:
                         job_task_vo = self.job_task_mgr.create_job_task(
-                            job_vo.job_id, data_source_id, domain_id, task_options
+                            job_vo.resource_group,
+                            job_vo.job_id,
+                            data_source_id,
+                            job_vo.workspace_id,
+                            domain_id,
+                            task_options,
                         )
                         self.job_task_mgr.push_job_task(
                             {
@@ -442,8 +443,8 @@ class JobService(BaseService):
                     {"k": "secret_id", "v": secret_filter["secrets"], "o": "in"}
                 )
             if (
-                    "service_accounts" in secret_filter
-                    and secret_filter["service_accounts"]
+                "service_accounts" in secret_filter
+                and secret_filter["service_accounts"]
             ):
                 _filter.append(
                     {
@@ -532,6 +533,8 @@ class JobService(BaseService):
 
         if "project_id" in cost_options:
             cost_data["project_id"] = cost_options["project_id"]
+        else:
+            project_id = "*"
 
         self.cost_mgr.create_cost(cost_data, execute_rollback=False)
 
@@ -727,7 +730,7 @@ class JobService(BaseService):
 
         for job_task_id in job_task_ids:
             for billed_month in self._distinct_billed_month(
-                    data_source_id, domain_id, job_id, job_task_id
+                data_source_id, domain_id, job_id, job_task_id
             ):
                 self._aggregate_monthly_cost_data(
                     data_source_id, domain_id, job_id, job_task_id, billed_month
@@ -753,7 +756,7 @@ class JobService(BaseService):
         return values
 
     def _aggregate_monthly_cost_data(
-            self, data_source_id, domain_id, job_id, job_task_id, billed_month
+        self, data_source_id, domain_id, job_id, job_task_id, billed_month
     ):
         query = {
             "group_by": [

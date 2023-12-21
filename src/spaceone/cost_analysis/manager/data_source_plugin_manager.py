@@ -35,32 +35,32 @@ class DataSourcePluginManager(BaseManager):
 
         return plugin_metadata
 
-    def verify_plugin(self, options, secret_data, schema, domain_id):
-        self.dsp_connector.verify(options, secret_data, schema, domain_id)
+    def verify_plugin(self, options, secret_data, schema_id, domain_id):
+        self.dsp_connector.verify(options, secret_data, schema_id, domain_id)
 
     def get_tasks(
         self,
-        options,
-        secret_id,
-        secret_data,
-        schema,
-        start,
-        last_synchronized_at,
-        domain_id,
+        options: dict,
+        secret_id: str,
+        secret_data: str,
+        schema_id: str,
+        start: str,
+        last_synchronized_at: str,
+        domain_id: str,
     ):
         response = self.dsp_connector.get_tasks(
-            options, secret_data, schema, domain_id, start, last_synchronized_at
+            options, secret_data, schema_id, domain_id, start, last_synchronized_at
         )
         tasks = response.get("tasks", [])
 
         for task in tasks:
-            task.update({"secret_id": secret_id, "schema": schema})
+            task.update({"secret_id": secret_id, "schema": schema_id})
 
         return tasks, response.get("changed", [])
 
-    def get_cost_data(self, options, secret_data, schema, task_options, domain_id):
+    def get_cost_data(self, options, secret_data, schema_id, task_options, domain_id):
         return self.dsp_connector.get_cost_data(
-            options, secret_data, schema, task_options, domain_id
+            options, secret_data, schema_id, task_options, domain_id
         )
 
     def get_data_source_plugin_endpoint_by_vo(self, data_source_vo: DataSource):

@@ -568,13 +568,13 @@ class DataSourceService(BaseService):
         options = plugin_info.get("options", {})
         secret_id = plugin_info.get("secret_id")
         secret_data = plugin_info.get("secret_data")
-        schema = plugin_info.get("schema")
+        schema_id = plugin_info.get("schema_id")
 
         if not secret_data:
             secret_data = self._get_secret_data(secret_id, domain_id)
 
         self.ds_plugin_mgr.initialize(endpoint)
-        self.ds_plugin_mgr.verify_plugin(options, secret_data, schema, domain_id)
+        self.ds_plugin_mgr.verify_plugin(options, secret_data, schema_id, domain_id)
 
     def _get_secret_data(self, secret_id, domain_id):
         secret_mgr: SecretManager = self.locator.get_manager("SecretManager")

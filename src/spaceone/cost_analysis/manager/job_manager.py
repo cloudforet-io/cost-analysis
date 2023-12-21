@@ -50,8 +50,8 @@ class JobManager(BaseManager):
         job_options["start"] = job_options.get("start")
 
         data = {
-            "data_source_id": data_source_id,
             "resource_group": resource_group,
+            "data_source_id": data_source_id,
             "workspace_id": workspace_id,
             "domain_id": domain_id,
             "options": job_options,

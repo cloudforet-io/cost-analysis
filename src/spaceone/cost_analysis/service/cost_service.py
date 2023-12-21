@@ -41,10 +41,11 @@ class CostService(BaseService):
                 'tags': 'dict',
                 'additional_info': 'dict',
                 'service_account_id': 'str',
-                'project_id': 'str',
+                'project_id': 'str',         # injected from auth
                 'data_source_id': 'str',
                 'billed_date': 'str',
-                'domain_id': 'str'
+                'workspace_id': 'str',       # injected from auth
+                'domain_id': 'str'           # injected from auth
             }
 
         Returns:

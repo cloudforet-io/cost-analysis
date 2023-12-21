@@ -19,10 +19,20 @@ class JobTaskManager(BaseManager):
         self.job_mgr: JobManager = self.locator.get_manager("JobManager")
         self.job_task_model: JobTask = self.locator.get_model("JobTask")
 
-    def create_job_task(self, job_id, data_source_id, domain_id, task_options):
+    def create_job_task(
+        self,
+        resource_group: str,
+        job_id: str,
+        data_source_id: str,
+        workspace_id: str,
+        domain_id: str,
+        task_options: dict,
+    ):
         data = {
+            "resource_group:": resource_group,
             "job_id": job_id,
             "data_source_id": data_source_id,
+            "workspace_id": workspace_id,
             "domain_id": domain_id,
             "options": task_options,
         }
