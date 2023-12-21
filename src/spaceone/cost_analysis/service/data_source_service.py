@@ -28,7 +28,7 @@ class DataSourceService(BaseService):
         super().__init__(*args, **kwargs)
         self.data_source_mgr = DataSourceManager()
         self.ds_plugin_mgr = DataSourcePluginManager()
-        self.cost_mg = CostManager()
+        self.cost_mgr = CostManager()
         self.budget_usage_mgr = BudgetUsageManager()
         self.job_mgr = JobManager()
         self.identity_mgr = IdentityManager()
@@ -357,6 +357,7 @@ class DataSourceService(BaseService):
             params (dict): {
                 'data_source_id': 'str',        # required
                 'cascade_delete_cost: 'bool',
+                'workspace_id: 'str',           # required
                 'domain_id': 'str'              # injected from auth
             }
 
@@ -366,10 +367,11 @@ class DataSourceService(BaseService):
 
         data_source_id = params["data_source_id"]
         cascade_delete_cost = params.get("cascade_delete_cost", True)
+        workspace_id = params.get("workspace_id")
         domain_id = params["domain_id"]
 
         data_source_vo: DataSource = self.data_source_mgr.get_data_source(
-            data_source_id, domain_id
+            data_source_id, domain_id, workspace_id
         )
 
         if cascade_delete_cost:

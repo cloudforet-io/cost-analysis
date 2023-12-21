@@ -248,7 +248,7 @@ class JobService(BaseService):
                 is_canceled = False
                 _LOGGER.debug(f"[get_cost_data] start job ({job_task_id}): {start_dt}")
                 for costs_data in self.ds_plugin_mgr.get_cost_data(
-                    options, secret_data, schema, task_options, domain_id
+                        options, secret_data, schema, task_options, domain_id
                 ):
                     results = costs_data.get("results", [])
                     for cost_data in results:
@@ -298,9 +298,11 @@ class JobService(BaseService):
         data_source_id = data_source_vo.data_source_id
         resource_group = data_source_vo.resource_group
         domain_id = data_source_vo.domain_id
-        workspace_id = "*"
+
         if resource_group == "WORKSPACE":
             workspace_id = data_source_vo.workspace_id
+        else:
+            workspace_id = "*"
 
         endpoint = self.ds_plugin_mgr.get_data_source_plugin_endpoint_by_vo(
             data_source_vo
@@ -422,7 +424,7 @@ class JobService(BaseService):
 
         _filter = self._set_secret_filter(secret_filter, provider)
         query = {"filter": _filter} if _filter else {}
-        response = secret_manager.list_secrets(query, domain_id)
+        response = secret_manager.list_secrets(query)
         return [
             secret_info.get("secret_id") for secret_info in response.get("results", [])
         ]
@@ -440,8 +442,8 @@ class JobService(BaseService):
                     {"k": "secret_id", "v": secret_filter["secrets"], "o": "in"}
                 )
             if (
-                "service_accounts" in secret_filter
-                and secret_filter["service_accounts"]
+                    "service_accounts" in secret_filter
+                    and secret_filter["service_accounts"]
             ):
                 _filter.append(
                     {
@@ -465,7 +467,7 @@ class JobService(BaseService):
 
         if secret_id:
             _query = {"filter": [{"k": "secret_id", "v": secret_id, "o": "eq"}]}
-            response = secret_mgr.list_secrets(_query, domain_id)
+            response = secret_mgr.list_secrets(_query)
             results = response.get("results", [])
             if results:
                 secret_info = results[0]
@@ -725,7 +727,7 @@ class JobService(BaseService):
 
         for job_task_id in job_task_ids:
             for billed_month in self._distinct_billed_month(
-                data_source_id, domain_id, job_id, job_task_id
+                    data_source_id, domain_id, job_id, job_task_id
             ):
                 self._aggregate_monthly_cost_data(
                     data_source_id, domain_id, job_id, job_task_id, billed_month
@@ -751,7 +753,7 @@ class JobService(BaseService):
         return values
 
     def _aggregate_monthly_cost_data(
-        self, data_source_id, domain_id, job_id, job_task_id, billed_month
+            self, data_source_id, domain_id, job_id, job_task_id, billed_month
     ):
         query = {
             "group_by": [
