@@ -13,7 +13,7 @@ class SecretManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.secret_connector: SpaceConnector = self.locator.get_connector(
-            SpaceConnector, service="secret", token=config.get_global("TOKEN")
+            "SpaceConnector", service="secret"
         )
 
     def create_secret(
@@ -33,8 +33,7 @@ class SecretManager(BaseManager):
             "schema_id": schema_id,
         }
 
-        token = self.transaction.get_meta("token")
-        response = self.secret_connector.dispatch("Secret.create", params, token=token)
+        response = self.secret_connector.dispatch("Secret.create", params)
 
         _LOGGER.debug(f"[_create_secret] {response}")
         secret_id = response["secret_id"]
@@ -45,24 +44,21 @@ class SecretManager(BaseManager):
 
     def delete_secret(self, secret_id: str):
         token = self.transaction.get_meta("token")
-        self.secret_connector.dispatch(
-            "Secret.delete", {"secret_id": secret_id}, token=token
-        )
+        self.secret_connector.dispatch("Secret.delete", {"secret_id": secret_id})
 
     def list_secrets(self, query: dict):
         token = self.transaction.get_meta("token")
-        return self.secret_connector.dispatch(
-            "Secret.list", {"query": query}, token=token
-        )
+        return self.secret_connector.dispatch("Secret.list", {"query": query})
 
     def get_secret(self, secret_id: str):
         token = self.transaction.get_meta("token")
-        return self.secret_connector.dispatch(
-            "Secret.get", {"secret_id": secret_id}, token=token
-        )
+        return self.secret_connector.dispatch("Secret.get", {"secret_id": secret_id})
 
     def get_secret_data(self, secret_id, domain_id):
+        token = config.get_global("TOKEN")
         response = self.secret_connector.dispatch(
-            "Secret.get_data", {"secret_id": secret_id, "domain_id": domain_id}
+            "Secret.get_data",
+            {"secret_id": secret_id, "domain_id": domain_id},
+            token=token,
         )
         return response["data"]
