@@ -170,7 +170,6 @@ class CostService(BaseService):
         permission="cost-analysis:Cost.read",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
-    @change_value_by_rule("APPEND", "workspace_id", "*")
     @check_required(
         [
             "query",
@@ -183,7 +182,7 @@ class CostService(BaseService):
         ]
     )
     @append_query_filter(
-        ["data_source_id", "workspace_id", "domain_id", "user_projects"]
+        ["data_source_id", "user_projects", "workspace_id", "domain_id"]
     )
     @append_keyword_filter(["cost_id"])
     @set_query_page_limit(1000)

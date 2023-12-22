@@ -66,6 +66,7 @@ def BudgetInfo(budget_vo: Budget, minimal=False):
         "provider_filter": ProviderFilterInfo(budget_vo.provider_filter),
         "resource_group": budget_vo.resource_group,
         "project_id": budget_vo.project_id,
+        "workspace_id": budget_vo.workspace_id,
         "data_source_id": budget_vo.data_source_id,
     }
 
