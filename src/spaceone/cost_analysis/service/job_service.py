@@ -725,23 +725,32 @@ class JobService(BaseService):
     def _aggregate_cost_data(self, job_vo: Job):
         data_source_id = job_vo.data_source_id
         domain_id = job_vo.domain_id
+        workspace_id = job_vo.workspace_id
         job_id = job_vo.job_id
         job_task_ids = self._get_job_task_ids(job_id, domain_id)
 
         for job_task_id in job_task_ids:
             for billed_month in self._distinct_billed_month(
-                data_source_id, domain_id, job_id, job_task_id
+                data_source_id, workspace_id, domain_id, job_id, job_task_id
             ):
                 self._aggregate_monthly_cost_data(
-                    data_source_id, domain_id, job_id, job_task_id, billed_month
+                    data_source_id,
+                    workspace_id,
+                    domain_id,
+                    job_id,
+                    job_task_id,
+                    billed_month,
                 )
 
-    def _distinct_billed_month(self, data_source_id, domain_id, job_id, job_task_id):
+    def _distinct_billed_month(
+        self, data_source_id, workspace_id, domain_id, job_id, job_task_id
+    ):
         query = {
             "distinct": "billed_month",
             "filter": [
                 {"k": "data_source_id", "v": data_source_id, "o": "eq"},
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
+                {"k": "workspace_id", "v": workspace_id, "o": "eq"},
                 {"k": "job_id", "v": job_id, "o": "eq"},
                 {"k": "job_task_id", "v": job_task_id, "o": "eq"},
             ],
@@ -756,7 +765,7 @@ class JobService(BaseService):
         return values
 
     def _aggregate_monthly_cost_data(
-        self, data_source_id, domain_id, job_id, job_task_id, billed_month
+        self, data_source_id, workspace_id, domain_id, job_id, job_task_id, billed_month
     ):
         query = {
             "group_by": [
@@ -771,7 +780,7 @@ class JobService(BaseService):
                 "additional_info",
                 "service_account_id",
                 "project_id",
-                "project_group_id",
+                "workspace_id",
                 "billed_year",
             ],
             "fields": {
@@ -784,6 +793,7 @@ class JobService(BaseService):
                 {"k": "data_source_id", "v": data_source_id, "o": "eq"},
                 {"k": "job_id", "v": job_id, "o": "eq"},
                 {"k": "job_task_id", "v": job_task_id, "o": "eq"},
+                {"k": "workspace_id", "v": workspace_id, "o": "eq"},
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
             ],
             "allow_disk_use": True,  # Allow disk use for large data
@@ -796,6 +806,7 @@ class JobService(BaseService):
             aggregated_cost_data["billed_month"] = billed_month
             aggregated_cost_data["job_id"] = job_id
             aggregated_cost_data["job_task_id"] = job_id
+            aggregated_cost_data["workspace_id"] = workspace_id
             aggregated_cost_data["domain_id"] = domain_id
             self.cost_mgr.create_monthly_cost(aggregated_cost_data)
 
