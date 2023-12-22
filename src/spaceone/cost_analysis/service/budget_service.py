@@ -295,7 +295,6 @@ class BudgetService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
     @check_required(["domain_id"])
-    @change_value_by_rule("APPEND", "workspace_id", "*")
     @append_query_filter(
         [
             "budget_id",
@@ -303,6 +302,7 @@ class BudgetService(BaseService):
             "time_unit",
             "data_source_id",
             "project_id",
+            "user_projects",
             "workspace_id",
             "domain_id",
         ]
@@ -319,6 +319,7 @@ class BudgetService(BaseService):
                 'time_unit': 'str',
                 'data_source_id': 'str',
                 'project_id': 'str',
+                'user_projects': 'list',
                 'workspace_id': 'str',
                 'domain_id': 'str',
             }
@@ -335,9 +336,8 @@ class BudgetService(BaseService):
         permission="cost-analysis:Budget.read",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
-    @change_value_by_rule("APPEND", "workspace_id", "*")
     @check_required(["query", "domain_id"])
-    @append_query_filter(["domain_id"])
+    @append_query_filter(["user_projects", "workspace_id", "domain_id"])
     @append_keyword_filter(["budget_id", "name"])
     def stat(self, params):
         """
@@ -346,7 +346,6 @@ class BudgetService(BaseService):
                 'domain_id': 'str',
                 'query': 'dict (spaceone.api.core.v1.StatisticsQuery)',
                 'user_projects': 'list', // from meta,
-                'user_project_groups': 'list', // from meta
             }
 
         Returns:
@@ -354,7 +353,7 @@ class BudgetService(BaseService):
 
         """
 
-        query = self._set_user_project_or_project_group_filter(params)
+        query = params.get("query", {})
         return self.budget_mgr.stat_budgets(query)
 
     def _check_target(self, project_id, project_group_id):
@@ -449,10 +448,10 @@ class BudgetService(BaseService):
                 {"k": "user_projects", "v": user_projects, "o": "in"}
             )
 
-        if "user_project_groups" in params:
-            user_project_groups = params["user_project_groups"] + [None]
-            query["filter"].append(
-                {"k": "user_project_groups", "v": user_project_groups, "o": "in"}
-            )
+        # if "user_project_groups" in params:
+        #     user_project_groups = params["user_project_groups"] + [None]
+        #     query["filter"].append(
+        #         {"k": "user_project_groups", "v": user_project_groups, "o": "in"}
+        #     )
 
         return query

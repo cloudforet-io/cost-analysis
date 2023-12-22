@@ -31,7 +31,7 @@ class BudgetUsageService(BaseService):
             "data_source_id",
             "name",
             "date",
-            "project_id",
+            "user_projects" "project_id",
             "workspace_id",
             "domain_id",
         ]
@@ -49,8 +49,9 @@ class BudgetUsageService(BaseService):
                 'name': 'str',
                 'date': 'str',
                 'project_id': 'str',
-                'workspace_id': str,
-                'domain_id': 'str',
+                'user_projects': 'list',
+                'workspace_id': str,                                # injected from auth (optional)
+                'domain_id': 'str',                                 # injected from auth
             }
 
         Returns:
@@ -58,7 +59,7 @@ class BudgetUsageService(BaseService):
             total_count
         """
 
-        query = self._set_user_project_or_project_group_filter(params)
+        query = params.get("query", {})
         return self.budget_usage_mgr.list_budget_usages(query)
 
     @transaction(
@@ -66,7 +67,7 @@ class BudgetUsageService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
     @check_required(["query", "domain_id"])
-    @append_query_filter(["budget_id", "data_source_id", "domain_id"])
+    @append_query_filter(["budget_id", "data_source_id", "workspace_id", "domain_id"])
     @append_keyword_filter(["budget_id", "name"])
     @set_query_page_limit(1000)
     def stat(self, params):
@@ -76,7 +77,8 @@ class BudgetUsageService(BaseService):
                 'query': 'dict (spaceone.api.core.v1.StatisticsQuery)',
                 "budget_id": "str",
                 'data_source_id': 'str',
-                'domain_id': 'str'
+                'workspace_id': 'str',                                # injected from auth (optional)
+                'domain_id': 'str'                                    # injected from auth
             }
 
         Returns:
@@ -92,7 +94,7 @@ class BudgetUsageService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
     @check_required(["query", "query.fields", "domain_id"])
-    @append_query_filter(["data_source_id", "domain_id"])
+    @append_query_filter(["data_source_id", "budget_id", "workspace_id", "domain_id"])
     @append_keyword_filter(["budget_id", "name"])
     @set_query_page_limit(1000)
     def analyze(self, params):
@@ -100,7 +102,10 @@ class BudgetUsageService(BaseService):
         Args:
             params (dict): {
                 'query': 'dict (spaceone.api.core.v1.TimeSeriesAnalyzeQuery)',
-                'domain_id': 'str'
+                'budget_id': 'str',
+                'data_source_id': 'str',
+                'workspace_id': 'str',                                # injected from auth (optional)
+                'domain_id': 'str'                                              # injected from auth
             }
 
         Returns:
@@ -129,12 +134,6 @@ class BudgetUsageService(BaseService):
             user_projects = params["user_projects"] + [None]
             query["filter"].append(
                 {"k": "user_projects", "v": user_projects, "o": "in"}
-            )
-
-        if "user_project_groups" in params:
-            user_project_groups = params["user_project_groups"] + [None]
-            query["filter"].append(
-                {"k": "user_project_groups", "v": user_project_groups, "o": "in"}
             )
 
         return query

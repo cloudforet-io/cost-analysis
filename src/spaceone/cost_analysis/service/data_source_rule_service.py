@@ -130,7 +130,8 @@ class DataSourceRuleService(BaseService):
                 'actions': 'dict',
                 'options': 'dict'
                 'tags': 'dict'
-                'domain_id': 'str'
+                'workspace_id':                 # injected from auth (optional)
+                'domain_id': 'str'              # injected from auth
             }
 
         Returns:
@@ -139,11 +140,12 @@ class DataSourceRuleService(BaseService):
 
         data_source_rule_id = params["data_source_rule_id"]
         domain_id = params["domain_id"]
+        workspace_id = params.get("workspace_id")
         conditions_policy = params.get("conditions_policy")
         conditions = params.get("conditions", [])
 
         data_source_rule_vo = self.data_source_rule_mgr.get_data_source_rule(
-            data_source_rule_id, domain_id
+            data_source_rule_id, domain_id, workspace_id
         )
 
         if data_source_rule_vo.rule_type == "MANAGED":
@@ -177,7 +179,8 @@ class DataSourceRuleService(BaseService):
             params (dict): {
                 'data_source_rule_id': 'str',
                 'order': 'int',
-                'domain_id': 'str'
+                'workspace_id': 'str',          # injected from auth (optional)
+                'domain_id': 'str'              # injected from auth
             }
 
         Returns:
@@ -187,12 +190,13 @@ class DataSourceRuleService(BaseService):
         data_source_rule_id = params["data_source_rule_id"]
         order = params["order"]
         domain_id = params["domain_id"]
+        workspace_id = params.get("workspace_id")
 
         self._check_order(order)
 
         target_data_source_rule_vo: DataSourceRule = (
             self.data_source_rule_mgr.get_data_source_rule(
-                data_source_rule_id, domain_id
+                data_source_rule_id, domain_id, workspace_id
             )
         )
 
@@ -256,10 +260,11 @@ class DataSourceRuleService(BaseService):
 
         data_source_rule_id = params["data_source_rule_id"]
         domain_id = params["domain_id"]
+        workspace_id = params.get("workspace_id")
 
         data_source_rule_vo: DataSourceRule = (
             self.data_source_rule_mgr.get_data_source_rule(
-                data_source_rule_id, domain_id
+                data_source_rule_id, domain_id, workspace_id
             )
         )
         rule_type = data_source_rule_vo.rule_type
@@ -306,7 +311,7 @@ class DataSourceRuleService(BaseService):
         workspace_id = params.get("workspace_id")
 
         return self.data_source_rule_mgr.get_data_source_rule(
-            data_source_rule_id, domain_id, workspcae_id
+            data_source_rule_id, domain_id, workspace_id
         )
 
     @transaction(
@@ -315,18 +320,21 @@ class DataSourceRuleService(BaseService):
     )
     @change_value_by_rule("APPEND", "workspace_id", "*")
     @check_required(["domain_id"])
-    @append_query_filter(["data_source_rule_id", "name", "data_source_id", "domain_id"])
+    @append_query_filter(
+        ["data_source_rule_id", "name", "data_source_id", "workspace_id", "domain_id"]
+    )
     @append_keyword_filter(["data_source_rule_id", "name"])
     def list(self, params):
         """List data source rule
 
         Args:
             params (dict): {
+                'query': 'dict (spaceone.api.core.v1.Query)'
                 'data_source_rule_id': 'str',
                 'name': 'str',
                 'data_source_id': 'str',
-                'domain_id': 'str',
-                'query': 'dict (spaceone.api.core.v1.Query)'
+                'workspace_id': 'str',                          # injected from auth (optional)
+                'domain_id': 'str',                             # injected from auth
             }
 
         Returns:
@@ -343,14 +351,15 @@ class DataSourceRuleService(BaseService):
     )
     @change_value_by_rule("APPEND", "workspace_id", "*")
     @check_required(["query", "domain_id"])
-    @append_query_filter(["domain_id"])
+    @append_query_filter(["workspace_id", "domain_id"])
     @append_keyword_filter(["data_source_rule_id", "name"])
     def stat(self, params):
         """
         Args:
             params (dict): {
-                'domain_id': 'str',
                 'query': 'dict (spaceone.api.core.v1.StatisticsQuery)'
+                'workspace_id': 'str',                                  # injected from auth (optional)
+                'domain_id': 'str',                                     # injected from auth
             }
 
         Returns:

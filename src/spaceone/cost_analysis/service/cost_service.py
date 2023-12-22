@@ -87,9 +87,8 @@ class CostService(BaseService):
 
     @transaction(
         permission="cost-analysis:Cost.read",
-        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_OWNER"],
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
-    @change_value_by_rule("APPEND", "workspace_id", "*")
     @check_required(["cost_id", "domain_id"])
     def get(self, params):
         """Get cost
@@ -97,6 +96,7 @@ class CostService(BaseService):
         Args:
             params (dict): {
                 'cost_id': 'str',
+                'user_projects': 'list'
                 'workspace_id': 'str',
                 'domain_id': 'str',
             }
@@ -106,16 +106,16 @@ class CostService(BaseService):
         """
 
         cost_id = params["cost_id"]
+        user_projects = params.get("user_projects", [])
         workspace_id = params.get("workspace_id")
         domain_id = params["domain_id"]
 
-        return self.cost_mgr.get_cost(cost_id, domain_id, workspace_id)
+        return self.cost_mgr.get_cost(cost_id, domain_id, workspace_id, user_projects)
 
     @transaction(
         permission="cost-analysis:Cost.read",
-        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_OWNER"],
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
-    @change_value_by_rule("APPEND", "workspace_id", "*")
     @check_required(["data_source_id", "domain_id"])
     @append_query_filter(
         [
@@ -127,9 +127,10 @@ class CostService(BaseService):
             "usage_type",
             "resource",
             "service_account_id",
-            "project_id",
-            "project_group_id",
             "data_source_id",
+            "project_id",
+            "user_projects",
+            "workspace_id",
             "domain_id",
             "user_projects",
         ]
@@ -167,7 +168,7 @@ class CostService(BaseService):
 
     @transaction(
         permission="cost-analysis:Cost.read",
-        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_OWNER"],
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
     @change_value_by_rule("APPEND", "workspace_id", "*")
     @check_required(
@@ -181,7 +182,9 @@ class CostService(BaseService):
             "domain_id",
         ]
     )
-    @append_query_filter(["data_source_id", "domain_id", "user_projects"])
+    @append_query_filter(
+        ["data_source_id", "workspace_id", "domain_id", "user_projects"]
+    )
     @append_keyword_filter(["cost_id"])
     @set_query_page_limit(1000)
     def analyze(self, params):
@@ -209,11 +212,13 @@ class CostService(BaseService):
 
     @transaction(
         permission="cost-analysis:Cost.read",
-        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_OWNER"],
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
     @change_value_by_rule("APPEND", "workspace_id", "*")
     @check_required(["query", "domain_id"])
-    @append_query_filter(["data_source_id", "domain_id", "user_projects"])
+    @append_query_filter(
+        ["data_source_id", "workspace_id", "domain_id", "user_projects"]
+    )
     @append_keyword_filter(["cost_id"])
     @set_query_page_limit(1000)
     def stat(self, params):

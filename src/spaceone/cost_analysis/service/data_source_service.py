@@ -462,7 +462,15 @@ class DataSourceService(BaseService):
     @change_value_by_rule("APPEND", "workspace_id", "*")
     @check_required(["domain_id"])
     @append_query_filter(
-        ["data_source_id", "name", "state", "data_source_type", "provider", "domain_id"]
+        [
+            "data_source_id",
+            "name",
+            "state",
+            "data_source_type",
+            "provider",
+            "workspace_id",
+            "domain_id",
+        ]
     )
     @change_tag_filter("tags")
     @append_keyword_filter(["data_source_id", "name"])
@@ -476,7 +484,7 @@ class DataSourceService(BaseService):
                 'state': 'str',
                 'data_source_type': 'str',
                 'provider': 'str',
-                'workspace_id': 'str,
+                'workspace_id': 'list,
                 'domain_id': 'str',
                 'query': 'dict (spaceone.api.core.v1.Query)'
             }

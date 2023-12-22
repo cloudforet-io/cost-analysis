@@ -81,11 +81,17 @@ class CostManager(BaseManager):
         )
         history_vos.delete()
 
-    def get_cost(self, cost_id, domain_id, workspace_id=None):
+    def get_cost(
+        self, cost_id, domain_id, workspace_id=None, user_projects: list = None
+    ):
         conditions = {"cost_id": cost_id, "domain_id": domain_id}
 
         if workspace_id:
             conditions["workspace_id"] = workspace_id
+
+        if user_projects:
+            conditions["project_id"] = user_projects
+
         return self.cost_model.get(**conditions)
 
     def filter_costs(self, **conditions):

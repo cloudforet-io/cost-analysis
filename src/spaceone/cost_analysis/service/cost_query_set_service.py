@@ -35,8 +35,8 @@ class CostQuerySetService(BaseService):
                 'name': 'str',
                 'options': 'str',
                 'tags': 'dict',
-                'user_id': 'str',
-                'domain_id': 'str'
+                'user_id': 'str',           # injected from auth
+                'domain_id': 'str'          # injected from auth
             }
 
         Returns:
