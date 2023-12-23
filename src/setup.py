@@ -17,20 +17,15 @@ import os
 from setuptools import setup, find_packages
 
 setup(
-    name='spaceone-cost-analysis',
-    version=os.environ.get('PACKAGE_VERSION'),
-    description='SpaceONE cost analysis service',
-    long_description='',
-    url='https://www.spaceone.dev/',
-    author='MEGAZONE SpaceONE Team',
-    author_email='admin@spaceone.dev',
-    license='Apache License 2.0',
+    name="spaceone-cost-analysis",
+    version=os.environ.get("PACKAGE_VERSION"),
+    description="SpaceONE cost analysis service",
+    long_description="",
+    url="https://www.spaceone.dev/",
+    author="MEGAZONE SpaceONE Team",
+    author_email="admin@spaceone.dev",
+    license="Apache License 2.0",
     packages=find_packages(),
-    install_requires=[
-        'spaceone-api',
-        'boto3',
-        'pandas',
-        'numpy'
-    ],
+    install_requires=["spaceone-core", "spaceone-api", "boto3", "pandas", "numpy"],
     zip_safe=False,
 )
