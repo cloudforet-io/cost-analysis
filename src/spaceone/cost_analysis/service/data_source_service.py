@@ -418,6 +418,7 @@ class DataSourceService(BaseService):
         job_options = {
             "no_preload_cache": params.get("no_preload_cache", False),
             "start": params.get("start"),
+            "sync_mode": "MANUAL",
         }
 
         data_source_vo: DataSource = self.data_source_mgr.get_data_source(
