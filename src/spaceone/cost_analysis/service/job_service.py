@@ -553,7 +553,7 @@ class JobService(BaseService):
         self.cost_mgr.create_cost(cost_data, execute_rollback=False)
 
     def _is_job_failed(self, job_id: str, workspace_id: str, domain_id: str):
-        job_vo: Job = self.job_mgr.get_job(job_id, workspace_id, domain_id)
+        job_vo: Job = self.job_mgr.get_job(job_id, domain_id, workspace_id)
 
         if job_vo.status in ["CANCELED", "FAILURE"]:
             return True
