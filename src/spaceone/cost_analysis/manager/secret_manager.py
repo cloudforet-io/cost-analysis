@@ -43,11 +43,9 @@ class SecretManager(BaseManager):
         return secret_id
 
     def delete_secret(self, secret_id: str):
-        token = self.transaction.get_meta("token")
         self.secret_connector.dispatch("Secret.delete", {"secret_id": secret_id})
 
     def list_secrets(self, query: dict):
-        token = self.transaction.get_meta("token")
         return self.secret_connector.dispatch("Secret.list", {"query": query})
 
     def get_secret(self, secret_id: str):

@@ -438,7 +438,7 @@ class DataSourceRuleService(BaseService):
                 {"k": "data_source_id", "v": data_source_id, "o": "eq"},
                 {"k": "rule_type", "v": rule_type, "o": "eq"},
             ],
-            "sort": {"key": "order"},
+            "sort": [{"key": "order"}],
         }
 
         if exclude_data_source_rule_id is not None:

@@ -297,5 +297,5 @@ class DataSourceRuleManager(BaseManager):
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
                 {"k": "rule_type", "v": rule_type, "o": "eq"},
             ],
-            "sort": {"key": "order"},
+            "sort": [{"key": "order"}],
         }

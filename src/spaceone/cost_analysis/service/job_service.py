@@ -264,7 +264,7 @@ class JobService(BaseService):
                         )
                         data_keys = self._append_data_keys(data_keys, cost_data)
 
-                    if self._is_job_failed(job_id, domain_id):
+                    if self._is_job_failed(job_id, job_task_vo.workspace_id, domain_id):
                         self.job_task_mgr.change_canceled_status(job_task_vo)
                         is_canceled = True
                         break
@@ -288,7 +288,7 @@ class JobService(BaseService):
             except Exception as e:
                 self.job_task_mgr.change_error_status(job_task_vo, e, secret_type)
 
-        self._close_job(job_id, domain_id, data_source_id)
+        self._close_job(job_id, data_source_id, domain_id, job_task_vo.workspace_id)
 
     def create_cost_job(self, data_source_vo: DataSource, job_options):
         tasks = []
@@ -312,7 +312,7 @@ class JobService(BaseService):
 
         options.update({"secret_type": secret_type})
         secret_ids = self._list_secret_ids_from_secret_type(
-            data_source_vo, secret_type, domain_id
+            data_source_vo, secret_type, workspace_id, domain_id
         )
 
         self.ds_plugin_mgr.initialize(endpoint)
@@ -400,7 +400,13 @@ class JobService(BaseService):
 
         return job_vo
 
-    def _list_secret_ids_from_secret_type(self, data_source_vo, secret_type, domain_id):
+    def _list_secret_ids_from_secret_type(
+        self,
+        data_source_vo: DataSource,
+        secret_type: str,
+        workspace_id: str,
+        domain_id: str,
+    ):
         secret_ids = []
 
         if secret_type == "MANUAL":
@@ -414,15 +420,19 @@ class JobService(BaseService):
                 secret_filter = data_source_vo.secret_filter.to_dict()
 
             secret_ids = self._list_secret_ids_from_secret_filter(
-                secret_filter, provider, domain_id
+                secret_filter, provider, workspace_id, domain_id
             )
 
         return secret_ids
 
-    def _list_secret_ids_from_secret_filter(self, secret_filter, provider, domain_id):
+    def _list_secret_ids_from_secret_filter(
+        self, secret_filter, provider: str, workspace_id: str, domain_id: str
+    ):
         secret_manager: SecretManager = self.locator.get_manager(SecretManager)
 
-        _filter = self._set_secret_filter(secret_filter, provider)
+        _filter = self._set_secret_filter(
+            secret_filter, provider, workspace_id, domain_id
+        )
         query = {"filter": _filter} if _filter else {}
         response = secret_manager.list_secrets(query)
         return [
@@ -430,11 +440,15 @@ class JobService(BaseService):
         ]
 
     @staticmethod
-    def _set_secret_filter(secret_filter, provider):
-        _filter = []
+    def _set_secret_filter(
+        secret_filter, provider: str, workspace_id: str, domain_id: str
+    ):
+        _filter = [{"k": "domain_id", "v": domain_id, "o": "eq"}]
 
         if provider:
             _filter.append({"k": "provider", "v": provider, "o": "eq"})
+        if workspace_id:
+            _filter.append({"k": "workspace_id", "v": workspace_id, "o": "eq"})
 
         if secret_filter and secret_filter.get("state") == "ENABLED":
             if "secrets" in secret_filter and secret_filter["secrets"]:
@@ -503,7 +517,8 @@ class JobService(BaseService):
                 data_keys.append(key)
         return data_keys
 
-    def _get_secret_data(self, secret_id, domain_id):
+    def _get_secret_data(self, secret_id: str, domain_id: str):
+        # todo: this method is internal method
         secret_mgr: SecretManager = self.locator.get_manager("SecretManager")
         if secret_id:
             secret_data = secret_mgr.get_secret_data(secret_id, domain_id)
@@ -538,15 +553,17 @@ class JobService(BaseService):
         self.cost_mgr.create_cost(cost_data, execute_rollback=False)
 
     def _is_job_failed(self, job_id: str, workspace_id: str, domain_id: str):
-        job_vo: Job = self.job_mgr.get_job(job_id, domain_id)
+        job_vo: Job = self.job_mgr.get_job(job_id, workspace_id, domain_id)
 
         if job_vo.status in ["CANCELED", "FAILURE"]:
             return True
         else:
             return False
 
-    def _close_job(self, job_id, domain_id, data_source_id):
-        job_vo: Job = self.job_mgr.get_job(job_id, domain_id)
+    def _close_job(
+        self, job_id: str, data_source_id: str, domain_id: str, workspace_id: str = None
+    ) -> None:
+        job_vo: Job = self.job_mgr.get_job(job_id, domain_id, workspace_id)
         no_preload_cache = job_vo.options.get("no_preload_cache", False)
 
         if job_vo.remained_tasks == 0:
