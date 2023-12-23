@@ -373,10 +373,14 @@ class DataSourceService(BaseService):
             data_source_id, domain_id, workspace_id
         )
 
+        workspace_id = data_source_vo.workspace_id
+
         if cascade_delete_cost:
             self.cost_mgr.delete_cost_with_datasource(domain_id, data_source_id)
-            self.budget_usage_mgr.update_budget_usage(domain_id, data_source_id)
-            self.cost_mgr.remove_stat_cache(domain_id, data_source_id)
+            self.budget_usage_mgr.update_budget_usage(
+                domain_id, workspace_id, data_source_id
+            )
+            self.cost_mgr.remove_stat_cache(domain_id, workspace_id, data_source_id)
             self.job_mgr.preload_cost_stat_queries(domain_id, data_source_id)
 
         if data_source_vo.plugin_info:

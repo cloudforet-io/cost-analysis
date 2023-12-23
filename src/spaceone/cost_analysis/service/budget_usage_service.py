@@ -31,7 +31,8 @@ class BudgetUsageService(BaseService):
             "data_source_id",
             "name",
             "date",
-            "user_projects" "project_id",
+            "user_projects",
+            "project_id",
             "workspace_id",
             "domain_id",
         ]

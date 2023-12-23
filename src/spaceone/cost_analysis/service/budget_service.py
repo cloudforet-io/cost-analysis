@@ -28,7 +28,7 @@ class BudgetService(BaseService):
 
     @transaction(
         permission="cost-analysis:Budget.write",
-        role_types=["WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @check_required(
         [
@@ -57,7 +57,7 @@ class BudgetService(BaseService):
                 'tags': 'dict',
                 'resource_group': 'str',    # required
                 'project_id': 'str',
-                'workspace_id': 'str',      # injected from auth
+                'workspace_id': 'str',
                 'domain_id': 'str'          # injected from auth
             }
 
@@ -81,10 +81,12 @@ class BudgetService(BaseService):
         # self._check_target(project_id, project_group_id, domain_id)
         self._check_time_period(start, end)
 
+        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
         if resource_group == "WORKSPACE":
+            identity_mgr.check_workspace(workspace_id, domain_id)
             params["project_id"] = "*"
+            project_id = "*"
         else:
-            identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
             identity_mgr.get_project(project_id)
 
         # Check Provider Filter
@@ -98,7 +100,7 @@ class BudgetService(BaseService):
             "DataSourceManager"
         )
         data_source_vo: DataSource = data_source_mgr.get_data_source(
-            data_source_id, domain_id
+            data_source_id, domain_id, workspace_id
         )
         data_source_metadata = data_source_vo.plugin_info.metadata
         params["currency"] = data_source_metadata.get("currency", "USD")
@@ -129,7 +131,9 @@ class BudgetService(BaseService):
         )
         if budget_vos.count() > 0:
             raise ERROR_BUDGET_ALREADY_EXIST(
-                data_source_id=data_source_id, target=project_id
+                data_source_id=data_source_id,
+                workspace_id=workspace_id,
+                target=project_id,
             )
 
         budget_vo = self.budget_mgr.create_budget(params)
@@ -150,23 +154,22 @@ class BudgetService(BaseService):
 
     @transaction(
         permission="cost-analysis:Budget.write",
-        role_types=["WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
-    @check_required(["budget_id", "workspace_id", "domain_id"])
+    @check_required(["budget_id", "domain_id"])
     # @change_date_value(['end'])
     def update(self, params):
         """Update budget
 
         Args:
             params (dict): {
-                'budget_id': 'str',
+                'budget_id': 'str',         # required
                 'name': 'str',
                 'limit': 'float',
                 'planned_limits': 'list',
                 'tags': 'dict'
-                'project_id': 'str',
-                'workspace_id', 'str',
-                'domain_id': 'str'
+                'workspace_id', 'str',      # injected from auth (optional)
+                'domain_id': 'str'          # injected from auth
             }
 
         Returns:
@@ -174,7 +177,7 @@ class BudgetService(BaseService):
         """
 
         budget_id = params["budget_id"]
-        workspace_id = params["workspace_id"]
+        workspace_id = params.get("workspace_id")
         domain_id = params["domain_id"]
         planned_limits = params.get("planned_limits")
 
@@ -183,9 +186,7 @@ class BudgetService(BaseService):
         )
 
         budget_vo: Budget = self.budget_mgr.get_budget(
-            budget_id,
-            domain_id,
-            workspace_id,
+            budget_id, domain_id, workspace_id
         )
 
         # Check limit and Planned Limits
@@ -194,7 +195,8 @@ class BudgetService(BaseService):
 
         if "name" in params:
             budget_usage_vos = budget_usage_mgr.filter_budget_usages(
-                budget_id=budget_id
+                budget_id=budget_id,
+                domain_id=domain_id,
             )
             for budget_usage_vo in budget_usage_vos:
                 budget_usage_mgr.update_budget_usage_by_vo(
@@ -210,7 +212,7 @@ class BudgetService(BaseService):
 
     @transaction(
         permission="cost-analysis:Budget.write",
-        role_types=["WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @check_required(["budget_id", "workspace_id", "domain_id"])
     def set_notification(self, params):
@@ -228,7 +230,7 @@ class BudgetService(BaseService):
             budget_vo (object)
         """
         budget_id = params["budget_id"]
-        workspace_id = params["workspace_id"]
+        workspace_id = params.get("workspace_id")
         domain_id = params["domain_id"]
         notifications = params.get("notifications", [])
 
@@ -244,9 +246,9 @@ class BudgetService(BaseService):
 
     @transaction(
         permission="cost-analysis:Budget.write",
-        role_types=["WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
-    @check_required(["budget_id", "workspace_id", "domain_id"])
+    @check_required(["budget_id", "domain_id"])
     def delete(self, params):
         """Deregister budget
 
@@ -261,9 +263,10 @@ class BudgetService(BaseService):
             None
         """
 
-        self.budget_mgr.delete_budget(
-            params["budget_id"], params["workspace_id"], params["domain_id"]
+        budget_vo: Budget = self.budget_mgr.get_budget(
+            params["budget_id"], params["domain_id"], params.get("workspace_id")
         )
+        self.budget_mgr.delete_budget_by_vo(budget_vo)
 
     @transaction(
         permission="cost-analysis:Budget.read",
@@ -275,9 +278,10 @@ class BudgetService(BaseService):
 
         Args:
             params (dict): {
-                'budget_id': 'str',
-                'workspace_id': 'str',
-                'domain_id': 'str',
+                'budget_id': 'str',         # required
+                'user_projects': 'list',    # from meta
+                'workspace_id': 'str',      # injected from auth (optional)
+                'domain_id': 'str',         # injected from auth
             }
 
         Returns:
@@ -287,8 +291,11 @@ class BudgetService(BaseService):
         budget_id = params["budget_id"]
         domain_id = params["domain_id"]
         workspace_id = params.get("workspace_id")
+        project_id = params.get("user_projects")
 
-        return self.budget_mgr.get_budget(budget_id, domain_id, workspace_id)
+        return self.budget_mgr.get_budget(
+            budget_id, domain_id, workspace_id, project_id
+        )
 
     @transaction(
         permission="cost-analysis:Budget.read",
@@ -355,18 +362,6 @@ class BudgetService(BaseService):
 
         query = params.get("query", {})
         return self.budget_mgr.stat_budgets(query)
-
-    def _check_target(self, project_id, project_group_id):
-        if project_id is None and project_group_id is None:
-            raise ERROR_REQUIRED_PARAMETER(key="project_id or project_group_id")
-
-        if project_id and project_group_id:
-            raise ERROR_ONLY_ONF_OF_PROJECT_OR_PROJECT_GROUP()
-
-        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
-
-        if project_id:
-            identity_mgr.get_project(project_id)
 
     @staticmethod
     def _check_time_period(start, end):
@@ -447,11 +442,5 @@ class BudgetService(BaseService):
             query["filter"].append(
                 {"k": "user_projects", "v": user_projects, "o": "in"}
             )
-
-        # if "user_project_groups" in params:
-        #     user_project_groups = params["user_project_groups"] + [None]
-        #     query["filter"].append(
-        #         {"k": "user_project_groups", "v": user_project_groups, "o": "in"}
-        #     )
 
         return query

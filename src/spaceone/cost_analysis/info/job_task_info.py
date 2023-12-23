@@ -14,6 +14,7 @@ def JobTaskInfo(job_task_vo: JobTask, minimal=False):
         "created_count": job_task_vo.created_count,
         "job_id": job_task_vo.job_id,
         "data_source_id": job_task_vo.data_source_id,
+        "workspace_id": job_task_vo.workspace_id,
     }
 
     if not minimal:

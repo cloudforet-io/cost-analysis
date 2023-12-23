@@ -195,9 +195,8 @@ class JobService(BaseService):
         cost_data_options = {}
 
         job_task_vo: JobTask = self.job_task_mgr.get_job_task(job_task_id, domain_id)
-
         data_source_vo: DataSource = self.data_source_mgr.get_data_source(
-            job_task_vo.data_source_id, domain_id
+            job_task_vo.data_source_id, domain_id, job_task_vo.workspace_id
         )
         plugin_info = data_source_vo.plugin_info.to_dict()
         secret_type = data_source_vo.secret_type
@@ -205,7 +204,7 @@ class JobService(BaseService):
         data_source_id = data_source_vo.data_source_id
         job_id = job_task_vo.job_id
 
-        if self._is_job_failed(job_id, domain_id):
+        if self._is_job_failed(job_id, job_task_vo.workspace_id, domain_id):
             self.job_task_mgr.change_canceled_status(job_task_vo)
         else:
             job_task_vo = self.job_task_mgr.change_in_progress_status(job_task_vo)
@@ -538,7 +537,7 @@ class JobService(BaseService):
 
         self.cost_mgr.create_cost(cost_data, execute_rollback=False)
 
-    def _is_job_failed(self, job_id, domain_id):
+    def _is_job_failed(self, job_id: str, workspace_id: str, domain_id: str):
         job_vo: Job = self.job_mgr.get_job(job_id, domain_id)
 
         if job_vo.status in ["CANCELED", "FAILURE"]:

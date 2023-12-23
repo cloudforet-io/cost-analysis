@@ -93,9 +93,13 @@ class BudgetUsageManager(BaseManager):
         budget_vo = self.budget_mgr.get_budget(budget_id, domain_id, workspace_id)
         self._update_monthly_budget_usage(budget_vo, cost_mgr)
 
-    def update_budget_usage(self, domain_id, data_source_id):
+    def update_budget_usage(
+        self, domain_id: str, workspace_id: str, data_source_id: str
+    ):
         budget_vos = self.budget_mgr.filter_budgets(
-            domain_id=domain_id, data_source_id=data_source_id
+            domain_id=domain_id,
+            workspace_id=workspace_id,
+            data_source_id=data_source_id,
         )
         for budget_vo in budget_vos:
             self.update_cost_usage(
