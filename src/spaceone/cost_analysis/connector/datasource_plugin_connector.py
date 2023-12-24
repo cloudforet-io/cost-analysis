@@ -75,7 +75,7 @@ class DataSourcePluginConnector(BaseConnector):
             "domain_id": domain_id,
         }
 
-        response_stream = self.client.Cost.get_data(params)
+        response_stream = self.client.dispatch("Cost.get_data", params)
         return self._process_stream(response_stream)
 
     def _process_stream(self, response_stream):
