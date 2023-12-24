@@ -46,10 +46,12 @@ class SecretManager(BaseManager):
         self.secret_connector.dispatch("Secret.delete", {"secret_id": secret_id})
 
     def list_secrets(self, query: dict):
-        if token := self.transaction.get_meta("token") is None:
-            token = config.get_global("TOKEN")
+        return self.secret_connector.dispatch("Secret.list", {"query": query})
+
+    def list_secrets_with_system_token(self, query: dict, domain_id: str):
+        token = config.get_global("TOKEN")
         return self.secret_connector.dispatch(
-            "Secret.list", {"query": query}, token=token
+            "Secret.list", {"query": query}, x_domain_id=domain_id, token=token
         )
 
     def get_secret(self, secret_id: str):

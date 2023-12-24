@@ -440,7 +440,7 @@ class JobService(BaseService):
             secret_filter, provider, workspace_id, domain_id
         )
         query = {"filter": _filter} if _filter else {}
-        response = secret_manager.list_secrets(query)
+        response = secret_manager.list_secrets_with_system_token(query, domain_id)
         return [
             secret_info.get("secret_id") for secret_info in response.get("results", [])
         ]
@@ -487,7 +487,7 @@ class JobService(BaseService):
 
         if secret_id:
             _query = {"filter": [{"k": "secret_id", "v": secret_id, "o": "eq"}]}
-            response = secret_mgr.list_secrets(_query)
+            response = secret_mgr.list_secrets_with_system_token(_query, domain_id)
             results = response.get("results", [])
             if results:
                 secret_info = results[0]
