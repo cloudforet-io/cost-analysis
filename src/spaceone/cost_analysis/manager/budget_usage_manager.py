@@ -327,11 +327,12 @@ class BudgetUsageManager(BaseManager):
             "fields": {"cost": {"key": "cost", "operator": "sum"}},
             "filter": [
                 {"k": "domain_id", "v": budget_vo.domain_id, "o": "eq"},
+                {"k": "workspace_id", "v": budget_vo.workspace_id, "o": "eq"},
                 {"k": "data_source_id", "v": budget_vo.data_source_id, "o": "eq"},
             ],
         }
 
-        if budget_vo.project_id:
+        if budget_vo.project_id and budget_vo.project_id != "*":
             query["filter"].append(
                 {"k": "project_id", "v": budget_vo.project_id, "o": "eq"}
             )
@@ -339,13 +340,13 @@ class BudgetUsageManager(BaseManager):
         else:
             identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
 
-            query = {
+            project_query = {
                 "filter": [
-                    {"k": "project_id", "v": budget_vo.project_id, "o": "eq"},
                     {"k": "domain_id", "v": budget_vo.domain_id, "o": "eq"},
+                    {"k": "workspace_id", "v": budget_vo.workspace_id, "o": "eq"},
                 ]
             }
-            project_vos = identity_mgr.list_projects(query)
+            project_vos = identity_mgr.list_projects(project_query)
 
             project_ids = []
             for project_vo in project_vos:

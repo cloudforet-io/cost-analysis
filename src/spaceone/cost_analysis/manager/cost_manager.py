@@ -134,7 +134,8 @@ class CostManager(BaseManager):
         return self.monthly_cost_model.analyze(**query)
 
     @cache.cacheable(
-        key="stat-costs:monthly:{domain_id}:{domain_id}:{query_hash}", expire=3600 * 24
+        key="stat-costs:monthly:{domain_id}:{data_source_id}:{query_hash}",
+        expire=3600 * 24,
     )
     def stat_monthly_costs_with_cache(
         self, query, query_hash, domain_id, data_source_id

@@ -96,9 +96,9 @@ class CostService(BaseService):
         Args:
             params (dict): {
                 'cost_id': 'str',
-                'user_projects': 'list'
-                'workspace_id': 'str',
-                'domain_id': 'str',
+                'user_projects': 'list'     # injected from auth(optional)
+                'workspace_id': 'str',      # injected from auth(optional)
+                'domain_id': 'str',         # injected from auth
             }
 
         Returns:
@@ -142,6 +142,7 @@ class CostService(BaseService):
 
         Args:
             params (dict): {
+                'query': 'dict (spaceone.api.core.v2.Query)',
                 'cost_id': 'str',
                 'provider': 'str',
                 'region_code': 'str',
@@ -150,12 +151,10 @@ class CostService(BaseService):
                 'usage_type': 'str',
                 'resource': 'str',
                 'service_account_id': 'str',
+                'user_projects': 'list'                         # injected from auth(optional)
                 'project_id': 'str',
-                'project_group_id': 'str',
-                'data_source_id': 'str'
+                'data_source_id': 'str'                         # injected from auth
                 'domain_id': 'str',
-                'query': 'dict (spaceone.api.core.v1.Query)',
-                'user_projects': 'list' // from meta
             }
 
         Returns:

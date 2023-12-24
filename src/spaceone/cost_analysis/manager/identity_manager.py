@@ -73,7 +73,7 @@ class IdentityManager(BaseManager):
             "Project.get", {"project_id": project_id}, token=token
         )
 
-    def list_projects(self, query: dict, domain_id):
+    def list_projects(self, query: dict, domain_id: str = None):
         token = self.transaction.get_meta("token")
         return self.identity_conn.dispatch(
             "Project.list", {"query": query}, token=token, x_domain_id=domain_id
