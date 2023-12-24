@@ -79,7 +79,7 @@ class JobTaskService(BaseService):
     )
     @change_value_by_rule("APPEND", "workspace_id", "*")
     @check_required(["query", "domain_id"])
-    @append_query_filter(["domain_id"])
+    @append_query_filter(["workspace_id", "domain_id"])
     @append_keyword_filter(["job_task_id"])
     def stat(self, params):
         """

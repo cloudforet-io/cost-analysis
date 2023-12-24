@@ -28,6 +28,8 @@ _LOGGER = logging.getLogger(__name__)
 @mutation_handler
 @event_handler
 class JobService(BaseService):
+    resource = "Job"
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.cost_mgr: CostManager = self.locator.get_manager("CostManager")
@@ -123,7 +125,9 @@ class JobService(BaseService):
     )
     @change_value_by_rule("APPEND", "workspace_id", "*")
     @check_required(["domain_id"])
-    @append_query_filter(["job_id", "status", "data_source_id", "domain_id"])
+    @append_query_filter(
+        ["job_id", "status", "data_source_id", "workspace_id", "domain_id"]
+    )
     @append_keyword_filter(["job_id"])
     def list(self, params):
         """List jobs
@@ -152,7 +156,7 @@ class JobService(BaseService):
     )
     @change_value_by_rule("APPEND", "workspace_id", "*")
     @check_required(["query", "domain_id"])
-    @append_query_filter(["domain_id"])
+    @append_query_filter(["workspace_id", "domain_id"])
     @append_keyword_filter(["job_id"])
     def stat(self, params):
         """
@@ -212,6 +216,7 @@ class JobService(BaseService):
             try:
                 options = plugin_info.get("options", {})
                 schema_id = plugin_info.get("schema_id")
+                schema = None
                 tag_keys = data_source_vo.cost_tag_keys
                 additional_info_keys = data_source_vo.cost_additional_info_keys
                 data_keys = data_source_vo.cost_data_keys
@@ -247,7 +252,7 @@ class JobService(BaseService):
                 is_canceled = False
                 _LOGGER.debug(f"[get_cost_data] start job ({job_task_id}): {start_dt}")
                 for costs_data in self.ds_plugin_mgr.get_cost_data(
-                    options, secret_data, schema_id, task_options, domain_id
+                    options, secret_data, schema, task_options, domain_id
                 ):
                     results = costs_data.get("results", [])
                     for cost_data in results:
@@ -304,6 +309,7 @@ class JobService(BaseService):
         )
         options = data_source_vo.plugin_info.options
         schema_id = data_source_vo.plugin_info.schema_id
+        schema = None
 
         if data_source_vo.secret_type:
             secret_type = data_source_vo.secret_type
@@ -330,10 +336,10 @@ class JobService(BaseService):
                     options,
                     secret_id,
                     secret_data,
-                    schema_id,
                     start,
                     last_synchronized_at,
                     domain_id,
+                    schema,
                 )
                 tasks.extend(single_tasks)
                 changed.extend(single_changed)
@@ -468,7 +474,7 @@ class JobService(BaseService):
                 )
             if "schemas" in secret_filter and secret_filter["schemas"]:
                 _filter.append(
-                    {"k": "schema", "v": secret_filter["schemas"], "o": "in"}
+                    {"k": "schema_id", "v": secret_filter["schemas"], "o": "in"}
                 )
 
         return _filter
@@ -587,7 +593,7 @@ class JobService(BaseService):
                     raise e
 
                 try:
-                    self._delete_old_cost_data(domain_id, data_source_id)
+                    self._delete_old_cost_data(domain_id, workspace_id, data_source_id)
                 except Exception as e:
                     _LOGGER.error(
                         f"[_close_job] delete old cost data error: {e}", exc_info=True
@@ -598,7 +604,9 @@ class JobService(BaseService):
                     raise e
 
                 try:
-                    self.cost_mgr.remove_stat_cache(domain_id, data_source_id)
+                    self.cost_mgr.remove_stat_cache(
+                        domain_id, workspace_id, data_source_id
+                    )
 
                     if not no_preload_cache:
                         self.job_mgr.preload_cost_stat_queries(
@@ -675,7 +683,7 @@ class JobService(BaseService):
             {"last_synchronized_at": job_vo.created_at}, data_source_vo
         )
 
-    def _delete_old_cost_data(self, data_source_id, domain_id):
+    def _delete_old_cost_data(self, data_source_id, workspace_id, domain_id):
         now = datetime.utcnow().date()
         old_billed_month = (now - relativedelta(months=12)).strftime("%Y-%m")
         old_billed_year = (now - relativedelta(months=36)).strftime("%Y")
@@ -684,6 +692,7 @@ class JobService(BaseService):
             "filter": [
                 {"k": "billed_month", "v": old_billed_month, "o": "lt"},
                 {"k": "data_source_id", "v": data_source_id, "o": "eq"},
+                {"k": "workspace_id", "v": workspace_id, "o": "eq"},
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
             ]
         }
@@ -696,6 +705,7 @@ class JobService(BaseService):
             "filter": [
                 {"k": "billed_year", "v": old_billed_year, "o": "lt"},
                 {"k": "data_source_id", "v": data_source_id, "o": "eq"},
+                {"k": "workspace_id", "v": workspace_id, "o": "eq"},
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
             ]
         }

@@ -414,6 +414,7 @@ class DataSourceService(BaseService):
         job_service: JobService = self.locator.get_service("JobService")
 
         data_source_id = params["data_source_id"]
+        workspace_id = params.get("workspace_id")
         domain_id = params["domain_id"]
         job_options = {
             "no_preload_cache": params.get("no_preload_cache", False),
@@ -422,7 +423,7 @@ class DataSourceService(BaseService):
         }
 
         data_source_vo: DataSource = self.data_source_mgr.get_data_source(
-            data_source_id, domain_id
+            data_source_id, domain_id, workspace_id
         )
 
         if data_source_vo.state == "DISABLED":
@@ -508,7 +509,7 @@ class DataSourceService(BaseService):
     )
     @change_value_by_rule("APPEND", "workspace_id", "*")
     @check_required(["query", "domain_id"])
-    @append_query_filter(["domain_id"])
+    @append_query_filter(["workspace_id", "domain_id"])
     @change_tag_filter("tags")
     @append_keyword_filter(["data_source_id", "name"])
     def stat(self, params):
@@ -568,7 +569,7 @@ class DataSourceService(BaseService):
                     key="secret_filter.schema", reason="Schema not found"
                 )
 
-    def _check_plugin(self, plugin_id):
+    def _check_plugin(self, plugin_id: str) -> None:
         repo_mgr: RepositoryManager = self.locator.get_manager("RepositoryManager")
         repo_mgr.get_plugin(plugin_id)
 
@@ -580,13 +581,13 @@ class DataSourceService(BaseService):
         options = plugin_info.get("options", {})
         secret_id = plugin_info.get("secret_id")
         secret_data = plugin_info.get("secret_data")
-        schema_id = plugin_info.get("schema_id")
+        schema = plugin_info.get("schema")
 
         if not secret_data:
             secret_data = self._get_secret_data(secret_id, domain_id)
 
         self.ds_plugin_mgr.initialize(endpoint)
-        self.ds_plugin_mgr.verify_plugin(options, secret_data, schema_id, domain_id)
+        self.ds_plugin_mgr.verify_plugin(options, secret_data, schema, domain_id)
 
     def _get_secret_data(self, secret_id, domain_id):
         secret_mgr: SecretManager = self.locator.get_manager("SecretManager")
