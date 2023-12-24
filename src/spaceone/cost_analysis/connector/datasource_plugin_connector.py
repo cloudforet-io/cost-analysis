@@ -29,11 +29,9 @@ class DataSourcePluginConnector(BaseConnector):
         self.schema = self.config.get("schema")
 
     def init(self, options, domain_id):
-        response = self.client.dispatch(
+        return self.client.dispatch(
             "DataSource.init", {"options": options, "domain_id": domain_id}
         )
-
-        return self._change_message(response)
 
     def verify(self, options, secret_data, schema, domain_id):
         params = {
@@ -63,8 +61,7 @@ class DataSourcePluginConnector(BaseConnector):
             "domain_id": domain_id,
         }
 
-        response = self.client.dispatch("Job.get_tasks", params)
-        return self._change_message(response)
+        return self.client.dispatch("Job.get_tasks", params)
 
     def get_cost_data(self, options, secret_data, schema, task_options, domain_id):
         params = {
@@ -75,13 +72,4 @@ class DataSourcePluginConnector(BaseConnector):
             "domain_id": domain_id,
         }
 
-        response_stream = self.client.dispatch("Cost.get_data", params)
-        return self._process_stream(response_stream)
-
-    def _process_stream(self, response_stream):
-        for message in response_stream:
-            yield self._change_message(message)
-
-    @staticmethod
-    def _change_message(message):
-        return MessageToDict(message, preserving_proto_field_name=True)
+        return self.client.dispatch("Cost.get_data", params)
