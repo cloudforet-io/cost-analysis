@@ -225,16 +225,10 @@ class CostManager(BaseManager):
         return history_model.query(**query)
 
     @staticmethod
-    def remove_stat_cache(domain_id, workspace_id: str, data_source_id):
-        cache.delete_pattern(
-            f"analyze-costs:*:{domain_id}:{workspace_id}:{data_source_id}:*"
-        )
-        cache.delete_pattern(
-            f"stat-costs:*:{domain_id}:{workspace_id}:{data_source_id}:*"
-        )
-        cache.delete_pattern(
-            f"cost-query-history:{domain_id}:{workspace_id}:{data_source_id}:*"
-        )
+    def remove_stat_cache(domain_id: str, workspace_id: str, data_source_id: str):
+        cache.delete_pattern(f"analyze-costs:*:{domain_id}:{data_source_id}:*")
+        cache.delete_pattern(f"stat-costs:*:{domain_id}:{data_source_id}:*")
+        cache.delete_pattern(f"cost-query-history:{domain_id}:{data_source_id}:*")
 
     def _check_date_range(self, query):
         start_str = query.get("start")

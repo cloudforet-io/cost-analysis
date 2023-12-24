@@ -50,7 +50,9 @@ class DataSourceManager(BaseManager):
     def deregister_data_source_by_vo(data_source_vo):
         data_source_vo.delete()
 
-    def get_data_source(self, data_source_id: str, domain_id: str, workspace_id=None):
+    def get_data_source(
+        self, data_source_id: str, domain_id: str, workspace_id: str = None
+    ):
         conditions = {"data_source_id": data_source_id, "domain_id": domain_id}
 
         if workspace_id:

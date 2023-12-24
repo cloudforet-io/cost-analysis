@@ -35,32 +35,32 @@ class DataSourcePluginManager(BaseManager):
 
         return plugin_metadata
 
-    def verify_plugin(self, options, secret_data, schema_id, domain_id):
-        self.dsp_connector.verify(options, secret_data, schema_id, domain_id)
+    def verify_plugin(self, options, secret_data, schema, domain_id):
+        self.dsp_connector.verify(options, secret_data, schema, domain_id)
 
     def get_tasks(
         self,
         options: dict,
         secret_id: str,
         secret_data: dict,
-        schema_id: str,
         start: str,
         last_synchronized_at: str,
         domain_id: str,
+        schema: str = None,
     ):
         response = self.dsp_connector.get_tasks(
-            options, secret_data, schema_id, domain_id, start, last_synchronized_at
+            options, secret_data, schema, domain_id, start, last_synchronized_at
         )
         tasks = response.get("tasks", [])
 
         for task in tasks:
-            task.update({"secret_id": secret_id, "schema": schema_id})
+            task.update({"secret_id": secret_id, "schema": schema})
 
         return tasks, response.get("changed", [])
 
-    def get_cost_data(self, options, secret_data, schema_id, task_options, domain_id):
+    def get_cost_data(self, options, secret_data, schema, task_options, domain_id):
         return self.dsp_connector.get_cost_data(
-            options, secret_data, schema_id, task_options, domain_id
+            options, secret_data, schema, task_options, domain_id
         )
 
     def get_data_source_plugin_endpoint_by_vo(self, data_source_vo: DataSource):
@@ -125,7 +125,7 @@ class DataSourcePluginManager(BaseManager):
         metadata: dict,
         resource_group: str,
         data_source_id: str,
-        workspace_id,
+        workspace_id: str,
         domain_id: str,
     ):
         data_source_rules = metadata.get("data_source_rules", [])

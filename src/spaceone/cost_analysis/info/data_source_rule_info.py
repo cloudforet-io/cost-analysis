@@ -73,6 +73,7 @@ def DataSourceRuleInfo(data_source_rule_vo: DataSourceRule, minimal=False):
         "rule_type": data_source_rule_vo.rule_type,
         "resource_group": data_source_rule_vo.resource_group,
         "data_source_id": data_source_rule_vo.data_source_id,
+        "workspace_id": data_source_rule_vo.workspace_id,
     }
 
     if not minimal:
@@ -85,7 +86,6 @@ def DataSourceRuleInfo(data_source_rule_vo: DataSourceRule, minimal=False):
                 "actions": DataSourceRuleActionsInfo(data_source_rule_vo.actions),
                 "options": DataSourceRuleOptionsInfo(data_source_rule_vo.options),
                 "tags": change_struct_type(data_source_rule_vo.tags),
-                "workspace_id": data_source_rule_vo.workspace_id,
                 "domain_id": data_source_rule_vo.domain_id,
                 "created_at": utils.datetime_to_iso8601(data_source_rule_vo.created_at),
             }
