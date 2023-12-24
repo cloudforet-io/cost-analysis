@@ -96,7 +96,7 @@ class BudgetUsageManager(BaseManager):
         self._update_monthly_budget_usage(budget_vo, cost_mgr)
 
     def update_budget_usage(
-        self, domain_id: str, workspace_id: str, data_source_id: str
+            self, domain_id: str, workspace_id: str, data_source_id: str
     ):
         budget_vos = self.budget_mgr.filter_budgets(
             domain_id=domain_id,
@@ -182,7 +182,7 @@ class BudgetUsageManager(BaseManager):
                                 "unit": unit,
                                 "notification_type": notification_type,
                                 "notified_months": notification.notified_months
-                                + [current_month],
+                                                   + [current_month],
                             }
                         )
                     except Exception as e:
@@ -210,15 +210,15 @@ class BudgetUsageManager(BaseManager):
             budget_vo.update({"notifications": updated_notifications})
 
     def _notify_message(
-        self,
-        budget_vo: Budget,
-        current_month,
-        total_budget_usage,
-        budget_limit,
-        budget_percentage,
-        threshold,
-        unit,
-        notification_type,
+            self,
+            budget_vo: Budget,
+            current_month,
+            total_budget_usage,
+            budget_limit,
+            budget_percentage,
+            threshold,
+            unit,
+            notification_type,
     ):
         data_source_name = self.data_source_mgr.get_data_source(
             budget_vo.data_source_id, budget_vo.domain_id
@@ -346,11 +346,11 @@ class BudgetUsageManager(BaseManager):
                     {"k": "workspace_id", "v": budget_vo.workspace_id, "o": "eq"},
                 ]
             }
-            project_vos = identity_mgr.list_projects(project_query)
+            projects_info = identity_mgr.list_projects(project_query)
 
             project_ids = []
-            for project_vo in project_vos:
-                project_ids.append(project_vo.project_id)
+            for project_info in projects_info.get("results", []):
+                project_ids.append(project_info["project_id"])
 
             query["filter"].append({"k": "project_id", "v": project_ids, "o": "in"})
 
