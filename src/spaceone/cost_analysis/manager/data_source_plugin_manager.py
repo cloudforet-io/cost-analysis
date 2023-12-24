@@ -42,7 +42,7 @@ class DataSourcePluginManager(BaseManager):
         self,
         options: dict,
         secret_id: str,
-        secret_data: str,
+        secret_data: dict,
         schema_id: str,
         start: str,
         last_synchronized_at: str,

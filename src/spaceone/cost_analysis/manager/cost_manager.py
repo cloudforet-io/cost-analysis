@@ -168,7 +168,9 @@ class CostManager(BaseManager):
     ):
         return self.analyze_yearly_costs(query, target)
 
-    def analyze_costs_by_granularity(self, query, domain_id, data_source_id):
+    def analyze_costs_by_granularity(
+        self, query: dict, domain_id: dict, data_source_id: dict
+    ):
         self._check_date_range(query)
         granularity = query["granularity"]
 

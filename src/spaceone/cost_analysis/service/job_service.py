@@ -517,7 +517,7 @@ class JobService(BaseService):
                 data_keys.append(key)
         return data_keys
 
-    def _get_secret_data(self, secret_id: str, domain_id: str):
+    def _get_secret_data(self, secret_id: str, domain_id: str) -> dict:
         # todo: this method is internal method
         secret_mgr: SecretManager = self.locator.get_manager("SecretManager")
         if secret_id:
@@ -548,7 +548,7 @@ class JobService(BaseService):
         if "project_id" in cost_options:
             cost_data["project_id"] = cost_options["project_id"]
         else:
-            project_id = "*"
+            cost_data["project_id"] = "*"
 
         self.cost_mgr.create_cost(cost_data, execute_rollback=False)
 
@@ -605,7 +605,9 @@ class JobService(BaseService):
                             domain_id, data_source_id
                         )
 
-                    self.budget_usage_mgr.update_budget_usage(domain_id, data_source_id)
+                    self.budget_usage_mgr.update_budget_usage(
+                        domain_id, workspace_id, data_source_id
+                    )
 
                     self._update_last_sync_time(job_vo)
                     self.job_mgr.change_success_status(job_vo)
@@ -711,6 +713,7 @@ class JobService(BaseService):
             "filter": [
                 {"k": "billed_month", "v": start, "o": "gte"},
                 {"k": "data_source_id", "v": job_vo.data_source_id, "o": "eq"},
+                {"k": "workspace_id", "v": job_vo.workspace_id, "o": "eq"},
                 {"k": "domain_id", "v": job_vo.domain_id, "o": "eq"},
                 {"k": "job_id", "v": job_vo.job_id, "o": "not"},
             ]
