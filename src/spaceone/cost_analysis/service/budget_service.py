@@ -279,7 +279,7 @@ class BudgetService(BaseService):
         Args:
             params (dict): {
                 'budget_id': 'str',         # required
-                'user_projects': 'list',    # from meta
+                'user_projects': 'list',    # injected from auth (optional)
                 'workspace_id': 'str',      # injected from auth (optional)
                 'domain_id': 'str',         # injected from auth
             }

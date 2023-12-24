@@ -90,7 +90,9 @@ class BudgetUsageManager(BaseManager):
         _LOGGER.info(f"[update_cost_usage] Update Budget Usage: {budget_id}")
         cost_mgr: CostManager = self.locator.get_manager("CostManager")
 
-        budget_vo = self.budget_mgr.get_budget(budget_id, domain_id, workspace_id)
+        budget_vo = self.budget_mgr.get_budget(
+            budget_id=budget_id, domain_id=domain_id, workspace_id=workspace_id
+        )
         self._update_monthly_budget_usage(budget_vo, cost_mgr)
 
     def update_budget_usage(
@@ -109,6 +111,7 @@ class BudgetUsageManager(BaseManager):
 
     def notify_budget_usage(self, budget_vo: Budget):
         budget_id = budget_vo.budget_id
+        workspace_id = budget_vo.workspace_id
         domain_id = budget_vo.domain_id
         current_month = datetime.now().strftime("%Y-%m")
         updated_notifications = []
@@ -122,7 +125,9 @@ class BudgetUsageManager(BaseManager):
 
                 if budget_vo.time_unit == "MONTHLY":
                     budget_usage_vos = self.filter_budget_usages(
-                        budget_id=budget_id, domain_id=domain_id
+                        budget_id=budget_id,
+                        workspace_id=workspace_id,
+                        domain_id=domain_id,
                     )
                     total_budget_usage = sum(
                         [budget_usage_vo.cost for budget_usage_vo in budget_usage_vos]
@@ -130,7 +135,10 @@ class BudgetUsageManager(BaseManager):
                     budget_limit = budget_vo.limit
                 else:
                     budget_usage_vos = self.filter_budget_usages(
-                        budget_id=budget_id, domain_id=domain_id, date=current_month
+                        budget_id=budget_id,
+                        workspace_id=workspace_id,
+                        domain_id=domain_id,
+                        date=current_month,
                     )
                     total_budget_usage = budget_usage_vos[0].cost
                     budget_limit = budget_usage_vos[0].limit
@@ -216,7 +224,7 @@ class BudgetUsageManager(BaseManager):
             budget_vo.data_source_id, budget_vo.domain_id
         ).name
         project_name = self.identity_mgr.get_project_name(
-            budget_vo.project_id, budget_vo.domain_id
+            budget_vo.project_id, budget_vo.workspace_id, budget_vo.domain_id
         )
 
         if unit == "PERCENT":
