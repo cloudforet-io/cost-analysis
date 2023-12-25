@@ -86,27 +86,25 @@ class BudgetUsageManager(BaseManager):
         self.transaction.add_rollback(_rollback, budget_usage_vo.to_dict())
         return budget_usage_vo.update(params)
 
-    def update_cost_usage(self, budget_id: str, workspace_id: str, domain_id: str):
-        _LOGGER.info(f"[update_cost_usage] Update Budget Usage: {budget_id}")
+    def update_cost_usage(
+        self,
+        budget_vo: Budget,
+        data_source_workspace_id: str,
+    ):
+        _LOGGER.info(f"[update_cost_usage] Update Budget Usage: {budget_vo.budget_id}")
         cost_mgr: CostManager = self.locator.get_manager("CostManager")
 
-        budget_vo = self.budget_mgr.get_budget(
-            budget_id=budget_id, domain_id=domain_id, workspace_id=workspace_id
-        )
-        self._update_monthly_budget_usage(budget_vo, cost_mgr)
+        self._update_monthly_budget_usage(budget_vo, cost_mgr, data_source_workspace_id)
 
     def update_budget_usage(
-            self, domain_id: str, workspace_id: str, data_source_id: str
+        self, domain_id: str, workspace_id: str, data_source_id: str
     ):
         budget_vos = self.budget_mgr.filter_budgets(
             domain_id=domain_id,
-            workspace_id=workspace_id,
             data_source_id=data_source_id,
         )
         for budget_vo in budget_vos:
-            self.update_cost_usage(
-                budget_vo.budget_id, budget_vo.workspace_id, domain_id
-            )
+            self.update_cost_usage(budget_vo, data_source_workspace_id=workspace_id)
             self.notify_budget_usage(budget_vo)
 
     def notify_budget_usage(self, budget_vo: Budget):
@@ -182,7 +180,7 @@ class BudgetUsageManager(BaseManager):
                                 "unit": unit,
                                 "notification_type": notification_type,
                                 "notified_months": notification.notified_months
-                                                   + [current_month],
+                                + [current_month],
                             }
                         )
                     except Exception as e:
@@ -210,21 +208,24 @@ class BudgetUsageManager(BaseManager):
             budget_vo.update({"notifications": updated_notifications})
 
     def _notify_message(
-            self,
-            budget_vo: Budget,
-            current_month,
-            total_budget_usage,
-            budget_limit,
-            budget_percentage,
-            threshold,
-            unit,
-            notification_type,
+        self,
+        budget_vo: Budget,
+        current_month,
+        total_budget_usage,
+        budget_limit,
+        budget_percentage,
+        threshold,
+        unit,
+        notification_type,
     ):
         data_source_name = self.data_source_mgr.get_data_source(
             budget_vo.data_source_id, budget_vo.domain_id
         ).name
         project_name = self.identity_mgr.get_project_name(
             budget_vo.project_id, budget_vo.workspace_id, budget_vo.domain_id
+        )
+        workspace_name = self.identity_mgr.get_workspace_name_with_system_token(
+            budget_vo.workspace_id, budget_vo.domain_id
         )
 
         if unit == "PERCENT":
@@ -277,10 +278,15 @@ class BudgetUsageManager(BaseManager):
                         "key": "Project",
                         "value": project_name,
                     },
+                    {
+                        "key": "Workspace",
+                        "value": workspace_name,
+                    },
                 ],
                 "occurred_at": utils.datetime_to_iso8601(datetime.utcnow()),
             },
             "notification_level": "ALL",
+            "workspace_id": budget_vo.workspace_id,
             "domain_id": budget_vo.domain_id,
         }
 
@@ -300,9 +306,13 @@ class BudgetUsageManager(BaseManager):
         query["date_field_format"] = "%Y-%m"
         return self.budget_usage_model.analyze(**query)
 
-    def _update_monthly_budget_usage(self, budget_vo: Budget, cost_mgr: CostManager):
+    def _update_monthly_budget_usage(
+        self, budget_vo: Budget, cost_mgr: CostManager, data_source_workspace_id: str
+    ):
         update_data = {}
-        query = self._make_cost_analyze_query(budget_vo)
+        query = self._make_cost_analyze_query(
+            budget_vo=budget_vo, workspace_id=data_source_workspace_id
+        )
         _LOGGER.debug(f"[_update_monthly_budget_usage]: query: {query}")
 
         result = cost_mgr.analyze_costs_by_granularity(
@@ -319,7 +329,7 @@ class BudgetUsageManager(BaseManager):
             else:
                 budget_usage_vo.update({"cost": 0})
 
-    def _make_cost_analyze_query(self, budget_vo: Budget):
+    def _make_cost_analyze_query(self, budget_vo: Budget, workspace_id: str):
         query = {
             "granularity": "MONTHLY",
             "start": budget_vo.start,
@@ -327,7 +337,7 @@ class BudgetUsageManager(BaseManager):
             "fields": {"cost": {"key": "cost", "operator": "sum"}},
             "filter": [
                 {"k": "domain_id", "v": budget_vo.domain_id, "o": "eq"},
-                {"k": "workspace_id", "v": budget_vo.workspace_id, "o": "eq"},
+                {"k": "workspace_id", "v": workspace_id, "o": "eq"},
                 {"k": "data_source_id", "v": budget_vo.data_source_id, "o": "eq"},
             ],
         }
@@ -348,7 +358,7 @@ class BudgetUsageManager(BaseManager):
             }
             projects_info = identity_mgr.list_projects(project_query)
 
-            project_ids = []
+            project_ids = ["*"]
             for project_info in projects_info.get("results", []):
                 project_ids.append(project_info["project_id"])
 

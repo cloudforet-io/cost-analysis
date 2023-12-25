@@ -69,8 +69,9 @@ class CostService(BaseService):
 
         Args:
             params (dict): {
-                'cost_id': 'str',
-                'domain_id': 'str'
+                'cost_id': 'str',           # injected from path
+                'workspace_id' : str',      # injected from auth(optional)
+                'domain_id': 'str'          # injected from auth
             }
 
         Returns:
@@ -79,9 +80,17 @@ class CostService(BaseService):
 
         domain_id = params["domain_id"]
 
-        cost_vo: Cost = self.cost_mgr.get_cost(params["cost_id"], params["domain_id"])
+        cost_vo: Cost = self.cost_mgr.get_cost(
+            params["cost_id"],
+            params["domain_id"],
+            params.get("workspace_id"),
+        )
 
-        self.cost_mgr.remove_stat_cache(domain_id, cost_vo.data_source_id)
+        self.cost_mgr.remove_stat_cache(
+            domain_id=domain_id,
+            data_source_id=cost_vo.data_source_id,
+            workspace_id=cost_vo.workspace_id,
+        )
 
         self.cost_mgr.delete_cost_by_vo(cost_vo)
 
@@ -169,6 +178,7 @@ class CostService(BaseService):
         permission="cost-analysis:Cost.read",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
+    @change_value_by_rule("APPEND", "workspace_id", "*")
     @check_required(
         [
             "query",

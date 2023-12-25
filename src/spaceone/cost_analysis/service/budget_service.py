@@ -152,9 +152,7 @@ class BudgetService(BaseService):
         )
         budget_usage_mgr.create_budget_usages(budget_vo)
         budget_usage_mgr.update_cost_usage(
-            budget_vo.budget_id,
-            budget_vo.workspace_id,
-            budget_vo.domain_id,
+            budget_vo=budget_vo, data_source_workspace_id=data_source_vo.workspace_id
         )
         budget_usage_mgr.notify_budget_usage(budget_vo)
 
@@ -210,9 +208,13 @@ class BudgetService(BaseService):
                 budget_usage_mgr.update_budget_usage_by_vo(
                     {"name": params["name"]}, budget_usage_vo
                 )
+        data_source_mgr = self.locator.get_manager("DataSourceManager")
+        data_source_vo = data_source_mgr.get_data_source(
+            budget_vo.data_source_id, domain_id
+        )
 
         budget_usage_mgr.update_cost_usage(
-            budget_vo.budget_id, budget_vo.workspace_id, budget_vo.domain_id
+            budget_vo=budget_vo, data_source_workspace_id=data_source_vo.workspace_id
         )
         budget_usage_mgr.notify_budget_usage(budget_vo)
 
