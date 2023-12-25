@@ -356,7 +356,7 @@ class DataSourceService(BaseService):
             params (dict): {
                 'data_source_id': 'str',        # required
                 'cascade_delete_cost: 'bool',
-                'workspace_id: 'str',           # required
+                'workspace_id: 'str',           # injected from auth (optional)
                 'domain_id': 'str'              # injected from auth
             }
 

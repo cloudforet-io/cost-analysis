@@ -21,6 +21,21 @@ class IdentityManager(BaseManager):
             {"workspace_id": workspace_id, "domain_id": domain_id},
         )
 
+    @cache.cacheable(key="workspace-name:{domain_id}:{workspace_id}:name", expire=300)
+    def get_workspace_name_with_system_token(
+        self, workspace_id: str, domain_id: str
+    ) -> str:
+        try:
+            workspace_info = self.identity_conn.dispatch(
+                "Workspace.get",
+                {"workspace_id": workspace_id},
+                x_domain_id=domain_id,
+            )
+            return workspace_info["name"]
+        except Exception as e:
+            _LOGGER.error(f"[get_project_name] API Error: {e}")
+            return workspace_id
+
     def get_workspace(self, workspace_id: str) -> dict:
         token = self.transaction.get_meta("token")
         return self.identity_conn.dispatch(

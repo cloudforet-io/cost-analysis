@@ -119,6 +119,9 @@ class BudgetUsageService(BaseService):
 
         query = self._set_user_project_or_project_group_filter(params)
         self._check_granularity(query.get("granularity"))
+        import pprint
+
+        pprint.pprint(query)
 
         return self.budget_usage_mgr.analyze_budget_usages(query)
 
