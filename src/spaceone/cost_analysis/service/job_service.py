@@ -544,7 +544,6 @@ class JobService(BaseService):
         cost_data["job_id"] = job_task_vo.job_id
         cost_data["job_task_id"] = job_task_vo.job_task_id
         cost_data["data_source_id"] = job_task_vo.data_source_id
-        cost_data["workspace_id"] = job_task_vo.workspace_id
         cost_data["domain_id"] = job_task_vo.domain_id
         cost_data["billed_date"] = cost_data["billed_date"]
 
@@ -553,8 +552,9 @@ class JobService(BaseService):
 
         if "project_id" in cost_options:
             cost_data["project_id"] = cost_options["project_id"]
-        else:
-            cost_data["project_id"] = "*"
+
+        if job_task_vo.resource_group == "WORKSPACE":
+            cost_data["workspace_id"] = job_task_vo.workspace_id
 
         self.cost_mgr.create_cost(cost_data, execute_rollback=False)
 
@@ -848,10 +848,13 @@ class JobService(BaseService):
             state="ENABLED", data_source_type="EXTERNAL"
         )
 
-    def _check_duplicate_job(self, data_source_id, domain_id, this_job_vo: Job):
+    def _check_duplicate_job(
+        self, data_source_id: str, domain_id: str, this_job_vo: Job
+    ):
         query = {
             "filter": [
                 {"k": "data_source_id", "v": data_source_id, "o": "eq"},
+                {"k": "workspace_id", "v": this_job_vo.workspace_id, "o": "eq"},
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
                 {"k": "status", "v": "IN_PROGRESS", "o": "eq"},
                 {"k": "job_id", "v": this_job_vo.job_id, "o": "not"},

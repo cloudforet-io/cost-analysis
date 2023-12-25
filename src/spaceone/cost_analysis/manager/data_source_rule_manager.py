@@ -98,9 +98,6 @@ class DataSourceRuleManager(BaseManager):
         cost_data = self._apply_data_source_rule_to_cost_data(
             cost_data, managed_data_source_rule_vos, domain_id
         )
-        cost_data = self._apply_data_source_rule_to_cost_data(
-            cost_data, custom_data_source_rule_vos, domain_id
-        )
 
         return cost_data
 
@@ -147,6 +144,9 @@ class DataSourceRuleManager(BaseManager):
                         cost_data["service_account_id"] = service_account_info[
                             "service_account_id"
                         ]
+                        cost_data["workspace_id"] = service_account_info.get(
+                            "workspace_id"
+                        )
                         cost_data["project_id"] = service_account_info.get("project_id")
 
             if action == "add_additional_info" and value:
