@@ -380,7 +380,7 @@ class DataSourceService(BaseService):
             self.budget_usage_mgr.update_budget_usage(
                 domain_id, workspace_id, data_source_id
             )
-            self.cost_mgr.remove_stat_cache(domain_id, workspace_id, data_source_id)
+            self.cost_mgr.remove_stat_cache(domain_id, data_source_id, workspace_id)
             self.job_mgr.preload_cost_stat_queries(domain_id, data_source_id)
 
         if data_source_vo.plugin_info:
