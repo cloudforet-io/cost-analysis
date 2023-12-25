@@ -182,7 +182,6 @@ class BudgetService(BaseService):
             budget_vo (object)
         """
 
-        print(params)
         budget_id = params["budget_id"]
         workspace_id = params.get("workspace_id")
         domain_id = params["domain_id"]
@@ -205,9 +204,7 @@ class BudgetService(BaseService):
                 budget_id=budget_id,
                 domain_id=domain_id,
             )
-            print(budget_usage_vos.count())
             for budget_usage_vo in budget_usage_vos:
-                print(budget_usage_vo.to_dict())
                 budget_usage_mgr.update_budget_usage_by_vo(
                     {"name": params["name"]}, budget_usage_vo
                 )
