@@ -28,13 +28,9 @@ class CostManager(BaseManager):
         )
 
     def create_cost(self, params: dict, execute_rollback=True):
-        def _rollback(cost_vo):
-            _LOGGER.info(
-                f"[create_cost._rollback] "
-                f"Delete cost : {cost_vo.name} "
-                f"({cost_vo.cost_id})"
-            )
-            cost_vo.delete()
+        def _rollback(vo: Cost):
+            _LOGGER.info(f"[create_cost._rollback] " f"Delete cost : {vo.cost_id} ")
+            vo.delete()
 
         if "region_code" in params and "provider" in params:
             params["region_key"] = f'{params["provider"]}.{params["region_code"]}'
