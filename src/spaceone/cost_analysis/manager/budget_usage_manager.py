@@ -310,14 +310,13 @@ class BudgetUsageManager(BaseManager):
         self, budget_vo: Budget, cost_mgr: CostManager, data_source_workspace_id: str
     ):
         update_data = {}
-        query = self._make_cost_analyze_query(
-            budget_vo=budget_vo, workspace_id=data_source_workspace_id
-        )
+        query = self._make_cost_analyze_query(budget_vo=budget_vo)
         _LOGGER.debug(f"[_update_monthly_budget_usage]: query: {query}")
 
         result = cost_mgr.analyze_costs_by_granularity(
             query, budget_vo.domain_id, budget_vo.data_source_id
         )
+
         for cost_usage_data in result.get("results", []):
             if date := cost_usage_data.get("date"):
                 update_data[date] = cost_usage_data.get("cost", 0)
@@ -329,7 +328,7 @@ class BudgetUsageManager(BaseManager):
             else:
                 budget_usage_vo.update({"cost": 0})
 
-    def _make_cost_analyze_query(self, budget_vo: Budget, workspace_id: str):
+    def _make_cost_analyze_query(self, budget_vo: Budget):
         query = {
             "granularity": "MONTHLY",
             "start": budget_vo.start,
@@ -337,7 +336,7 @@ class BudgetUsageManager(BaseManager):
             "fields": {"cost": {"key": "cost", "operator": "sum"}},
             "filter": [
                 {"k": "domain_id", "v": budget_vo.domain_id, "o": "eq"},
-                {"k": "workspace_id", "v": workspace_id, "o": "eq"},
+                {"k": "workspace_id", "v": budget_vo.workspace_id, "o": "eq"},
                 {"k": "data_source_id", "v": budget_vo.data_source_id, "o": "eq"},
             ],
         }
@@ -346,7 +345,6 @@ class BudgetUsageManager(BaseManager):
             query["filter"].append(
                 {"k": "project_id", "v": budget_vo.project_id, "o": "eq"}
             )
-
         else:
             identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
 
@@ -358,7 +356,7 @@ class BudgetUsageManager(BaseManager):
             }
             projects_info = identity_mgr.list_projects(project_query)
 
-            project_ids = ["*"]
+            project_ids = []
             for project_info in projects_info.get("results", []):
                 project_ids.append(project_info["project_id"])
 

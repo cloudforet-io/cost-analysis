@@ -30,7 +30,7 @@ class CostService(BaseService):
 
         Args:
             params (dict): {
-                'cost': 'float',
+                'cost': 'float',            #required
                 'usage_quantity': 'float',
                 'usage_unit': 'str',
                 'provider': 'str',
@@ -41,9 +41,9 @@ class CostService(BaseService):
                 'tags': 'dict',
                 'additional_info': 'dict',
                 'service_account_id': 'str',
-                'project_id': 'str',         # injected from auth
-                'data_source_id': 'str',
-                'billed_date': 'str',
+                'project_id': 'str',         # required
+                'data_source_id': 'str',     # required
+                'billed_date': 'str',        # required
                 'workspace_id': 'str',       # injected from auth
                 'domain_id': 'str'           # injected from auth
             }
@@ -178,7 +178,6 @@ class CostService(BaseService):
         permission="cost-analysis:Cost.read",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
-    @change_value_by_rule("APPEND", "workspace_id", "*")
     @check_required(
         [
             "query",
@@ -222,7 +221,6 @@ class CostService(BaseService):
         permission="cost-analysis:Cost.read",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
-    @change_value_by_rule("APPEND", "workspace_id", "*")
     @check_required(["query", "domain_id"])
     @append_query_filter(
         ["data_source_id", "workspace_id", "domain_id", "user_projects"]
