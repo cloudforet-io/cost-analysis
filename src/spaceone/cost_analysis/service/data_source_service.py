@@ -405,6 +405,7 @@ class DataSourceService(BaseService):
                 'data_source_id': 'str',        # required
                 'start': 'datetime',
                 'no_preload_cache': 'bool',
+                'workspace_id: 'str',           # injected from auth (optional)
                 'domain_id': 'str'              # injected from auth
             }
 

@@ -99,6 +99,10 @@ class DataSourceRuleManager(BaseManager):
             cost_data, managed_data_source_rule_vos, domain_id
         )
 
+        cost_data = self._apply_data_source_rule_to_cost_data(
+            cost_data, custom_data_source_rule_vos, domain_id
+        )
+
         return cost_data
 
     def _apply_data_source_rule_to_cost_data(
@@ -169,7 +173,7 @@ class DataSourceRuleManager(BaseManager):
                 {"k": target_key, "v": target_value, "o": "eq"},
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
             ],
-            "only": ["service_account_id", "project_id"],
+            "only": ["service_account_id", "project_id", "workspace_id"],
         }
 
         response = self.identity_mgr.list_service_accounts(query, domain_id)
