@@ -100,15 +100,13 @@ class BudgetService(BaseService):
             "DataSourceManager"
         )
 
-        data_source_vo = None
-        if resource_group == "WORKSPACE":
-            data_source_vo: DataSource = data_source_mgr.get_data_source(
-                data_source_id, domain_id
-            )
-        else:
-            data_source_vo: DataSource = data_source_mgr.get_data_source(
-                data_source_id, domain_id, workspace_id
-            )
+        data_source_vos = data_source_mgr.filter_data_sources(
+            data_source_id=data_source_id,
+            workspace_id=[workspace_id, "*"],
+            domain_id=domain_id,
+        )
+
+        data_source_vo = data_source_vos.first()
 
         data_source_metadata = data_source_vo.plugin_info.metadata
         params["currency"] = data_source_metadata.get("currency", "USD")

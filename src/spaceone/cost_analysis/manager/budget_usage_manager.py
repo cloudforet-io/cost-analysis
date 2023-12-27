@@ -94,7 +94,7 @@ class BudgetUsageManager(BaseManager):
         _LOGGER.info(f"[update_cost_usage] Update Budget Usage: {budget_vo.budget_id}")
         cost_mgr: CostManager = self.locator.get_manager("CostManager")
 
-        self._update_monthly_budget_usage(budget_vo, cost_mgr, data_source_workspace_id)
+        self._update_monthly_budget_usage(budget_vo, cost_mgr)
 
     def update_budget_usage(
         self, domain_id: str, workspace_id: str, data_source_id: str
