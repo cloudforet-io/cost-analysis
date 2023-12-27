@@ -139,7 +139,7 @@ class CostManager(BaseManager):
         return self.stat_monthly_costs(query)
 
     @cache.cacheable(
-        key="analyze-costs:daily:{domain_id}:{data_source_id}:{query_hash}",
+        key="cost-analysis:daily:{domain_id}:{data_source_id}:{query_hash}",
         expire=3600 * 24,
     )
     def analyze_costs_with_cache(
@@ -148,7 +148,7 @@ class CostManager(BaseManager):
         return self.analyze_costs(query, target)
 
     @cache.cacheable(
-        key="analyze-costs:monthly:{domain_id}:{data_source_id}:{query_hash}",
+        key="cost-analysis:monthly:{domain_id}:{data_source_id}:{query_hash}",
         expire=3600 * 24,
     )
     def analyze_monthly_costs_with_cache(
@@ -157,7 +157,7 @@ class CostManager(BaseManager):
         return self.analyze_monthly_costs(query, target)
 
     @cache.cacheable(
-        key="analyze-costs:yearly:{domain_id}:{data_source_id}:{query_hash}",
+        key="cost-analysis:yearly:{domain_id}:{data_source_id}:{query_hash}",
         expire=3600 * 24,
     )
     def analyze_yearly_costs_with_cache(

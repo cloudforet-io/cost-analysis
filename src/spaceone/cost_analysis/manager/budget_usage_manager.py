@@ -306,9 +306,7 @@ class BudgetUsageManager(BaseManager):
         query["date_field_format"] = "%Y-%m"
         return self.budget_usage_model.analyze(**query)
 
-    def _update_monthly_budget_usage(
-        self, budget_vo: Budget, cost_mgr: CostManager, data_source_workspace_id: str
-    ):
+    def _update_monthly_budget_usage(self, budget_vo: Budget, cost_mgr: CostManager):
         update_data = {}
         query = self._make_cost_analyze_query(budget_vo=budget_vo)
         _LOGGER.debug(f"[_update_monthly_budget_usage]: query: {query}")
@@ -345,22 +343,24 @@ class BudgetUsageManager(BaseManager):
             query["filter"].append(
                 {"k": "project_id", "v": budget_vo.project_id, "o": "eq"}
             )
-        else:
-            identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
-
-            project_query = {
-                "filter": [
-                    {"k": "domain_id", "v": budget_vo.domain_id, "o": "eq"},
-                    {"k": "workspace_id", "v": budget_vo.workspace_id, "o": "eq"},
-                ]
-            }
-            projects_info = identity_mgr.list_projects(project_query)
-
-            project_ids = []
-            for project_info in projects_info.get("results", []):
-                project_ids.append(project_info["project_id"])
-
-            query["filter"].append({"k": "project_id", "v": project_ids, "o": "in"})
+        # else:
+        #     identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
+        #
+        #     project_query = {
+        #         "filter": [
+        #             {"k": "domain_id", "v": budget_vo.domain_id, "o": "eq"},
+        #             {"k": "workspace_id", "v": budget_vo.workspace_id, "o": "eq"},
+        #         ]
+        #     }
+        #     projects_info = identity_mgr.list_projects(
+        #         project_query, budget_vo.domain_id
+        #     )
+        #
+        #     project_ids = []
+        #     for project_info in projects_info.get("results", []):
+        #         project_ids.append(project_info["project_id"])
+        #
+        #     query["filter"].append({"k": "project_id", "v": project_ids, "o": "in"})
 
         if budget_vo.provider_filter and budget_vo.provider_filter.state == "ENABLED":
             query["filter"].append(

@@ -114,7 +114,7 @@ class JobService(BaseService):
         """
 
         job_id = params["job_id"]
-        workspace_id = params["workspace_id"]
+        workspace_id = params.get("workspace_id")
         domain_id = params["domain_id"]
 
         return self.job_mgr.get_job(job_id, domain_id, workspace_id)
