@@ -22,7 +22,7 @@ class CostQuerySetService(BaseService):
 
     @transaction(
         permission="cost-analysis:CostQuerySet.write",
-        role_types=["WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
+        role_types=["USER"],
     )
     @check_required(["data_source_id", "name", "options", "user_id", "domain_id"])
     @change_date_value(["start", "end"])
@@ -36,6 +36,7 @@ class CostQuerySetService(BaseService):
                 'options': 'str',
                 'tags': 'dict',
                 'user_id': 'str',           # injected from auth
+                'workspace_id': 'str',      # injected from auth (optional)
                 'domain_id': 'str'          # injected from auth
             }
 
@@ -51,7 +52,7 @@ class CostQuerySetService(BaseService):
     )
     @check_required(["cost_query_set_id", "user_id", "domain_id"])
     @change_date_value(["end"])
-    def update(self, params):
+    def update(self, params: dict):
         """Update cost_query_set
 
         Args:
@@ -60,8 +61,9 @@ class CostQuerySetService(BaseService):
                 'name': 'str',
                 'options': 'dict',
                 'tags': 'dict'
-                'user_id': 'str',
-                'domain_id': 'str'
+                'user_id': 'str',               # injected from auth
+                'workspace_id': 'str',          # injected from auth (optional)
+                'domain_id': 'str'              # injected from auth
             }
 
         Returns:
@@ -70,9 +72,10 @@ class CostQuerySetService(BaseService):
         cost_query_set_id = params["cost_query_set_id"]
         user_id = params["user_id"]
         domain_id = params["domain_id"]
+        workspace_id = params.get("workspace_id")
 
         cost_query_set_vo: CostQuerySet = self.cost_query_set_mgr.get_cost_query_set(
-            cost_query_set_id, user_id, domain_id
+            cost_query_set_id, user_id, domain_id, workspace_id
         )
 
         return self.cost_query_set_mgr.update_cost_query_set_by_vo(
@@ -83,8 +86,8 @@ class CostQuerySetService(BaseService):
         permission="cost-analysis:CostQuerySet.write",
         role_types=["USER"],
     )
-    @check_required(["cost_query_set_id", "domain_id"])
-    def delete(self, params):
+    @check_required(["cost_query_set_id", "user_id", "domain_id"])
+    def delete(self, params: dict):
         """Deregister cost_query_set
 
         Args:
@@ -97,16 +100,21 @@ class CostQuerySetService(BaseService):
             None
         """
 
-        self.cost_query_set_mgr.delete_cost_query_set(
-            params["cost_query_set_id"], params["domain_id"]
+        cost_query_set_vo = self.cost_query_set_mgr.get_cost_query_set(
+            params["cost_query_set_id"],
+            params["user_id"],
+            params["domain_id"],
+            params.get("workspace_id"),
         )
+
+        self.cost_query_set_mgr.delete_cost_query_set_by_vo(cost_query_set_vo)
 
     @transaction(
         permission="cost-analysis:CostQuerySet.read",
         role_types=["USER"],
     )
     @check_required(["cost_query_set_id", "user_id", "domain_id"])
-    def get(self, params):
+    def get(self, params: dict):
         """Get cost_query_set
 
         Args:
@@ -123,31 +131,41 @@ class CostQuerySetService(BaseService):
         cost_query_set_id = params["cost_query_set_id"]
         user_id = params["user_id"]
         domain_id = params["domain_id"]
+        workspace_id = params.get("workspace_id")
 
         return self.cost_query_set_mgr.get_cost_query_set(
-            cost_query_set_id, user_id, domain_id
+            cost_query_set_id, user_id, domain_id, workspace_id
         )
 
     @transaction(
         permission="cost-analysis:CostQuerySet.read",
         role_types=["USER"],
     )
-    @check_required(["data_source_id", "domain_id"])
+    @check_required(["data_source_id", "user_id", "domain_id"])
     @append_query_filter(
-        ["data_source_id", "cost_query_set_id", "name", "user_id", "domain_id"]
+        [
+            "data_source_id",
+            "cost_query_set_id",
+            "name",
+            "user_id",
+            "workspace_id",
+            "domain_id",
+        ]
     )
     @append_keyword_filter(["cost_query_set_id", "name"])
-    def list(self, params):
+    def list(self, params: dict):
         """List cost_query_sets
 
         Args:
             params (dict): {
+                'query': 'dict (spaceone.api.core.v2.Query)'
                 'data_source_id': 'str',
                 'cost_query_set_id': 'str',
                 'name': 'str',
-                'user_id': 'str',
-                'domain_id': 'str',
-                'query': 'dict (spaceone.api.core.v1.Query)'
+                'user_id': 'str',                               # injected from auth
+                'workspace_id': 'str',                          # injected from auth (optional)
+                'domain_id': 'str',                             # injected from auth
+
             }
 
         Returns:
@@ -165,7 +183,7 @@ class CostQuerySetService(BaseService):
     @check_required(["query", "data_source_id", "domain_id"])
     @append_query_filter(["data_source_id", "domain_id"])
     @append_keyword_filter(["cost_query_set_id", "name"])
-    def stat(self, params):
+    def stat(self, params: dict):
         """
         Args:
             params (dict): {
