@@ -130,7 +130,7 @@ class CostManager(BaseManager):
         return self.monthly_cost_model.analyze(**query)
 
     @cache.cacheable(
-        key="stat-costs:monthly:{domain_id}:{data_source_id}:{query_hash}",
+        key="cost-analysis:stat-costs:monthly:{domain_id}:{data_source_id}:{query_hash}",
         expire=3600 * 24,
     )
     def stat_monthly_costs_with_cache(
@@ -139,7 +139,7 @@ class CostManager(BaseManager):
         return self.stat_monthly_costs(query)
 
     @cache.cacheable(
-        key="cost-analysis:daily:{domain_id}:{data_source_id}:{query_hash}",
+        key="cost-analysis:analyze-costs:daily:{domain_id}:{data_source_id}:{query_hash}",
         expire=3600 * 24,
     )
     def analyze_costs_with_cache(
@@ -148,7 +148,7 @@ class CostManager(BaseManager):
         return self.analyze_costs(query, target)
 
     @cache.cacheable(
-        key="cost-analysis:monthly:{domain_id}:{data_source_id}:{query_hash}",
+        key="cost-analysis:analyze-costs:monthly:{domain_id}:{data_source_id}:{query_hash}",
         expire=3600 * 24,
     )
     def analyze_monthly_costs_with_cache(
@@ -157,7 +157,7 @@ class CostManager(BaseManager):
         return self.analyze_monthly_costs(query, target)
 
     @cache.cacheable(
-        key="cost-analysis:yearly:{domain_id}:{data_source_id}:{query_hash}",
+        key="cost-analysis:analyze-costs:yearly:{domain_id}:{data_source_id}:{query_hash}",
         expire=3600 * 24,
     )
     def analyze_yearly_costs_with_cache(
@@ -191,7 +191,8 @@ class CostManager(BaseManager):
         return response
 
     @cache.cacheable(
-        key="cost-query-history:{domain_id}:{data_source_id}:{query_hash}", expire=600
+        key="cost-analysis:cost-query-history:{domain_id}:{data_source_id}:{query_hash}",
+        expire=600,
     )
     def create_cost_query_history(self, query, query_hash, domain_id, data_source_id):
         def _rollback(history_vo):
@@ -225,9 +226,15 @@ class CostManager(BaseManager):
     def remove_stat_cache(
         domain_id: str, data_source_id: str, workspace_id: str = None
     ):
-        cache.delete_pattern(f"analyze-costs:*:{domain_id}:{data_source_id}:*")
-        cache.delete_pattern(f"stat-costs:*:{domain_id}:{data_source_id}:*")
-        cache.delete_pattern(f"cost-query-history:{domain_id}:{data_source_id}:*")
+        cache.delete_pattern(
+            f"cost-analysis:analyze-costs:*:{domain_id}:{data_source_id}:*"
+        )
+        cache.delete_pattern(
+            f"cost-analysis:stat-costs:*:{domain_id}:{data_source_id}:*"
+        )
+        cache.delete_pattern(
+            f"cost-analysis:cost-query-history:{domain_id}:{data_source_id}:*"
+        )
 
     def _check_date_range(self, query):
         start_str = query.get("start")
