@@ -50,9 +50,6 @@ class SecretManager(BaseManager):
     def list_secrets(self, query: dict, domain_id: str = None) -> dict:
         params = {"query": query}
 
-        if domain_id:
-            params["domain_id"] = domain_id
-
         if self.token_type == "SYSTEM_TOKEN":
             return self.secret_connector.dispatch(
                 "Secret.list", params, x_domain_id=domain_id
