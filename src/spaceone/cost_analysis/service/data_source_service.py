@@ -112,6 +112,7 @@ class DataSourceService(BaseService):
                     secret_data,
                     resource_group,
                     plugin_info.get("schema_id"),
+                    params["workspace_id"],
                 )
 
                 params["plugin_info"]["secret_id"] = secret_id

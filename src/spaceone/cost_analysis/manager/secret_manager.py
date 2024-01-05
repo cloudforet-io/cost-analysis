@@ -21,6 +21,7 @@ class SecretManager(BaseManager):
         secret_data: dict,
         resource_group: str,
         schema_id: str,
+        workspace_id: str,
     ):
         def _rollback(secret_id: str):
             _LOGGER.info(f"[create_secret._rollback] Delete secret : {secret_id}")
@@ -31,6 +32,7 @@ class SecretManager(BaseManager):
             "resource_group": resource_group,
             "data": secret_data,
             "schema_id": schema_id,
+            "workspace_id": workspace_id,
         }
 
         response = self.secret_connector.dispatch("Secret.create", params)
