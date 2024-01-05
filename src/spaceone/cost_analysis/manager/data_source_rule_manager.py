@@ -134,6 +134,7 @@ class DataSourceRuleManager(BaseManager):
                         target_key, target_value, domain_id
                     )
                     if project_info:
+                        cost_data["workspace_id"] = project_info.get("workspace_id")
                         cost_data["project_id"] = project_info["project_id"]
 
             elif action == "match_service_account" and value:
