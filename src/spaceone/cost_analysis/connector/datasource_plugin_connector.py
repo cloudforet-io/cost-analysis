@@ -24,23 +24,16 @@ class DataSourcePluginConnector(BaseConnector):
         if static_endpoint:
             endpoint = static_endpoint
 
-        self.client = self.locator.get_connector("SpaceConnector", endpoint=endpoint)
+        self.client = self.locator.get_connector("SpaceConnector", endpoint=endpoint, token="NO_TOKEN")
 
         self.secret_data = self.config.get("secret_data")
         self.options = self.config.get("options")
         self.schema = self.config.get("schema")
 
     def init(self, options, domain_id):
-        if self.token_type == "SYSTEM_TOKEN":
-            return self.client.dispatch(
-                "DataSource.init",
-                {"options": options, "domain_id": domain_id},
-                x_domain_id=domain_id,
-            )
-        else:
-            return self.client.dispatch(
-                "DataSource.init", {"options": options, "domain_id": domain_id}
-            )
+        return self.client.dispatch(
+            "DataSource.init", {"options": options, "domain_id": domain_id}
+        )
 
     def verify(self, options, secret_data, schema, domain_id):
         params = {
@@ -53,13 +46,13 @@ class DataSourcePluginConnector(BaseConnector):
         self.client.dispatch("DataSource.verify", params)
 
     def get_tasks(
-        self,
-        options: dict,
-        secret_data: dict,
-        schema: str,
-        domain_id: str,
-        start: str = None,
-        last_synchronized_at: str = None,
+            self,
+            options: dict,
+            secret_data: dict,
+            schema: str,
+            domain_id: str,
+            start: str = None,
+            last_synchronized_at: str = None,
     ):
         params = {
             "options": self.options or options,
@@ -69,12 +62,7 @@ class DataSourcePluginConnector(BaseConnector):
             "last_synchronized_at": last_synchronized_at,
             "domain_id": domain_id,
         }
-        if self.token_type == "SYSTEM_TOKEN":
-            return self.client.dispatch(
-                "DataSource.get_tasks", params, x_domain_id=domain_id
-            )
-        else:
-            return self.client.dispatch("Job.get_tasks", params)
+        return self.client.dispatch("Job.get_tasks", params)
 
     def get_cost_data(self, options, secret_data, schema, task_options, domain_id):
         params = {
@@ -84,9 +72,4 @@ class DataSourcePluginConnector(BaseConnector):
             "task_options": task_options,
             "domain_id": domain_id,
         }
-        if self.token_type == "SYSTEM_TOKEN":
-            return self.client.dispatch(
-                "Cost.get_data", params, x_domain_id=domain_id
-            )
-        else:
-            return self.client.dispatch("Cost.get_data", params)
+        return self.client.dispatch("Cost.get_data", params)
