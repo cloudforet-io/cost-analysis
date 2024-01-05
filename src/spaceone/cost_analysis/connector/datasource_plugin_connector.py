@@ -1,7 +1,7 @@
 import logging
 
-from google.protobuf.json_format import MessageToDict
 from spaceone.core.connector import BaseConnector
+from spaceone.core.auth.jwt.jwt_util import JWTUtil
 
 __all__ = ["DataSourcePluginConnector"]
 
@@ -15,6 +15,8 @@ class DataSourcePluginConnector(BaseConnector):
         self.secret_data = None
         self.options = None
         self.schema = None
+        token = self.transaction.get_meta("token")
+        self.token_type = JWTUtil.get_value_from_token(token, "typ")
 
     def initialize(self, endpoint):
         static_endpoint = self.config.get("endpoint")
@@ -29,9 +31,16 @@ class DataSourcePluginConnector(BaseConnector):
         self.schema = self.config.get("schema")
 
     def init(self, options, domain_id):
-        return self.client.dispatch(
-            "DataSource.init", {"options": options, "domain_id": domain_id}
-        )
+        if self.token_type == "SYSTEM_TOKEN":
+            return self.client.dispatch(
+                "DataSource.init",
+                {"options": options, "domain_id": domain_id},
+                x_domain_id=domain_id,
+            )
+        else:
+            return self.client.dispatch(
+                "DataSource.init", {"options": options, "domain_id": domain_id}
+            )
 
     def verify(self, options, secret_data, schema, domain_id):
         params = {
@@ -60,8 +69,12 @@ class DataSourcePluginConnector(BaseConnector):
             "last_synchronized_at": last_synchronized_at,
             "domain_id": domain_id,
         }
-
-        return self.client.dispatch("Job.get_tasks", params)
+        if self.token_type == "SYSTEM_TOKEN":
+            return self.client.dispatch(
+                "DataSource.get_tasks", params, x_domain_id=domain_id
+            )
+        else:
+            return self.client.dispatch("Job.get_tasks", params)
 
     def get_cost_data(self, options, secret_data, schema, task_options, domain_id):
         params = {
@@ -71,5 +84,9 @@ class DataSourcePluginConnector(BaseConnector):
             "task_options": task_options,
             "domain_id": domain_id,
         }
-
-        return self.client.dispatch("Cost.get_data", params)
+        if self.token_type == "SYSTEM_TOKEN":
+            return self.client.dispatch(
+                "Cost.get_data", params, x_domain_id=domain_id
+            )
+        else:
+            return self.client.dispatch("Cost.get_data", params)
