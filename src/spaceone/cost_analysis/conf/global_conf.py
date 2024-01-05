@@ -31,6 +31,17 @@ HANDLERS = {
     # "event": []
 }
 
+# Log Settings
+LOG = {
+    "filters": {
+        "masking": {
+            "rules": {
+                "DataSource.register": ["secret_data"],
+            }
+        }
+    }
+}
+
 CONNECTORS = {
     "SpaceConnector": {
         "backend": "spaceone.core.connector.space_connector:SpaceConnector",
