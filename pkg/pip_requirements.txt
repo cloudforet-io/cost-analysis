@@ -1,4 +1,3 @@
 spaceone-api
-boto3
 pandas
 numpy

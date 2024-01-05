@@ -26,6 +26,6 @@ setup(
     author_email="admin@spaceone.dev",
     license="Apache License 2.0",
     packages=find_packages(),
-    install_requires=["spaceone-core", "spaceone-api", "boto3", "pandas", "numpy"],
+    install_requires=["spaceone-core", "spaceone-api", "pandas", "numpy"],
     zip_safe=False,
 )
