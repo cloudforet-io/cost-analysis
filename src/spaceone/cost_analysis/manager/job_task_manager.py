@@ -29,7 +29,7 @@ class JobTaskManager(BaseManager):
         task_options: dict,
     ):
         data = {
-            "resource_group:": resource_group,
+            "resource_group": resource_group,
             "job_id": job_id,
             "data_source_id": data_source_id,
             "workspace_id": workspace_id,
