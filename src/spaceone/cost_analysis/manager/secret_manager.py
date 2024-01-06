@@ -63,8 +63,11 @@ class SecretManager(BaseManager):
         return self.secret_connector.dispatch("Secret.get", {"secret_id": secret_id})
 
     def get_secret_data(self, secret_id, domain_id):
+        system_token = config.get_global("TOKEN")
+
         response = self.secret_connector.dispatch(
             "Secret.get_data",
             {"secret_id": secret_id, "domain_id": domain_id},
+            token=system_token,
         )
         return response["data"]
