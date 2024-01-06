@@ -16,9 +16,12 @@ class IdentityManager(BaseManager):
         )
 
     def check_workspace(self, workspace_id: str, domain_id: str) -> None:
+        system_token = config.get_global("TOKEN")
+
         self.identity_conn.dispatch(
             "Workspace.check",
             {"workspace_id": workspace_id, "domain_id": domain_id},
+            token=system_token,
         )
 
     @cache.cacheable(key="workspace-name:{domain_id}:{workspace_id}:name", expire=300)
