@@ -25,5 +25,5 @@ class CostQuerySet(MongoModel):
             "workspace_id",
         ],
         "ordering": ["name"],
-        "indexes": ["name", "user_id", "data_source_id", "domain_id"],
+        "indexes": ["name", "user_id", "data_source_id", "workspace_id", "domain_id"],
     }
