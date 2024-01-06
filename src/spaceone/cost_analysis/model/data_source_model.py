@@ -81,5 +81,5 @@ class DataSource(MongoModel):
             "provider",
         ],
         "ordering": ["name"],
-        "indexes": ["name", "state", "data_source_type", "provider", "domain_id"],
+        "indexes": ["state", "data_source_type", "provider", "workspace_id", "domain_id"],
     }

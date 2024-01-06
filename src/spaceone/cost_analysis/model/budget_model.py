@@ -71,8 +71,9 @@ class Budget(MongoModel):
         "ordering": ["name"],
         "indexes": [
             "name",
-            "project_id",
             "data_source_id",
+            "project_id",
+            "workspace_id",
             "domain_id",
         ],
     }

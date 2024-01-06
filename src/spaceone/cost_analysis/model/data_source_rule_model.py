@@ -57,6 +57,7 @@ class DataSourceRule(MongoModel):
             "order",
             "conditions_policy",
             "data_source_id",
+            "workspace_id",
             "domain_id",
         ],
     }
