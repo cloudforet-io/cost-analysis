@@ -56,7 +56,9 @@ class Job(MongoModel):
         "indexes": [
             # 'job_id',
             "status",
+            "resource_group",
             "data_source_id",
+            "workspace_id",
             "domain_id",
             "created_at",
         ],
