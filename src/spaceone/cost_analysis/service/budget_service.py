@@ -87,7 +87,7 @@ class BudgetService(BaseService):
             params["project_id"] = "*"
             project_id = "*"
         else:
-            identity_mgr.get_project(project_id)
+            identity_mgr.get_project(project_id, domain_id)
 
         # Check Provider Filter
         if provider_filter_state == "ENABLED":

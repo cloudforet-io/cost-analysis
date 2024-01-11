@@ -89,7 +89,6 @@ class BudgetUsageManager(BaseManager):
     def update_cost_usage(
         self,
         budget_vo: Budget,
-        data_source_workspace_id: str,
     ):
         _LOGGER.info(f"[update_cost_usage] Update Budget Usage: {budget_vo.budget_id}")
         cost_mgr: CostManager = self.locator.get_manager("CostManager")
@@ -97,14 +96,14 @@ class BudgetUsageManager(BaseManager):
         self._update_monthly_budget_usage(budget_vo, cost_mgr)
 
     def update_budget_usage(
-        self, domain_id: str, workspace_id: str, data_source_id: str
+        self, domain_id: str, data_source_id: str
     ):
         budget_vos = self.budget_mgr.filter_budgets(
             domain_id=domain_id,
             data_source_id=data_source_id,
         )
         for budget_vo in budget_vos:
-            self.update_cost_usage(budget_vo, data_source_workspace_id=workspace_id)
+            self.update_cost_usage(budget_vo)
             self.notify_budget_usage(budget_vo)
 
     def notify_budget_usage(self, budget_vo: Budget):
@@ -224,7 +223,7 @@ class BudgetUsageManager(BaseManager):
         project_name = self.identity_mgr.get_project_name(
             budget_vo.project_id, budget_vo.workspace_id, budget_vo.domain_id
         )
-        workspace_name = self.identity_mgr.get_workspace_name_with_system_token(
+        workspace_name = self.identity_mgr.get_workspace(
             budget_vo.workspace_id, budget_vo.domain_id
         )
 

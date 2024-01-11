@@ -98,7 +98,7 @@ class DataSourceRuleService(BaseService):
             else:
                 self._check_conditions(conditions)
 
-        self._check_actions(actions)
+        self._check_actions(actions, domain_id)
 
         data_source_mgr: DataSourceManager = self.locator.get_manager(
             "DataSourceManager"
@@ -161,7 +161,7 @@ class DataSourceRuleService(BaseService):
                     self._check_conditions(conditions)
 
         if "actions" in params:
-            self._check_actions(params["actions"])
+            self._check_actions(params["actions"], domain_id)
 
         return self.data_source_rule_mgr.update_data_source_rule_by_vo(
             params, data_source_rule_vo
@@ -400,10 +400,10 @@ class DataSourceRuleService(BaseService):
                     f'({" | ".join(_SUPPORTED_CONDITION_OPERATORS)})',
                 )
 
-    def _check_actions(self, actions: dict) -> None:
+    def _check_actions(self, actions: dict, domain_id: str) -> None:
         if project_id := actions.get("change_project"):
             identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
-            identity_mgr.get_project(project_id)
+            identity_mgr.get_project(project_id, domain_id)
 
         if match_project := actions.get("match_project"):
             if "source" not in match_project:
