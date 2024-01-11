@@ -93,19 +93,23 @@ class CostManager(BaseManager):
     def filter_costs(self, **conditions):
         return self.cost_model.filter(**conditions)
 
-    def list_costs(self, query={}):
+    def list_costs(self, query):
+        query = self._change_filter_project_group_id(query)
         return self.cost_model.query(**query)
 
     def stat_costs(self, query):
+        query = self._change_filter_project_group_id(query)
         return self.cost_model.stat(**query)
 
     def filter_monthly_costs(self, **conditions):
         return self.monthly_cost_model.filter(**conditions)
 
-    def list_monthly_costs(self, query={}):
+    def list_monthly_costs(self, query):
+        query = self._change_filter_project_group_id(query)
         return self.monthly_cost_model.query(**query)
 
     def stat_monthly_costs(self, query):
+        query = self._change_filter_project_group_id(query)
         return self.monthly_cost_model.stat(**query)
 
     def analyze_costs(self, query, target="SECONDARY_PREFERRED"):
@@ -113,6 +117,8 @@ class CostManager(BaseManager):
         query["date_field"] = "billed_date"
         query["date_field_format"] = "%Y-%m-%d"
         _LOGGER.debug(f"[analyze_costs] query: {query}")
+
+        query = self._change_filter_project_group_id(query)
         return self.cost_model.analyze(**query)
 
     def analyze_monthly_costs(self, query, target="SECONDARY_PREFERRED"):
@@ -120,6 +126,8 @@ class CostManager(BaseManager):
         query["date_field"] = "billed_month"
         query["date_field_format"] = "%Y-%m"
         _LOGGER.debug(f"[analyze_monthly_costs] query: {query}")
+
+        query = self._change_filter_project_group_id(query)
         return self.monthly_cost_model.analyze(**query)
 
     def analyze_yearly_costs(self, query, target="SECONDARY_PREFERRED"):
@@ -127,6 +135,8 @@ class CostManager(BaseManager):
         query["date_field"] = "billed_year"
         query["date_field_format"] = "%Y"
         _LOGGER.debug(f"[analyze_yearly_costs] query: {query}")
+
+        query = self._change_filter_project_group_id(query)
         return self.monthly_cost_model.analyze(**query)
 
     @cache.cacheable(
@@ -224,7 +234,7 @@ class CostManager(BaseManager):
 
     @staticmethod
     def remove_stat_cache(
-        domain_id: str, data_source_id: str, workspace_id: str = None
+        domain_id: str, data_source_id: str
     ):
         cache.delete_pattern(
             f"cost-analysis:analyze-costs:*:{domain_id}:{data_source_id}:*"
@@ -345,3 +355,36 @@ class CostManager(BaseManager):
             return datetime.strptime(billed_date, date_format)
         except Exception as e:
             raise ERROR_INVALID_PARAMETER_TYPE(key="billed_date", type="YYYY-MM-DD")
+
+    def _change_filter_project_group_id(self, query: dict) -> dict:
+        change_filter = []
+        self.identity_mgr = None
+
+        for condition in query.get("filter", []):
+            key = condition.get("k", condition.get("key"))
+            value = condition.get("v", condition.get("value"))
+            operator = condition.get("o", condition.get("operator"))
+
+            if key == "project_group_id":
+                if operator != "eq":
+                    raise ERROR_NOT_SUPPORT_OPERATOR(
+                        key="project_group_id", supported_operator="eq"
+                    )
+
+                if self.identity_mgr is None:
+                    self.identity_mgr: IdentityManager = self.locator.get_manager(
+                        "IdentityManager"
+                    )
+
+                projects_info = self.identity_mgr.get_projects_in_project_group(value)
+                project_ids = [
+                    project_info["project_id"]
+                    for project_info in projects_info.get("results", [])
+                ]
+                change_filter.append({"k": "project_id", "v": project_ids, "o": "in"})
+
+            else:
+                change_filter.append(condition)
+
+        query["filter"] = change_filter
+        return query

@@ -54,7 +54,7 @@ class CostService(BaseService):
 
         # validation check (service_account_id / project_id / data_source_id)
         identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
-        identity_mgr.get_project(params["project_id"])
+        identity_mgr.get_project(params["project_id"], params["domain_id"])
 
         cost_vo: Cost = self.cost_mgr.create_cost(params)
 
@@ -89,7 +89,6 @@ class CostService(BaseService):
         self.cost_mgr.remove_stat_cache(
             domain_id=domain_id,
             data_source_id=cost_vo.data_source_id,
-            workspace_id=cost_vo.workspace_id,
         )
 
         self.cost_mgr.delete_cost_by_vo(cost_vo)
@@ -138,6 +137,7 @@ class CostService(BaseService):
             "service_account_id",
             "data_source_id",
             "project_id",
+            "project_group_id",
             "user_projects",
             "workspace_id",
             "domain_id",

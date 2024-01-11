@@ -208,7 +208,7 @@ class JobService(BaseService):
         data_source_id = data_source_vo.data_source_id
         job_id = job_task_vo.job_id
 
-        if self._is_job_failed(job_id, job_task_vo.workspace_id, domain_id):
+        if self._is_job_failed(job_id, domain_id, job_task_vo.workspace_id):
             self.job_task_mgr.change_canceled_status(job_task_vo)
         else:
             job_task_vo = self.job_task_mgr.change_in_progress_status(job_task_vo)
@@ -269,7 +269,7 @@ class JobService(BaseService):
                         )
                         data_keys = self._append_data_keys(data_keys, cost_data)
 
-                    if self._is_job_failed(job_id, job_task_vo.workspace_id, domain_id):
+                    if self._is_job_failed(job_id, domain_id, job_task_vo.workspace_id):
                         self.job_task_mgr.change_canceled_status(job_task_vo)
                         is_canceled = True
                         break
@@ -558,7 +558,7 @@ class JobService(BaseService):
 
         self.cost_mgr.create_cost(cost_data, execute_rollback=False)
 
-    def _is_job_failed(self, job_id: str, workspace_id: str, domain_id: str):
+    def _is_job_failed(self, job_id: str, domain_id: str, workspace_id: str, ):
         job_vo: Job = self.job_mgr.get_job(job_id, domain_id, workspace_id)
 
         if job_vo.status in ["CANCELED", "FAILURE"]:
@@ -593,7 +593,7 @@ class JobService(BaseService):
                     raise e
 
                 try:
-                    self._delete_old_cost_data(domain_id, workspace_id, data_source_id)
+                    self._delete_old_cost_data(domain_id, data_source_id)
                 except Exception as e:
                     _LOGGER.error(
                         f"[_close_job] delete old cost data error: {e}", exc_info=True
@@ -605,7 +605,7 @@ class JobService(BaseService):
 
                 try:
                     self.cost_mgr.remove_stat_cache(
-                        domain_id, data_source_id, workspace_id
+                        domain_id, data_source_id
                     )
 
                     if not no_preload_cache:
@@ -614,7 +614,7 @@ class JobService(BaseService):
                         )
 
                     self.budget_usage_mgr.update_budget_usage(
-                        domain_id, workspace_id, data_source_id
+                        domain_id, data_source_id
                     )
 
                     self._update_last_sync_time(job_vo)
@@ -683,7 +683,7 @@ class JobService(BaseService):
             {"last_synchronized_at": job_vo.created_at}, data_source_vo
         )
 
-    def _delete_old_cost_data(self, data_source_id, workspace_id, domain_id):
+    def _delete_old_cost_data(self, data_source_id, domain_id):
         now = datetime.utcnow().date()
         old_billed_month = (now - relativedelta(months=12)).strftime("%Y-%m")
         old_billed_year = (now - relativedelta(months=36)).strftime("%Y")
@@ -692,7 +692,6 @@ class JobService(BaseService):
             "filter": [
                 {"k": "billed_month", "v": old_billed_month, "o": "lt"},
                 {"k": "data_source_id", "v": data_source_id, "o": "eq"},
-                {"k": "workspace_id", "v": workspace_id, "o": "eq"},
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
             ]
         }
@@ -705,7 +704,6 @@ class JobService(BaseService):
             "filter": [
                 {"k": "billed_year", "v": old_billed_year, "o": "lt"},
                 {"k": "data_source_id", "v": data_source_id, "o": "eq"},
-                {"k": "workspace_id", "v": workspace_id, "o": "eq"},
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
             ]
         }
@@ -723,7 +721,6 @@ class JobService(BaseService):
             "filter": [
                 {"k": "billed_month", "v": start, "o": "gte"},
                 {"k": "data_source_id", "v": job_vo.data_source_id, "o": "eq"},
-                {"k": "workspace_id", "v": job_vo.workspace_id, "o": "eq"},
                 {"k": "domain_id", "v": job_vo.domain_id, "o": "eq"},
                 {"k": "job_id", "v": job_vo.job_id, "o": "not"},
             ]
