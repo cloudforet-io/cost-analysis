@@ -42,7 +42,7 @@ class IdentityManager(BaseManager):
             _LOGGER.error(f"[get_project_name] API Error: {e}")
             return workspace_id
 
-    def list_service_accounts(self, query: dict, domain_id: str = None) -> dict:
+    def list_service_accounts(self, query: dict, domain_id: str) -> dict:
         if self.token_type == "SYSTEM_TOKEN":
             return self.identity_conn.dispatch(
                 "ServiceAccount.list", {"query": query}, x_domain_id=domain_id

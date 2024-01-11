@@ -60,8 +60,8 @@ class JobTaskManager(BaseManager):
     def stat_job_tasks(self, query):
         return self.job_task_model.stat(**query)
 
-    @staticmethod
-    def push_job_task(params):
+    def push_job_task(self, params):
+        token = self.transaction.meta.get("token")
         task = {
             "name": "sync_data_source",
             "version": "v1",
@@ -70,7 +70,7 @@ class JobTaskManager(BaseManager):
                 {
                     "locator": "SERVICE",
                     "name": "JobService",
-                    "metadata": {},
+                    "metadata": {"token": token},
                     "method": "get_cost_data",
                     "params": {"params": params},
                 }

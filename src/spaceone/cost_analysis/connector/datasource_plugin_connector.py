@@ -24,7 +24,9 @@ class DataSourcePluginConnector(BaseConnector):
         if static_endpoint:
             endpoint = static_endpoint
 
-        self.client = self.locator.get_connector("SpaceConnector", endpoint=endpoint, token="NO_TOKEN")
+        self.client = self.locator.get_connector(
+            "SpaceConnector", endpoint=endpoint, token="NO_TOKEN"
+        )
 
         self.secret_data = self.config.get("secret_data")
         self.options = self.config.get("options")
@@ -46,13 +48,13 @@ class DataSourcePluginConnector(BaseConnector):
         self.client.dispatch("DataSource.verify", params)
 
     def get_tasks(
-            self,
-            options: dict,
-            secret_data: dict,
-            schema: str,
-            domain_id: str,
-            start: str = None,
-            last_synchronized_at: str = None,
+        self,
+        options: dict,
+        secret_data: dict,
+        schema: str,
+        domain_id: str,
+        start: str = None,
+        last_synchronized_at: str = None,
     ):
         params = {
             "options": self.options or options,
