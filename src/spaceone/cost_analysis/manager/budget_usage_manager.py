@@ -95,9 +95,7 @@ class BudgetUsageManager(BaseManager):
 
         self._update_monthly_budget_usage(budget_vo, cost_mgr)
 
-    def update_budget_usage(
-        self, domain_id: str, data_source_id: str
-    ):
+    def update_budget_usage(self, domain_id: str, data_source_id: str):
         budget_vos = self.budget_mgr.filter_budgets(
             domain_id=domain_id,
             data_source_id=data_source_id,
@@ -325,7 +323,8 @@ class BudgetUsageManager(BaseManager):
             else:
                 budget_usage_vo.update({"cost": 0})
 
-    def _make_cost_analyze_query(self, budget_vo: Budget):
+    @staticmethod
+    def _make_cost_analyze_query(budget_vo: Budget):
         query = {
             "granularity": "MONTHLY",
             "start": budget_vo.start,
@@ -342,24 +341,6 @@ class BudgetUsageManager(BaseManager):
             query["filter"].append(
                 {"k": "project_id", "v": budget_vo.project_id, "o": "eq"}
             )
-        # else:
-        #     identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
-        #
-        #     project_query = {
-        #         "filter": [
-        #             {"k": "domain_id", "v": budget_vo.domain_id, "o": "eq"},
-        #             {"k": "workspace_id", "v": budget_vo.workspace_id, "o": "eq"},
-        #         ]
-        #     }
-        #     projects_info = identity_mgr.list_projects(
-        #         project_query, budget_vo.domain_id
-        #     )
-        #
-        #     project_ids = []
-        #     for project_info in projects_info.get("results", []):
-        #         project_ids.append(project_info["project_id"])
-        #
-        #     query["filter"].append({"k": "project_id", "v": project_ids, "o": "in"})
 
         if budget_vo.provider_filter and budget_vo.provider_filter.state == "ENABLED":
             query["filter"].append(

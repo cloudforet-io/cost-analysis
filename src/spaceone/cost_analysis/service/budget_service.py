@@ -78,7 +78,6 @@ class BudgetService(BaseService):
         provider_filter_state = provider_filter.get("state", "DISABLED")
         notifications = params.get("notifications", [])
         resource_group = params["resource_group"]
-        # self._check_target(project_id, project_group_id, domain_id)
         self._check_time_period(start, end)
 
         identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
@@ -149,9 +148,7 @@ class BudgetService(BaseService):
             "BudgetUsageManager"
         )
         budget_usage_mgr.create_budget_usages(budget_vo)
-        budget_usage_mgr.update_cost_usage(
-            budget_vo=budget_vo, data_source_workspace_id=data_source_vo.workspace_id
-        )
+        budget_usage_mgr.update_cost_usage(budget_vo)
         budget_usage_mgr.notify_budget_usage(budget_vo)
 
         return budget_vo
@@ -194,7 +191,6 @@ class BudgetService(BaseService):
         )
 
         # Check limit and Planned Limits
-
         budget_vo = self.budget_mgr.update_budget_by_vo(params, budget_vo)
 
         if "name" in params:
@@ -206,14 +202,11 @@ class BudgetService(BaseService):
                 budget_usage_mgr.update_budget_usage_by_vo(
                     {"name": params["name"]}, budget_usage_vo
                 )
+        # Check DataSource exists
         data_source_mgr = self.locator.get_manager("DataSourceManager")
-        data_source_vo = data_source_mgr.get_data_source(
-            budget_vo.data_source_id, domain_id
-        )
+        data_source_mgr.get_data_source(budget_vo.data_source_id, domain_id)
 
-        budget_usage_mgr.update_cost_usage(
-            budget_vo=budget_vo, data_source_workspace_id=data_source_vo.workspace_id
-        )
+        budget_usage_mgr.update_cost_usage(budget_vo)
         budget_usage_mgr.notify_budget_usage(budget_vo)
 
         return budget_vo
