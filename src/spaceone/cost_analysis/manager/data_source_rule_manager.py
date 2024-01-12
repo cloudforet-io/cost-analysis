@@ -201,7 +201,7 @@ class DataSourceRuleManager(BaseManager):
             "only": ["project_id"],
         }
 
-        response = self.identity_mgr.list_projects(query, domain_id)
+        response = self.identity_mgr.list_projects({"query": query}, domain_id)
         results = response.get("results", [])
         total_count = response.get("total_count", 0)
 

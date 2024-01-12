@@ -72,13 +72,19 @@ class IdentityManager(BaseManager):
                 "Project.get", {"project_id": project_id}
             )
 
-    def list_projects(self, query: dict, domain_id):
+    def list_projects(self, params: dict, domain_id):
         if self.token_type == "SYSTEM_TOKEN":
             return self.identity_conn.dispatch(
-                "Project.list", {"query": query}, x_domain_id=domain_id
+                "Project.list", params, x_domain_id=domain_id
             )
         else:
-            return self.identity_conn.dispatch("Project.list", {"query": query})
+            return self.identity_conn.dispatch("Project.list", params)
+
+    def list_project_groups(
+        self,
+        params: dict,
+    ) -> dict:
+        return self.identity_conn.dispatch("ProjectGroup.list", params)
 
     @cache.cacheable(key="cost-analysis:projects-in-pg:{project_group_id}", expire=300)
     def get_projects_in_project_group(self, project_group_id: str):
