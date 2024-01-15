@@ -26,6 +26,7 @@ class Cost(MongoModel):
     billed_year = StringField(max_length=4, required=True)
     billed_month = StringField(max_length=7, required=True)
     billed_date = StringField(max_length=10, required=True)
+    data = DictField(default={})
 
     meta = {
         "updatable_fields": [],
@@ -96,6 +97,7 @@ class MonthlyCost(MongoModel):
     domain_id = StringField(max_length=40)
     billed_year = StringField(max_length=4, required=True)
     billed_month = StringField(max_length=7, required=True)
+    data = DictField(default={})
 
     meta = {
         "updatable_fields": [],
