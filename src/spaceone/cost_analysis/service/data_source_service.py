@@ -65,7 +65,8 @@ class DataSourceService(BaseService):
 
         # Check permission by resource group
         if resource_group == "WORKSPACE":
-            self.identity_mgr.check_workspace(params["workspace_id"], domain_id)
+            identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
+            identity_mgr.check_workspace(params["workspace_id"], domain_id)
         else:
             params["workspace_id"] = "*"
 
