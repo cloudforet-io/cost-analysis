@@ -31,7 +31,6 @@ class DataSourceService(BaseService):
         self.cost_mgr = CostManager()
         self.budget_usage_mgr = BudgetUsageManager()
         self.job_mgr = JobManager()
-        self.identity_mgr = IdentityManager()
 
     @transaction(
         permission="cost-analysis:DataSource.write",
@@ -378,9 +377,7 @@ class DataSourceService(BaseService):
 
         if cascade_delete_cost:
             self.cost_mgr.delete_cost_with_datasource(domain_id, data_source_id)
-            self.budget_usage_mgr.update_budget_usage(
-                domain_id, data_source_id
-            )
+            self.budget_usage_mgr.update_budget_usage(domain_id, data_source_id)
             self.cost_mgr.remove_stat_cache(domain_id, data_source_id)
             self.job_mgr.preload_cost_stat_queries(domain_id, data_source_id)
 
@@ -552,7 +549,7 @@ class DataSourceService(BaseService):
                     }
                 ]
             }
-            identity_mgr: IdentityManager = self.locator.get_manager(IdentityManager)
+            identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
             response = identity_mgr.list_service_accounts(_query, domain_id)
             if response.get("total_count", 0) != len(secret_filter["service_accounts"]):
                 raise ERROR_INVALID_PARAMETER(

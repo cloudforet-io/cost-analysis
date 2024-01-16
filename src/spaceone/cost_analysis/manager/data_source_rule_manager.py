@@ -18,7 +18,6 @@ class DataSourceRuleManager(BaseManager):
         self.data_source_rule_model: DataSourceRule = self.locator.get_model(
             "DataSourceRule"
         )
-        self.identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
         self._project_info = {}
         self._service_account_info = {}
         self._data_source_rule_info = {}
@@ -177,7 +176,8 @@ class DataSourceRuleManager(BaseManager):
             "only": ["service_account_id", "project_id", "workspace_id"],
         }
 
-        response = self.identity_mgr.list_service_accounts(query, domain_id)
+        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
+        response = identity_mgr.list_service_accounts(query, domain_id)
         results = response.get("results", [])
         total_count = response.get("total_count", 0)
 
@@ -201,7 +201,8 @@ class DataSourceRuleManager(BaseManager):
             "only": ["project_id"],
         }
 
-        response = self.identity_mgr.list_projects({"query": query}, domain_id)
+        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
+        response = identity_mgr.list_projects({"query": query}, domain_id)
         results = response.get("results", [])
         total_count = response.get("total_count", 0)
 

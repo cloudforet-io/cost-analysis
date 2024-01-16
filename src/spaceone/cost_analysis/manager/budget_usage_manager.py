@@ -20,7 +20,6 @@ class BudgetUsageManager(BaseManager):
         super().__init__(*args, **kwargs)
         self.budget_mgr: BudgetManager = self.locator.get_manager("BudgetManager")
         self.budget_usage_model: BudgetUsage = self.locator.get_model("BudgetUsage")
-        self.identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
         self.notification_mgr: NotificationManager = self.locator.get_manager(
             "NotificationManager"
         )
@@ -218,10 +217,11 @@ class BudgetUsageManager(BaseManager):
         data_source_name = self.data_source_mgr.get_data_source(
             budget_vo.data_source_id, budget_vo.domain_id
         ).name
-        project_name = self.identity_mgr.get_project_name(
+        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
+        project_name = identity_mgr.get_project_name(
             budget_vo.project_id, budget_vo.workspace_id, budget_vo.domain_id
         )
-        workspace_name = self.identity_mgr.get_workspace(
+        workspace_name = identity_mgr.get_workspace(
             budget_vo.workspace_id, budget_vo.domain_id
         )
 
