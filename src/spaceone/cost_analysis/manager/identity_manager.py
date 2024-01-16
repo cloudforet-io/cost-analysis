@@ -14,6 +14,7 @@ class IdentityManager(BaseManager):
         super().__init__(*args, **kwargs)
         token = self.transaction.get_meta("token")
         self.token_type = JWTUtil.get_value_from_token(token, "typ")
+        _LOGGER.debug(f"[IdentityManager] token: {token}")
         self.identity_conn: SpaceConnector = self.locator.get_connector(
             SpaceConnector, service="identity"
         )
