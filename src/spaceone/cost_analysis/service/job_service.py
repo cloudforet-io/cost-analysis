@@ -585,7 +585,11 @@ class JobService(BaseService):
 
                     for changed_vo in job_vo.changed:
                         self._delete_changed_cost_data(
-                            job_vo, changed_vo.start, changed_vo.end, changed_vo.filter
+                            job_vo,
+                            changed_vo.start,
+                            changed_vo.end,
+                            changed_vo.filter,
+                            domain_id,
                         )
 
                 except Exception as e:
@@ -698,7 +702,7 @@ class JobService(BaseService):
             ]
         }
 
-        cost_vos, total_count = self.cost_mgr.list_costs(cost_delete_query)
+        cost_vos, total_count = self.cost_mgr.list_costs(cost_delete_query, domain_id)
         _LOGGER.debug(f"[_delete_old_cost_data] delete costs (count = {total_count})")
         cost_vos.delete()
 
@@ -711,14 +715,16 @@ class JobService(BaseService):
         }
 
         monthly_cost_vos, total_count = self.cost_mgr.list_monthly_costs(
-            monthly_cost_delete_query
+            monthly_cost_delete_query, domain_id
         )
         _LOGGER.debug(
             f"[_delete_old_cost_data] delete monthly costs (count = {total_count})"
         )
         monthly_cost_vos.delete()
 
-    def _delete_changed_cost_data(self, job_vo: Job, start, end, change_filter):
+    def _delete_changed_cost_data(
+        self, job_vo: Job, start, end, change_filter, domain_id
+    ):
         query = {
             "filter": [
                 {"k": "billed_month", "v": start, "o": "gte"},
@@ -736,14 +742,16 @@ class JobService(BaseService):
 
         _LOGGER.debug(f"[_delete_changed_cost_data] query: {query}")
 
-        cost_vos, total_count = self.cost_mgr.list_costs(copy.deepcopy(query))
+        cost_vos, total_count = self.cost_mgr.list_costs(
+            copy.deepcopy(query), domain_id
+        )
         cost_vos.delete()
         _LOGGER.debug(
             f"[_delete_changed_cost_data] delete costs (count = {total_count})"
         )
 
         monthly_cost_vos, total_count = self.cost_mgr.list_monthly_costs(
-            copy.deepcopy(query)
+            copy.deepcopy(query), domain_id
         )
         monthly_cost_vos.delete()
         _LOGGER.debug(
@@ -784,7 +792,7 @@ class JobService(BaseService):
             "target": "PRIMARY",  # Execute a query to primary DB
         }
         _LOGGER.debug(f"[_distinct_cost_data] query: {query}")
-        response = self.cost_mgr.stat_costs(query)
+        response = self.cost_mgr.stat_costs(query, domain_id)
         values = response.get("results", [])
 
         _LOGGER.debug(f"[_distinct_cost_data] billed_month: {values}")
@@ -833,7 +841,7 @@ class JobService(BaseService):
         if workspace_id:
             query["filter"].append({"k": "workspace_id", "v": workspace_id, "o": "eq"})
 
-        response = self.cost_mgr.analyze_costs(query, target="PRIMARY")
+        response = self.cost_mgr.analyze_costs(query, domain_id, target="PRIMARY")
         results = response.get("results", [])
         for aggregated_cost_data in results:
             aggregated_cost_data["data_source_id"] = data_source_id

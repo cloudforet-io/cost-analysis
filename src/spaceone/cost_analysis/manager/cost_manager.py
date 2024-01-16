@@ -93,50 +93,50 @@ class CostManager(BaseManager):
     def filter_costs(self, **conditions):
         return self.cost_model.filter(**conditions)
 
-    def list_costs(self, query):
-        query = self._change_filter_project_group_id(query)
+    def list_costs(self, query: dict, domain_id: str):
+        query = self._change_filter_project_group_id(query, domain_id)
         return self.cost_model.query(**query)
 
-    def stat_costs(self, query):
-        query = self._change_filter_project_group_id(query)
+    def stat_costs(self, query: dict, domain_id: str):
+        query = self._change_filter_project_group_id(query, domain_id)
         return self.cost_model.stat(**query)
 
     def filter_monthly_costs(self, **conditions):
         return self.monthly_cost_model.filter(**conditions)
 
-    def list_monthly_costs(self, query):
-        query = self._change_filter_project_group_id(query)
+    def list_monthly_costs(self, query: dict, domain_id: str):
+        query = self._change_filter_project_group_id(query, domain_id)
         return self.monthly_cost_model.query(**query)
 
-    def stat_monthly_costs(self, query):
-        query = self._change_filter_project_group_id(query)
+    def stat_monthly_costs(self, query: dict, domain_id: str):
+        query = self._change_filter_project_group_id(query, domain_id)
         return self.monthly_cost_model.stat(**query)
 
-    def analyze_costs(self, query, target="SECONDARY_PREFERRED"):
+    def analyze_costs(self, query, domain_id, target="SECONDARY_PREFERRED"):
         query["target"] = target
         query["date_field"] = "billed_date"
         query["date_field_format"] = "%Y-%m-%d"
         _LOGGER.debug(f"[analyze_costs] query: {query}")
 
-        query = self._change_filter_project_group_id(query)
+        query = self._change_filter_project_group_id(query, domain_id)
         return self.cost_model.analyze(**query)
 
-    def analyze_monthly_costs(self, query, target="SECONDARY_PREFERRED"):
+    def analyze_monthly_costs(self, query, domain_id, target="SECONDARY_PREFERRED"):
         query["target"] = target
         query["date_field"] = "billed_month"
         query["date_field_format"] = "%Y-%m"
         _LOGGER.debug(f"[analyze_monthly_costs] query: {query}")
 
-        query = self._change_filter_project_group_id(query)
+        query = self._change_filter_project_group_id(query, domain_id)
         return self.monthly_cost_model.analyze(**query)
 
-    def analyze_yearly_costs(self, query, target="SECONDARY_PREFERRED"):
+    def analyze_yearly_costs(self, query, domain_id, target="SECONDARY_PREFERRED"):
         query["target"] = target
         query["date_field"] = "billed_year"
         query["date_field_format"] = "%Y"
         _LOGGER.debug(f"[analyze_yearly_costs] query: {query}")
 
-        query = self._change_filter_project_group_id(query)
+        query = self._change_filter_project_group_id(query, domain_id)
         return self.monthly_cost_model.analyze(**query)
 
     @cache.cacheable(
@@ -146,7 +146,7 @@ class CostManager(BaseManager):
     def stat_monthly_costs_with_cache(
         self, query, query_hash, domain_id, data_source_id
     ):
-        return self.stat_monthly_costs(query)
+        return self.stat_monthly_costs(query, domain_id)
 
     @cache.cacheable(
         key="cost-analysis:analyze-costs:daily:{domain_id}:{data_source_id}:{query_hash}",
@@ -155,7 +155,7 @@ class CostManager(BaseManager):
     def analyze_costs_with_cache(
         self, query, query_hash, domain_id, data_source_id, target="SECONDARY_PREFERRED"
     ):
-        return self.analyze_costs(query, target)
+        return self.analyze_costs(query, domain_id, target)
 
     @cache.cacheable(
         key="cost-analysis:analyze-costs:monthly:{domain_id}:{data_source_id}:{query_hash}",
@@ -164,7 +164,7 @@ class CostManager(BaseManager):
     def analyze_monthly_costs_with_cache(
         self, query, query_hash, domain_id, data_source_id, target="SECONDARY_PREFERRED"
     ):
-        return self.analyze_monthly_costs(query, target)
+        return self.analyze_monthly_costs(query, domain_id, target)
 
     @cache.cacheable(
         key="cost-analysis:analyze-costs:yearly:{domain_id}:{data_source_id}:{query_hash}",
@@ -173,7 +173,7 @@ class CostManager(BaseManager):
     def analyze_yearly_costs_with_cache(
         self, query, query_hash, domain_id, data_source_id, target="SECONDARY_PREFERRED"
     ):
-        return self.analyze_yearly_costs(query, target)
+        return self.analyze_yearly_costs(query, domain_id, target)
 
     def analyze_costs_by_granularity(
         self, query: dict, domain_id: dict, data_source_id: dict
@@ -354,7 +354,7 @@ class CostManager(BaseManager):
         except Exception as e:
             raise ERROR_INVALID_PARAMETER_TYPE(key="billed_date", type="YYYY-MM-DD")
 
-    def _change_filter_project_group_id(self, query: dict) -> dict:
+    def _change_filter_project_group_id(self, query: dict, domain_id: str) -> dict:
         change_filter = []
         self.identity_mgr = None
 
@@ -375,7 +375,8 @@ class CostManager(BaseManager):
                             "only": ["project_group_id"],
                             "filter": [{"k": key, "v": value, "o": operator}],
                         }
-                    }
+                    },
+                    domain_id,
                 )
 
                 project_group_ids = [
@@ -387,7 +388,7 @@ class CostManager(BaseManager):
 
                 for project_group_id in project_group_ids:
                     projects_info = self.identity_mgr.get_projects_in_project_group(
-                        project_group_id
+                        project_group_id, domain_id
                     )
                     project_ids.extend(
                         [

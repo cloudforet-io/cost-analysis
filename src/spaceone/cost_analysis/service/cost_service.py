@@ -172,7 +172,8 @@ class CostService(BaseService):
         """
 
         query = params.get("query", {})
-        return self.cost_mgr.list_costs(query)
+        domain_id = params["domain_id"]
+        return self.cost_mgr.list_costs(query, domain_id)
 
     @transaction(
         permission="cost-analysis:Cost.read",
