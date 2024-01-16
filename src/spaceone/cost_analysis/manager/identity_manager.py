@@ -43,6 +43,7 @@ class IdentityManager(BaseManager):
             return workspace_id
 
     def list_service_accounts(self, query: dict, domain_id: str) -> dict:
+        _LOGGER.debug(f"[list_service_accounts] token_type: {self.token_type}")
         if self.token_type == "SYSTEM_TOKEN":
             return self.identity_conn.dispatch(
                 "ServiceAccount.list", {"query": query}, x_domain_id=domain_id
