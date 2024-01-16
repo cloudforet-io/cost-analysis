@@ -80,14 +80,16 @@ class IdentityManager(BaseManager):
         else:
             return self.identity_conn.dispatch("Project.list", params)
 
-    def list_project_groups(
-        self,
-        params: dict,
-    ) -> dict:
-        return self.identity_conn.dispatch("ProjectGroup.list", params)
+    def list_project_groups(self, params: dict, domain_id: str) -> dict:
+        if self.token_type == "SYSTEM_TOKEN":
+            return self.identity_conn.dispatch(
+                "ProjectGroup.list", params, x_domain_id=domain_id
+            )
+        else:
+            return self.identity_conn.dispatch("ProjectGroup.list", params)
 
     @cache.cacheable(key="cost-analysis:projects-in-pg:{project_group_id}", expire=300)
-    def get_projects_in_project_group(self, project_group_id: str):
+    def get_projects_in_project_group(self, project_group_id: str, domain_id: str):
         params = {
             "query": {
                 "only": ["project_id"],
@@ -96,4 +98,9 @@ class IdentityManager(BaseManager):
             "include_children": True,
         }
 
-        return self.identity_conn.dispatch("Project.list", params)
+        if self.token_type == "SYSTEM_TOKEN":
+            return self.identity_conn.dispatch(
+                "ProjectGroup.list_projects", params, x_domain_id=domain_id
+            )
+        else:
+            return self.identity_conn.dispatch("Project.list", params)
