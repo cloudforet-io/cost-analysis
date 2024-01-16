@@ -77,7 +77,7 @@ class JobTaskManager(BaseManager):
             ],
         }
 
-        _LOGGER.debug(f"[push_job_task] task: {task}")
+        _LOGGER.debug(f"[push_job_task] task param: {params}")
 
         queue.put("cost_analysis_q", utils.dump_json(task))
 
