@@ -1,9 +1,9 @@
 import logging
 from datetime import datetime
 
+from spaceone.core.error import ERROR_CONFIGURATION
 from spaceone.core import config
 from spaceone.core import utils
-from spaceone.core.token import get_token
 from spaceone.core.locator import Locator
 from spaceone.core.scheduler import HourlyScheduler
 
@@ -17,7 +17,9 @@ class DataSourceSyncScheduler(HourlyScheduler):
         self._init_config()
 
     def _init_config(self):
-        self._token = get_token("TOKEN")
+        self._token = config.get_global("TOKEN")
+        if self._token is None:
+            raise ERROR_CONFIGURATION(key="TOKEN")
         self._data_source_sync_hour = config.get_global("DATA_SOURCE_SYNC_HOUR", 16)
 
     def create_task(self):
