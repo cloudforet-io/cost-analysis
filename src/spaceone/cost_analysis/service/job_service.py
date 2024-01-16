@@ -192,6 +192,8 @@ class JobService(BaseService):
             None
         """
 
+        print(self.transaction.meta)
+        print(self.transaction.get_meta("token"))
         task_options = params["task_options"]
         job_task_id = params["job_task_id"]
         secret_id = params["secret_id"]
@@ -558,7 +560,12 @@ class JobService(BaseService):
 
         self.cost_mgr.create_cost(cost_data, execute_rollback=False)
 
-    def _is_job_failed(self, job_id: str, domain_id: str, workspace_id: str, ):
+    def _is_job_failed(
+        self,
+        job_id: str,
+        domain_id: str,
+        workspace_id: str,
+    ):
         job_vo: Job = self.job_mgr.get_job(job_id, domain_id, workspace_id)
 
         if job_vo.status in ["CANCELED", "FAILURE"]:
@@ -604,18 +611,14 @@ class JobService(BaseService):
                     raise e
 
                 try:
-                    self.cost_mgr.remove_stat_cache(
-                        domain_id, data_source_id
-                    )
+                    self.cost_mgr.remove_stat_cache(domain_id, data_source_id)
 
                     if not no_preload_cache:
                         self.job_mgr.preload_cost_stat_queries(
                             domain_id, data_source_id
                         )
 
-                    self.budget_usage_mgr.update_budget_usage(
-                        domain_id, data_source_id
-                    )
+                    self.budget_usage_mgr.update_budget_usage(domain_id, data_source_id)
 
                     self._update_last_sync_time(job_vo)
                     self.job_mgr.change_success_status(job_vo)
