@@ -294,7 +294,13 @@ class JobService(BaseService):
             except Exception as e:
                 self.job_task_mgr.change_error_status(job_task_vo, e, secret_type)
 
-        self._close_job(job_id, data_source_id, domain_id, job_task_vo.workspace_id)
+        self._close_job(
+            job_id,
+            data_source_id,
+            domain_id,
+            data_source_vo.cost_data_keys,
+            job_task_vo.workspace_id,
+        )
 
     def create_cost_job(self, data_source_vo: DataSource, job_options):
         tasks = []
@@ -516,7 +522,7 @@ class JobService(BaseService):
         return additional_info_keys
 
     @staticmethod
-    def _append_data_keys(data_keys, cost_data):
+    def _append_data_keys(data_keys, cost_data) -> list:
         cost_data_info = cost_data.get("data") or {}
 
         for key in cost_data_info.keys():
@@ -573,7 +579,12 @@ class JobService(BaseService):
             return False
 
     def _close_job(
-        self, job_id: str, data_source_id: str, domain_id: str, workspace_id: str = None
+        self,
+        job_id: str,
+        data_source_id: str,
+        domain_id: str,
+        data_keys: list,
+        workspace_id: str = None,
     ) -> None:
         job_vo: Job = self.job_mgr.get_job(job_id, domain_id, workspace_id)
         no_preload_cache = job_vo.options.get("no_preload_cache", False)
@@ -581,7 +592,7 @@ class JobService(BaseService):
         if job_vo.remained_tasks == 0:
             if job_vo.status == "IN_PROGRESS":
                 try:
-                    self._aggregate_cost_data(job_vo)
+                    self._aggregate_cost_data(job_vo, data_keys)
 
                     for changed_vo in job_vo.changed:
                         self._delete_changed_cost_data(
@@ -758,7 +769,7 @@ class JobService(BaseService):
             f"[_delete_changed_cost_data] delete monthly costs (count = {total_count})"
         )
 
-    def _aggregate_cost_data(self, job_vo: Job):
+    def _aggregate_cost_data(self, job_vo: Job, data_keys: list):
         data_source_id = job_vo.data_source_id
         domain_id = job_vo.domain_id
         workspace_id = (
@@ -777,6 +788,7 @@ class JobService(BaseService):
                     job_id,
                     job_task_id,
                     billed_month,
+                    data_keys,
                     workspace_id,
                 )
 
@@ -806,6 +818,7 @@ class JobService(BaseService):
         job_id,
         job_task_id,
         billed_month,
+        data_keys: list,
         workspace_id: str = None,
     ):
         query = {
@@ -838,6 +851,12 @@ class JobService(BaseService):
             ],
             "allow_disk_use": True,  # Allow disk use for large data
         }
+
+        for data_key in data_keys:
+            query["fields"].update(
+                {f"data.{data_key}": {"key": f"data.{data_key}", "operator": "sum"}}
+            )
+
         if workspace_id:
             query["filter"].append({"k": "workspace_id", "v": workspace_id, "o": "eq"})
 
