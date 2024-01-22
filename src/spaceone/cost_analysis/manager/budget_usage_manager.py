@@ -117,7 +117,7 @@ class BudgetUsageManager(BaseManager):
                 notification_type = notification.notification_type
                 is_notify = False
 
-                if budget_vo.time_unit == "MONTHLY":
+                if budget_vo.time_unit == "TOTAL":
                     budget_usage_vos = self.filter_budget_usages(
                         budget_id=budget_id,
                         workspace_id=workspace_id,
@@ -134,6 +134,13 @@ class BudgetUsageManager(BaseManager):
                         domain_id=domain_id,
                         date=current_month,
                     )
+
+                    if budget_usage_vos.count() == 0:
+                        _LOGGER.debug(
+                            f"[notify_budget_usage] budget_usage_vos is empty: {budget_id}"
+                        )
+                        continue
+
                     total_budget_usage = budget_usage_vos[0].cost
                     budget_limit = budget_usage_vos[0].limit
 
