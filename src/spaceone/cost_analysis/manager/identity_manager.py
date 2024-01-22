@@ -100,7 +100,7 @@ class IdentityManager(BaseManager):
 
         if self.token_type == "SYSTEM_TOKEN":
             return self.identity_conn.dispatch(
-                "ProjectGroup.list_projects", params, x_domain_id=domain_id
+                "Project.list", params, x_domain_id=domain_id
             )
         else:
             return self.identity_conn.dispatch("Project.list", params)
