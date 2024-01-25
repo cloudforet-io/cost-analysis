@@ -48,7 +48,7 @@ class EmailManager(BaseManager):
             workspace_name=cost_report_vo.workspace_name,
             report_date=cost_report_vo.issue_date,
             report_period=self.get_date_range_of_month(cost_report_vo.report_month),
-            reset_password_link=cost_report_link,
+            download_link=cost_report_link,
         )
         subject = f'[{service_name}] #{cost_report_vo.report_number} {language_map_info["cost_report"]}'
 
@@ -61,5 +61,5 @@ class EmailManager(BaseManager):
     @staticmethod
     def get_date_range_of_month(report_month: str):
         year, month = report_month.split("-")
-        first_day, last_day = calendar.monthrange(year, month)
+        first_day, last_day = calendar.monthrange(int(year), int(month))
         return f"{year}-{month}-{first_day} ~ {year}-{month}-{last_day}"

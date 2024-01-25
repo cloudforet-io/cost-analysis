@@ -24,3 +24,9 @@ class CostReportData(BaseAPI, cost_report_data_pb2_grpc.CostReportDataServicer):
         cost_report_data_svc = CostReportDataService(metadata)
         response: dict = cost_report_data_svc.analyze(params)
         return self.dict_to_message(response)
+
+    def stat(self, request, context):
+        params, metadata = self.parse_request(request, context)
+        cost_report_data_svc = CostReportDataService(metadata)
+        response: dict = cost_report_data_svc.stat(params)
+        return self.dict_to_message(response)
