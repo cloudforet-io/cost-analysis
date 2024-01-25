@@ -21,9 +21,10 @@ class IdentityManager(BaseManager):
     def get_domain_name(self, domain_id: str) -> str:
         system_token = config.get_global("TOKEN")
 
-        self.identity_conn.dispatch(
+        domain_info = self.identity_conn.dispatch(
             "Domain.get", {"domain_id": domain_id}, token=system_token
         )
+        return domain_info["name"]
 
     def check_workspace(self, workspace_id: str, domain_id: str) -> None:
         system_token = config.get_global("TOKEN")
@@ -136,3 +137,12 @@ class IdentityManager(BaseManager):
             )
         else:
             return self.identity_conn.dispatch("RoleBinding.list", params)
+
+    def grant_token(
+        self,
+        params: dict,
+    ) -> str:
+        if self.token_type == "SYSTEM_TOKEN":
+            return "system_token"
+        else:
+            return self.transaction.get_meta("token")
