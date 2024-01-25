@@ -8,7 +8,7 @@ class CostReport(MongoModel):
     status = StringField(
         max_length=20, choices=("IN_PROGRESS", "SUCCESS"), default="IN_PROGRESS"
     )
-    cost_report_number = StringField(max_length=255)
+    report_number = StringField(max_length=255)
     issue_date = StringField(max_length=10)
     report_year = StringField(max_length=10)
     report_month = StringField(max_length=10)

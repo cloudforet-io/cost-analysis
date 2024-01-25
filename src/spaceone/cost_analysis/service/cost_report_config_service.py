@@ -7,6 +7,7 @@ from spaceone.core.service.utils import *
 from spaceone.cost_analysis.manager.cost_report_config_manager import (
     CostReportConfigManager,
 )
+from spaceone.cost_analysis.service.cost_report_serivce import CostReportService
 from spaceone.cost_analysis.model.cost_report_config.request import *
 from spaceone.cost_analysis.model.cost_report_config.response import *
 
@@ -188,13 +189,18 @@ class CostReportConfigService(BaseService):
 
         self.cost_report_mgr.delete_cost_report_config_by_vo(cost_report_config_vo)
 
-    # TODO: Business Logic. Check Return Type
     @transaction(
         permission="cost-analysis:CostReportConfig.read", role_types=["DOMAIN_ADMIN"]
     )
     @convert_model
     def run(self, params: CostReportConfigRunRequest) -> None:
-        pass
+        """RUN cost report config"""
+        cost_report_config_vo = self.cost_report_mgr.get_cost_report_config(
+            params.cost_report_config_id, params.domain_id
+        )
+
+        cost_report_service = CostReportService()
+        cost_report_service.create_cost_report(cost_report_config_vo)
 
     @transaction(
         permission="cost-analysis:CostReportConfig.read",

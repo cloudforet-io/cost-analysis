@@ -13,6 +13,18 @@ class CostReportManager(BaseManager):
         super().__init__(*args, **kwargs)
         self.cost_report_model = CostReport
 
+    def create_cost_report(self, params: dict) -> CostReport:
+        def _rollback(vo: CostReport):
+            _LOGGER.info(
+                f"[create_cost_report._rollback] Delete cost_report: {vo.cost_report_id})"
+            )
+            vo.delete()
+
+        cost_report_vo = self.cost_report_model.create(params)
+        self.transaction.add_rollback(_rollback, cost_report_vo)
+
+        return cost_report_vo
+
     def get_cost_report(
         self, domain_id: str, cost_report_id: str, workspace_id: str = None
     ) -> CostReport:

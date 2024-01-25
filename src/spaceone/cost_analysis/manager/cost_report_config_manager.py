@@ -98,6 +98,9 @@ class CostReportConfigManager(BaseManager):
 
         return self.cost_report_config_model.query(**query)
 
+    def filter_cost_report_configs(self, **conditions) -> QuerySet:
+        return self.cost_report_config_model.filter(**conditions)
+
     def stat_cost_report_config(self, query: dict) -> dict:
         return self.cost_report_config_model.stat(**query)
 
