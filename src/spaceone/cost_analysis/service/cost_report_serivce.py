@@ -4,8 +4,9 @@ import datetime
 import logging
 from dateutil.relativedelta import relativedelta
 from datetime import datetime
-from typing import Tuple
+from typing import Tuple, Union
 
+import pandas as pd
 from mongoengine import QuerySet
 from spaceone.core.service import *
 from spaceone.cost_analysis.model.cost_report_config.database import CostReportConfig
@@ -16,6 +17,7 @@ from spaceone.cost_analysis.manager.cost_report_config_manager import (
 )
 from spaceone.cost_analysis.manager.cost_manager import CostManager
 from spaceone.cost_analysis.manager.cost_report_manager import CostReportManager
+from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.email_manager import EmailManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 
@@ -57,7 +59,7 @@ class CostReportService(BaseService):
             domain_id=domain_id,
             workspace_id=workspace_id,
             status="SUCCESS",
-        )
+        )[0]
 
         # Get Cost Report Config
         cost_report_config_id = cost_report_vo.cost_report_config_id
@@ -103,12 +105,21 @@ class CostReportService(BaseService):
                 email = user_info.get("email", user_id)
                 email_mgr.send_cost_report_email(user_id, email)
 
+    def get_url(self, params: CostReportGetUrlRequest) -> dict:
+        """Get cost report url"""
+
+        cost_report_vo = self.cost_report_mgr.get_cost_report(
+            params.cost_report_id, params.domain_id, params.workspace_id
+        )
+
+        return {}
+
     @transaction(
         permission="cost-analysis:CostReport.read",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @convert_model
-    def get(self, params: CostReportGetRequest) -> CostReportResponse:
+    def get(self, params: CostReportGetRequest) -> Union[CostReportResponse, dict]:
         """Get cost report"""
 
         cost_report_vo = self.cost_report_mgr.get_cost_report(
@@ -116,34 +127,6 @@ class CostReportService(BaseService):
         )
 
         return CostReportResponse(**cost_report_vo.to_dict())
-
-    def create_cost_report(self, cost_report_config_vo: CostReportConfig):
-        workspace_name_map = self._get_workspace_name_map(
-            cost_report_config_vo.domain_id
-        )
-
-        workspace_ids = [workspace_id for workspace_id in workspace_name_map.keys()]
-        current_month, last_month = self._get_current_and_last_month()
-        issue_day = self._get_issue_day(cost_report_config_vo)
-
-        if issue_day == datetime.utcnow().day:
-            self._aggregate_monthly_cost_report(
-                cost_report_config_vo,
-                workspace_name_map,
-                workspace_ids,
-                last_month,
-                issue_day,
-                "SUCCESS",
-            )
-
-        self._aggregate_monthly_cost_report(
-            cost_report_config_vo,
-            workspace_name_map,
-            workspace_ids,
-            current_month,
-            issue_day,
-            "IN_PROGRESS",
-        )
 
     @transaction(
         permission="cost-analysis:CostReport.read",
@@ -165,7 +148,9 @@ class CostReportService(BaseService):
         ]
     )
     @convert_model
-    def list(self, params: CostReportSearchQueryRequest) -> CostReportsResponse:
+    def list(
+        self, params: CostReportSearchQueryRequest
+    ) -> Union[CostReportsResponse, dict]:
         """List cost reports"""
 
         query = params.query or {}
@@ -198,27 +183,66 @@ class CostReportService(BaseService):
     def stat(self, params: CostReportDataStatQueryRequest) -> dict:
         """Stat cost reports"""
 
+        query = params.query or {}
         return self.cost_report_mgr.stat_cost_reports(params.query)
+
+    def create_cost_report(self, cost_report_config_vo: CostReportConfig):
+        # currency_mgr = CurrencyManager()
+        # currency_rate_map: dict = currency_mgr.get_currency(
+        #     cost_report_config_vo.currency
+        # )
+        domain_id = cost_report_config_vo.domain_id
+        data_source_filter = cost_report_config_vo.data_source_filter or {}
+
+        workspace_name_map, workspace_ids = self._get_workspace_name_map(domain_id)
+        data_source_currency_map, data_source_ids = self._get_data_source_currency_map(
+            data_source_filter, domain_id
+        )
+
+        current_month, last_month = self._get_current_and_last_month()
+        issue_day = self._get_issue_day(cost_report_config_vo)
+
+        if issue_day == datetime.utcnow().day:
+            self._aggregate_monthly_cost_report(
+                cost_report_config_vo,
+                workspace_name_map,
+                workspace_ids,
+                data_source_currency_map,
+                data_source_ids,
+                last_month,
+                issue_day,
+                "SUCCESS",
+            )
+
+        self._aggregate_monthly_cost_report(
+            cost_report_config_vo,
+            workspace_name_map,
+            workspace_ids,
+            data_source_currency_map,
+            data_source_ids,
+            current_month,
+            issue_day,
+            "IN_PROGRESS",
+        )
 
     def _aggregate_monthly_cost_report(
         self,
         cost_report_config_vo: CostReportConfig,
         workspace_name_map: dict,
         workspace_ids: list,
+        data_source_currency_map: dict,
+        data_source_ids: list,
         report_month: str,
         issue_day: int,
         status: str = None,
     ) -> None:
+        domain_id = cost_report_config_vo.domain_id
         currency = cost_report_config_vo.currency
         report_year = report_month.split("-")[0]
-        data_sources = cost_report_config_vo.data_source_filter.get("data_sources", [])
-        domain_id = cost_report_config_vo.domain_id
+        # collect enabled data sources
 
         query = {
-            "group_by": [
-                "workspace_id",
-                "billed_year",
-            ],
+            "group_by": ["workspace_id", "billed_year", "data_source_id"],
             "fields": {
                 "cost": {"key": "cost", "operator": "sum"},
             },
@@ -228,14 +252,11 @@ class CostReportService(BaseService):
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
                 {"k": "billed_year", "v": report_year, "o": "eq"},
                 {"k": "billed_month", "v": report_month, "o": "eq"},
+                {"k": "data_source_id", "v": data_source_ids, "o": "in"},
                 {"k": "workspace_id", "v": workspace_ids, "o": "in"},
             ],
         }
 
-        if data_sources:
-            query["filter"].append(
-                {"k": "data_source_id", "v": data_sources, "o": "in"}
-            )
         _LOGGER.debug(f"[aggregate_monthly_cost_report] query: {query}")
 
         response = self.cost_mgr.analyze_monthly_costs(
@@ -243,8 +264,12 @@ class CostReportService(BaseService):
         )
         results = response.get("results", [])
         for aggregated_cost_report in results:
-            # todo: convert currency
-            aggregated_cost_report["cost"] = {"KRW": aggregated_cost_report.pop("cost")}
+            ag_cost_report_currency = data_source_currency_map.get(
+                aggregated_cost_report.pop("data_source_id")
+            )
+            aggregated_cost_report["cost"] = {
+                ag_cost_report_currency: aggregated_cost_report.pop("cost")
+            }
             aggregated_cost_report["status"] = status
             aggregated_cost_report["currency"] = currency
             aggregated_cost_report["report_number"] = self.generate_report_number(
@@ -263,6 +288,11 @@ class CostReportService(BaseService):
                 "cost_report_config_id"
             ] = cost_report_config_vo.cost_report_config_id
             aggregated_cost_report["domain_id"] = cost_report_config_vo.domain_id
+
+        aggregated_cost_report_results = self._aggregate_result_by_currency(results)
+
+        for aggregated_cost_report in aggregated_cost_report_results:
+            # todo: apply currency cost
             self.cost_report_mgr.create_cost_report(aggregated_cost_report)
 
         _LOGGER.debug(
@@ -319,13 +349,56 @@ class CostReportService(BaseService):
         return f"CostReport_{date_object.strftime('%y%m%d%H%M')}"
 
     @staticmethod
-    def _get_workspace_name_map(domain_id: str) -> dict:
+    def _get_workspace_name_map(domain_id: str) -> Tuple[dict, list]:
         identity_mgr = IdentityManager()
         workspace_name_map = {}
         workspaces = identity_mgr.list_workspaces(
             {"query": {"filter": [{"k": "state", "v": "ENABLED", "o": "eq"}]}},
             domain_id,
         )
+        workspace_ids = []
         for workspace in workspaces.get("results", []):
             workspace_name_map[workspace["workspace_id"]] = workspace["name"]
-        return workspace_name_map
+            workspace_ids.append(workspace["workspace_id"])
+        return workspace_name_map, workspace_ids
+
+    @staticmethod
+    def _get_data_source_currency_map(
+        data_source_filter: dict, domain_id: str
+    ) -> Tuple[dict, list]:
+        data_source_currency_map = {}
+        data_source_mgr = DataSourceManager()
+
+        query = {"filter": [{"k": "domain_id", "v": domain_id, "o": "eq"}]}
+        if data_sources := data_source_filter.get("data_sources"):
+            query["filter"].append(
+                {"k": "data_source_id", "v": data_sources, "o": "in"}
+            )
+
+        if data_source_state := data_source_filter.get("state", "ENABLED"):
+            query["filter"].append({"k": "state", "v": data_source_state, "o": "eq"})
+
+        _LOGGER.debug(f"[get_data_source_currency_map] query: {query}")
+
+        data_source_vos, total_count = data_source_mgr.list_data_sources(query)
+        data_source_ids = []
+        for data_source_vo in data_source_vos:
+            data_source_currency_map[
+                data_source_vo.data_source_id
+            ] = data_source_vo.plugin_info["metadata"]["currency"]
+            data_source_ids.append(data_source_vo.data_source_id)
+
+        return data_source_currency_map, data_source_ids
+
+    @staticmethod
+    def _aggregate_result_by_currency(results: list) -> list:
+        workspace_result_map = {}
+        for result in results:
+            workspace_id = result["workspace_id"]
+            if workspace_id in workspace_result_map:
+                for currency, cost in result["cost"].items():
+                    workspace_result_map[workspace_id]["cost"][currency] += cost
+            else:
+                workspace_result_map[workspace_id] = result.copy()
+
+        return [workspace_result for workspace_result in workspace_result_map.values()]
