@@ -1,3 +1,6 @@
+# Email Settings
+EMAIL_CONSOLE_DOMAIN = ""
+
 DATABASE_AUTO_CREATE_INDEX = True
 DATABASES = {
     "default": {
@@ -54,6 +57,13 @@ CONNECTORS = {
         },
     },
     "DataSourcePluginConnector": {},
+    "SMTPConnector": {
+        # "host": "smtp.mail.com",
+        # "port": "1234",
+        # "user": "cloudforet",
+        # "password": "1234",
+        # "from_email": "support@cloudforet.com",
+    },
 }
 
 # Scheduler Settings

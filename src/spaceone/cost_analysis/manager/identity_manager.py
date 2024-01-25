@@ -42,6 +42,14 @@ class IdentityManager(BaseManager):
             _LOGGER.error(f"[get_project_name] API Error: {e}")
             return workspace_id
 
+    def list_workspace_users(self, params: dict, domain_id: str) -> dict:
+        if self.token_type == "SYSTEM_TOKEN":
+            return self.identity_conn.dispatch(
+                "WorkspaceUser.list", params, x_domain_id=domain_id
+            )
+        else:
+            return self.identity_conn.dispatch("WorkspaceUser.list", params)
+
     def list_service_accounts(self, query: dict, domain_id: str) -> dict:
         if self.token_type == "SYSTEM_TOKEN":
             return self.identity_conn.dispatch(
@@ -104,3 +112,11 @@ class IdentityManager(BaseManager):
             )
         else:
             return self.identity_conn.dispatch("Project.list", params)
+
+    def list_role_bindings(self, params: dict, domain_id: str) -> dict:
+        if self.token_type == "SYSTEM_TOKEN":
+            return self.identity_conn.dispatch(
+                "RoleBinding.list", params, x_domain_id=domain_id
+            )
+        else:
+            return self.identity_conn.dispatch("RoleBinding.list", params)
