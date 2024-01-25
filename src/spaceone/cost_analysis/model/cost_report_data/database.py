@@ -24,12 +24,9 @@ class CostReportData(MongoModel):
         max_length=40, default=None, null=True
     )  # todo workspace_id required
     domain_id = StringField(max_length=40)
-    created_at = DateTimeField(auto_now_add=True)
 
     meta = {
-        "updatable_fields": [
-            "created_at",
-        ],
+        "updatable_fields": [],
         "minimal_fields": [
             "cost_report_config_id",
             "cost_report_data_id",
@@ -37,5 +34,10 @@ class CostReportData(MongoModel):
             "workspace_id",
         ],
         "ordering": ["is_confirmed"],
-        "indexes": ["domain_id", "cost_report_data_id", "data_source_id"],
+        "indexes": [
+            "domain_id",
+            "-report_year",
+            "cost_report_data_id",
+            "data_source_id",
+        ],
     }

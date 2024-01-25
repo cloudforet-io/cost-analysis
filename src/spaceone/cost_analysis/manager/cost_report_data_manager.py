@@ -47,7 +47,14 @@ class CostReportDataManager(BaseManager):
     def list_cost_reports_data(self, query: dict) -> Tuple[QuerySet, int]:
         return self.cost_report_data_model.query(**query)
 
-    def analyze_cost_reports_data(self, query: dict) -> dict:
+    def analyze_cost_reports_data(
+        self, query: dict, target="SECONDARY_PREFERRED"
+    ) -> dict:
+        query["target"] = target
+        query["date_field"] = "report_month"
+        query["date_field_format"] = "%Y-%m"
+        _LOGGER.debug(f"[analyze_cost_reports_data] query: {query}")
+
         return self.cost_report_data_model.analyze(**query)
 
     def stat_cost_reports_data(self, query) -> dict:

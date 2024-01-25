@@ -187,16 +187,12 @@ class CostReportService(BaseService):
         return self.cost_report_mgr.stat_cost_reports(params.query)
 
     def create_cost_report(self, cost_report_config_vo: CostReportConfig):
-        # currency_mgr = CurrencyManager()
-        # currency_rate_map: dict = currency_mgr.get_currency(
-        #     cost_report_config_vo.currency
-        # )
         domain_id = cost_report_config_vo.domain_id
         data_source_filter = cost_report_config_vo.data_source_filter or {}
 
         workspace_name_map, workspace_ids = self._get_workspace_name_map(domain_id)
         data_source_currency_map, data_source_ids = self._get_data_source_currency_map(
-            data_source_filter, domain_id
+            data_source_filter, workspace_ids, domain_id
         )
 
         current_month, last_month = self._get_current_and_last_month()
@@ -275,11 +271,11 @@ class CostReportService(BaseService):
             aggregated_cost_report["report_number"] = self.generate_report_number(
                 report_month, issue_day
             )
+            aggregated_cost_report["issue_date"] = f"{report_month}-{issue_day}"
             aggregated_cost_report["report_month"] = report_month
             aggregated_cost_report["report_year"] = aggregated_cost_report.pop(
                 "billed_year"
             )
-            aggregated_cost_report["issue_date"] = report_month
             aggregated_cost_report["workspace_name"] = workspace_name_map.get(
                 aggregated_cost_report["workspace_id"], "Unknown"
             )
@@ -296,7 +292,7 @@ class CostReportService(BaseService):
             self.cost_report_mgr.create_cost_report(aggregated_cost_report)
 
         _LOGGER.debug(
-            f"[aggregate_monthly_cost_report] create cost report ({report_month}) (count = {len(results)})"
+            f"[aggregate_monthly_cost_report] create cost report ({report_month}) (count = {len(aggregated_cost_report_results)})"
         )
         self._delete_old_cost_reports(report_month, domain_id)
 
@@ -364,12 +360,17 @@ class CostReportService(BaseService):
 
     @staticmethod
     def _get_data_source_currency_map(
-        data_source_filter: dict, domain_id: str
+        data_source_filter: dict, workspace_ids: list, domain_id: str
     ) -> Tuple[dict, list]:
         data_source_currency_map = {}
         data_source_mgr = DataSourceManager()
 
-        query = {"filter": [{"k": "domain_id", "v": domain_id, "o": "eq"}]}
+        query = {
+            "filter": [
+                {"k": "domain_id", "v": domain_id, "o": "eq"},
+                {"k": "workspace_id", "v": workspace_ids, "o": "in"},
+            ]
+        }
         if data_sources := data_source_filter.get("data_sources"):
             query["filter"].append(
                 {"k": "data_source_id", "v": data_sources, "o": "in"}

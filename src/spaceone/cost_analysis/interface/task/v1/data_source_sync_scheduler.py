@@ -67,18 +67,31 @@ class DataSourceSyncScheduler(HourlyScheduler):
                 "stages": [
                     {
                         "locator": "SERVICE",
-                        "name": "CostReportConfigService",
+                        "name": "CostReportService",
                         "metadata": {"token": self._token},
                         "method": "create_cost_report_by_cost_report_config",
                         "params": {"params": {}},
-                    }
+                    },
+                    {
+                        "locator": "SERVICE",
+                        "name": "CostReportDataService",
+                        "metadata": {"token": self._token},
+                        "method": "create_cost_report_data_by_cost_report_config",
+                        "params": {"params": {}},
+                    },
                 ],
             }
+            print(
+                f"{utils.datetime_to_iso8601(datetime.utcnow())} [INFO] [create_task] create_cost_report_by_cost_report_config => START"
+            )
             print(
                 f"{utils.datetime_to_iso8601(datetime.utcnow())} [INFO] [create_task] create_cost_report_data_by_cost_report_config => START"
             )
             return [stp]
         else:
+            print(
+                f"{utils.datetime_to_iso8601(datetime.utcnow())} [INFO] [create_task] create_cost_report_by_cost_report_config => SKIP"
+            )
             print(
                 f"{utils.datetime_to_iso8601(datetime.utcnow())} [INFO] [create_task] create_cost_report_data_by_cost_report_config => SKIP"
             )
