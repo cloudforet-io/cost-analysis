@@ -44,13 +44,13 @@ class EmailManager(BaseManager):
 
         email_contents = template.render(
             user_name=user_id,
-            report_number=cost_report_vo.cost_report_number,
+            report_number=cost_report_vo.report_number,
             workspace_name=cost_report_vo.workspace_name,
             report_date=cost_report_vo.issue_date,
             report_period=self.get_date_range_of_month(cost_report_vo.report_month),
             reset_password_link=cost_report_link,
         )
-        subject = f'[{service_name}] #{cost_report_vo.cost_report_number} {language_map_info["cost_report"]}'
+        subject = f'[{service_name}] #{cost_report_vo.report_number} {language_map_info["cost_report"]}'
 
         self.smtp_connector.send_email(email, subject, email_contents)
 

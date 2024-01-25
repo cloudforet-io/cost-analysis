@@ -9,7 +9,7 @@ class CostReportResponse(BaseModel):
     cost_report_id: Union[str, None] = None
     cost: Union[dict, None] = None
     status: Union[Status, None] = None
-    cost_report_number: Union[str, None] = None
+    report_number: Union[str, None] = None
     currency: Union[str, None] = None
     issue_date: Union[str, None] = None
     report_year: Union[str, None] = None

@@ -107,7 +107,7 @@ class BudgetUsageManager(BaseManager):
         budget_id = budget_vo.budget_id
         workspace_id = budget_vo.workspace_id
         domain_id = budget_vo.domain_id
-        current_month = datetime.now().strftime("%Y-%m")
+        current_month = datetime.utcnow().strftime("%Y-%m")
         updated_notifications = []
         is_changed = False
         for notification in budget_vo.notifications:
