@@ -307,12 +307,6 @@ class CostReportService(BaseService):
         cost_reports_vos.delete()
 
     def send_cost_report(self, cost_report_vo: CostReport) -> None:
-        issue_date = cost_report_vo.issue_date
-        if issue_date != datetime.utcnow().strftime("%Y-%m-%d"):
-            _LOGGER.debug(
-                f"[send_cost_report] skip send cost report ({cost_report_vo.workspace_id}/{cost_report_vo.cost_report_id})"
-            )
-            return
         domain_id = cost_report_vo.domain_id
         workspace_id = cost_report_vo.workspace_id
 
