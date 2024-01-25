@@ -350,9 +350,9 @@ class CostReportService(BaseService):
                 params={"workspace_id": workspace_id, "state": "ENABLED"},
                 domain_id=domain_id,
             )
-            # sso_access_token = self._get_temporary_sso_access_token(domain_id)
+            sso_access_token = self._get_temporary_sso_access_token(domain_id)
             cost_report_link = self._get_console_cost_report_url(
-                domain_id, cost_report_vo.cost_report_id, "token"
+                domain_id, cost_report_vo.cost_report_id, sso_access_token
             )
             for user_info in users_info.get("results", []):
                 user_id = user_info["user_id"]
@@ -473,7 +473,8 @@ class CostReportService(BaseService):
         params = {
             "grant_type": "SYSTEM_TOKEN",
             "scope": "SYSTEM",
+            "token": system_token,
         }
         # todo : make temporary token
-        token_info = identity_mgr.grant_token({"token_type"}, token=system_token)
-        return token_info["access_token"]
+        token = identity_mgr.grant_token(params)
+        return token
