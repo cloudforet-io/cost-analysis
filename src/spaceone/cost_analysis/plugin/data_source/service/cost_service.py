@@ -1,6 +1,7 @@
 import logging
 from typing import Generator, Union
-from spaceone.core.service import BaseService, transaction, convert_model
+from spaceone.core.service import BaseService, transaction
+from spaceone.core.service.utils import convert_model
 from spaceone.cost_analysis.plugin.data_source.model import (CostGetDataRequest, CostsResponse)
 
 _LOGGER = logging.getLogger(__name__)
