@@ -51,52 +51,6 @@ class CostReportDataService(BaseService):
         [
             "cost_report_config_id",
             "cost_report_data_id",
-            "workspace_id",
-            "domain_id",
-        ]
-    )
-    @convert_model
-    def stat(self, params: CostReportDataStatQueryRequest) -> dict:
-        """Analyze cost report data"""
-
-        query = params.query or {}
-        return self.cost_report_data_mgr.stat_cost_reports_data(query)
-
-    @transaction(
-        permission="cost-analysis:CostReportData.read",
-        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
-    )
-    @append_query_filter(
-        [
-            "product",
-            "provider",
-            "is_confirmed",
-            "cost_report_config_id",
-            "cost_report_data_id",
-            "data_source_id",
-            "workspace_id",
-            "domain_id",
-        ]
-    )
-    @append_keyword_filter(
-        ["provider", "product", "workspace_name", "project_name", "cost_report_data_id"]
-    )
-    @set_query_page_limit(1000)
-    @convert_model
-    def analyze(self, params: CostReportDataAnalyzeQueryRequest) -> dict:
-        """Analyze cost report data"""
-
-        query = params.query or {}
-        return self.cost_report_data_mgr.analyze_cost_reports_data(query)
-
-    @transaction(
-        permission="cost-analysis:CostReportData.read",
-        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
-    )
-    @append_query_filter(
-        [
-            "cost_report_config_id",
-            "cost_report_data_id",
             "product",
             "provider",
             "is_confirmed",
@@ -125,6 +79,55 @@ class CostReportDataService(BaseService):
         return CostReportsDataResponse(
             results=cost_reports_data_info, total_count=total_count
         )
+
+    @transaction(
+        permission="cost-analysis:CostReportData.read",
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
+    )
+    @append_query_filter(
+        [
+            "product",
+            "provider",
+            "is_confirmed",
+            "cost_report_config_id",
+            "cost_report_data_id",
+            "data_source_id",
+            "workspace_id",
+            "domain_id",
+        ]
+    )
+    @append_keyword_filter(
+        ["provider", "product", "workspace_name", "project_name", "cost_report_data_id"]
+    )
+    @set_query_page_limit(1000)
+    @convert_model
+    def analyze(self, params: CostReportDataAnalyzeQueryRequest) -> dict:
+        """Analyze cost report data"""
+
+        query = params.query or {}
+
+        return self.cost_report_data_mgr.analyze_cost_reports_data(
+            query, target="PRIMARY"
+        )
+
+    @transaction(
+        permission="cost-analysis:CostReportData.read",
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
+    )
+    @append_query_filter(
+        [
+            "cost_report_config_id",
+            "cost_report_data_id",
+            "workspace_id",
+            "domain_id",
+        ]
+    )
+    @convert_model
+    def stat(self, params: CostReportDataStatQueryRequest) -> dict:
+        """Analyze cost report data"""
+
+        query = params.query or {}
+        return self.cost_report_data_mgr.stat_cost_reports_data(query)
 
     @staticmethod
     def _get_all_cost_report_configs() -> QuerySet:

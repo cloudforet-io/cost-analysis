@@ -202,11 +202,11 @@ class CostReportConfigService(BaseService):
             params.cost_report_config_id, params.domain_id
         )
 
-        cost_report_service = CostReportService()
-        cost_report_service.create_cost_report(cost_report_config_vo)
-
         cost_report_data_service = CostReportDataService()
         cost_report_data_service.create_cost_report_data(cost_report_config_vo)
+
+        cost_report_service = CostReportService()
+        cost_report_service.create_cost_report(cost_report_config_vo)
 
     @transaction(
         permission="cost-analysis:CostReportConfig.read",
@@ -228,7 +228,7 @@ class CostReportConfigService(BaseService):
             CostReportConfigResponse:
         """
         cost_report_config_vo = self.cost_report_mgr.get_cost_report_config(
-            params.cost_report_config_id, params.domain_id, params.workspace_id
+            params.cost_report_config_id, params.domain_id
         )
 
         return CostReportConfigResponse(**cost_report_config_vo.to_dict())
