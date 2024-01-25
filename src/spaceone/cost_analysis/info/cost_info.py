@@ -19,6 +19,7 @@ def CostInfo(cost_vo: Cost, minimal=False):
         "data_source_id": cost_vo.data_source_id,
         "workspace_id": cost_vo.workspace_id,
         "billed_date": cost_vo.billed_date,
+        "data": change_struct_type(cost_vo.data),
     }
 
     if not minimal:

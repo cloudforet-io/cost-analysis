@@ -1,11 +1,8 @@
+from typing import Union
+
+from spaceone.core.error import *
 from spaceone.core.service import *
 from spaceone.core.service.utils import *
-from spaceone.core.handler import (
-    authentication_handler,
-    authorization_handler,
-    mutation_handler,
-    event_handler,
-)
 
 from spaceone.cost_analysis.manager.cost_report_config_manager import (
     CostReportConfigManager,
@@ -50,9 +47,7 @@ class CostReportConfigService(BaseService):
             if not params.issue_day:
                 raise ERROR_REQUIRED_PARAMETER(key="issue_day")
 
-        cost_report_vo = self.cost_report_mgr.create_cost_report_config(
-            params.to_dict()
-        )
+        cost_report_vo = self.cost_report_mgr.create_cost_report_config(params.dict())
 
         return CostReportConfigResponse(**cost_report_vo.to_dict())
 
@@ -83,7 +78,7 @@ class CostReportConfigService(BaseService):
         )
 
         cost_report_config_vo = self.cost_report_mgr.update_cost_report_config_by_vo(
-            params.to_dict(exclude_unset=True), cost_report_config_vo
+            params.dict(exclude_unset=True), cost_report_config_vo
         )
 
         return CostReportConfigResponse(**cost_report_config_vo.to_dict())
@@ -112,7 +107,7 @@ class CostReportConfigService(BaseService):
 
         cost_report_config_vo = (
             self.cost_report_mgr.update_recipients_cost_report_config(
-                params.to_dict(exclude_unset=True), cost_report_config_vo
+                params.dict(exclude_unset=True), cost_report_config_vo
             )
         )
 
@@ -253,7 +248,7 @@ class CostReportConfigService(BaseService):
         (
             cost_report_config_vos,
             total_count,
-        ) = self.cost_report_mgr.list_cost_report_config(query)
+        ) = self.cost_report_mgr.list_cost_report_config(query, params.domain_id)
 
         cost_report_configs_info = [
             cost_report_config_vo.to_dict()

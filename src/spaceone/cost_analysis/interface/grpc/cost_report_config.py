@@ -9,7 +9,7 @@ from spaceone.cost_analysis.service.cost_report_config_service import (
 )
 
 
-class CostReportConfig(BaseAPI, cost_report_config_pb2, cost_report_config_pb2_grpc):
+class CostReportConfig(BaseAPI, cost_report_config_pb2_grpc.CostReportConfigServicer):
     pb2 = cost_report_config_pb2
     pb2_grpc = cost_report_config_pb2_grpc
 
