@@ -131,7 +131,7 @@ class CostReportService(BaseService):
     )
     @convert_model
     def list(
-            self, params: CostReportSearchQueryRequest
+        self, params: CostReportSearchQueryRequest
     ) -> Union[CostReportsResponse, dict]:
         """List cost reports"""
 
@@ -208,15 +208,15 @@ class CostReportService(BaseService):
         )
 
     def _aggregate_monthly_cost_report(
-            self,
-            cost_report_config_vo: CostReportConfig,
-            workspace_name_map: dict,
-            workspace_ids: list,
-            data_source_currency_map: dict,
-            data_source_ids: list,
-            report_month: str,
-            issue_day: int,
-            status: str = None,
+        self,
+        cost_report_config_vo: CostReportConfig,
+        workspace_name_map: dict,
+        workspace_ids: list,
+        data_source_currency_map: dict,
+        data_source_ids: list,
+        report_month: str,
+        issue_day: int,
+        status: str = None,
     ) -> None:
         domain_id = cost_report_config_vo.domain_id
         currency = cost_report_config_vo.currency
@@ -362,7 +362,7 @@ class CostReportService(BaseService):
             )
 
     def _get_console_cost_report_url(
-            self, domain_id: str, cost_report_id: str, token: str
+        self, domain_id: str, cost_report_id: str, token: str
     ) -> str:
         domain_name = self._get_domain_name(domain_id)
 
@@ -413,7 +413,7 @@ class CostReportService(BaseService):
 
     @staticmethod
     def _get_data_source_currency_map(
-            data_source_filter: dict, workspace_ids: list, domain_id: str
+        data_source_filter: dict, workspace_ids: list, domain_id: str
     ) -> Tuple[dict, list]:
         data_source_currency_map = {}
         data_source_mgr = DataSourceManager()
