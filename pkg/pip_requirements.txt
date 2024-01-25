@@ -1,3 +1,4 @@
 spaceone-api
 pandas
 numpy
+jinja2
