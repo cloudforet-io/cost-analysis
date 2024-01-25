@@ -62,17 +62,15 @@ class CostReportService(BaseService):
         domain_id = params.domain_id
         workspace_id = params.workspace_id
 
-        query = {
-            "filter": [
-                {"k": "cost_report_id", "v": params.cost_report_id, "o": "eq"},
-                {"k": "domain_id", "v": domain_id, "o": "eq"},
-                # {"k": "status", "v": "SUCCESS", "o": "eq"},
-            ]
+        conditions = {
+            "cost_report_id": params.cost_report_id,
+            "domain_id": domain_id,
+            # {"k": "status", "v": "SUCCESS", "o": "eq"},
         }
         if workspace_id is not None:
-            query["filter"].append({"k": "workspace_id", "v": workspace_id, "o": "eq"})
+            conditions.update({"workspace_id": workspace_id})
 
-        cost_report_vos, total_count = self.cost_report_mgr.list_cost_reports(query)
+        cost_report_vos = self.cost_report_mgr.filter_cost_reports(**conditions)
         self.send_cost_report(cost_report_vos[0])
 
     @transaction(
@@ -340,8 +338,6 @@ class CostReportService(BaseService):
                 for role_binding_info in role_bindings_info.get("results", [])
             ]
             workspace_ids = list(set(workspace_ids))
-        else:
-            workspace_ids.append(workspace_id)
 
         # list workspace owner users
         email_mgr = EmailManager()
