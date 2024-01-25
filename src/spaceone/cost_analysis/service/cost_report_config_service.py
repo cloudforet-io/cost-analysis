@@ -8,6 +8,9 @@ from spaceone.cost_analysis.manager.cost_report_config_manager import (
     CostReportConfigManager,
 )
 from spaceone.cost_analysis.service.cost_report_serivce import CostReportService
+from spaceone.cost_analysis.service.cost_report_data_service import (
+    CostReportDataService,
+)
 from spaceone.cost_analysis.model.cost_report_config.request import *
 from spaceone.cost_analysis.model.cost_report_config.response import *
 
@@ -201,6 +204,9 @@ class CostReportConfigService(BaseService):
 
         cost_report_service = CostReportService()
         cost_report_service.create_cost_report(cost_report_config_vo)
+
+        cost_report_data_service = CostReportDataService()
+        cost_report_data_service.create_cost_report_data(cost_report_config_vo)
 
     @transaction(
         permission="cost-analysis:CostReportConfig.read",
