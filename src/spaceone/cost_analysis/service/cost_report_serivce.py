@@ -62,17 +62,15 @@ class CostReportService(BaseService):
         domain_id = params.domain_id
         workspace_id = params.workspace_id
 
-        query = {
-            "filter": [
-                {"k": "cost_report_id", "v": params.cost_report_id, "o": "eq"},
-                {"k": "domain_id", "v": domain_id, "o": "eq"},
-                # {"k": "status", "v": "SUCCESS", "o": "eq"},
-            ]
+        conditions = {
+            "cost_report_id": params.cost_report_id,
+            "domain_id": domain_id,
+            # {"k": "status", "v": "SUCCESS", "o": "eq"},
         }
         if workspace_id is not None:
-            query["filter"].append({"k": "workspace_id", "v": workspace_id, "o": "eq"})
+            conditions.update({"workspace_id": workspace_id})
 
-        cost_report_vos, total_count = self.cost_report_mgr.list_cost_reports(query)
+        cost_report_vos = self.cost_report_mgr.filter_cost_reports(**conditions)
         self.send_cost_report(cost_report_vos[0])
 
     @transaction(
@@ -133,7 +131,7 @@ class CostReportService(BaseService):
     )
     @convert_model
     def list(
-        self, params: CostReportSearchQueryRequest
+            self, params: CostReportSearchQueryRequest
     ) -> Union[CostReportsResponse, dict]:
         """List cost reports"""
 
@@ -210,15 +208,15 @@ class CostReportService(BaseService):
         )
 
     def _aggregate_monthly_cost_report(
-        self,
-        cost_report_config_vo: CostReportConfig,
-        workspace_name_map: dict,
-        workspace_ids: list,
-        data_source_currency_map: dict,
-        data_source_ids: list,
-        report_month: str,
-        issue_day: int,
-        status: str = None,
+            self,
+            cost_report_config_vo: CostReportConfig,
+            workspace_name_map: dict,
+            workspace_ids: list,
+            data_source_currency_map: dict,
+            data_source_ids: list,
+            report_month: str,
+            issue_day: int,
+            status: str = None,
     ) -> None:
         domain_id = cost_report_config_vo.domain_id
         currency = cost_report_config_vo.currency
@@ -340,8 +338,6 @@ class CostReportService(BaseService):
                 for role_binding_info in role_bindings_info.get("results", [])
             ]
             workspace_ids = list(set(workspace_ids))
-        else:
-            workspace_ids.append(workspace_id)
 
         # list workspace owner users
         email_mgr = EmailManager()
@@ -366,7 +362,7 @@ class CostReportService(BaseService):
             )
 
     def _get_console_cost_report_url(
-        self, domain_id: str, cost_report_id: str, token: str
+            self, domain_id: str, cost_report_id: str, token: str
     ) -> str:
         domain_name = self._get_domain_name(domain_id)
 
@@ -417,7 +413,7 @@ class CostReportService(BaseService):
 
     @staticmethod
     def _get_data_source_currency_map(
-        data_source_filter: dict, workspace_ids: list, domain_id: str
+            data_source_filter: dict, workspace_ids: list, domain_id: str
     ) -> Tuple[dict, list]:
         data_source_currency_map = {}
         data_source_mgr = DataSourceManager()

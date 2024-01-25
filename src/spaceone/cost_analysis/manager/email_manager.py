@@ -61,5 +61,5 @@ class EmailManager(BaseManager):
     @staticmethod
     def get_date_range_of_month(report_month: str):
         year, month = report_month.split("-")
-        first_day, last_day = calendar.monthrange(int(year), int(month))
-        return f"{year}-{month}-{first_day} ~ {year}-{month}-{last_day}"
+        _, last_day = calendar.monthrange(int(year), int(month))
+        return f"{year}-{month}-01 ~ {year}-{month}-{last_day}"
