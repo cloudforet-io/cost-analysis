@@ -9,8 +9,6 @@ from spaceone.core.manager import BaseManager
 from spaceone.cost_analysis.connector.smtp_connector import SMTPConnector
 
 from spaceone.cost_analysis.model.cost_report.database import CostReport
-from spaceone.identity.model.domain.database import Domain
-from spaceone.identity.model.user.database import User
 
 _LOGGER = logging.getLogger(__name__)
 

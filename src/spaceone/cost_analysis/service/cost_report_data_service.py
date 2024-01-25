@@ -49,7 +49,9 @@ class CostReportDataService(BaseService):
     )
     @append_keyword_filter(["product", "cost_report_data_id"])
     @convert_model
-    def list(self, params: CostReportDataSearchQueryRequest) -> CostReportsDataResponse:
+    def list(
+        self, params: CostReportDataSearchQueryRequest
+    ) -> Union[CostReportsDataResponse, dict]:
         """List cost report data"""
 
         query = params.query or {}

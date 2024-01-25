@@ -37,5 +37,5 @@ class CostReportData(MongoModel):
             "workspace_id",
         ],
         "ordering": ["is_confirmed"],
-        "indexes": ["domain_id", "cost_report_data_id", "", "data_source_id"],
+        "indexes": ["domain_id", "cost_report_data_id", "data_source_id"],
     }

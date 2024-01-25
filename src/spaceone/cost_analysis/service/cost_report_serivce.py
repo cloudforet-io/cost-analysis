@@ -2,17 +2,16 @@ import copy
 import calendar
 import datetime
 import logging
-from datetime import timedelta, datetime
-from dateutil.relativedelta import relativedelta
+from datetime import datetime
 
 from spaceone.core.service import *
-from spaceone.core import utils
-from spaceone.cost_analysis.error import *
-from spaceone.cost_analysis.model.job_task_model import JobTask
 from spaceone.cost_analysis.model.cost_report.database import CostReport
-from spaceone.cost_analysis.model.cost_report_config.database import CostReportsConfig
+from spaceone.cost_analysis.model.cost_report_config.database import CostReportConfig
 from spaceone.cost_analysis.model.cost_report.request import *
 from spaceone.cost_analysis.model.cost_report.response import *
+from spaceone.cost_analysis.manager.cost_report_config_manager import (
+    CostReportConfigManager,
+)
 from spaceone.cost_analysis.manager.cost_manager import CostManager
 from spaceone.cost_analysis.manager.cost_report_manager import CostReportManager
 from spaceone.cost_analysis.manager.email_manager import EmailManager
@@ -201,8 +200,8 @@ class CostReportService(BaseService):
 
         response = self.cost_mgr.analyze_costs(query, domain_id, target="PRIMARY")
 
-    def _get_all_cost_report_configs(self) -> CostReportsConfig:
-        return self.cost_report_config_mgr.list_cost_report_configs(state="ENABLED")
+    def _get_all_cost_report_configs(self) -> CostReportConfig:
+        return self.cost_report_config_mgr.list_cost_reports_config(state="ENABLED")
 
     def _get_report_month(self):
         return datetime.now().strftime("%Y-%m")
