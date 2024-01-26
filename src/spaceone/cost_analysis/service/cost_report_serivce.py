@@ -10,6 +10,7 @@ import pandas as pd
 from mongoengine import QuerySet
 from spaceone.core import config
 from spaceone.core.service import *
+
 from spaceone.cost_analysis.model.cost_report.database import CostReport
 from spaceone.cost_analysis.model.cost_report_config.database import CostReportConfig
 from spaceone.cost_analysis.model.cost_report.request import *
@@ -19,6 +20,7 @@ from spaceone.cost_analysis.manager.cost_report_config_manager import (
 )
 from spaceone.cost_analysis.manager.cost_manager import CostManager
 from spaceone.cost_analysis.manager.cost_report_manager import CostReportManager
+from spaceone.cost_analysis.manager.currency_manager import CurrencyManager
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.email_manager import EmailManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
@@ -273,12 +275,16 @@ class CostReportService(BaseService):
 
         aggregated_cost_report_results = self._aggregate_result_by_currency(results)
 
+        currency_mgr = CurrencyManager()
         for aggregated_cost_report in aggregated_cost_report_results:
-            # todo: apply currency cost
+            aggregated_cost_report = currency_mgr.convert_exchange_rate(
+                aggregated_cost_report
+            )
             self.cost_report_mgr.create_cost_report(aggregated_cost_report)
 
         _LOGGER.debug(
-            f"[aggregate_monthly_cost_report] create cost report ({report_month}) (count = {len(aggregated_cost_report_results)})"
+            f"[aggregate_monthly_cost_report] create cost report ({report_month}) \
+            (count = {len(aggregated_cost_report_results)})"
         )
         self._delete_old_cost_reports(report_month, domain_id)
 
@@ -358,7 +364,8 @@ class CostReportService(BaseService):
                     user_id, email, cost_report_link, language, cost_report_vo
                 )
             _LOGGER.debug(
-                f"[send_cost_report] send cost report ({workspace_id}/{cost_report_vo.cost_report_id}) to {users_info.get('total_count', 0)} users"
+                f"[send_cost_report] send cost report ({workspace_id}/{cost_report_vo.cost_report_id}) to \
+                {users_info.get('total_count', 0)} users"
             )
 
     def _get_console_cost_report_url(
