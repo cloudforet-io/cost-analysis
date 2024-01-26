@@ -26,8 +26,7 @@ class CostReportDataSearchQueryRequest(BaseModel):
 class CostReportDataAnalyzeQueryRequest(BaseModel):
     query: Union[dict, None] = None
     cost_report_data_id: Union[str, None] = None
-    report_year: Union[str, None] = None
-    report_month: Union[str, None] = None
+    is_confirmed: Union[bool, None] = None
     product: Union[str, None] = None
     provider: Union[str, None] = None
     data_source_id: Union[str, None] = None

@@ -116,7 +116,7 @@ class CostReportService(BaseService):
     )
     @append_query_filter(
         [
-            "state",
+            "status",
             "cost_report_id",
             "workspace_id",
             "domain_id",
@@ -126,7 +126,8 @@ class CostReportService(BaseService):
         [
             "report_number",
             "workspace_name",
-            "report_year" "report_month",
+            "report_year",
+            "report_month",
         ]
     )
     @convert_model
@@ -137,9 +138,8 @@ class CostReportService(BaseService):
 
         query = params.query or {}
 
-        # todo: temporary code
-        # if params.status is None:
-        #     query["filter"].append({"k": "status", "v": "SUCCESS", "o": "eq"})
+        if params.status is None:
+            query["filter"].append({"k": "status", "v": "SUCCESS", "o": "eq"})
 
         cost_report_vos, total_count = self.cost_report_mgr.list_cost_reports(query)
 
@@ -170,7 +170,7 @@ class CostReportService(BaseService):
         """Stat cost reports"""
 
         query = params.query or {}
-        return self.cost_report_mgr.stat_cost_reports(params.query)
+        return self.cost_report_mgr.stat_cost_reports(query)
 
     def create_cost_report(self, cost_report_config_vo: CostReportConfig):
         domain_id = cost_report_config_vo.domain_id
