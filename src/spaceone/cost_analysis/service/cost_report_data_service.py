@@ -15,6 +15,7 @@ from spaceone.cost_analysis.manager.cost_report_data_manager import (
 from spaceone.cost_analysis.manager.cost_report_config_manager import (
     CostReportConfigManager,
 )
+from spaceone.cost_analysis.manager.currency_manager import CurrencyManager
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 from spaceone.cost_analysis.model.cost_report_data.request import *
@@ -224,6 +225,7 @@ class CostReportDataService(BaseService):
         )
 
         results = response.get("results", [])
+        currency_mgr = CurrencyManager()
         for aggregated_cost_report in results:
             ag_cost_report_currency = data_source_currency_map.get(
                 aggregated_cost_report.pop("data_source_id")
@@ -249,12 +251,15 @@ class CostReportDataService(BaseService):
                 aggregated_cost_report["service_account_id"], "Unknown"
             )
 
-            aggregated_cost_report["bank_name"] = "Yahoo! Finance"  # todo : replace
             aggregated_cost_report[
                 "cost_report_config_id"
             ] = cost_report_config_vo.cost_report_config_id
             aggregated_cost_report["domain_id"] = domain_id
             aggregated_cost_report["is_confirmed"] = is_confirmed
+
+            aggregated_cost_report["cost"] = currency_mgr.convert_exchange_rate(
+                aggregated_cost_report
+            ).get("cost")
 
             self.cost_report_data_mgr.create_cost_report_data(aggregated_cost_report)
 

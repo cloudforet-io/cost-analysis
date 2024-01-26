@@ -2,3 +2,5 @@ spaceone-api
 pandas
 numpy
 jinja2
+finance-datareader
+plotly
