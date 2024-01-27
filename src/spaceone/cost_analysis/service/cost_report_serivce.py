@@ -67,8 +67,9 @@ class CostReportService(BaseService):
         conditions = {
             "cost_report_id": params.cost_report_id,
             "domain_id": domain_id,
-            # {"k": "status", "v": "SUCCESS", "o": "eq"},
+            "status": "SUCCESS",
         }
+
         if workspace_id is not None:
             conditions.update({"workspace_id": workspace_id})
 
@@ -376,7 +377,7 @@ class CostReportService(BaseService):
         console_domain = config.get_global("EMAIL_CONSOLE_DOMAIN")
         console_domain = console_domain.format(domain_name=domain_name)
 
-        return f"{console_domain}cost-report?sso_access_token={token}&cost_report_id={cost_report_id}"
+        return f"{console_domain}/cost-report?sso_access_token={token}&cost_report_id={cost_report_id}"
 
     @staticmethod
     def _get_current_and_last_month() -> Tuple[str, str]:
