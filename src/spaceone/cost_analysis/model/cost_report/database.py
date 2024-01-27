@@ -9,6 +9,7 @@ class CostReport(MongoModel):
         max_length=20, choices=("IN_PROGRESS", "SUCCESS"), default="IN_PROGRESS"
     )
     report_number = StringField(max_length=255)
+    currency = StringField(choices=["KRW", "USD", "JPY"], default="KRW")
     issue_date = StringField(max_length=10)
     report_year = StringField(max_length=10)
     report_month = StringField(max_length=10)
