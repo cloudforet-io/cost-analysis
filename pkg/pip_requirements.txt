@@ -4,3 +4,4 @@ numpy
 jinja2
 finance-datareader
 plotly
+bs4
