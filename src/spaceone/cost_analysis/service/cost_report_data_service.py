@@ -41,7 +41,9 @@ class CostReportDataService(BaseService):
         """Create cost report by cost report config"""
 
         for cost_report_config_vo in self._get_all_cost_report_configs():
-            self.create_cost_report_data(cost_report_config_vo)
+            issue_day = self._get_issue_day(cost_report_config_vo)
+            if issue_day == datetime.utcnow().day:
+                self.create_cost_report_data(cost_report_config_vo)
 
     @transaction(
         permission="cost-analysis:CostReportData.read",
@@ -281,9 +283,8 @@ class CostReportDataService(BaseService):
         else:
             return min(cost_report_config_vo.issue_day, last_day)
 
-    @staticmethod
-    def _get_workspace_name_map(domain_id: str) -> Tuple[dict, list]:
-        identity_mgr = IdentityManager()
+    def _get_workspace_name_map(self, domain_id: str) -> Tuple[dict, list]:
+        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
         workspace_name_map = {}
         workspaces = identity_mgr.list_workspaces(
             {"query": {"filter": [{"k": "state", "v": "ENABLED", "o": "eq"}]}},
@@ -329,9 +330,8 @@ class CostReportDataService(BaseService):
 
         return data_source_currency_map, data_source_ids
 
-    @staticmethod
-    def _get_project_name_map(workspace_ids, domain_id: str) -> dict:
-        identity_mgr = IdentityManager()
+    def _get_project_name_map(self, workspace_ids, domain_id: str) -> dict:
+        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
         project_name_map = {}
         projects = identity_mgr.list_projects(
             {
@@ -348,9 +348,8 @@ class CostReportDataService(BaseService):
             project_name_map[project["project_id"]] = project["name"]
         return project_name_map
 
-    @staticmethod
-    def _get_service_account_name_map(workspace_ids, domain_id: str) -> dict:
-        identity_mgr = IdentityManager()
+    def _get_service_account_name_map(self, workspace_ids, domain_id: str) -> dict:
+        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
         service_account_name_map = {}
         service_accounts = identity_mgr.list_service_accounts(
             {
