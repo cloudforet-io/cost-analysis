@@ -67,8 +67,9 @@ class CostReportService(BaseService):
         conditions = {
             "cost_report_id": params.cost_report_id,
             "domain_id": domain_id,
-            # {"k": "status", "v": "SUCCESS", "o": "eq"},
+            "status": "SUCCESS",
         }
+
         if workspace_id is not None:
             conditions.update({"workspace_id": workspace_id})
 
@@ -325,7 +326,7 @@ class CostReportService(BaseService):
         emails = recipients.get("emails", [])
 
         # list workspace owner role bindings
-        identity_mgr = IdentityManager()
+        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
 
         workspace_ids = []
         if workspace_id is not None:
@@ -368,6 +369,19 @@ class CostReportService(BaseService):
                 {users_info.get('total_count', 0)} users"
             )
 
+    def _get_workspace_name_map(self, domain_id: str) -> Tuple[dict, list]:
+        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
+        workspace_name_map = {}
+        workspaces = identity_mgr.list_workspaces(
+            {"query": {"filter": [{"k": "state", "v": "ENABLED", "o": "eq"}]}},
+            domain_id,
+        )
+        workspace_ids = []
+        for workspace in workspaces.get("results", []):
+            workspace_name_map[workspace["workspace_id"]] = workspace["name"]
+            workspace_ids.append(workspace["workspace_id"])
+        return workspace_name_map, workspace_ids
+
     def _get_console_cost_report_url(
         self, domain_id: str, cost_report_id: str, token: str
     ) -> str:
@@ -376,7 +390,24 @@ class CostReportService(BaseService):
         console_domain = config.get_global("EMAIL_CONSOLE_DOMAIN")
         console_domain = console_domain.format(domain_name=domain_name)
 
-        return f"{console_domain}cost-report?sso_access_token={token}&cost_report_id={cost_report_id}"
+        return f"{console_domain}/cost-report?sso_access_token={token}&cost_report_id={cost_report_id}"
+
+    def _get_domain_name(self, domain_id: str) -> str:
+        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
+        domain_name = identity_mgr.get_domain_name(domain_id)
+        return domain_name
+
+    def _get_temporary_sso_access_token(self, domain_id: str) -> str:
+        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
+        system_token = config.get_global("TOKEN")
+        params = {
+            "grant_type": "SYSTEM_TOKEN",
+            "scope": "SYSTEM",
+            "token": system_token,
+        }
+        # todo : make temporary token
+        token = identity_mgr.grant_token(params)
+        return token
 
     @staticmethod
     def _get_current_and_last_month() -> Tuple[str, str]:
@@ -403,20 +434,6 @@ class CostReportService(BaseService):
         date_object = datetime.strptime(report_date, "%Y-%m-%d")
 
         return f"CostReport_{date_object.strftime('%y%m%d%H%M')}"
-
-    @staticmethod
-    def _get_workspace_name_map(domain_id: str) -> Tuple[dict, list]:
-        identity_mgr = IdentityManager()
-        workspace_name_map = {}
-        workspaces = identity_mgr.list_workspaces(
-            {"query": {"filter": [{"k": "state", "v": "ENABLED", "o": "eq"}]}},
-            domain_id,
-        )
-        workspace_ids = []
-        for workspace in workspaces.get("results", []):
-            workspace_name_map[workspace["workspace_id"]] = workspace["name"]
-            workspace_ids.append(workspace["workspace_id"])
-        return workspace_name_map, workspace_ids
 
     @staticmethod
     def _get_data_source_currency_map(
@@ -463,21 +480,3 @@ class CostReportService(BaseService):
                 workspace_result_map[workspace_id] = result.copy()
 
         return [workspace_result for workspace_result in workspace_result_map.values()]
-
-    @staticmethod
-    def _get_domain_name(domain_id: str) -> str:
-        identity_mgr = IdentityManager()
-        domain_name = identity_mgr.get_domain_name(domain_id)
-        return domain_name
-
-    def _get_temporary_sso_access_token(self, domain_id: str) -> str:
-        identity_mgr = IdentityManager()
-        system_token = config.get_global("TOKEN")
-        params = {
-            "grant_type": "SYSTEM_TOKEN",
-            "scope": "SYSTEM",
-            "token": system_token,
-        }
-        # todo : make temporary token
-        token = identity_mgr.grant_token(params)
-        return token
