@@ -375,7 +375,7 @@ class CostReportService(BaseService):
         users_info = identity_mgr.list_workspace_users(
             params={"workspace_id": workspace_id, "state": "ENABLED"},
             domain_id=domain_id,
-        )
+        ).get("results", [])
 
         filtered_users_info = self.filtered_users_info(users_info, rb_users_ids)
 
@@ -395,7 +395,7 @@ class CostReportService(BaseService):
             )
 
         _LOGGER.debug(
-            f"[send_cost_report] send cost report ({workspace_id}/{cost_report_vo.cost_report_id}) to {users_info.get('total_count', 0)} users"
+            f"[send_cost_report] send cost report ({workspace_id}/{cost_report_vo.cost_report_id}) to {len(filtered_users_info)} users"
         )
 
     def _get_workspace_name_map(self, domain_id: str) -> Tuple[dict, list]:
@@ -526,7 +526,7 @@ class CostReportService(BaseService):
         return [workspace_result for workspace_result in workspace_result_map.values()]
 
     @staticmethod
-    def filtered_users_info(users_info, rb_users_ids) -> list:
+    def filtered_users_info(users_info: list, rb_users_ids: list) -> list:
         filtered_users_info = []
         for user_info in users_info:
             if user_info["user_id"] in rb_users_ids:
