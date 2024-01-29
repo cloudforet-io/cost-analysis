@@ -11,6 +11,7 @@ class CostReportResponse(BaseModel):
     status: Union[Status, None] = None
     report_number: Union[str, None] = None
     currency: Union[str, None] = None
+    currency_date: Union[str, None] = None
     issue_date: Union[str, None] = None
     report_year: Union[str, None] = None
     report_month: Union[str, None] = None
