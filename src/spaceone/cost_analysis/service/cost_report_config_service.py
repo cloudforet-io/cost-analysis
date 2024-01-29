@@ -81,6 +81,9 @@ class CostReportConfigService(BaseService):
             params.cost_report_config_id, params.domain_id
         )
 
+        if params.is_last_day is None:
+            params.is_last_day = False
+
         cost_report_config_vo = self.cost_report_mgr.update_cost_report_config_by_vo(
             params.dict(exclude_unset=True), cost_report_config_vo
         )
