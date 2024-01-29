@@ -24,6 +24,9 @@ from spaceone.cost_analysis.manager.currency_manager import CurrencyManager
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.email_manager import EmailManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
+from spaceone.cost_analysis.service.cost_report_data_service import (
+    CostReportDataService,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -50,7 +53,10 @@ class CostReportService(BaseService):
 
     def send_cost_report_by_cost_report_config(self, params: dict):
         """Send cost report by cost report config"""
-        cost_report_vos = self.cost_report_mgr.filter_cost_reports(status="SUCCESS")
+        current_date = datetime.now().strftime("%Y-%m-%d")
+        cost_report_vos = self.cost_report_mgr.filter_cost_reports(
+            status="SUCCESS", issue_date=current_date
+        )
         for cost_report_vo in cost_report_vos:
             self.send_cost_report(cost_report_vo)
 
@@ -176,56 +182,69 @@ class CostReportService(BaseService):
         return self.cost_report_mgr.stat_cost_reports(query)
 
     def create_cost_report(self, cost_report_config_vo: CostReportConfig):
+        cost_report_config_id = cost_report_config_vo.cost_report_config_id
         domain_id = cost_report_config_vo.domain_id
         data_source_filter = cost_report_config_vo.data_source_filter or {}
+        is_last_day = cost_report_config_vo.is_last_day
+        issue_day = cost_report_config_vo.issue_day
+        currency = cost_report_config_vo.currency
 
         workspace_name_map, workspace_ids = self._get_workspace_name_map(domain_id)
         data_source_currency_map, data_source_ids = self._get_data_source_currency_map(
             data_source_filter, workspace_ids, domain_id
         )
 
+        issue_day = self._get_issue_day(is_last_day, issue_day)
         current_month, last_month = self._get_current_and_last_month()
-        issue_day = self._get_issue_day(cost_report_config_vo)
 
         if issue_day == datetime.utcnow().day:
             self._aggregate_monthly_cost_report(
-                cost_report_config_vo,
-                workspace_name_map,
-                workspace_ids,
-                data_source_currency_map,
-                data_source_ids,
-                last_month,
-                issue_day,
-                "SUCCESS",
+                domain_id=domain_id,
+                cost_report_config_id=cost_report_config_id,
+                workspace_name_map=workspace_name_map,
+                workspace_ids=workspace_ids,
+                data_source_currency_map=data_source_currency_map,
+                data_source_ids=data_source_ids,
+                report_month=last_month,
+                currency=currency,
+                issue_day=issue_day,
+                status="SUCCESS",
+                issue_month=current_month,
             )
 
         self._aggregate_monthly_cost_report(
-            cost_report_config_vo,
-            workspace_name_map,
-            workspace_ids,
-            data_source_currency_map,
-            data_source_ids,
-            current_month,
-            issue_day,
-            "IN_PROGRESS",
+            domain_id=domain_id,
+            cost_report_config_id=cost_report_config_id,
+            workspace_name_map=workspace_name_map,
+            workspace_ids=workspace_ids,
+            data_source_currency_map=data_source_currency_map,
+            data_source_ids=data_source_ids,
+            report_month=current_month,
+            currency=currency,
+            issue_day=issue_day,
+            status="IN_PROGRESS",
         )
 
     def _aggregate_monthly_cost_report(
         self,
-        cost_report_config_vo: CostReportConfig,
+        domain_id: str,
+        cost_report_config_id: str,
         workspace_name_map: dict,
         workspace_ids: list,
         data_source_currency_map: dict,
         data_source_ids: list,
         report_month: str,
+        currency: str,
         issue_day: int,
-        status: str = None,
+        status: str,
+        issue_month: str = None,
     ) -> None:
-        domain_id = cost_report_config_vo.domain_id
-        currency = cost_report_config_vo.currency
         report_year = report_month.split("-")[0]
-        # collect enabled data sources
 
+        # delete old cost_reports
+        self._delete_old_cost_reports(report_month, domain_id, cost_report_config_id)
+
+        # collect enabled data sources
         query = {
             "group_by": ["workspace_id", "billed_year", "data_source_id"],
             "fields": {
@@ -260,7 +279,8 @@ class CostReportService(BaseService):
             aggregated_cost_report["report_number"] = self.generate_report_number(
                 report_month, issue_day
             )
-            aggregated_cost_report["issue_date"] = f"{report_month}-{issue_day}"
+            if issue_month:
+                aggregated_cost_report["issue_date"] = f"{issue_month}-{issue_day}"
             aggregated_cost_report["report_month"] = report_month
             aggregated_cost_report["report_year"] = aggregated_cost_report.pop(
                 "billed_year"
@@ -269,10 +289,8 @@ class CostReportService(BaseService):
                 aggregated_cost_report["workspace_id"], "Unknown"
             )
             aggregated_cost_report["bank_name"] = "Yahoo! Finance"  # todo : replace
-            aggregated_cost_report[
-                "cost_report_config_id"
-            ] = cost_report_config_vo.cost_report_config_id
-            aggregated_cost_report["domain_id"] = cost_report_config_vo.domain_id
+            aggregated_cost_report["cost_report_config_id"] = cost_report_config_id
+            aggregated_cost_report["domain_id"] = domain_id
 
         aggregated_cost_report_results = self._aggregate_result_by_currency(results)
 
@@ -281,25 +299,29 @@ class CostReportService(BaseService):
             aggregated_cost_report = currency_mgr.convert_exchange_rate(
                 aggregated_cost_report
             )
-            self.cost_report_mgr.create_cost_report(aggregated_cost_report)
+            cost_report_vo = self.cost_report_mgr.create_cost_report(
+                aggregated_cost_report
+            )
+            cost_report_data_svc = CostReportDataService()
+            cost_report_data_svc.create_cost_report_data(cost_report_vo)
 
         _LOGGER.debug(
             f"[aggregate_monthly_cost_report] create cost report ({report_month}) \
             (count = {len(aggregated_cost_report_results)})"
         )
-        self._delete_old_cost_reports(report_month, domain_id)
 
     def _get_all_cost_report_configs(self) -> QuerySet:
         return self.cost_report_config_mgr.filter_cost_report_configs(state="ENABLED")
 
-    def _delete_old_cost_reports(self, report_month: str, domain_id: str) -> None:
-        yesterday_datetime = datetime.utcnow() - relativedelta(day=1)  # todo : refactor
+    def _delete_old_cost_reports(
+        self, report_month: str, domain_id: str, cost_report_config_id: str
+    ) -> None:
         cost_report_delete_query = {
             "filter": [
+                {"k": "cost_report_config_id", "v": cost_report_config_id, "o": "eq"},
                 {"k": "report_month", "v": report_month, "o": "eq"},
                 {"k": "status", "v": "IN_PROGRESS", "o": "eq"},
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
-                {"k": "created_at", "v": yesterday_datetime, "o": "datetime_lt"},
             ]
         }
         cost_reports_vos, total_count = self.cost_report_mgr.list_cost_reports(
@@ -416,17 +438,17 @@ class CostReportService(BaseService):
         return current_month, last_month
 
     @staticmethod
-    def _get_issue_day(cost_report_config_vo: CostReportConfig) -> int:
+    def _get_issue_day(is_last_day: bool, issue_day: int) -> int:
         current_date = datetime.utcnow()
         current_year = current_date.year
         current_month = current_date.month
 
         _, last_day = calendar.monthrange(current_year, current_month)
 
-        if cost_report_config_vo.is_last_day:
+        if is_last_day:
             return last_day
         else:
-            return min(cost_report_config_vo.issue_day, last_day)
+            return min(issue_day, last_day)
 
     @staticmethod
     def generate_report_number(report_month: str, issue_day: int) -> str:
@@ -445,7 +467,7 @@ class CostReportService(BaseService):
         query = {
             "filter": [
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
-                {"k": "workspace_id", "v": workspace_ids, "o": "in"},
+                {"k": "workspace_id", "v": workspace_ids + ["*"], "o": "in"},
             ]
         }
         if data_sources := data_source_filter.get("data_sources"):

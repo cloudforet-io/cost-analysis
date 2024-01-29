@@ -16,7 +16,7 @@ class CostReportDataManager(BaseManager):
     def create_cost_report_data(self, params: dict):
         def _rollback(vo: CostReportData):
             _LOGGER.info(
-                f"[create_cost_report_data._rollback] Delete cost report data : {vo.cost_report_name}, {vo.cost_report_data_id} "
+                f"[create_cost_report_data._rollback] Delete cost report data : {vo.cost_report_id}, {vo.cost_report_data_id} "
             )
             vo.delete()
 

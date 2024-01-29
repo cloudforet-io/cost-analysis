@@ -205,9 +205,6 @@ class CostReportConfigService(BaseService):
             params.cost_report_config_id, params.domain_id
         )
 
-        cost_report_data_service = CostReportDataService()
-        cost_report_data_service.create_cost_report_data(cost_report_config_vo)
-
         cost_report_service = CostReportService()
         cost_report_service.create_cost_report(cost_report_config_vo)
 

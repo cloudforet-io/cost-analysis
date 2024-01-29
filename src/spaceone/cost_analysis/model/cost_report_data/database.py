@@ -7,6 +7,7 @@ class CostReportData(MongoModel):
     cost_report_data_id = StringField(max_length=40, generate_id="cdr", unique=True)
     cost = DictField(default={})
     cost_report_name = StringField(max_length=255)
+    issue_date = StringField(max_length=20)
     report_year = StringField(max_length=20)
     report_month = StringField(max_length=40)
     is_confirmed = BooleanField(default=False)
