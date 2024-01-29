@@ -222,7 +222,6 @@ class CostReportConfigService(BaseService):
             params (CostReportConfigGetRequest): {
                 'cost_report_config_id': 'str',     # required
                 'domain_id': 'str'                  # injected from auth (required)
-                'workspace_id': 'str'
 
         Returns:
             CostReportConfigResponse:
@@ -237,7 +236,7 @@ class CostReportConfigService(BaseService):
         permission="cost-analysis:CostReportConfig.read",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
-    @append_query_filter(["cost_report_config_id", "domain_id", "workspace_id"])
+    @append_query_filter(["cost_report_config_id", "domain_id"])
     @convert_model
     def list(
         self, params: CostReportConfigSearchQueryRequest
@@ -275,7 +274,7 @@ class CostReportConfigService(BaseService):
         permission="cost-analysis:CostReportConfig.read",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
-    @append_query_filter(["cost_report_config_id", "domain_id", "workspace_id"])
+    @append_query_filter(["cost_report_config_id", "domain_id"])
     @convert_model
     def stat(self, params: CostReportConfigStatQueryRequest) -> dict:
         """Stat cost report configs
