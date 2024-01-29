@@ -90,17 +90,23 @@ class CostReportService(BaseService):
     def get_url(self, params: CostReportGetUrlRequest) -> dict:
         """Get cost report url"""
 
+        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
+
+        user_id = self.transaction.get_meta("authorization.user_id")
         domain_id = params.domain_id
+        user_info = identity_mgr.get_user(user_id, domain_id)
+        language = user_info.get("language", "en")
         cost_report_id = params.cost_report_id
 
         # check cost report
         cost_report_vo = self.cost_report_mgr.get_cost_report(
             domain_id, cost_report_id, params.workspace_id
         )
+        workspace_id = cost_report_vo.workspace_id
 
-        # sso_access_token = self._get_temporary_sso_access_token(domain_id)
+        sso_access_token = self._get_temporary_sso_access_token(domain_id, workspace_id)
         cost_report_link = self._get_console_cost_report_url(
-            domain_id, cost_report_id, "token"
+            domain_id, cost_report_id, sso_access_token, language
         )
 
         return {"cost_report_link": cost_report_link}
@@ -350,46 +356,47 @@ class CostReportService(BaseService):
         # list workspace owner role bindings
         identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
 
-        workspace_ids = []
-        if workspace_id is not None:
-            rb_query = {
-                "filter": [
-                    {"k": "role_type", "v": role_types, "o": "in"},
-                    {"k": "workspace_id", "v": workspace_id, "o": "eq"},
-                ],
-            }
-            role_bindings_info = identity_mgr.list_role_bindings(
-                params={"query": rb_query}, domain_id=domain_id
-            )
+        rb_query = {
+            "filter": [
+                {"k": "role_type", "v": role_types, "o": "in"},
+                {"k": "workspace_id", "v": workspace_id, "o": "eq"},
+            ],
+        }
+        role_bindings_info = identity_mgr.list_role_bindings(
+            params={"query": rb_query}, domain_id=domain_id
+        )
 
-            workspace_ids = [
-                role_binding_info["workspace_id"]
-                for role_binding_info in role_bindings_info.get("results", [])
-            ]
-            workspace_ids = list(set(workspace_ids))
+        rb_users_ids = [
+            role_binding_info.get("user_id")
+            for role_binding_info in role_bindings_info.get("results", [])
+        ]
 
-        # list workspace owner users
+        # list users in workspace
+        users_info = identity_mgr.list_workspace_users(
+            params={"workspace_id": workspace_id, "state": "ENABLED"},
+            domain_id=domain_id,
+        )
+
+        filtered_users_info = self.filtered_users_info(users_info, rb_users_ids)
+
         email_mgr = EmailManager()
-        for workspace_id in workspace_ids:
-            users_info = identity_mgr.list_workspace_users(
-                params={"workspace_id": workspace_id, "state": "ENABLED"},
-                domain_id=domain_id,
-            )
-            sso_access_token = self._get_temporary_sso_access_token(domain_id)
+        sso_access_token = self._get_temporary_sso_access_token(domain_id, workspace_id)
+        for user_info in filtered_users_info:
+            user_id = user_info["user_id"]
+            email = user_info.get("email", user_id)
+            language = user_info.get("language", "en")
+
             cost_report_link = self._get_console_cost_report_url(
-                domain_id, cost_report_vo.cost_report_id, sso_access_token
+                domain_id, cost_report_vo.cost_report_id, sso_access_token, language
             )
-            for user_info in users_info.get("results", []):
-                user_id = user_info["user_id"]
-                email = user_info.get("email", user_id)
-                language = user_info.get("language", "en")
-                email_mgr.send_cost_report_email(
-                    user_id, email, cost_report_link, language, cost_report_vo
-                )
-            _LOGGER.debug(
-                f"[send_cost_report] send cost report ({workspace_id}/{cost_report_vo.cost_report_id}) to \
-                {users_info.get('total_count', 0)} users"
+
+            email_mgr.send_cost_report_email(
+                user_id, email, cost_report_link, language, cost_report_vo
             )
+
+        _LOGGER.debug(
+            f"[send_cost_report] send cost report ({workspace_id}/{cost_report_vo.cost_report_id}) to {users_info.get('total_count', 0)} users"
+        )
 
     def _get_workspace_name_map(self, domain_id: str) -> Tuple[dict, list]:
         identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
@@ -405,31 +412,46 @@ class CostReportService(BaseService):
         return workspace_name_map, workspace_ids
 
     def _get_console_cost_report_url(
-        self, domain_id: str, cost_report_id: str, token: str
+        self, domain_id: str, cost_report_id: str, token: str, language: str
     ) -> str:
         domain_name = self._get_domain_name(domain_id)
 
         console_domain = config.get_global("EMAIL_CONSOLE_DOMAIN")
         console_domain = console_domain.format(domain_name=domain_name)
 
-        return f"{console_domain}/cost-report?sso_access_token={token}&cost_report_id={cost_report_id}"
+        return f"{console_domain}/cost-report?sso_access_token={token}&cost_report_id={cost_report_id}&language={language}"
 
     def _get_domain_name(self, domain_id: str) -> str:
         identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
         domain_name = identity_mgr.get_domain_name(domain_id)
         return domain_name
 
-    def _get_temporary_sso_access_token(self, domain_id: str) -> str:
+    def _get_temporary_sso_access_token(self, domain_id: str, workspace_id: str) -> str:
         identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
         system_token = config.get_global("TOKEN")
+        timeout = config.get_global("COST_REPORT_TOKEN_TIMEOUT", 259200)
+        permissions = config.get_global(
+            "COST_REPORT_DEFAULT_PERMISSIONS",
+            [
+                "cost-analysis:CostReport.read",
+                "cost-analysis:CostReportData.read",
+                "cost-analysis:CostReportConfig.read",
+                "config:Domain.read",
+                "identity.Provider.read",
+            ],
+        )
+
         params = {
             "grant_type": "SYSTEM_TOKEN",
-            "scope": "SYSTEM",
+            "scope": "WORKSPACE",
             "token": system_token,
+            "workspace_id": workspace_id,
+            "domain_id": domain_id,
+            "timeout": timeout,
+            "permissions": permissions,
         }
         # todo : make temporary token
-        token = identity_mgr.grant_token(params)
-        return token
+        return identity_mgr.grant_token(params)
 
     @staticmethod
     def _get_current_and_last_month() -> Tuple[str, str]:
@@ -502,3 +524,11 @@ class CostReportService(BaseService):
                 workspace_result_map[workspace_id] = result.copy()
 
         return [workspace_result for workspace_result in workspace_result_map.values()]
+
+    @staticmethod
+    def filtered_users_info(users_info, rb_users_ids) -> list:
+        filtered_users_info = []
+        for user_info in users_info:
+            if user_info["user_id"] in rb_users_ids:
+                filtered_users_info.append(user_info)
+        return filtered_users_info

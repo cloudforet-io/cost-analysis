@@ -18,6 +18,20 @@ class IdentityManager(BaseManager):
             SpaceConnector, service="identity"
         )
 
+    def get_user(self, domain_id: str, user_id: str) -> dict:
+        system_token = config.get_global("TOKEN")
+        response = self.identity_conn.dispatch(
+            "User.list",
+            {"user_id": user_id, "state": "ENABLED"},
+            x_domain_id=domain_id,
+            token=system_token,
+        )
+        users_info = response.get("results", [])
+        if users_info:
+            return users_info[0]
+        else:
+            return {}
+
     def get_domain_name(self, domain_id: str) -> str:
         system_token = config.get_global("TOKEN")
 
@@ -141,7 +155,5 @@ class IdentityManager(BaseManager):
         self,
         params: dict,
     ) -> str:
-        if self.token_type == "SYSTEM_TOKEN":
-            return "system_token"
-        else:
-            return self.transaction.get_meta("token")
+        token_info = self.identity_conn.dispatch("Token.grant", params)
+        return token_info["access_token"]
