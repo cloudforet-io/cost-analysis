@@ -52,7 +52,7 @@ class CostReportDataService(BaseService):
     @append_keyword_filter(["product", "cost_report_data_id"])
     @convert_model
     def list(
-            self, params: CostReportDataSearchQueryRequest
+        self, params: CostReportDataSearchQueryRequest
     ) -> Union[CostReportsDataResponse, dict]:
         """List cost report data"""
 
@@ -162,20 +162,20 @@ class CostReportDataService(BaseService):
         )
 
     def _aggregate_monthly_cost_report_data(
-            self,
-            domain_id: str,
-            workspace_id: str,
-            cost_report_config_id,
-            cost_report_id: str,
-            currency: str,
-            workspace_name: str,
-            project_name_map: dict,
-            service_account_name_map: dict,
-            data_source_currency_map: dict,
-            data_source_ids: list,
-            report_month: str,
-            issue_date: str,
-            is_confirmed: bool = False,
+        self,
+        domain_id: str,
+        workspace_id: str,
+        cost_report_config_id,
+        cost_report_id: str,
+        currency: str,
+        workspace_name: str,
+        project_name_map: dict,
+        service_account_name_map: dict,
+        data_source_currency_map: dict,
+        data_source_ids: list,
+        report_month: str,
+        issue_date: str,
+        is_confirmed: bool = False,
     ):
         report_year = report_month.split("-")[0]
 
@@ -294,7 +294,7 @@ class CostReportDataService(BaseService):
 
     @staticmethod
     def _get_data_source_currency_map(
-            data_source_filter: dict, workspace_id: str, domain_id: str
+        data_source_filter: dict, workspace_id: str, domain_id: str
     ) -> Tuple[dict, list]:
         data_source_currency_map = {}
         data_source_mgr = DataSourceManager()

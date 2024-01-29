@@ -12,6 +12,16 @@ DATABASES = {
     }
 }
 
+# Cost Report Token Settings
+COST_REPORT_TOKEN_TIMEOUT = 259200  # 3 days
+COST_REPORT_DEFAULT_PERMISSIONS = [
+    "cost-analysis:CostReport.read",
+    "cost-analysis:CostReportData.read",
+    "cost-analysis:CostReportConfig.read",
+    "config:Domain.read",
+    "identity.Provider.read",
+]
+
 CACHES = {
     "default": {},
     "local": {
