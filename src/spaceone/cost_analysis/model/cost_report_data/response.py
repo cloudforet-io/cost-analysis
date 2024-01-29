@@ -10,6 +10,7 @@ class CostReportDataResponse(BaseModel):
     cost_report_data_id: Union[str, None] = None
     cost: Union[dict, None] = None
     cost_report_name: Union[str, None] = None
+    issue_date: Union[str, None] = None
     report_year: Union[str, None] = None
     report_month: Union[str, None] = None
     is_confirmed: Union[bool, None] = None
