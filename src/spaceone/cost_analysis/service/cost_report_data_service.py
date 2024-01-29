@@ -177,6 +177,7 @@ class CostReportDataService(BaseService):
             data_source_ids=data_source_ids,
             report_month=current_month,
             issue_day=issue_day,
+            is_confirmed=False,
         )
 
     def _aggregate_monthly_cost_report_data(
@@ -233,7 +234,7 @@ class CostReportDataService(BaseService):
                 aggregated_cost_report.pop("data_source_id")
             )
             aggregated_cost_report["cost"] = {
-                ag_cost_report_currency: aggregated_cost_report.pop("cost")
+                ag_cost_report_currency: aggregated_cost_report.pop("cost", 0.0)
             }
             aggregated_cost_report["currency"] = currency
             aggregated_cost_report["issue_date"] = f"{report_month}-{issue_day}"
