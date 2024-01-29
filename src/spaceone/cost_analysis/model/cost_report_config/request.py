@@ -63,18 +63,15 @@ class CostReportConfigRunRequest(BaseModel):
 class CostReportConfigGetRequest(BaseModel):
     cost_report_config_id: str
     domain_id: str
-    workspace_id: Union[str, None] = None
 
 
 class CostReportConfigSearchQueryRequest(BaseModel):
     query: Union[dict, None] = None
     cost_report_config_id: Union[str, None] = None
     domain_id: str
-    workspace_id: Union[str, None] = None
 
 
 class CostReportConfigStatQueryRequest(BaseModel):
     query: dict
     cost_report_config_id: Union[str, None] = None
     domain_id: str
-    workspace_id: Union[str, None] = None
