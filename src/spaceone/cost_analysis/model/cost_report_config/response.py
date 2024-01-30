@@ -20,6 +20,7 @@ class CostReportConfigResponse(BaseModel):
     currency: Union[str, None] = None
     recipients: Union[dict, None] = None
     data_source_filter: Union[dict, None] = None
+    language: Union[str, None] = None
     domain_id: Union[str, None] = None
     created_at: Union[datetime, None] = None
     updated_at: Union[datetime, None] = None

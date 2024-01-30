@@ -22,6 +22,7 @@ class CostReportConfigCreateRequest(BaseModel):
     currency: str = "KRW"
     recipients: dict = {}
     data_source_filter: Union[dict, None] = None
+    language: Union[str, None] = None
     domain_id: str
 
 
@@ -31,6 +32,7 @@ class CostReportConfigUpdateRequest(BaseModel):
     is_last_day: Union[bool, None] = None
     currency: Union[str, None] = None
     data_source_filter: Union[dict, None] = None
+    language: Union[str, None] = None
     domain_id: str
 
 
