@@ -27,7 +27,7 @@ class CostReportDataResponse(BaseModel):
     project_id: Union[str, None] = None
     workspace_id: Union[str, None] = None
     domain_id: Union[str, None] = None
-    created_at: Union[str, None] = None
+    created_at: Union[datetime, None] = None
 
     def dict(self, *args, **kwargs):
         data = super().dict(*args, **kwargs)
