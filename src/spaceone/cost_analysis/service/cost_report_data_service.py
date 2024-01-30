@@ -98,9 +98,7 @@ class CostReportDataService(BaseService):
 
         query = params.query or {}
 
-        return self.cost_report_data_mgr.analyze_cost_reports_data(
-            query, target="PRIMARY"
-        )
+        return self.cost_report_data_mgr.analyze_cost_reports_data(query)
 
     @transaction(
         permission="cost-analysis:CostReportData.read",
@@ -206,9 +204,7 @@ class CostReportDataService(BaseService):
         }
 
         _LOGGER.debug(f"[aggregate_monthly_cost_report_data] query: {query}")
-        response = self.cost_mgr.analyze_monthly_costs(
-            query, domain_id, target="PRIMARY"
-        )
+        response = self.cost_mgr.analyze_monthly_costs(query, domain_id)
 
         results = response.get("results", [])
         for aggregated_cost_report_data in results:

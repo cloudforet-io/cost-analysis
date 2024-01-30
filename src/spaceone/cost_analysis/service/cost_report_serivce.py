@@ -62,15 +62,6 @@ class CostReportService(BaseService):
 
             self.create_cost_report(cost_report_config_vo)
 
-    def send_cost_report_by_cost_report_config(self, params: dict):
-        """Send cost report by cost report config"""
-        current_date = datetime.now().strftime("%Y-%m-%d")
-        cost_report_vos = self.cost_report_mgr.filter_cost_reports(
-            status="SUCCESS", issue_date=current_date
-        )
-        for cost_report_vo in cost_report_vos:
-            self.send_cost_report(cost_report_vo)
-
     @transaction(
         permission="cost-analysis:CostReport.read",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
@@ -280,9 +271,7 @@ class CostReportService(BaseService):
 
         _LOGGER.debug(f"[aggregate_monthly_cost_report] query: {query}")
 
-        response = self.cost_mgr.analyze_monthly_costs(
-            query, domain_id, target="PRIMARY"
-        )
+        response = self.cost_mgr.analyze_monthly_costs(query, domain_id)
         results = response.get("results", [])
         for aggregated_cost_report in results:
             ag_cost_report_currency = data_source_currency_map.get(
@@ -311,6 +300,10 @@ class CostReportService(BaseService):
 
         aggregated_cost_report_results = self._aggregate_result_by_currency(results)
 
+        cost_report_data_svc = CostReportDataService()
+        cost_report_data_svc.currency_map = self.currency_map
+        cost_report_data_svc.currency_date = self.currency_date
+
         for aggregated_cost_report in aggregated_cost_report_results:
             aggregated_cost_report["cost"] = CostReportManager.get_exchange_currency(
                 aggregated_cost_report["cost"], self.currency_map
@@ -323,10 +316,9 @@ class CostReportService(BaseService):
             cost_report_vo = self.cost_report_mgr.create_cost_report(
                 aggregated_cost_report
             )
-            cost_report_data_svc = CostReportDataService()
-            cost_report_data_svc.currency_map = self.currency_map
-            cost_report_data_svc.currency_date = self.currency_date
             cost_report_data_svc.create_cost_report_data(cost_report_vo)
+            if cost_report_vo.status == "SUCCESS":
+                self.send_cost_report(cost_report_vo)
 
         _LOGGER.debug(
             f"[aggregate_monthly_cost_report] create cost report ({report_month}) \
