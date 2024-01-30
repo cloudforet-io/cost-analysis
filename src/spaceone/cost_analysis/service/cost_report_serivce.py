@@ -348,7 +348,7 @@ class CostReportService(BaseService):
         # Get Cost Report Config
         cost_report_config_id = cost_report_vo.cost_report_config_id
         cost_report_config_vo = self.cost_report_config_mgr.get_cost_report_config(
-            cost_report_config_id, domain_id
+            domain_id, cost_report_config_id
         )
 
         language = cost_report_config_vo.language
