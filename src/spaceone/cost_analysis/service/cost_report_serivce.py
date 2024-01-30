@@ -111,7 +111,7 @@ class CostReportService(BaseService):
             domain_id, cost_report_id, sso_access_token, language
         )
 
-        return {"cost_report_link": cost_report_link}
+        return {"cost_report_link": cost_report_link, "domain_id": domain_id}
 
     @transaction(
         permission="cost-analysis:CostReport.read",
@@ -196,6 +196,7 @@ class CostReportService(BaseService):
         is_last_day = cost_report_config_vo.is_last_day
         issue_day = cost_report_config_vo.issue_day
         currency = cost_report_config_vo.currency
+        language = cost_report_config_vo.language
 
         workspace_name_map, workspace_ids = self._get_workspace_name_map(domain_id)
         data_source_currency_map, data_source_ids = self._get_data_source_currency_map(
@@ -218,6 +219,7 @@ class CostReportService(BaseService):
                 issue_day=issue_day,
                 status="SUCCESS",
                 issue_month=current_month,
+                language=language,
             )
 
         self._aggregate_monthly_cost_report(
@@ -245,6 +247,7 @@ class CostReportService(BaseService):
         currency: str,
         issue_day: int,
         status: str,
+        language: str,
         issue_month: str = None,
     ) -> None:
         report_year = report_month.split("-")[0]
@@ -297,6 +300,7 @@ class CostReportService(BaseService):
                 aggregated_cost_report["workspace_id"], "Unknown"
             )
             aggregated_cost_report["bank_name"] = "Yahoo! Finance"  # todo : replace
+            aggregated_cost_report["language"] = language
             aggregated_cost_report["cost_report_config_id"] = cost_report_config_id
             aggregated_cost_report["domain_id"] = domain_id
 
@@ -344,6 +348,7 @@ class CostReportService(BaseService):
     def send_cost_report(self, cost_report_vo: CostReport) -> None:
         domain_id = cost_report_vo.domain_id
         workspace_id = cost_report_vo.workspace_id
+        language = cost_report_vo.language or "ko"
 
         # Get Cost Report Config
         cost_report_config_id = cost_report_vo.cost_report_config_id
@@ -385,7 +390,6 @@ class CostReportService(BaseService):
         for user_info in filtered_users_info:
             user_id = user_info["user_id"]
             email = user_info.get("email", user_id)
-            language = user_info.get("language", "en")
 
             cost_report_link = self._get_console_cost_report_url(
                 domain_id, cost_report_vo.cost_report_id, sso_access_token, language
@@ -451,7 +455,6 @@ class CostReportService(BaseService):
             "timeout": timeout,
             "permissions": permissions,
         }
-        # todo : make temporary token
         return identity_mgr.grant_token(params)
 
     @staticmethod
