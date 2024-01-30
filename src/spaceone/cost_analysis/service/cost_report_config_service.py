@@ -201,10 +201,11 @@ class CostReportConfigService(BaseService):
     @convert_model
     def run(self, params: CostReportConfigRunRequest) -> None:
         """RUN cost report config"""
+
+        # todo : apply currency manager
         cost_report_config_vo = self.cost_report_mgr.get_cost_report_config(
             params.cost_report_config_id, params.domain_id
         )
-
         cost_report_service = CostReportService()
         cost_report_service.create_cost_report(cost_report_config_vo)
 
