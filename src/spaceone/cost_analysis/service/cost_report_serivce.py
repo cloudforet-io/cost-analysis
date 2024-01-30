@@ -363,34 +363,13 @@ class CostReportService(BaseService):
         role_types = recipients.get("role_types", [])
         emails = recipients.get("emails", [])
 
-        # list workspace owner role bindings
-        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
-
-        rb_query = {
-            "filter": [
-                {"k": "role_type", "v": role_types, "o": "in"},
-                {"k": "workspace_id", "v": workspace_id, "o": "eq"},
-            ],
-        }
-        role_bindings_info = identity_mgr.list_role_bindings(
-            params={"query": rb_query}, domain_id=domain_id
+        users_info = self.get_email_verified_workspace_owner_users(
+            domain_id, workspace_id, role_types
         )
 
-        rb_users_ids = [
-            role_binding_info.get("user_id")
-            for role_binding_info in role_bindings_info.get("results", [])
-        ]
-
-        # list users in workspace
-        users_info = identity_mgr.list_workspace_users(
-            params={"workspace_id": workspace_id, "state": "ENABLED"},
-            domain_id=domain_id,
-        ).get("results", [])
-
-        filtered_users_info = self.filtered_users_info(users_info, rb_users_ids)
         email_mgr = EmailManager()
         sso_access_token = self._get_temporary_sso_access_token(domain_id, workspace_id)
-        for user_info in filtered_users_info:
+        for user_info in users_info:
             user_id = user_info["user_id"]
             email = user_info.get("email", user_id)
 
@@ -403,7 +382,7 @@ class CostReportService(BaseService):
             )
 
         _LOGGER.debug(
-            f"[send_cost_report] send cost report ({workspace_id}/{cost_report_vo.cost_report_id}) to {len(filtered_users_info)} users"
+            f"[send_cost_report] send cost report ({workspace_id}/{cost_report_vo.cost_report_id}) to {len(users_info)} users"
         )
 
     def _get_workspace_name_map(self, domain_id: str) -> Tuple[dict, list]:
@@ -459,6 +438,45 @@ class CostReportService(BaseService):
             "permissions": permissions,
         }
         return identity_mgr.grant_token(params)
+
+    def get_email_verified_workspace_owner_users(
+        self, domain_id: str, workspace_id: str, role_types: list = None
+    ) -> list:
+        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
+
+        rb_query = {
+            "filter": [
+                {"k": "workspace_id", "v": workspace_id, "o": "eq"},
+            ],
+        }
+        if role_types:
+            rb_query["filter"].append({"k": "role_type", "v": role_types, "o": "in"})
+
+        role_bindings_info = identity_mgr.list_role_bindings(
+            params={"query": rb_query}, domain_id=domain_id
+        )
+
+        rb_users_ids = [
+            role_binding_info.get("user_id")
+            for role_binding_info in role_bindings_info.get("results", [])
+        ]
+
+        # list users in workspace
+        users_info = identity_mgr.list_workspace_users(
+            params={
+                "workspace_id": workspace_id,
+                "state": "ENABLED",
+                "query": {
+                    "filter": [
+                        {"k": "user_id", "v": rb_users_ids, "o": "in"},
+                        {"k": "language", "v": "email_verified", "o": "eq"},
+                    ]
+                },
+            },
+            domain_id=domain_id,
+        ).get("results", [])
+
+        return users_info
 
     @staticmethod
     def _get_current_and_last_month() -> Tuple[str, str]:
@@ -531,11 +549,3 @@ class CostReportService(BaseService):
                 workspace_result_map[workspace_id] = result.copy()
 
         return [workspace_result for workspace_result in workspace_result_map.values()]
-
-    @staticmethod
-    def filtered_users_info(users_info: list, rb_users_ids: list) -> list:
-        filtered_users_info = []
-        for user_info in users_info:
-            if user_info["user_id"] in rb_users_ids:
-                filtered_users_info.append(user_info)
-        return filtered_users_info
