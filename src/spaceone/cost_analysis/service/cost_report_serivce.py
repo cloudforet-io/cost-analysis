@@ -92,19 +92,19 @@ class CostReportService(BaseService):
     def get_url(self, params: CostReportGetUrlRequest) -> dict:
         """Get cost report url"""
 
-        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
-
-        user_id = self.transaction.get_meta("authorization.user_id")
         domain_id = params.domain_id
-        user_info = identity_mgr.get_user(user_id, domain_id)
-        language = user_info.get("language", "en")
         cost_report_id = params.cost_report_id
 
-        # check cost report
+        # check cost report config and cost report
         cost_report_vo = self.cost_report_mgr.get_cost_report(
             domain_id, cost_report_id, params.workspace_id
         )
+        cost_report_config_vo = self.cost_report_config_mgr.get_cost_report_config(
+            domain_id, cost_report_vo.cost_report_config_id
+        )
+
         workspace_id = cost_report_vo.workspace_id
+        language = cost_report_config_vo.language
 
         sso_access_token = self._get_temporary_sso_access_token(domain_id, workspace_id)
         cost_report_link = self._get_console_cost_report_url(
@@ -196,7 +196,6 @@ class CostReportService(BaseService):
         is_last_day = cost_report_config_vo.is_last_day
         issue_day = cost_report_config_vo.issue_day
         currency = cost_report_config_vo.currency
-        language = cost_report_config_vo.language
 
         workspace_name_map, workspace_ids = self._get_workspace_name_map(domain_id)
         data_source_currency_map, data_source_ids = self._get_data_source_currency_map(
@@ -219,7 +218,6 @@ class CostReportService(BaseService):
                 issue_day=issue_day,
                 status="SUCCESS",
                 issue_month=current_month,
-                language=language,
             )
 
         self._aggregate_monthly_cost_report(
@@ -247,7 +245,6 @@ class CostReportService(BaseService):
         currency: str,
         issue_day: int,
         status: str,
-        language: str,
         issue_month: str = None,
     ) -> None:
         report_year = report_month.split("-")[0]
@@ -300,7 +297,6 @@ class CostReportService(BaseService):
                 aggregated_cost_report["workspace_id"], "Unknown"
             )
             aggregated_cost_report["bank_name"] = "Yahoo! Finance"  # todo : replace
-            aggregated_cost_report["language"] = language
             aggregated_cost_report["cost_report_config_id"] = cost_report_config_id
             aggregated_cost_report["domain_id"] = domain_id
 
@@ -348,7 +344,6 @@ class CostReportService(BaseService):
     def send_cost_report(self, cost_report_vo: CostReport) -> None:
         domain_id = cost_report_vo.domain_id
         workspace_id = cost_report_vo.workspace_id
-        language = cost_report_vo.language or "ko"
 
         # Get Cost Report Config
         cost_report_config_id = cost_report_vo.cost_report_config_id
@@ -356,6 +351,7 @@ class CostReportService(BaseService):
             cost_report_config_id, domain_id
         )
 
+        language = cost_report_config_vo.language
         recipients = cost_report_config_vo.recipients
         role_types = recipients.get("role_types", [])
         emails = recipients.get("emails", [])
