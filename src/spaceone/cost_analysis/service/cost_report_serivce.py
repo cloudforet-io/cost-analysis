@@ -48,6 +48,8 @@ class CostReportService(BaseService):
     def create_cost_report_by_cost_report_config(self, params: dict):
         """Create cost report by cost report config"""
 
+        # todo: apply currency_manager
+
         for cost_report_config_vo in self._get_all_cost_report_configs():
             self.create_cost_report(cost_report_config_vo)
 
@@ -378,7 +380,6 @@ class CostReportService(BaseService):
         ).get("results", [])
 
         filtered_users_info = self.filtered_users_info(users_info, rb_users_ids)
-
         email_mgr = EmailManager()
         sso_access_token = self._get_temporary_sso_access_token(domain_id, workspace_id)
         for user_info in filtered_users_info:
