@@ -45,3 +45,20 @@ class CostReportManager(BaseManager):
 
     def stat_cost_reports(self, query: dict) -> dict:
         return self.cost_report_model.stat(**query)
+
+    @staticmethod
+    def get_exchange_currency(cost_info: dict, currency_map: dict) -> dict:
+        from_currency = next(iter(cost_info.keys()))
+        from_cost = cost_info.get(from_currency)
+
+        cost = {}
+        for currency, ratio_cost in currency_map.items():
+            cost[currency] = from_cost * ratio_cost
+
+        return cost
+
+    @staticmethod
+    def get_currency_date(currency_date: str) -> str:
+        currency_date = str(currency_date).split()[0]
+
+        return currency_date

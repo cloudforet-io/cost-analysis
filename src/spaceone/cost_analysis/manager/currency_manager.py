@@ -10,6 +10,11 @@ class CurrencyManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.currency_connector: CurrencyConnector = CurrencyConnector()
+        self.currency_mapper = {}
 
-    def convert_exchange_rate(self, aggregated_cost_report: dict) -> dict:
-        return self.currency_connector.add_exchange_rate(aggregated_cost_report)
+    def get_currency_map_date(self, to_currency: str) -> tuple[dict, str]:
+        currency_map, currency_date = self.currency_connector.add_currency_map_date(
+            to_currency
+        )
+
+        return currency_map, currency_date

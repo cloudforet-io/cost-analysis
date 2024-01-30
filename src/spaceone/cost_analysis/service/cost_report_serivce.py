@@ -43,14 +43,23 @@ class CostReportService(BaseService):
         self.cost_mgr = CostManager()
         self.cost_report_config_mgr = CostReportConfigManager()
         self.cost_report_mgr = CostReportManager()
+        self.currency_map: Union[dict, None] = None
+        self.currency_date: Union[str, None] = None
 
     @transaction(exclude=["authentication", "authorization", "mutation"])
     def create_cost_report_by_cost_report_config(self, params: dict):
         """Create cost report by cost report config"""
 
-        # todo: apply currency_manager
-
+        currency_mgr = CurrencyManager()
         for cost_report_config_vo in self._get_all_cost_report_configs():
+            (
+                currency_map,
+                currency_date,
+            ) = currency_mgr.get_currency_map_date(cost_report_config_vo.currency)
+
+            self.currency_map = currency_map
+            self.currency_date = currency_date
+
             self.create_cost_report(cost_report_config_vo)
 
     def send_cost_report_by_cost_report_config(self, params: dict):
@@ -302,15 +311,21 @@ class CostReportService(BaseService):
 
         aggregated_cost_report_results = self._aggregate_result_by_currency(results)
 
-        currency_mgr = CurrencyManager()
         for aggregated_cost_report in aggregated_cost_report_results:
-            aggregated_cost_report = currency_mgr.convert_exchange_rate(
-                aggregated_cost_report
+            aggregated_cost_report["cost"] = CostReportManager.get_exchange_currency(
+                aggregated_cost_report["cost"], self.currency_map
             )
+
+            aggregated_cost_report[
+                "currency_date"
+            ] = CostReportManager.get_currency_date(self.currency_date)
+
             cost_report_vo = self.cost_report_mgr.create_cost_report(
                 aggregated_cost_report
             )
             cost_report_data_svc = CostReportDataService()
+            cost_report_data_svc.currency_map = self.currency_map
+            cost_report_data_svc.currency_date = self.currency_date
             cost_report_data_svc.create_cost_report_data(cost_report_vo)
 
         _LOGGER.debug(

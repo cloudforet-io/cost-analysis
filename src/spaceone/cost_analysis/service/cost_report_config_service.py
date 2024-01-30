@@ -7,6 +7,7 @@ from spaceone.core.service.utils import *
 from spaceone.cost_analysis.manager.cost_report_config_manager import (
     CostReportConfigManager,
 )
+from spaceone.cost_analysis.manager.currency_manager import CurrencyManager
 from spaceone.cost_analysis.service.cost_report_serivce import CostReportService
 from spaceone.cost_analysis.service.cost_report_data_service import (
     CostReportDataService,
@@ -202,11 +203,22 @@ class CostReportConfigService(BaseService):
     def run(self, params: CostReportConfigRunRequest) -> None:
         """RUN cost report config"""
 
-        # todo : apply currency manager
         cost_report_config_vo = self.cost_report_mgr.get_cost_report_config(
             params.cost_report_config_id, params.domain_id
         )
+
+        currency_mgr = CurrencyManager()
+
+        (
+            currency_map,
+            currency_date,
+        ) = currency_mgr.get_currency_map_date(cost_report_config_vo.currency)
+
         cost_report_service = CostReportService()
+
+        cost_report_service.currency_map = currency_map
+        cost_report_service.currency_date = currency_date
+
         cost_report_service.create_cost_report(cost_report_config_vo)
 
     @transaction(
