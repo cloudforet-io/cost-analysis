@@ -11,6 +11,7 @@ from spaceone.cost_analysis.manager.cost_report_data_manager import (
 from spaceone.cost_analysis.manager.cost_report_config_manager import (
     CostReportConfigManager,
 )
+from spaceone.cost_analysis.manager.cost_report_manager import CostReportManager
 from spaceone.cost_analysis.manager.currency_manager import CurrencyManager
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
@@ -32,6 +33,8 @@ class CostReportDataService(BaseService):
         super().__init__(*args, **kwargs)
         self.cost_mgr = CostManager()
         self.cost_report_data_mgr = CostReportDataManager()
+        self.currency_map: Union[dict, None] = None
+        self.currency_date: Union[str, None] = None
 
     @transaction(
         permission="cost-analysis:CostReportData.read",
@@ -238,9 +241,14 @@ class CostReportDataService(BaseService):
             aggregated_cost_report_data["domain_id"] = domain_id
             aggregated_cost_report_data["is_confirmed"] = is_confirmed
 
-            aggregated_cost_report_data["cost"] = currency_mgr.convert_exchange_rate(
-                aggregated_cost_report_data
-            ).get("cost")
+            aggregated_cost_report_data[
+                "cost"
+            ] = CostReportManager.get_exchange_currency(
+                aggregated_cost_report_data["cost"], self.currency_map
+            )
+            aggregated_cost_report_data[
+                "currency_date"
+            ] = CostReportManager.get_currency_date(self.currency_date)
 
             self.cost_report_data_mgr.create_cost_report_data(
                 aggregated_cost_report_data
