@@ -130,7 +130,6 @@ class CostReportDataService(BaseService):
         report_month = cost_report_vo.report_month
         issue_date = cost_report_vo.issue_date
         workspace_name = self._get_workspace_name(domain_id, workspace_id)
-        language = cost_report_vo.language
         is_confirmed = True if cost_report_vo.status == "SUCCESS" else False
 
         cost_report_config_vo = cost_report_config_mgr.get_cost_report_config(
@@ -160,7 +159,6 @@ class CostReportDataService(BaseService):
             report_month=report_month,
             issue_date=issue_date,
             is_confirmed=is_confirmed,
-            language=language,
         )
 
     def _aggregate_monthly_cost_report_data(
@@ -177,7 +175,6 @@ class CostReportDataService(BaseService):
         data_source_ids: list,
         report_month: str,
         issue_date: str,
-        language: str,
         is_confirmed: bool = False,
     ):
         report_year = report_month.split("-")[0]
@@ -240,7 +237,6 @@ class CostReportDataService(BaseService):
             aggregated_cost_report_data["cost_report_id"] = cost_report_id
             aggregated_cost_report_data["domain_id"] = domain_id
             aggregated_cost_report_data["is_confirmed"] = is_confirmed
-            aggregated_cost_report_data["language"] = language
 
             aggregated_cost_report_data["cost"] = currency_mgr.convert_exchange_rate(
                 aggregated_cost_report_data
