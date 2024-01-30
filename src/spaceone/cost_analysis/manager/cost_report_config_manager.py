@@ -81,7 +81,7 @@ class CostReportConfigManager(BaseManager):
         pass
 
     def get_cost_report_config(
-        self, cost_report_config_id: str, domain_id: str
+        self, domain_id: str, cost_report_config_id: str
     ) -> CostReportConfig:
         return self.cost_report_config_model.get(
             domain_id=domain_id, cost_report_config_id=cost_report_config_id

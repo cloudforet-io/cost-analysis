@@ -101,26 +101,26 @@ class CostReportService(BaseService):
     def get_url(self, params: CostReportGetUrlRequest) -> dict:
         """Get cost report url"""
 
-        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
-
-        user_id = self.transaction.get_meta("authorization.user_id")
         domain_id = params.domain_id
-        user_info = identity_mgr.get_user(user_id, domain_id)
-        language = user_info.get("language", "en")
         cost_report_id = params.cost_report_id
 
-        # check cost report
+        # check cost report config and cost report
         cost_report_vo = self.cost_report_mgr.get_cost_report(
             domain_id, cost_report_id, params.workspace_id
         )
+        cost_report_config_vo = self.cost_report_config_mgr.get_cost_report_config(
+            domain_id, cost_report_vo.cost_report_config_id
+        )
+
         workspace_id = cost_report_vo.workspace_id
+        language = cost_report_config_vo.language
 
         sso_access_token = self._get_temporary_sso_access_token(domain_id, workspace_id)
         cost_report_link = self._get_console_cost_report_url(
             domain_id, cost_report_id, sso_access_token, language
         )
 
-        return {"cost_report_link": cost_report_link}
+        return {"cost_report_link": cost_report_link, "domain_id": domain_id}
 
     @transaction(
         permission="cost-analysis:CostReport.read",
@@ -363,9 +363,10 @@ class CostReportService(BaseService):
         # Get Cost Report Config
         cost_report_config_id = cost_report_vo.cost_report_config_id
         cost_report_config_vo = self.cost_report_config_mgr.get_cost_report_config(
-            cost_report_config_id, domain_id
+            domain_id, cost_report_config_id
         )
 
+        language = cost_report_config_vo.language
         recipients = cost_report_config_vo.recipients
         role_types = recipients.get("role_types", [])
         emails = recipients.get("emails", [])
@@ -400,7 +401,6 @@ class CostReportService(BaseService):
         for user_info in filtered_users_info:
             user_id = user_info["user_id"]
             email = user_info.get("email", user_id)
-            language = user_info.get("language", "en")
 
             cost_report_link = self._get_console_cost_report_url(
                 domain_id, cost_report_vo.cost_report_id, sso_access_token, language
@@ -453,7 +453,7 @@ class CostReportService(BaseService):
                 "cost-analysis:CostReportData.read",
                 "cost-analysis:CostReportConfig.read",
                 "config:Domain.read",
-                "identity.Provider.read",
+                "identity:Provider.read",
             ],
         )
 
@@ -466,7 +466,6 @@ class CostReportService(BaseService):
             "timeout": timeout,
             "permissions": permissions,
         }
-        # todo : make temporary token
         return identity_mgr.grant_token(params)
 
     @staticmethod

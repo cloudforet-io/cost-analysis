@@ -79,7 +79,8 @@ class CostReportConfigService(BaseService):
             CostReportConfigResponse:
         """
         cost_report_config_vo = self.cost_report_mgr.get_cost_report_config(
-            params.cost_report_config_id, params.domain_id
+            params.domain_id,
+            params.cost_report_config_id,
         )
 
         if params.is_last_day is None:
@@ -110,7 +111,8 @@ class CostReportConfigService(BaseService):
             CostReportConfigResponse:
         """
         cost_report_config_vo = self.cost_report_mgr.get_cost_report_config(
-            params.cost_report_config_id, params.domain_id
+            params.domain_id,
+            params.cost_report_config_id,
         )
 
         cost_report_config_vo = (
@@ -139,7 +141,7 @@ class CostReportConfigService(BaseService):
             CostReportConfigResponse:
         """
         cost_report_config_vo = self.cost_report_mgr.get_cost_report_config(
-            params.cost_report_config_id, params.domain_id
+            params.domain_id, params.cost_report_config_id
         )
 
         cost_report_config_vo = self.cost_report_mgr.enable_cost_report_config(
@@ -166,7 +168,8 @@ class CostReportConfigService(BaseService):
             CostReportConfigResponse:
         """
         cost_report_config_vo = self.cost_report_mgr.get_cost_report_config(
-            params.cost_report_config_id, params.domain_id
+            params.domain_id,
+            params.cost_report_config_id,
         )
 
         cost_report_config_vo = self.cost_report_mgr.disable_cost_report_config(
@@ -191,7 +194,7 @@ class CostReportConfigService(BaseService):
             None
         """
         cost_report_config_vo = self.cost_report_mgr.get_cost_report_config(
-            params.cost_report_config_id, params.domain_id
+            params.domain_id, params.cost_report_config_id
         )
 
         self.cost_report_mgr.delete_cost_report_config_by_vo(cost_report_config_vo)
@@ -204,7 +207,7 @@ class CostReportConfigService(BaseService):
         """RUN cost report config"""
 
         cost_report_config_vo = self.cost_report_mgr.get_cost_report_config(
-            params.cost_report_config_id, params.domain_id
+            params.domain_id, params.cost_report_config_id
         )
 
         currency_mgr = CurrencyManager()
@@ -240,7 +243,7 @@ class CostReportConfigService(BaseService):
             CostReportConfigResponse:
         """
         cost_report_config_vo = self.cost_report_mgr.get_cost_report_config(
-            params.cost_report_config_id, params.domain_id
+            params.domain_id, params.cost_report_config_id
         )
 
         return CostReportConfigResponse(**cost_report_config_vo.to_dict())
