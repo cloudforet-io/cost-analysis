@@ -1,5 +1,7 @@
 import logging
 
+from typing import Tuple
+
 from spaceone.core.manager import BaseManager
 from spaceone.cost_analysis.connector.currency_connector import CurrencyConnector
 
@@ -12,7 +14,7 @@ class CurrencyManager(BaseManager):
         self.currency_connector: CurrencyConnector = CurrencyConnector()
         self.currency_mapper = {}
 
-    def get_currency_map_date(self, to_currency: str) -> tuple[dict, str]:
+    def get_currency_map_date(self, to_currency: str) -> Tuple[dict, str]:
         currency_map, currency_date = self.currency_connector.add_currency_map_date(
             to_currency
         )

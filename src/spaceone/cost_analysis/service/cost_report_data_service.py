@@ -12,7 +12,6 @@ from spaceone.cost_analysis.manager.cost_report_config_manager import (
     CostReportConfigManager,
 )
 from spaceone.cost_analysis.manager.cost_report_manager import CostReportManager
-from spaceone.cost_analysis.manager.currency_manager import CurrencyManager
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 from spaceone.cost_analysis.model.cost_report.database import CostReport
@@ -212,7 +211,6 @@ class CostReportDataService(BaseService):
         )
 
         results = response.get("results", [])
-        currency_mgr = CurrencyManager()
         for aggregated_cost_report_data in results:
             ag_cost_report_currency = data_source_currency_map.get(
                 aggregated_cost_report_data.get("data_source_id")
