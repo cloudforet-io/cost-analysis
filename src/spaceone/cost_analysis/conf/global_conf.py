@@ -19,7 +19,7 @@ COST_REPORT_DEFAULT_PERMISSIONS = [
     "cost-analysis:CostReportData.read",
     "cost-analysis:CostReportConfig.read",
     "config:Domain.read",
-    "identity.Provider.read",
+    "identity:Provider.read",
 ]
 
 CACHES = {
