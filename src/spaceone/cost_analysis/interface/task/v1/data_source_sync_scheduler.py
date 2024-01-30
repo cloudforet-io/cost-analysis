@@ -22,7 +22,14 @@ class DataSourceSyncScheduler(HourlyScheduler):
             raise ERROR_CONFIGURATION(key="TOKEN")
         self._data_source_sync_hour = config.get_global("DATA_SOURCE_SYNC_HOUR", 16)
 
-    def create_task(self):
+    def create_task(self) -> list:
+        tasks = []
+        tasks.extend(self._send_cost_report_task())
+        tasks.extend(self._create_cost_report_run_task())
+        tasks.extend(self._create_data_source_sync_task())
+        return tasks
+
+    def _create_data_source_sync_task(self):
         if datetime.utcnow().hour == self._data_source_sync_hour:
             stp = {
                 "name": "data_source_sync_schedule",
@@ -40,14 +47,72 @@ class DataSourceSyncScheduler(HourlyScheduler):
             }
 
             print(
-                f"{utils.datetime_to_iso8601(datetime.now())} [INFO] [create_task] create_jobs_by_data_source => START"
+                f"{utils.datetime_to_iso8601(datetime.utcnow())} [INFO] [create_task] create_jobs_by_data_source => START"
             )
             return [stp]
         else:
             print(
-                f"{utils.datetime_to_iso8601(datetime.now())} [INFO] [create_task] create_jobs_by_data_source => SKIP"
+                f"{utils.datetime_to_iso8601(datetime.utcnow())} [INFO] [create_task] create_jobs_by_data_source => SKIP"
             )
             print(
-                f"{utils.datetime_to_iso8601(datetime.now())} [INFO] [create_task] data_source_sync_time: {self._data_source_sync_hour} hour (UTC)"
+                f"{utils.datetime_to_iso8601(datetime.utcnow())} [INFO] [create_task] data_source_sync_time: {self._data_source_sync_hour} hour (UTC)"
+            )
+            return []
+
+    def _create_cost_report_run_task(self):
+        if datetime.utcnow().hour == self._data_source_sync_hour - 1:
+            stp = {
+                "name": "cost_report_data_sync_schedule",
+                "version": "v1",
+                "executionEngine": "BaseWorker",
+                "stages": [
+                    {
+                        "locator": "SERVICE",
+                        "name": "CostReportService",
+                        "metadata": {"token": self._token},
+                        "method": "create_cost_report_by_cost_report_config",
+                        "params": {"params": {}},
+                    }
+                ],
+            }
+            print(
+                f"{utils.datetime_to_iso8601(datetime.utcnow())} [INFO] [create_task] create_cost_report_by_cost_report_config => START"
+            )
+            return [stp]
+        else:
+            print(
+                f"{utils.datetime_to_iso8601(datetime.utcnow())} [INFO] [create_task] create_cost_report_by_cost_report_config => SKIP"
+            )
+            print(
+                f"{utils.datetime_to_iso8601(datetime.utcnow())} [INFO] [create_task] data_source_sync_time: {self._data_source_sync_hour} hour (UTC)"
+            )
+            return []
+
+    def _send_cost_report_task(self):
+        if datetime.utcnow().hour == self._data_source_sync_hour:
+            stp = {
+                "name": "cost_report_run_schedule",
+                "version": "v1",
+                "executionEngine": "BaseWorker",
+                "stages": [
+                    {
+                        "locator": "SERVICE",
+                        "name": "CostReportService",
+                        "metadata": {"token": self._token},
+                        "method": "send_cost_report_by_cost_report_config",
+                        "params": {"params": {}},
+                    }
+                ],
+            }
+            print(
+                f"{utils.datetime_to_iso8601(datetime.utcnow())} [INFO] [create_task] send_cost_report_by_cost_report_config => START"
+            )
+            return [stp]
+        else:
+            print(
+                f"{utils.datetime_to_iso8601(datetime.utcnow())} [INFO] [create_task] send_cost_report_by_cost_report_config => SKIP"
+            )
+            print(
+                f"{utils.datetime_to_iso8601(datetime.utcnow())} [INFO] [create_task] data_source_sync_time: {self._data_source_sync_hour} hour (UTC)"
             )
             return []

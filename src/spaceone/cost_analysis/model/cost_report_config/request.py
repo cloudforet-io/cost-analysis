@@ -22,6 +22,7 @@ class CostReportConfigCreateRequest(BaseModel):
     currency: str = "KRW"
     recipients: dict = {}
     data_source_filter: Union[dict, None] = None
+    language: Union[str, None] = None
     domain_id: str
 
 
@@ -31,6 +32,7 @@ class CostReportConfigUpdateRequest(BaseModel):
     is_last_day: Union[bool, None] = None
     currency: Union[str, None] = None
     data_source_filter: Union[dict, None] = None
+    language: Union[str, None] = None
     domain_id: str
 
 
@@ -63,18 +65,15 @@ class CostReportConfigRunRequest(BaseModel):
 class CostReportConfigGetRequest(BaseModel):
     cost_report_config_id: str
     domain_id: str
-    workspace_id: Union[str, None] = None
 
 
 class CostReportConfigSearchQueryRequest(BaseModel):
     query: Union[dict, None] = None
     cost_report_config_id: Union[str, None] = None
     domain_id: str
-    workspace_id: Union[str, None] = None
 
 
 class CostReportConfigStatQueryRequest(BaseModel):
     query: dict
     cost_report_config_id: Union[str, None] = None
     domain_id: str
-    workspace_id: Union[str, None] = None

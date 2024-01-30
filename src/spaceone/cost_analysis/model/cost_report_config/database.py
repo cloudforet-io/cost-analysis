@@ -14,6 +14,7 @@ class CostReportConfig(MongoModel):
     currency = StringField(max_length=20, default="KRW")
     recipients = DictField(default={})
     data_source_filter = DictField(default={})
+    language = StringField(max_length=7, default="en")
     domain_id = StringField(max_length=40)
     created_at = DateTimeField(auto_now_add=True)
     updated_at = DateTimeField(auto_now=True)
@@ -27,6 +28,7 @@ class CostReportConfig(MongoModel):
             "currency",
             "recipients",
             "data_source_filter",
+            "language",
             "created_at",
             "updated_at",
             "deleted_at",
@@ -37,9 +39,9 @@ class CostReportConfig(MongoModel):
             "issue_day",
             "created_at",
         ],
-        "ordering": ["created_at"],
+        "ordering": ["-created_at"],
         "indexes": [
-            "domain_id",
+            "cost_report_config_id",
         ],
     }
 

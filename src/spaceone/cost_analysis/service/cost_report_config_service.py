@@ -1,14 +1,15 @@
+from typing import Union
+
+from spaceone.core.error import *
 from spaceone.core.service import *
 from spaceone.core.service.utils import *
-from spaceone.core.handler import (
-    authentication_handler,
-    authorization_handler,
-    mutation_handler,
-    event_handler,
-)
 
 from spaceone.cost_analysis.manager.cost_report_config_manager import (
     CostReportConfigManager,
+)
+from spaceone.cost_analysis.service.cost_report_serivce import CostReportService
+from spaceone.cost_analysis.service.cost_report_data_service import (
+    CostReportDataService,
 )
 from spaceone.cost_analysis.model.cost_report_config.request import *
 from spaceone.cost_analysis.model.cost_report_config.response import *
@@ -50,9 +51,7 @@ class CostReportConfigService(BaseService):
             if not params.issue_day:
                 raise ERROR_REQUIRED_PARAMETER(key="issue_day")
 
-        cost_report_vo = self.cost_report_mgr.create_cost_report_config(
-            params.to_dict()
-        )
+        cost_report_vo = self.cost_report_mgr.create_cost_report_config(params.dict())
 
         return CostReportConfigResponse(**cost_report_vo.to_dict())
 
@@ -82,8 +81,11 @@ class CostReportConfigService(BaseService):
             params.cost_report_config_id, params.domain_id
         )
 
+        if params.is_last_day is None:
+            params.is_last_day = False
+
         cost_report_config_vo = self.cost_report_mgr.update_cost_report_config_by_vo(
-            params.to_dict(exclude_unset=True), cost_report_config_vo
+            params.dict(exclude_unset=True), cost_report_config_vo
         )
 
         return CostReportConfigResponse(**cost_report_config_vo.to_dict())
@@ -112,7 +114,7 @@ class CostReportConfigService(BaseService):
 
         cost_report_config_vo = (
             self.cost_report_mgr.update_recipients_cost_report_config(
-                params.to_dict(exclude_unset=True), cost_report_config_vo
+                params.dict(exclude_unset=True), cost_report_config_vo
             )
         )
 
@@ -193,13 +195,19 @@ class CostReportConfigService(BaseService):
 
         self.cost_report_mgr.delete_cost_report_config_by_vo(cost_report_config_vo)
 
-    # TODO: Business Logic. Check Return Type
     @transaction(
         permission="cost-analysis:CostReportConfig.read", role_types=["DOMAIN_ADMIN"]
     )
     @convert_model
     def run(self, params: CostReportConfigRunRequest) -> None:
-        pass
+        """RUN cost report config"""
+
+        # todo : apply currency manager
+        cost_report_config_vo = self.cost_report_mgr.get_cost_report_config(
+            params.cost_report_config_id, params.domain_id
+        )
+        cost_report_service = CostReportService()
+        cost_report_service.create_cost_report(cost_report_config_vo)
 
     @transaction(
         permission="cost-analysis:CostReportConfig.read",
@@ -215,13 +223,12 @@ class CostReportConfigService(BaseService):
             params (CostReportConfigGetRequest): {
                 'cost_report_config_id': 'str',     # required
                 'domain_id': 'str'                  # injected from auth (required)
-                'workspace_id': 'str'
 
         Returns:
             CostReportConfigResponse:
         """
         cost_report_config_vo = self.cost_report_mgr.get_cost_report_config(
-            params.cost_report_config_id, params.domain_id, params.workspace_id
+            params.cost_report_config_id, params.domain_id
         )
 
         return CostReportConfigResponse(**cost_report_config_vo.to_dict())
@@ -230,7 +237,7 @@ class CostReportConfigService(BaseService):
         permission="cost-analysis:CostReportConfig.read",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
-    @append_query_filter(["cost_report_config_id", "domain_id", "workspace_id"])
+    @append_query_filter(["cost_report_config_id", "domain_id"])
     @convert_model
     def list(
         self, params: CostReportConfigSearchQueryRequest
@@ -253,7 +260,7 @@ class CostReportConfigService(BaseService):
         (
             cost_report_config_vos,
             total_count,
-        ) = self.cost_report_mgr.list_cost_report_config(query)
+        ) = self.cost_report_mgr.list_cost_report_config(query, params.domain_id)
 
         cost_report_configs_info = [
             cost_report_config_vo.to_dict()
@@ -268,7 +275,7 @@ class CostReportConfigService(BaseService):
         permission="cost-analysis:CostReportConfig.read",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
-    @append_query_filter(["cost_report_config_id", "domain_id", "workspace_id"])
+    @append_query_filter(["cost_report_config_id", "domain_id"])
     @convert_model
     def stat(self, params: CostReportConfigStatQueryRequest) -> dict:
         """Stat cost report configs
