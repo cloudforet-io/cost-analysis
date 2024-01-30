@@ -2,6 +2,7 @@ import logging
 import FinanceDataReader as fdr
 
 from datetime import datetime, timedelta
+from typing import Tuple
 
 from spaceone.core.connector import BaseConnector
 
@@ -20,7 +21,7 @@ class CurrencyConnector(BaseConnector):
         self.two_weeks_ago = (self.today - timedelta(days=14)).strftime("%Y-%m-%d")
         self.currency_date = None
 
-    def add_currency_map_date(self, to_currency: str) -> tuple[dict, str]:
+    def add_currency_map_date(self, to_currency: str) -> Tuple[dict, str]:
         currency_map = {}
         _currency_date = ""
 
