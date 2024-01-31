@@ -59,7 +59,7 @@ class DataSourceSyncScheduler(HourlyScheduler):
             return []
 
     def _create_cost_report_run_task(self):
-        if datetime.utcnow().hour == self._data_source_sync_hour - 1:
+        if datetime.utcnow().hour == 0:
             stp = {
                 "name": "cost_report_data_sync_schedule",
                 "version": "v1",
