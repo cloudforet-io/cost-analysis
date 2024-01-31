@@ -14,9 +14,7 @@ class CurrencyManager(BaseManager):
         self.currency_connector: CurrencyConnector = CurrencyConnector()
         self.currency_mapper = {}
 
-    def get_currency_map_date(self, to_currency: str) -> Tuple[dict, str]:
-        currency_map, currency_date = self.currency_connector.add_currency_map_date(
-            to_currency
-        )
+    def get_currency_map_date(self) -> Tuple[dict, str]:
+        currency_map, currency_date = self.currency_connector.add_currency_map_date()
 
         return currency_map, currency_date
