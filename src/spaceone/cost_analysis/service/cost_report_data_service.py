@@ -208,12 +208,16 @@ class CostReportDataService(BaseService):
 
         results = response.get("results", [])
         for aggregated_cost_report_data in results:
+            ag_cost = aggregated_cost_report_data.pop("cost", 0.0)
             ag_cost_report_currency = data_source_currency_map.get(
                 aggregated_cost_report_data.get("data_source_id")
             )
-            aggregated_cost_report_data["cost"] = {
-                ag_cost_report_currency: aggregated_cost_report_data.pop("cost", 0.0)
-            }
+
+            aggregated_cost_report_data[
+                "cost"
+            ] = CostReportManager.get_exchange_currency(
+                ag_cost, ag_cost_report_currency, self.currency_map
+            )
             aggregated_cost_report_data["currency"] = currency
             aggregated_cost_report_data["issue_date"] = issue_date
             aggregated_cost_report_data["report_month"] = report_month
@@ -234,15 +238,6 @@ class CostReportDataService(BaseService):
             aggregated_cost_report_data["cost_report_id"] = cost_report_id
             aggregated_cost_report_data["domain_id"] = domain_id
             aggregated_cost_report_data["is_confirmed"] = is_confirmed
-
-            aggregated_cost_report_data[
-                "cost"
-            ] = CostReportManager.get_exchange_currency(
-                aggregated_cost_report_data["cost"], self.currency_map
-            )
-            aggregated_cost_report_data[
-                "currency_date"
-            ] = CostReportManager.get_currency_date(self.currency_date)
 
             self.cost_report_data_mgr.create_cost_report_data(
                 aggregated_cost_report_data

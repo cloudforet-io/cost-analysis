@@ -272,12 +272,14 @@ class CostReportService(BaseService):
         response = self.cost_mgr.analyze_monthly_costs(query, domain_id)
         results = response.get("results", [])
         for aggregated_cost_report in results:
+            ag_cost = aggregated_cost_report.pop("cost", 0.0)
             ag_cost_report_currency = data_source_currency_map.get(
                 aggregated_cost_report.pop("data_source_id")
             )
-            aggregated_cost_report["cost"] = {
-                ag_cost_report_currency: aggregated_cost_report.pop("cost")
-            }
+
+            aggregated_cost_report["cost"] = CostReportManager.get_exchange_currency(
+                ag_cost, ag_cost_report_currency, self.currency_map
+            )
             aggregated_cost_report["status"] = status
             aggregated_cost_report["currency"] = currency
             if issue_month:
@@ -306,9 +308,6 @@ class CostReportService(BaseService):
         for cost_report_idx, aggregated_cost_report in enumerate(
             aggregated_cost_report_results, start=start_cost_report_number
         ):
-            aggregated_cost_report["cost"] = CostReportManager.get_exchange_currency(
-                aggregated_cost_report["cost"], self.currency_map
-            )
             aggregated_cost_report["report_number"] = self.generate_report_number(
                 report_month, issue_day, cost_report_idx
             )
