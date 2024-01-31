@@ -280,9 +280,6 @@ class CostReportService(BaseService):
             }
             aggregated_cost_report["status"] = status
             aggregated_cost_report["currency"] = currency
-            aggregated_cost_report["report_number"] = self.generate_report_number(
-                report_month, issue_day
-            )
             if issue_month:
                 aggregated_cost_report["issue_date"] = f"{issue_month}-{issue_day}"
             aggregated_cost_report["report_month"] = report_month
@@ -302,9 +299,18 @@ class CostReportService(BaseService):
         cost_report_data_svc.currency_map = self.currency_map
         cost_report_data_svc.currency_date = self.currency_date
 
-        for aggregated_cost_report in aggregated_cost_report_results:
+        start_cost_report_number = self.get_start_cost_report_number(
+            domain_id, report_month, issue_day
+        )
+
+        for cost_report_idx, aggregated_cost_report in enumerate(
+            aggregated_cost_report_results, start=start_cost_report_number
+        ):
             aggregated_cost_report["cost"] = CostReportManager.get_exchange_currency(
                 aggregated_cost_report["cost"], self.currency_map
+            )
+            aggregated_cost_report["report_number"] = self.generate_report_number(
+                report_month, issue_day, cost_report_idx
             )
 
             aggregated_cost_report[
@@ -383,6 +389,41 @@ class CostReportService(BaseService):
             f"[send_cost_report] send cost report ({workspace_id}/{cost_report_vo.cost_report_id}) to {len(users_info)} users"
         )
 
+    def get_email_verified_workspace_owner_users(
+        self, domain_id: str, workspace_id: str, role_types: list = None
+    ) -> list:
+        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
+
+        if "WORKSPACE_OWNER" not in role_types:
+            return []
+
+        # list users in workspace
+        users_info = identity_mgr.list_workspace_users(
+            params={
+                "workspace_id": workspace_id,
+                "state": "ENABLED",
+                "role_type": "WORKSPACE_OWNER",
+                "query": {
+                    "filter": [
+                        {"k": "email_verified", "v": True, "o": "eq"},
+                    ]
+                },
+            },
+            domain_id=domain_id,
+        ).get("results", [])
+
+        return users_info
+
+    def get_start_cost_report_number(
+        self, domain_id: str, report_month: str, issue_day: int
+    ) -> int:
+        return (
+            self.cost_report_mgr.filter_cost_reports(
+                domain_id=domain_id, issue_date=f"{report_month}-{issue_day}"
+            ).count()
+            + 1
+        )
+
     def _get_workspace_name_map(self, domain_id: str) -> Tuple[dict, list]:
         identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
         workspace_name_map = {}
@@ -437,31 +478,6 @@ class CostReportService(BaseService):
         }
         return identity_mgr.grant_token(params)
 
-    def get_email_verified_workspace_owner_users(
-        self, domain_id: str, workspace_id: str, role_types: list = None
-    ) -> list:
-        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
-
-        if "WORKSPACE_OWNER" not in role_types:
-            return []
-
-        # list users in workspace
-        users_info = identity_mgr.list_workspace_users(
-            params={
-                "workspace_id": workspace_id,
-                "state": "ENABLED",
-                "role_type": "WORKSPACE_OWNER",
-                "query": {
-                    "filter": [
-                        {"k": "email_verified", "v": True, "o": "eq"},
-                    ]
-                },
-            },
-            domain_id=domain_id,
-        ).get("results", [])
-
-        return users_info
-
     @staticmethod
     def _get_current_and_last_month() -> Tuple[str, str]:
         current_month = datetime.utcnow().strftime("%Y-%m")
@@ -482,11 +498,13 @@ class CostReportService(BaseService):
             return min(issue_day, last_day)
 
     @staticmethod
-    def generate_report_number(report_month: str, issue_day: int) -> str:
+    def generate_report_number(
+        report_month: str, issue_day: int, cost_report_idx: int
+    ) -> str:
         report_date = f"{report_month}-{issue_day}"
         date_object = datetime.strptime(report_date, "%Y-%m-%d")
 
-        return f"CostReport_{date_object.strftime('%y%m%d%H%M')}"
+        return f"CostReport_{date_object.strftime('%y%m%d')}{str(cost_report_idx).zfill(4)}"
 
     @staticmethod
     def _get_data_source_currency_map(
