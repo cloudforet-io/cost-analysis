@@ -215,7 +215,7 @@ class CostReportConfigService(BaseService):
         (
             currency_map,
             currency_date,
-        ) = currency_mgr.get_currency_map_date(cost_report_config_vo.currency)
+        ) = currency_mgr.get_currency_map_date()
 
         cost_report_service = CostReportService()
 
