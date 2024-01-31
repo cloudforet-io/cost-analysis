@@ -1,5 +1,6 @@
 # Email Settings
 EMAIL_CONSOLE_DOMAIN = ""
+EMAIL_SERVICE_NAME = "Cloudforet"
 
 DATABASE_AUTO_CREATE_INDEX = True
 DATABASES = {
