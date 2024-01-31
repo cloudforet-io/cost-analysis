@@ -20,6 +20,7 @@ class CostReportResponse(BaseModel):
     cost_report_config_id: Union[str, None] = None
     workspace_id: Union[str, None] = None
     domain_id: Union[str, None] = None
+    created_at: Union[str, None] = None
 
 
 class CostReportsResponse(BaseModel):

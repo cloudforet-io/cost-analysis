@@ -1,4 +1,3 @@
-import copy
 import calendar
 import datetime
 import logging
@@ -6,7 +5,6 @@ from dateutil.relativedelta import relativedelta
 from datetime import datetime
 from typing import Tuple, Union
 
-import pandas as pd
 from mongoengine import QuerySet
 from spaceone.core import config
 from spaceone.core.service import *
@@ -199,7 +197,7 @@ class CostReportService(BaseService):
 
         workspace_name_map, workspace_ids = self._get_workspace_name_map(domain_id)
         data_source_currency_map, data_source_ids = self._get_data_source_currency_map(
-            data_source_filter, workspace_ids, domain_id
+            domain_id, workspace_ids, data_source_filter
         )
 
         issue_day = self._get_issue_day(is_last_day, issue_day)
@@ -208,11 +206,11 @@ class CostReportService(BaseService):
         if issue_day == datetime.utcnow().day:
             self._aggregate_monthly_cost_report(
                 domain_id=domain_id,
+                workspace_ids=workspace_ids,
+                data_source_ids=data_source_ids,
                 cost_report_config_id=cost_report_config_id,
                 workspace_name_map=workspace_name_map,
-                workspace_ids=workspace_ids,
                 data_source_currency_map=data_source_currency_map,
-                data_source_ids=data_source_ids,
                 report_month=last_month,
                 currency=currency,
                 issue_day=issue_day,
@@ -222,11 +220,11 @@ class CostReportService(BaseService):
 
         self._aggregate_monthly_cost_report(
             domain_id=domain_id,
+            workspace_ids=workspace_ids,
+            data_source_ids=data_source_ids,
             cost_report_config_id=cost_report_config_id,
             workspace_name_map=workspace_name_map,
-            workspace_ids=workspace_ids,
             data_source_currency_map=data_source_currency_map,
-            data_source_ids=data_source_ids,
             report_month=current_month,
             currency=currency,
             issue_day=issue_day,
@@ -444,32 +442,18 @@ class CostReportService(BaseService):
     ) -> list:
         identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
 
-        rb_query = {
-            "filter": [
-                {"k": "workspace_id", "v": workspace_id, "o": "eq"},
-            ],
-        }
-        if role_types:
-            rb_query["filter"].append({"k": "role_type", "v": role_types, "o": "in"})
-
-        role_bindings_info = identity_mgr.list_role_bindings(
-            params={"query": rb_query}, domain_id=domain_id
-        )
-
-        rb_users_ids = [
-            role_binding_info.get("user_id")
-            for role_binding_info in role_bindings_info.get("results", [])
-        ]
+        if "WORKSPACE_OWNER" not in role_types:
+            return []
 
         # list users in workspace
         users_info = identity_mgr.list_workspace_users(
             params={
                 "workspace_id": workspace_id,
                 "state": "ENABLED",
+                "role_type": "WORKSPACE_OWNER",
                 "query": {
                     "filter": [
-                        {"k": "user_id", "v": rb_users_ids, "o": "in"},
-                        {"k": "language", "v": "email_verified", "o": "eq"},
+                        {"k": "email_verified", "v": True, "o": "eq"},
                     ]
                 },
             },
@@ -506,7 +490,7 @@ class CostReportService(BaseService):
 
     @staticmethod
     def _get_data_source_currency_map(
-        data_source_filter: dict, workspace_ids: list, domain_id: str
+        domain_id: str, workspace_ids: list, data_source_filter: dict
     ) -> Tuple[dict, list]:
         data_source_currency_map = {}
         data_source_mgr = DataSourceManager()
