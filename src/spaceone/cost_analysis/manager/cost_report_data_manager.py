@@ -41,7 +41,7 @@ class CostReportDataManager(BaseManager):
             conditions["workspace_id"] = workspace_id
         return self.cost_report_data_model.get(**conditions)
 
-    def filter_data_sources(self, **conditions):
+    def filter_cost_reports_data(self, **conditions):
         return self.cost_report_data_model.filter(**conditions)
 
     def list_cost_reports_data(self, query: dict) -> Tuple[QuerySet, int]:
