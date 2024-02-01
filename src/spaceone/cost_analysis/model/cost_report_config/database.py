@@ -9,7 +9,7 @@ class CostReportConfig(MongoModel):
     state = StringField(
         max_length=20, default="ENABLED", choices=("ENABLED", "DISABLED", "DELETED")
     )
-    issue_day = IntField(default=None)
+    issue_day = IntField(default=10, min_value=1, max_value=31)
     is_last_day = BooleanField(deault=False)
     currency = StringField(max_length=20, default="KRW")
     recipients = DictField(default={})

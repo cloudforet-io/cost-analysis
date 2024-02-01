@@ -132,6 +132,10 @@ class CostReportDataService(BaseService):
         workspace_name = self._get_workspace_name(domain_id, workspace_id)
         is_confirmed = True if cost_report_vo.status == "SUCCESS" else False
 
+        self._delete_old_is_confirmed_cost_report_data(
+            domain_id, cost_report_config_id, report_month, is_confirmed
+        )
+
         cost_report_config_vo = cost_report_config_mgr.get_cost_report_config(
             domain_id=domain_id, cost_report_config_id=cost_report_config_id
         )
@@ -288,6 +292,25 @@ class CostReportDataService(BaseService):
                 service_account["service_account_id"]
             ] = service_account["name"]
         return service_account_name_map
+
+    def _delete_old_is_confirmed_cost_report_data(
+        self,
+        domain_id: str,
+        cost_report_config_id,
+        report_month: str,
+        is_confirmed: bool,
+    ):
+        if is_confirmed:
+            cost_report_data_vos = self.cost_report_data_mgr.filter_cost_reports_data(
+                domain_id=domain_id,
+                cost_report_config_id=cost_report_config_id,
+                report_month=report_month,
+                is_confirmed=is_confirmed,
+            )
+            _LOGGER.debug(
+                f"[delete_cost_report_data] delete is_confirmed cost report data ({cost_report_config_id, report_month}) {cost_report_data_vos.count()}"
+            )
+            cost_report_data_vos.delete()
 
     @staticmethod
     def _get_data_source_currency_map(
