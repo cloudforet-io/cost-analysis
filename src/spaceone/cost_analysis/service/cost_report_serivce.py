@@ -444,7 +444,7 @@ class CostReportService(BaseService):
         console_domain = config.get_global("EMAIL_CONSOLE_DOMAIN")
         console_domain = console_domain.format(domain_name=domain_name)
 
-        return f"{console_domain}/cost-report?sso_access_token={token}&cost_report_id={cost_report_id}&language={language}"
+        return f"{console_domain}/cost-report-detail?sso_access_token={token}&cost_report_id={cost_report_id}&language={language}"
 
     def _get_domain_name(self, domain_id: str) -> str:
         identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
