@@ -27,12 +27,14 @@ class CostReport(MongoModel):
         ],
         "minimal_fields": [
             "cost_report_id",
+            "cost",
             "status",
+            "report_number",
             "issue_date",
             "workspace_name",
             "workspace_id",
             "domain_id",
         ],
-        "ordering": ["created_at"],
+        "ordering": ["-created_at", "-report_number"],
         "indexes": ["cost_report_config_id"],
     }
