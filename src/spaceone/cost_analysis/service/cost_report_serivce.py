@@ -283,7 +283,9 @@ class CostReportService(BaseService):
             aggregated_cost_report["status"] = status
             aggregated_cost_report["currency"] = currency
             if issue_month:
-                aggregated_cost_report["issue_date"] = f"{issue_month}-{issue_day}"
+                aggregated_cost_report[
+                    "issue_date"
+                ] = f"{issue_month}-{str(issue_day).zfill(2)}"
             aggregated_cost_report["report_month"] = report_month
             aggregated_cost_report["report_year"] = aggregated_cost_report.pop(
                 "billed_year"
