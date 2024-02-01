@@ -147,7 +147,7 @@ class CostReportService(BaseService):
     )
     @convert_model
     def list(
-        self, params: CostReportSearchQueryRequest
+            self, params: CostReportSearchQueryRequest
     ) -> Union[CostReportsResponse, dict]:
         """List cost reports"""
 
@@ -232,23 +232,25 @@ class CostReportService(BaseService):
         )
 
     def _aggregate_monthly_cost_report(
-        self,
-        domain_id: str,
-        cost_report_config_id: str,
-        workspace_name_map: dict,
-        workspace_ids: list,
-        data_source_currency_map: dict,
-        data_source_ids: list,
-        report_month: str,
-        currency: str,
-        issue_day: int,
-        status: str,
-        issue_month: str = None,
+            self,
+            domain_id: str,
+            cost_report_config_id: str,
+            workspace_name_map: dict,
+            workspace_ids: list,
+            data_source_currency_map: dict,
+            data_source_ids: list,
+            report_month: str,
+            currency: str,
+            issue_day: int,
+            status: str,
+            issue_month: str = None,
     ) -> None:
         report_year = report_month.split("-")[0]
 
         # delete old cost_reports
-        self._delete_old_cost_reports(report_month, domain_id, cost_report_config_id)
+        self._delete_old_cost_reports(
+            report_month, domain_id, cost_report_config_id, status
+        )
 
         # collect enabled data sources
         query = {
@@ -268,9 +270,10 @@ class CostReportService(BaseService):
         }
 
         _LOGGER.debug(f"[aggregate_monthly_cost_report] query: {query}")
-
         response = self.cost_mgr.analyze_monthly_costs(query, domain_id)
         results = response.get("results", [])
+        issue_date = f"{issue_month}-{str(issue_day).zfill(2)}" if issue_month else None
+
         for aggregated_cost_report in results:
             ag_cost = aggregated_cost_report.pop("cost", 0.0)
             ag_cost_report_currency = data_source_currency_map.get(
@@ -282,10 +285,7 @@ class CostReportService(BaseService):
             )
             aggregated_cost_report["status"] = status
             aggregated_cost_report["currency"] = currency
-            if issue_month:
-                aggregated_cost_report[
-                    "issue_date"
-                ] = f"{issue_month}-{str(issue_day).zfill(2)}"
+            aggregated_cost_report["issue_date"] = issue_date
             aggregated_cost_report["report_month"] = report_month
             aggregated_cost_report["report_year"] = aggregated_cost_report.pop(
                 "billed_year"
@@ -304,11 +304,11 @@ class CostReportService(BaseService):
         cost_report_data_svc.currency_date = self.currency_date
 
         start_cost_report_number = self.get_start_cost_report_number(
-            domain_id, report_month, issue_day
+            domain_id, issue_date
         )
 
         for cost_report_idx, aggregated_cost_report in enumerate(
-            aggregated_cost_report_results, start=start_cost_report_number
+                aggregated_cost_report_results, start=start_cost_report_number
         ):
             aggregated_cost_report["report_number"] = self.generate_report_number(
                 report_month, issue_day, cost_report_idx
@@ -334,13 +334,13 @@ class CostReportService(BaseService):
         return self.cost_report_config_mgr.filter_cost_report_configs(state="ENABLED")
 
     def _delete_old_cost_reports(
-        self, report_month: str, domain_id: str, cost_report_config_id: str
+            self, report_month: str, domain_id: str, cost_report_config_id: str, status: str
     ) -> None:
         cost_report_delete_query = {
             "filter": [
                 {"k": "cost_report_config_id", "v": cost_report_config_id, "o": "eq"},
                 {"k": "report_month", "v": report_month, "o": "eq"},
-                {"k": "status", "v": "IN_PROGRESS", "o": "eq"},
+                {"k": "status", "v": status, "o": "eq"},
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
             ]
         }
@@ -349,7 +349,7 @@ class CostReportService(BaseService):
         )
 
         _LOGGER.debug(
-            f"[delete_old_cost_reports] delete cost reports ({report_month}) (count = {total_count})"
+            f"[delete_old_cost_reports] delete cost reports ({cost_report_config_id}:{report_month}) (count = {total_count})"
         )
         cost_reports_vos.delete()
 
@@ -391,7 +391,7 @@ class CostReportService(BaseService):
         )
 
     def get_email_verified_workspace_owner_users(
-        self, domain_id: str, workspace_id: str, role_types: list = None
+            self, domain_id: str, workspace_id: str, role_types: list = None
     ) -> list:
         identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
 
@@ -416,13 +416,13 @@ class CostReportService(BaseService):
         return users_info
 
     def get_start_cost_report_number(
-        self, domain_id: str, report_month: str, issue_day: int
+            self, domain_id: str, issue_date: str = None
     ) -> int:
         return (
-            self.cost_report_mgr.filter_cost_reports(
-                domain_id=domain_id, issue_date=f"{report_month}-{issue_day}"
-            ).count()
-            + 1
+                self.cost_report_mgr.filter_cost_reports(
+                    domain_id=domain_id, issue_date=issue_date
+                ).count()
+                + 1
         )
 
     def _get_workspace_name_map(self, domain_id: str) -> Tuple[dict, list]:
@@ -439,7 +439,7 @@ class CostReportService(BaseService):
         return workspace_name_map, workspace_ids
 
     def _get_console_cost_report_url(
-        self, domain_id: str, cost_report_id: str, token: str, language: str
+            self, domain_id: str, cost_report_id: str, token: str, language: str
     ) -> str:
         domain_name = self._get_domain_name(domain_id)
 
@@ -500,7 +500,7 @@ class CostReportService(BaseService):
 
     @staticmethod
     def generate_report_number(
-        report_month: str, issue_day: int, cost_report_idx: int
+            report_month: str, issue_day: int, cost_report_idx: int
     ) -> str:
         report_date = f"{report_month}-{issue_day}"
         date_object = datetime.strptime(report_date, "%Y-%m-%d")
@@ -509,7 +509,7 @@ class CostReportService(BaseService):
 
     @staticmethod
     def _get_data_source_currency_map(
-        domain_id: str, workspace_ids: list, data_source_filter: dict
+            domain_id: str, workspace_ids: list, data_source_filter: dict
     ) -> Tuple[dict, list]:
         data_source_currency_map = {}
         data_source_mgr = DataSourceManager()
