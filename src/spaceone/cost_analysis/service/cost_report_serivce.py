@@ -18,6 +18,9 @@ from spaceone.cost_analysis.manager.cost_report_config_manager import (
 )
 from spaceone.cost_analysis.manager.cost_manager import CostManager
 from spaceone.cost_analysis.manager.cost_report_manager import CostReportManager
+from spaceone.cost_analysis.manager.cost_report_data_manager import (
+    CostReportDataManager,
+)
 from spaceone.cost_analysis.manager.currency_manager import CurrencyManager
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.email_manager import EmailManager
@@ -41,6 +44,7 @@ class CostReportService(BaseService):
         self.cost_mgr = CostManager()
         self.cost_report_config_mgr = CostReportConfigManager()
         self.cost_report_mgr = CostReportManager()
+        self.cost_report_data_mgr = CostReportDataManager()
         self.currency_map: Union[dict, None] = None
         self.currency_date: Union[str, None] = None
 
@@ -247,9 +251,12 @@ class CostReportService(BaseService):
     ) -> None:
         report_year = report_month.split("-")[0]
 
-        # delete old cost_reports
+        # delete old cost_reports and cost_reports_data
         self._delete_old_cost_reports(
             report_month, domain_id, cost_report_config_id, status
+        )
+        self._delete_old_is_confirmed_cost_report_data(
+            domain_id, cost_report_config_id, report_month, status
         )
 
         # collect enabled data sources
@@ -352,6 +359,25 @@ class CostReportService(BaseService):
             f"[delete_old_cost_reports] delete cost reports ({cost_report_config_id}:{report_month}) (count = {total_count})"
         )
         cost_reports_vos.delete()
+
+    def _delete_old_is_confirmed_cost_report_data(
+        self,
+        domain_id: str,
+        cost_report_config_id,
+        report_month: str,
+        status: str,
+    ):
+        if status == "SUCCESS":
+            cost_report_data_vos = self.cost_report_data_mgr.filter_cost_reports_data(
+                domain_id=domain_id,
+                cost_report_config_id=cost_report_config_id,
+                report_month=report_month,
+                is_confirmed=True,
+            )
+            _LOGGER.debug(
+                f"[delete_cost_report_data] delete is_confirmed cost report data ({cost_report_config_id, report_month}) {cost_report_data_vos.count()}"
+            )
+            cost_report_data_vos.delete()
 
     def send_cost_report(self, cost_report_vo: CostReport) -> None:
         domain_id = cost_report_vo.domain_id
