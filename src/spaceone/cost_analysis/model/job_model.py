@@ -51,6 +51,7 @@ class Job(MongoModel):
             "total_tasks",
             "remained_tasks",
             "data_source_id",
+            "created_at",
         ],
         "ordering": ["-created_at"],
         "indexes": [
