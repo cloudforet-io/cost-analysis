@@ -12,7 +12,7 @@ class CostReportData(MongoModel):
     report_month = StringField(max_length=40)
     is_confirmed = BooleanField(default=False)
     provider = StringField(max_length=40)
-    product = StringField(max_length=40)
+    product = StringField(max_length=255)
     service_account_name = StringField(max_length=255)
     data_source_name = StringField(max_length=255)
     project_name = StringField(max_length=40)
