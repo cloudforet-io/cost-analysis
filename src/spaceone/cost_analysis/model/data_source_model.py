@@ -32,7 +32,7 @@ class SecretFilter(EmbeddedDocument):
 
 class DataSource(MongoModel):
     data_source_id = StringField(max_length=40, generate_id="ds", unique=True)
-    name = StringField(max_length=255, unique_with="domain_id")
+    name = StringField(max_length=255, unique_with=["workspace_id", "domain_id"])
     state = StringField(
         max_length=20, default="ENABLED", choices=("ENABLED", "DISABLED")
     )
@@ -87,6 +87,6 @@ class DataSource(MongoModel):
             "provider",
             "resource_group",
             "workspace_id",
-            "domain_id"
+            "domain_id",
         ],
     }
