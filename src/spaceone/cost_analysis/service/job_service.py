@@ -66,7 +66,7 @@ class JobService(BaseService):
 
     @transaction(
         permission="cost-analysis:Job.write",
-        role_types=["WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
     @check_required(["job_id", "workspace_id", "domain_id"])
     def cancel(self, params):
@@ -84,7 +84,7 @@ class JobService(BaseService):
         """
 
         job_id = params["job_id"]
-        workspace_id = params["workspace_id"]
+        workspace_id = params.get("workspace_id")
         domain_id = params["domain_id"]
 
         job_vo = self.job_mgr.get_job(job_id, domain_id, workspace_id)
@@ -888,6 +888,9 @@ class JobService(BaseService):
     def _check_duplicate_job(
         self, data_source_id: str, domain_id: str, this_job_vo: Job
     ):
+        if this_job_vo.options.get("sync_mode") == "MANUAL":
+            return False
+
         query = {
             "filter": [
                 {"k": "data_source_id", "v": data_source_id, "o": "eq"},
