@@ -888,9 +888,6 @@ class JobService(BaseService):
     def _check_duplicate_job(
         self, data_source_id: str, domain_id: str, this_job_vo: Job
     ):
-        if this_job_vo.options.get("sync_mode") == "MANUAL":
-            return False
-
         query = {
             "filter": [
                 {"k": "data_source_id", "v": data_source_id, "o": "eq"},
@@ -907,6 +904,8 @@ class JobService(BaseService):
 
         for job_vo in job_vos:
             if job_vo.created_at >= duplicate_job_time:
+                return True
+            elif job_vo.options.get("sync_mode") == "MANUAL":
                 return True
             else:
                 self.job_mgr.change_canceled_status(job_vo)
