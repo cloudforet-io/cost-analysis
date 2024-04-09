@@ -66,7 +66,7 @@ class JobService(BaseService):
 
     @transaction(
         permission="cost-analysis:Job.write",
-        role_types=["WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
     @check_required(["job_id", "workspace_id", "domain_id"])
     def cancel(self, params):
@@ -84,7 +84,7 @@ class JobService(BaseService):
         """
 
         job_id = params["job_id"]
-        workspace_id = params["workspace_id"]
+        workspace_id = params.get("workspace_id")
         domain_id = params["domain_id"]
 
         job_vo = self.job_mgr.get_job(job_id, domain_id, workspace_id)
@@ -904,6 +904,8 @@ class JobService(BaseService):
 
         for job_vo in job_vos:
             if job_vo.created_at >= duplicate_job_time:
+                return True
+            elif job_vo.options.get("sync_mode") == "MANUAL":
                 return True
             else:
                 self.job_mgr.change_canceled_status(job_vo)

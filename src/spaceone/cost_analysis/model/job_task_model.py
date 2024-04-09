@@ -41,6 +41,7 @@ class JobTask(MongoModel):
             "job_id",
             "data_source_id",
             "workspace_id",
+            "created_at",
         ],
         "ordering": ["-created_at"],
         "indexes": [
