@@ -20,34 +20,53 @@ class SecretManager(BaseManager):
 
     def create_secret(
         self,
-        secret_data: dict,
-        resource_group: str,
-        schema_id: str,
-        workspace_id: str,
-    ):
+        params: dict,
+        domain_id: str = None,
+        workspace_id: str = None,
+    ) -> dict:
+        """
+        Args:
+            params (dict): {
+                'data': 'dict',
+                'resource_group': 'str',
+                'schema_id': 'str',
+                'workspace_id': 'str',
+            },
+            'workspace_id' : 'str',
+            'domain_id' : 'str'
+
+        Returns:
+            secret_info (dict)
+        """
+
         def _rollback(secret_id: str):
             _LOGGER.info(f"[create_secret._rollback] Delete secret : {secret_id}")
-            self.delete_secret(secret_id)
+            self.delete_secret(secret_id, domain_id)
 
-        params = {
-            "name": utils.generate_id("secret-cost-data-source"),
-            "resource_group": resource_group,
-            "data": secret_data,
-            "schema_id": schema_id,
-            "workspace_id": workspace_id,
-        }
-
-        response = self.secret_connector.dispatch("Secret.create", params)
+        params.update({"name": utils.generate_id("secret-cost-data-source")})
+        if self.token_type == "SYSTEM_TOKEN":
+            response = self.secret_connector.dispatch(
+                "Secret.create",
+                params,
+                x_domain_id=domain_id,
+                x_workspace_id=workspace_id,
+            )
+        else:
+            response = self.secret_connector.dispatch("Secret.create", params)
 
         _LOGGER.debug(f"[_create_secret] {response}")
-        secret_id = response["secret_id"]
 
-        self.transaction.add_rollback(_rollback, secret_id)
+        self.transaction.add_rollback(_rollback, response["secret_id"])
 
-        return secret_id
+        return response
 
-    def delete_secret(self, secret_id: str):
-        self.secret_connector.dispatch("Secret.delete", {"secret_id": secret_id})
+    def delete_secret(self, secret_id: str, domain_id: str = None):
+        if self.token_type == "SYSTEM_TOKEN":
+            self.secret_connector.dispatch(
+                "Secret.delete", {"secret_id": secret_id}, x_domain_id=domain_id
+            )
+        else:
+            self.secret_connector.dispatch("Secret.delete", {"secret_id": secret_id})
 
     def list_secrets(self, query: dict, domain_id: str = None) -> dict:
         params = {"query": query}
