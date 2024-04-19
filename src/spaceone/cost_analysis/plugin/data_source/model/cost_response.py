@@ -1,7 +1,12 @@
 from typing import List, Union
 from pydantic import BaseModel
 
-__all__ = ['CostsResponse']
+__all__ = ["AccountsResponse", "CostsResponse"]
+
+
+class Account(BaseModel):
+    account_id: str
+    name: str
 
 
 class Cost(BaseModel):
@@ -17,6 +22,10 @@ class Cost(BaseModel):
     additional_info: dict = {}
     data: dict = {}
     billed_date: str
+
+
+class AccountsResponse(BaseModel):
+    results: List[Account]
 
 
 class CostsResponse(BaseModel):

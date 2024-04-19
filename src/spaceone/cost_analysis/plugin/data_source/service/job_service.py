@@ -2,17 +2,21 @@ import logging
 from typing import Union
 from spaceone.core.service import BaseService, transaction
 from spaceone.core.service.utils import convert_model
-from spaceone.cost_analysis.plugin.data_source.model import (JobGetTaskRequest, TasksResponse)
+from spaceone.cost_analysis.plugin.data_source.model import (
+    JobGetTaskRequest,
+    TasksResponse,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class JobService(BaseService):
+    resource = "Job"
 
     @transaction
     @convert_model
     def get_tasks(self, params: JobGetTaskRequest) -> Union[TasksResponse, dict]:
-        """ Get job tasks
+        """Get job tasks
 
         Args:
             params (JobGetTaskRequest): {
@@ -32,6 +36,6 @@ class JobService(BaseService):
 
         """
 
-        func = self.get_plugin_method('get_tasks')
+        func = self.get_plugin_method("get_tasks")
         response = func(params.dict())
         return TasksResponse(**response)

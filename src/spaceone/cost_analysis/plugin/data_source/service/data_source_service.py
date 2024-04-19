@@ -2,18 +2,22 @@ import logging
 from typing import Union
 from spaceone.core.service import BaseService, transaction
 from spaceone.core.service.utils import convert_model
-from spaceone.cost_analysis.plugin.data_source.model import (DataSourceInitRequest, DataSourceVerifyRequest,
-                                                             PluginResponse)
+from spaceone.cost_analysis.plugin.data_source.model import (
+    DataSourceInitRequest,
+    DataSourceVerifyRequest,
+    PluginResponse,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class DataSourceService(BaseService):
+    resource = "DataSource"
 
     @transaction
     @convert_model
     def init(self, params: DataSourceInitRequest) -> Union[PluginResponse, dict]:
-        """ init plugin by options
+        """init plugin by options
 
         Args:
             params (DataSourceInitRequest): {
@@ -27,14 +31,14 @@ class DataSourceService(BaseService):
             }
         """
 
-        func = self.get_plugin_method('init')
+        func = self.get_plugin_method("init")
         response = func(params.dict())
         return PluginResponse(**response)
 
     @transaction
     @convert_model
     def verify(self, params: DataSourceVerifyRequest) -> None:
-        """ Verifying data source plugin
+        """Verifying data source plugin
 
         Args:
             params (DataSourceVerifyRequest): {
@@ -48,5 +52,5 @@ class DataSourceService(BaseService):
             None
         """
 
-        func = self.get_plugin_method('verify')
+        func = self.get_plugin_method("verify")
         func(params.dict())
