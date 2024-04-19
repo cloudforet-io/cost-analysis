@@ -4,9 +4,14 @@ from spaceone.cost_analysis.plugin.data_source.service.cost_service import CostS
 
 
 class Cost(BaseAPI, cost_pb2_grpc.CostServicer):
-
     pb2 = cost_pb2
     pb2_grpc = cost_pb2_grpc
+
+    def get_linked_accounts(self, request, context):
+        params, metadata = self.parse_request(request, context)
+        cost_svc = CostService(metadata)
+        for response in cost_svc.get_linked_accounts(params):
+            yield self.dict_to_message(response)
 
     def get_data(self, request, context):
         params, metadata = self.parse_request(request, context)

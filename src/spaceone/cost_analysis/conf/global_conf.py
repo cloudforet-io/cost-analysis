@@ -51,6 +51,7 @@ LOG = {
         "masking": {
             "rules": {
                 "DataSource.register": ["secret_data"],
+                "DataSource.update_secret_data": ["secret_data"],
             }
         }
     }

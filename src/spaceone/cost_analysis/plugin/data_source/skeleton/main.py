@@ -4,9 +4,9 @@ from spaceone.cost_analysis.plugin.data_source.lib.server import DataSourcePlugi
 app = DataSourcePluginServer()
 
 
-@app.route('DataSource.init')
+@app.route("DataSource.init")
 def data_source_init(params: dict) -> dict:
-    """ init plugin by options
+    """init plugin by options
 
     Args:
         params (DataSourceInitRequest): {
@@ -22,9 +22,9 @@ def data_source_init(params: dict) -> dict:
     pass
 
 
-@app.route('DataSource.verify')
+@app.route("DataSource.verify")
 def data_source_verify(params: dict) -> None:
-    """ Verifying data source plugin
+    """Verifying data source plugin
 
     Args:
         params (CollectorVerifyRequest): {
@@ -40,9 +40,9 @@ def data_source_verify(params: dict) -> None:
     pass
 
 
-@app.route('Job.get_tasks')
+@app.route("Job.get_tasks")
 def job_get_tasks(params: dict) -> dict:
-    """ Get job tasks
+    """Get job tasks
 
     Args:
         params (JobGetTaskRequest): {
@@ -64,9 +64,25 @@ def job_get_tasks(params: dict) -> dict:
     pass
 
 
-@app.route('Cost.get_data')
+@app.route("Cost.get_linked_accounts")
+def cost_get_linked_accounts(params: dict) -> dict:
+    """Get linked accounts
+
+    Args:
+        params (GetLinkedAccountsRequest): {
+            'options': 'dict',      # Required
+            'schema': 'dict',
+            'secret_data': 'dict',  # Required
+            'domain_id': 'str'      # Required
+
+
+    """
+    pass
+
+
+@app.route("Cost.get_data")
 def cost_get_data(params: dict) -> Generator[dict, None, None]:
-    """ Get external cost data
+    """Get external cost data
 
     Args:
         params (CostGetDataRequest): {
