@@ -108,14 +108,16 @@ class DataSourceService(BaseService):
                 self._verify_plugin(endpoint, plugin_info, domain_id)
 
                 secret_mgr: SecretManager = self.locator.get_manager("SecretManager")
-                secret_id = secret_mgr.create_secret(
-                    secret_data,
-                    resource_group,
-                    plugin_info.get("schema_id"),
-                    params["workspace_id"],
-                )
 
-                params["plugin_info"]["secret_id"] = secret_id
+                create_secret_params = {
+                    "data": secret_data,
+                    "resource_group": resource_group,
+                    "schema_id": plugin_info.get("schema_id"),
+                    "workspace_id": params["workspace_id"],
+                }
+                secret_info = secret_mgr.create_secret(create_secret_params, domain_id)
+
+                params["plugin_info"]["secret_id"] = secret_info["secret_id"]
                 del params["plugin_info"]["secret_data"]
 
         else:
@@ -186,6 +188,65 @@ class DataSourceService(BaseService):
                 raise ERROR_NOT_ALLOW_PLUGIN_SETTINGS(data_source_id=data_source_id)
 
         return self.data_source_mgr.update_data_source_by_vo(params, data_source_vo)
+
+    @transaction(
+        permission="cost-analysis:DataSource.write",
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
+    )
+    @check_required(["data_source_id", "secret_schema_id", "secret_data", "domain_id"])
+    def update_secret_data(self, params: dict) -> DataSource:
+        """Update secret data of data source
+        Args:
+            params (dict): {
+                'data_source_id': 'str',        # required
+                'secret_schema_id': 'str',      # required
+                'secret_data': 'dict',          # required
+                'workspace_id': 'str',          # injected from auth
+                'domain_id': 'str'              # injected from auth
+            }
+        Returns:
+            data_source_vo (object)
+        """
+
+        secret_data = params["secret_data"]
+        secret_schema_id = params["secret_schema_id"]
+        data_source_id = params["data_source_id"]
+        workspace_id = params.get("workspace_id")
+        domain_id = params["domain_id"]
+
+        data_source_vo: DataSource = self.data_source_mgr.get_data_source(
+            data_source_id=data_source_id,
+            domain_id=domain_id,
+            workspace_id=workspace_id,
+        )
+
+        if data_source_vo.secret_type == "MANUAL" and secret_data:
+            secret_mgr: SecretManager = self.locator.get_manager("SecretManager")
+            # TODO : validate schema
+
+            # Delete old secret
+            if secret_id := data_source_vo.plugin_info.secret_id:
+                secret_mgr.delete_secret(secret_id, domain_id)
+
+            # Create new secret
+            create_secret_params = {
+                "schema_id": secret_schema_id,
+                "data": secret_data,
+                "resource_group": data_source_vo.resource_group,
+                "workspace_id": data_source_vo.workspace_id,
+            }
+
+            secret_info = secret_mgr.create_secret(create_secret_params, domain_id)
+            plugin_info = data_source_vo.plugin_info.to_dict()
+            plugin_info.update(
+                {"secret_id": secret_info["secret_id"], "schema_id": secret_schema_id}
+            )
+
+            self.data_source_mgr.update_data_source_by_vo(
+                {"plugin_info": plugin_info}, data_source_vo
+            )
+
+        return data_source_vo
 
     @transaction(
         permission="cost-analysis:DataSource.write",
@@ -374,8 +435,6 @@ class DataSourceService(BaseService):
             data_source_id, domain_id, workspace_id
         )
 
-        workspace_id = data_source_vo.workspace_id
-
         if cascade_delete_cost:
             self.cost_mgr.delete_cost_with_datasource(domain_id, data_source_id)
             self.budget_usage_mgr.update_budget_usage(domain_id, data_source_id)
@@ -387,7 +446,7 @@ class DataSourceService(BaseService):
 
             if secret_id:
                 secret_mgr: SecretManager = self.locator.get_manager("SecretManager")
-                secret_mgr.delete_secret(secret_id)
+                secret_mgr.delete_secret(secret_id, domain_id)
 
         self.data_source_mgr.deregister_data_source_by_vo(data_source_vo)
 
