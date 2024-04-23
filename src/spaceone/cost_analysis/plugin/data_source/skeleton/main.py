@@ -48,6 +48,7 @@ def job_get_tasks(params: dict) -> dict:
         params (JobGetTaskRequest): {
             'options': 'dict',      # Required
             'secret_data': 'dict',  # Required
+            'linked_accounts': 'list', # optional
             'schema': 'str',
             'start': 'str',
             'last_synchronized_at': 'datetime',
@@ -58,6 +59,7 @@ def job_get_tasks(params: dict) -> dict:
         TasksResponse: {
             'tasks': 'list',
             'changed': 'list'
+            'synced_accounts': 'list'
         }
 
     """

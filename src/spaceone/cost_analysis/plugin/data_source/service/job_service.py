@@ -22,6 +22,7 @@ class JobService(BaseService):
             params (JobGetTaskRequest): {
                 'options': 'dict',                  # Required
                 'secret_data': 'dict',              # Required
+                'linked_accounts': 'list',          # optional
                 'schema': 'str',
                 'start': 'str',
                 'last_synchronized_at': 'datetime',
@@ -32,6 +33,7 @@ class JobService(BaseService):
             TasksResponse: {
                 'tasks': 'list',
                 'changed': 'list'
+                'synced_accounts': 'list'
             }
 
         """
