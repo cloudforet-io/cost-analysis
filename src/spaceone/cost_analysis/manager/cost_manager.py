@@ -50,6 +50,7 @@ class CostManager(BaseManager):
 
         params = self.data_source_rule_mgr.change_cost_data(params, ds_account_vo)
 
+        _LOGGER.debug(f"[create_cost] params: {params}")
         cost_vo: Cost = self.cost_model.create(params)
 
         if execute_rollback:

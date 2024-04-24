@@ -108,6 +108,10 @@ class DataSourceAccountManager(BaseManager):
                     target_value = utils.get_dict_value(cost_data, source)
                     operator = policy.get("operator")
 
+                    _LOGGER.debug(
+                        f"[connect_cost_data] source: {source}, target_key: {target_key}, target_value: {target_value}"
+                    )
+
                     if target_value:
                         ds_account_vo = self._get_data_source_account_vo(
                             target_key,
@@ -115,6 +119,9 @@ class DataSourceAccountManager(BaseManager):
                             data_source_id,
                             domain_id,
                             operator,
+                        )
+                        _LOGGER.debug(
+                            f"[connect_cost_data] ds_account_vo: {ds_account_vo.to_dict()}"
                         )
                         if ds_account_vo:
                             cost_data["account_id"] = ds_account_vo.account_id
