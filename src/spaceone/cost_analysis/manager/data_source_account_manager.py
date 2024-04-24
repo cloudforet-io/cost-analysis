@@ -26,12 +26,6 @@ class DataSourceAccountManager(BaseManager):
             )
             vo.delete()
 
-        params.update(
-            {
-                "v_workspace_id": utils.generate_id("workspace"),
-            }
-        )
-
         data_source_account_vo = self.data_source_account_model.create(params)
         self.transaction.add_rollback(_rollback, data_source_account_vo)
 
@@ -104,10 +98,13 @@ class DataSourceAccountManager(BaseManager):
             )
             for account_connect_policy in account_connect_polices:
                 if account_connect_policy.get("name") == "connect_cost_to_account":
-                    source = account_connect_policy.get("source")
-                    target_key = account_connect_policy.get("target", "account_id")
+                    polices = account_connect_policy.get("polices")
+                    source = polices["connect_account_to_workspace"].get("source")
+                    target_key = polices["connect_account_to_workspace"].get(
+                        "target", "account_id"
+                    )
                     target_value = utils.get_dict_value(cost_data, source)
-                    operator = account_connect_policy.get("operator")
+                    operator = polices["connect_account_to_workspace"].get("operator")
 
                     if target_value:
                         ds_account_info = self._get_data_source_account(
@@ -138,17 +135,23 @@ class DataSourceAccountManager(BaseManager):
 
         for account_connect_policy in account_connect_polices:
             if account_connect_policy.get("name") == "connect_account_to_workspace":
-                source = account_connect_policy.get("source")
-                target_key = account_connect_policy.get("target", "references")
-                target_value = utils.get_dict_value(
-                    data_source_account_vo.to_dict(), source
+                polices = account_connect_policy.get("polices")
+                source = polices["connect_account_to_workspace"].get("source")
+                target_key = polices["connect_account_to_workspace"].get(
+                    "target", "references"
                 )
-                operator = account_connect_policy.get("operator")
+
+                target_value = utils.get_dict_value(
+                    data_source_account_vo.to_dict(),
+                    source,
+                )
+                operator = polices["connect_account_to_workspace"].get("operator")
 
                 if target_value:
                     workspace_info = self._get_workspace(
                         target_key, target_value, domain_id, operator
                     )
+
                     if workspace_info:
                         self.update_data_source_account_by_vo(
                             {"workspace_id": workspace_info.get("workspace_id")},
@@ -158,8 +161,10 @@ class DataSourceAccountManager(BaseManager):
     def _get_workspace(
         self, target_key: str, target_value: str, domain_id: str, operator: str = "eq"
     ) -> Union[dict, None]:
-        if f"workspace:{domain_id}:{target_key}" in self._workspace_info:
-            return self._workspace_info[f"workspace:{domain_id}:{target_key}"]
+        if f"workspace:{domain_id}:{target_key}:{target_value}" in self._workspace_info:
+            return self._workspace_info[
+                f"workspace:{domain_id}:{target_key}:{target_value}"
+            ]
 
         query = {
             "filter": [
@@ -171,7 +176,7 @@ class DataSourceAccountManager(BaseManager):
         query["filter"].append({"k": target_key, "v": target_value, "o": operator})
 
         identity_mgr = self.locator.get_manager("IdentityManager")
-        response = identity_mgr.list_workspaces(query, domain_id)
+        response = identity_mgr.list_workspaces({"query": query}, domain_id)
         results = response.get("results", [])
         total_count = response.get("total_count", 0)
 
@@ -179,7 +184,9 @@ class DataSourceAccountManager(BaseManager):
         if total_count > 0:
             workspace_info = results[0]
 
-        self._workspace_info[f"workspace:{domain_id}:{target_key}"] = workspace_info
+        self._workspace_info[
+            f"workspace:{domain_id}:{target_key}:{target_value}"
+        ] = workspace_info
 
         return workspace_info
 
