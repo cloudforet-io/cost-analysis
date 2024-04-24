@@ -11,9 +11,9 @@ class DataSourceAccount(MongoModel):
     name = StringField(max_length=255)
     is_sync = BooleanField(default=False)
     v_service_account_id = StringField(max_length=40, generate_id="v_sa", unique=True)
-    v_project_id = StringField(max_length=40, generate_id="v_project", required=True)
+    v_project_id = StringField(max_length=40, generate_id="v_project", unique=True)
     v_workspace_id = StringField(
-        max_length=40, generate_id="v_workspace_id", required=True
+        max_length=40, generate_id="v_workspace_id", unique=True
     )
     service_account_id = StringField(max_length=255, default=None, null=True)
     project_id = StringField(max_length=255, default=None, null=True)
