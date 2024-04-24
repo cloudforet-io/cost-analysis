@@ -1,4 +1,7 @@
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
+from spaceone.cost_analysis.manager.data_source_account_manager import (
+    DataSourceAccountManager,
+)
 from spaceone.cost_analysis.manager.data_source_rule_manager import (
     DataSourceRuleManager,
 )

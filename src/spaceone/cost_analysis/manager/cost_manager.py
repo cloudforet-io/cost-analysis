@@ -10,6 +10,9 @@ from spaceone.cost_analysis.model.cost_model import Cost, MonthlyCost, CostQuery
 from spaceone.cost_analysis.manager.data_source_rule_manager import (
     DataSourceRuleManager,
 )
+from spaceone.cost_analysis.manager.data_source_account_manager import (
+    DataSourceAccountManager,
+)
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 
 _LOGGER = logging.getLogger(__name__)
@@ -26,6 +29,9 @@ class CostManager(BaseManager):
         self.data_source_rule_mgr: DataSourceRuleManager = self.locator.get_manager(
             "DataSourceRuleManager"
         )
+        self.data_source_account_mgr: DataSourceAccountManager = (
+            self.locator.get_manager("DataSourceAccountManager")
+        )
 
     def create_cost(self, params: dict, execute_rollback=True):
         def _rollback(vo: Cost):
@@ -40,7 +46,11 @@ class CostManager(BaseManager):
         params["billed_year"] = billed_at.strftime("%Y")
         params["billed_month"] = billed_at.strftime("%Y-%m")
 
-        params = self.data_source_rule_mgr.change_cost_data(params)
+        params, use_account_routing = self.data_source_account_mgr.connect_cost_data(
+            params
+        )
+        if not use_account_routing:
+            params = self.data_source_rule_mgr.change_cost_data(params)
 
         cost_vo: Cost = self.cost_model.create(params)
 
@@ -60,7 +70,7 @@ class CostManager(BaseManager):
     def delete_cost_by_vo(cost_vo: Cost):
         cost_vo.delete()
 
-    def delete_cost_with_datasource(self, domain_id, data_source_id):
+    def delete_cost_with_datasource(self, domain_id: str, data_source_id: str) -> None:
         _LOGGER.debug(f"[delete_cost_with_datasource] data_source_id: {data_source_id}")
         cost_vos = self.cost_model.filter(
             domain_id=domain_id, data_source_id=data_source_id
@@ -78,7 +88,11 @@ class CostManager(BaseManager):
         history_vos.delete()
 
     def get_cost(
-        self, cost_id, domain_id, workspace_id=None, user_projects: list = None
+        self,
+        cost_id: str,
+        domain_id: str,
+        workspace_id=None,
+        user_projects: list = None,
     ):
         conditions = {"cost_id": cost_id, "domain_id": domain_id}
 
