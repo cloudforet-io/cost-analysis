@@ -5,7 +5,6 @@ from mongoengine import QuerySet
 from spaceone.core.manager import BaseManager
 from spaceone.core import utils
 
-from spaceone.cost_analysis.manager import IdentityManager
 from spaceone.cost_analysis.model import DataSource
 from spaceone.cost_analysis.model.data_source_account.database import DataSourceAccount
 
@@ -171,7 +170,7 @@ class DataSourceAccountManager(BaseManager):
             target_value = [target_value]
         query["filter"].append({"k": target_key, "v": target_value, "o": operator})
 
-        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
+        identity_mgr = self.locator.get_manager("IdentityManager")
         response = identity_mgr.list_workspaces(query, domain_id)
         results = response.get("results", [])
         total_count = response.get("total_count", 0)
