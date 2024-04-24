@@ -94,6 +94,10 @@ class DataSourceAccountManager(BaseManager):
 
         use_account_routing = plugin_info_metadata.get("use_account_routing", False)
 
+        _LOGGER.debug(
+            f"[connect_cost_data] data_source_id: {data_source_id}, domain_id: {domain_id}, use_account_routing: {use_account_routing}, plugin_info_metadata: {plugin_info_metadata}"
+        )
+
         ds_account_vo = None
         if use_account_routing:
             account_connect_polices: list = plugin_info_metadata.get(
@@ -225,6 +229,8 @@ class DataSourceAccountManager(BaseManager):
                 {"k": target_key, "v": target_value, "o": operator},
             ]
         }
+
+        _LOGGER.debug(f"[_get_data_source_account_vo] query: {query}")
 
         data_source_account_vos, total_count = self.list_data_source_accounts(query)
         data_source_account_vo = None
