@@ -76,10 +76,6 @@ class CostReportConfigManager(BaseManager):
     ) -> None:
         cost_report_config_vo.delete()
 
-    # TODO: Business Logic
-    def run_cost_report_config(self, cost_report_config_vo: CostReportConfig) -> None:
-        pass
-
     def get_cost_report_config(
         self, domain_id: str, cost_report_config_id: str
     ) -> CostReportConfig:
@@ -87,7 +83,7 @@ class CostReportConfigManager(BaseManager):
             domain_id=domain_id, cost_report_config_id=cost_report_config_id
         )
 
-    def list_cost_report_config(self, query: dict, domain_id) -> Tuple[QuerySet, int]:
+    def list_cost_report_configs(self, query: dict, domain_id) -> Tuple[QuerySet, int]:
         self._create_default_cost_report_config(domain_id)
 
         return self.cost_report_config_model.query(**query)
@@ -95,7 +91,7 @@ class CostReportConfigManager(BaseManager):
     def filter_cost_report_configs(self, **conditions) -> QuerySet:
         return self.cost_report_config_model.filter(**conditions)
 
-    def stat_cost_report_config(self, query: dict) -> dict:
+    def stat_cost_report_configs(self, query: dict) -> dict:
         return self.cost_report_config_model.stat(**query)
 
     def _create_default_cost_report_config(self, domain_id):

@@ -1,6 +1,7 @@
 import logging
 
 from spaceone.core import config
+from spaceone.core.error import ERROR_INTERNAL_API
 from spaceone.core.manager import BaseManager
 from spaceone.core.connector.space_connector import SpaceConnector
 from spaceone.core import utils
@@ -61,12 +62,17 @@ class SecretManager(BaseManager):
         return response
 
     def delete_secret(self, secret_id: str, domain_id: str = None):
-        if self.token_type == "SYSTEM_TOKEN":
-            self.secret_connector.dispatch(
-                "Secret.delete", {"secret_id": secret_id}, x_domain_id=domain_id
-            )
-        else:
-            self.secret_connector.dispatch("Secret.delete", {"secret_id": secret_id})
+        try:
+            if self.token_type == "SYSTEM_TOKEN":
+                self.secret_connector.dispatch(
+                    "Secret.delete", {"secret_id": secret_id}, x_domain_id=domain_id
+                )
+            else:
+                self.secret_connector.dispatch(
+                    "Secret.delete", {"secret_id": secret_id}
+                )
+        except ERROR_INTERNAL_API:
+            _LOGGER.info(f"[delete_secret] Secret is already deleted. ({secret_id})")
 
     def list_secrets(self, query: dict, domain_id: str = None) -> dict:
         params = {"query": query}

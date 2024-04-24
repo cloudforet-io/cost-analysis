@@ -55,6 +55,7 @@ class DataSourcePluginConnector(BaseConnector):
         domain_id: str,
         start: str = None,
         last_synchronized_at: str = None,
+        linked_accounts: list = None,
     ):
         params = {
             "options": self.options or options,
@@ -64,7 +65,22 @@ class DataSourcePluginConnector(BaseConnector):
             "last_synchronized_at": last_synchronized_at,
             "domain_id": domain_id,
         }
+        if linked_accounts:
+            params["linked_accounts"] = linked_accounts
+
         return self.client.dispatch("Job.get_tasks", params)
+
+    def get_linked_accounts(
+        self, options: dict, secret_data: dict, domain_id: str, schema: dict = None
+    ) -> dict:
+        params = {
+            "options": options,
+            "secret_data": secret_data,
+            "schema": schema,
+            "domain_id": domain_id,
+        }
+
+        return self.client.dispatch("Cost.get_linked_accounts", params)
 
     def get_cost_data(self, options, secret_data, schema, task_options, domain_id):
         params = {

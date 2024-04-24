@@ -10,6 +10,9 @@ from spaceone.cost_analysis.manager.data_source_plugin_manager import (
 from spaceone.cost_analysis.manager.budget_usage_manager import BudgetUsageManager
 from spaceone.cost_analysis.manager.cost_manager import CostManager
 from spaceone.cost_analysis.model.data_source_model import DataSource
+from spaceone.cost_analysis.manager.data_source_account_manager import (
+    DataSourceAccountManager,
+)
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.job_manager import JobManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
@@ -27,6 +30,7 @@ class DataSourceService(BaseService):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.data_source_mgr = DataSourceManager()
+        self.data_source_account_mgr = DataSourceAccountManager()
         self.ds_plugin_mgr = DataSourcePluginManager()
         self.cost_mgr = CostManager()
         self.budget_usage_mgr = BudgetUsageManager()
@@ -62,6 +66,8 @@ class DataSourceService(BaseService):
         domain_id = params["domain_id"]
         data_source_type = params["data_source_type"]
         resource_group = params["resource_group"]
+
+        secret_data = {}
 
         # Check permission by resource group
         if resource_group == "WORKSPACE":
@@ -133,6 +139,7 @@ class DataSourceService(BaseService):
 
         data_source_vo: DataSource = self.data_source_mgr.register_data_source(params)
 
+        # Create DataSourceRules
         if data_source_type == "EXTERNAL":
             resource_group = data_source_vo.resource_group
             workspace_id = data_source_vo.workspace_id
@@ -142,6 +149,21 @@ class DataSourceService(BaseService):
             self.ds_plugin_mgr.create_data_source_rules_by_metadata(
                 metadata, resource_group, data_source_id, workspace_id, domain_id
             )
+
+        # Create DataSourceAccount
+        if data_source_type == "EXTERNAL":
+            plugin_info = params["plugin_info"]
+            options = plugin_info.get("options", {})
+            metadata = plugin_info.get("metadata", {})
+
+            if metadata.get("use_account_routing", False):
+                accounts_info = self.ds_plugin_mgr.get_linked_accounts(
+                    options, secret_data, domain_id
+                )
+
+                self.create_data_source_account_with_data_source_vo(
+                    accounts_info, data_source_vo
+                )
 
         return data_source_vo
 
@@ -448,6 +470,10 @@ class DataSourceService(BaseService):
                 secret_mgr: SecretManager = self.locator.get_manager("SecretManager")
                 secret_mgr.delete_secret(secret_id, domain_id)
 
+        self.data_source_account_mgr.delete_ds_account_with_data_source(
+            data_source_id, domain_id
+        )
+
         self.data_source_mgr.deregister_data_source_by_vo(data_source_vo)
 
     @transaction(
@@ -670,3 +696,75 @@ class DataSourceService(BaseService):
 
         if secret_type == "MANUAL" and plugin_info.get("secret_data") is None:
             raise ERROR_REQUIRED_PARAMETER(key="plugin_info.secret_data")
+
+    def create_data_source_account_with_data_source_vo(
+        self, accounts_info: dict, data_source_vo: DataSource
+    ) -> None:
+        data_source_id = data_source_vo.data_source_id
+        workspace_id = data_source_vo.workspace_id
+        domain_id = data_source_vo.domain_id
+        resource_group = data_source_vo.resource_group
+
+        data_source_account_vo_map = self._get_data_source_account_vo_map(
+            data_source_id, domain_id
+        )
+
+        create_account_count = 0
+
+        for account_info in accounts_info.get("results", []):
+            account_info.update(
+                {
+                    "data_source_id": data_source_id,
+                    "domain_id": domain_id,
+                    "is_sync": False,
+                }
+            )
+            if resource_group == "WORKSPACE":
+                account_info["workspace_id"] = workspace_id
+
+            data_source_account_vos = (
+                self.data_source_account_mgr.filter_data_source_accounts(
+                    data_source_id=data_source_vo.data_source_id,
+                    account_id=account_info["account_id"],
+                )
+            )
+            if len(data_source_account_vos) == 0:
+                self.data_source_account_mgr.create_data_source_account(
+                    params=account_info
+                )
+                create_account_count += 1
+            else:
+                data_source_account_vo = data_source_account_vos[0]
+                if data_source_account_vo.name != account_info["name"]:
+                    self.data_source_account_mgr.update_data_source_account_by_vo(
+                        {"name": account_info["name"]}, data_source_account_vo
+                    )
+
+            # Remove account from map for delete old data source accounts after loop
+            if data_source_account_vo_map.get(account_info["account_id"]):
+                data_source_account_vo_map.pop(account_info["account_id"])
+
+        _LOGGER.debug(
+            f"[register] create data source account: {data_source_vo.data_source_id} / total count = {create_account_count}"
+        )
+
+        # Delete old data source accounts
+        for data_source_account_vo in data_source_account_vo_map.values():
+            self.data_source_account_mgr.delete_source_account_by_vo(
+                data_source_account_vo
+            )
+
+    def _get_data_source_account_vo_map(
+        self, data_source_id: str, domain_id: str
+    ) -> dict:
+        data_source_account_vo_map = {}
+        data_source_account_vos = (
+            self.data_source_account_mgr.filter_data_source_accounts(
+                data_source_id=data_source_id, domain_id=domain_id
+            )
+        )
+        for data_source_account_vo in data_source_account_vos:
+            data_source_account_vo_map[
+                data_source_account_vo.account_id
+            ] = data_source_account_vo
+        return data_source_account_vo_map

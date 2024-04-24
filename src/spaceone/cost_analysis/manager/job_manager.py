@@ -44,7 +44,8 @@ class JobManager(BaseManager):
         domain_id: str,
         job_options: dict,
         total_tasks: int,
-        changed: Union[list, None] = None,
+        changed: list = None,
+        synced_accounts: list = None,
     ):
         job_options["no_preload_cache"] = job_options.get("no_preload_cache", False)
         job_options["start"] = job_options.get("start")
@@ -63,6 +64,9 @@ class JobManager(BaseManager):
 
         if changed:
             data["changed"] = changed
+
+        if synced_accounts:
+            data["synced_accounts"] = synced_accounts
 
         job_vo = self.job_model.create(data)
 
@@ -93,7 +97,7 @@ class JobManager(BaseManager):
     def stat_jobs(self, query):
         return self.job_model.stat(**query)
 
-    def preload_cost_stat_queries(self, domain_id, data_source_id):
+    def preload_cost_stat_queries(self, domain_id: str, data_source_id: str):
         cost_query_cache_time = config.get_global("COST_QUERY_CACHE_TIME", 4)
         cache_time = datetime.utcnow() - timedelta(days=cost_query_cache_time)
 

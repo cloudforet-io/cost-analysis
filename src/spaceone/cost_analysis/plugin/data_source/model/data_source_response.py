@@ -2,7 +2,7 @@ from typing import List, Union
 from enum import Enum
 from pydantic import BaseModel
 
-__all__ = ['PluginResponse']
+__all__ = ["PluginResponse"]
 
 
 class MatchServiceAccount(BaseModel):
@@ -33,9 +33,9 @@ class Options(BaseModel):
 
 
 class State(str, Enum):
-    all = 'ALL'
-    any = 'ANY'
-    always = 'ALWAYS'
+    all = "ALL"
+    any = "ANY"
+    always = "ALWAYS"
 
 
 class DataSourceRule(BaseModel):
@@ -48,14 +48,17 @@ class DataSourceRule(BaseModel):
 
 
 class SupportedSecretType(str, Enum):
-    manual = 'MANUAL'
-    use_service_account_secret = 'USE_SERVICE_ACCOUNT_SECRET'
+    manual = "MANUAL"
+    use_service_account_secret = "USE_SERVICE_ACCOUNT_SECRET"
 
 
 class PluginMetadata(BaseModel):
     data_source_rules: List[DataSourceRule] = []
     supported_secret_types: List[SupportedSecretType] = [SupportedSecretType.manual]
-    currency: str = 'USD'
+    currency: str = "USD"
+    alias: dict = {}
+    use_account_routing: bool = False
+    account_connect_polices: List[dict] = []
 
 
 class PluginResponse(BaseModel):

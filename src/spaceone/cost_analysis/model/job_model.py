@@ -14,6 +14,10 @@ class Changed(EmbeddedDocument):
     filter = DictField()
 
 
+class SyncedAccount(EmbeddedDocument):
+    account_id = StringField(max_length=100, required=True)
+
+
 class Job(MongoModel):
     job_id = StringField(max_length=40, generate_id="job", unique=True)
     status = StringField(
@@ -31,6 +35,9 @@ class Job(MongoModel):
     workspace_id = StringField(max_length=40, default=None, null=True)
     domain_id = StringField(max_length=40, required=True)
     changed = ListField(EmbeddedDocumentField(Changed), default=[])
+    synced_accounts = ListField(
+        EmbeddedDocumentField(SyncedAccount), null=True, default=[]
+    )
     created_at = DateTimeField(auto_now_add=True)
     updated_at = DateTimeField(auto_now=True)
     finished_at = DateTimeField(default=None, null=True)

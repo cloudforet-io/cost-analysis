@@ -4,6 +4,7 @@ from .budget_usage import BudgetUsage
 from .cost import Cost
 from .cost_query_set import CostQuerySet
 from .data_source import DataSource
+from .data_source_account import DataSourceAccount
 from .data_source_rule import DataSourceRule
 from .job import Job
 from .job_task import JobTask
@@ -22,6 +23,7 @@ app.add_service(CostReport)
 app.add_service(CostReportData)
 app.add_service(CostQuerySet)
 app.add_service(DataSource)
+app.add_service(DataSourceAccount)
 app.add_service(DataSourceRule)
 app.add_service(Job)
 app.add_service(JobTask)
