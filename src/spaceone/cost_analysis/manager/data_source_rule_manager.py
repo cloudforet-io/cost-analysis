@@ -1,9 +1,11 @@
 import logging
 import functools
 
+from mongoengine import QuerySet
 from spaceone.core import utils
 from spaceone.core.manager import BaseManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
+from spaceone.cost_analysis.model import DataSourceAccount
 from spaceone.cost_analysis.model.data_source_rule_model import (
     DataSourceRule,
     DataSourceRuleCondition,
@@ -86,7 +88,9 @@ class DataSourceRuleManager(BaseManager):
     def stat_data_source_rules(self, query):
         return self.data_source_rule_model.stat(**query)
 
-    def change_cost_data(self, cost_data):
+    def change_cost_data(
+        self, cost_data: dict, data_source_account_vo: DataSourceAccount = None
+    ) -> dict:
         data_source_id = cost_data["data_source_id"]
         domain_id = cost_data["domain_id"]
         (
@@ -95,23 +99,30 @@ class DataSourceRuleManager(BaseManager):
         ) = self._get_data_source_rules(data_source_id, domain_id)
 
         cost_data = self._apply_data_source_rule_to_cost_data(
-            cost_data, managed_data_source_rule_vos, domain_id
+            cost_data, managed_data_source_rule_vos, domain_id, data_source_account_vo
         )
 
         cost_data = self._apply_data_source_rule_to_cost_data(
-            cost_data, custom_data_source_rule_vos, domain_id
+            cost_data, custom_data_source_rule_vos, domain_id, data_source_account_vo
         )
 
         return cost_data
 
     def _apply_data_source_rule_to_cost_data(
-        self, cost_data, data_source_rule_vos, domain_id
+        self,
+        cost_data: dict,
+        data_source_rule_vos: QuerySet,
+        domain_id: str,
+        data_source_account_vo: DataSourceAccount = None,
     ):
         for data_source_rule_vo in data_source_rule_vos:
             is_match = self._change_cost_data_by_rule(cost_data, data_source_rule_vo)
             if is_match:
                 cost_data = self._change_cost_data_with_actions(
-                    cost_data, data_source_rule_vo.actions, domain_id
+                    cost_data,
+                    data_source_rule_vo.actions,
+                    domain_id,
+                    data_source_account_vo,
                 )
 
             if is_match and data_source_rule_vo.options.stop_processing:
@@ -119,7 +130,18 @@ class DataSourceRuleManager(BaseManager):
 
         return cost_data
 
-    def _change_cost_data_with_actions(self, cost_data, actions, domain_id):
+    def _change_cost_data_with_actions(
+        self,
+        cost_data: dict,
+        actions: dict,
+        domain_id: str,
+        data_source_account_vo: DataSourceAccount = None,
+    ):
+        if data_source_account_vo:
+            workspace_id = data_source_account_vo.workspace_id
+        else:
+            workspace_id = None
+
         for action, value in actions.items():
             if action == "change_project" and value:
                 cost_data["project_id"] = value
@@ -130,7 +152,7 @@ class DataSourceRuleManager(BaseManager):
                 target_value = utils.get_dict_value(cost_data, source)
                 if target_value:
                     project_info = self._get_project(
-                        target_key, target_value, domain_id
+                        target_key, target_value, domain_id, workspace_id
                     )
                     if project_info:
                         cost_data["workspace_id"] = project_info.get("workspace_id")
@@ -142,7 +164,7 @@ class DataSourceRuleManager(BaseManager):
                 target_value = utils.get_dict_value(cost_data, source)
                 if target_value:
                     service_account_info = self._get_service_account(
-                        target_key, target_value, domain_id
+                        target_key, target_value, domain_id, workspace_id
                     )
                     if service_account_info:
                         cost_data["service_account_id"] = service_account_info[
@@ -159,7 +181,9 @@ class DataSourceRuleManager(BaseManager):
 
         return cost_data
 
-    def _get_service_account(self, target_key, target_value, domain_id):
+    def _get_service_account(
+        self, target_key, target_value, domain_id: str, workspace_id: str = None
+    ):
         if (
             f"service-account:{domain_id}:{target_key}:{target_value}"
             in self._service_account_info
@@ -176,6 +200,9 @@ class DataSourceRuleManager(BaseManager):
             "only": ["service_account_id", "project_id", "workspace_id"],
         }
 
+        if workspace_id:
+            query["filter"].append({"k": "workspace_id", "v": workspace_id, "o": "eq"})
+
         identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
         response = identity_mgr.list_service_accounts(query, domain_id)
         results = response.get("results", [])
@@ -190,7 +217,9 @@ class DataSourceRuleManager(BaseManager):
         ] = service_account_info
         return service_account_info
 
-    def _get_project(self, target_key, target_value, domain_id):
+    def _get_project(
+        self, target_key, target_value, domain_id: str, workspace_id: str = None
+    ):
         if f"project:{domain_id}:{target_key}:{target_value}" in self._project_info:
             return self._project_info[
                 f"project:{domain_id}:{target_key}:{target_value}"
@@ -200,6 +229,8 @@ class DataSourceRuleManager(BaseManager):
             "filter": [{"k": target_key, "v": target_value, "o": "eq"}],
             "only": ["project_id"],
         }
+        if workspace_id:
+            query["filter"].append({"k": "workspace_id", "v": workspace_id, "o": "eq"})
 
         identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
         response = identity_mgr.list_projects({"query": query}, domain_id)

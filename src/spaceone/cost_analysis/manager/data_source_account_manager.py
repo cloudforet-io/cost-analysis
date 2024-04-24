@@ -83,7 +83,9 @@ class DataSourceAccountManager(BaseManager):
     def stat_data_source_accounts(self, query: dict) -> dict:
         return self.data_source_account_model.stat(**query)
 
-    def connect_cost_data(self, cost_data: dict) -> Tuple[dict, bool]:
+    def connect_cost_data(
+        self, cost_data: dict
+    ) -> Tuple[dict, Union[DataSourceAccount, None]]:
         data_source_id = cost_data["data_source_id"]
         domain_id = cost_data["domain_id"]
 
@@ -92,6 +94,7 @@ class DataSourceAccountManager(BaseManager):
 
         use_account_routing = plugin_info_metadata.get("user_account_routing", False)
 
+        ds_account_vo = None
         if use_account_routing:
             account_connect_polices: list = plugin_info_metadata.get(
                 "account_connect_polices"
@@ -107,25 +110,23 @@ class DataSourceAccountManager(BaseManager):
                     operator = polices["connect_account_to_workspace"].get("operator")
 
                     if target_value:
-                        ds_account_info = self._get_data_source_account(
+                        ds_account_vo = self._get_data_source_account_vo(
                             target_key,
                             target_value,
                             data_source_id,
                             domain_id,
                             operator,
                         )
-                        if ds_account_info:
-                            cost_data.update(
-                                {"account_id": ds_account_info.get("account_id")}
-                            )
+                        if ds_account_vo:
+                            cost_data.update({"account_id": ds_account_vo.account_id})
 
-        return cost_data, use_account_routing
+        return cost_data, ds_account_vo
 
     def connect_account_by_data_source_vo(
         self,
         data_source_account_vo: DataSourceAccount,
         data_source_vo: DataSource,
-    ) -> None:
+    ) -> DataSourceAccount:
         domain_id = data_source_vo.domain_id
 
         plugin_info_metadata = data_source_vo.plugin_info.metadata
@@ -153,10 +154,11 @@ class DataSourceAccountManager(BaseManager):
                     )
 
                     if workspace_info:
-                        self.update_data_source_account_by_vo(
+                        data_source_account_vo = self.update_data_source_account_by_vo(
                             {"workspace_id": workspace_info.get("workspace_id")},
                             data_source_account_vo,
                         )
+        return data_source_account_vo
 
     def _get_workspace(
         self, target_key: str, target_value: str, domain_id: str, operator: str = "eq"
@@ -203,14 +205,14 @@ class DataSourceAccountManager(BaseManager):
 
         return data_source_vo
 
-    def _get_data_source_account(
+    def _get_data_source_account_vo(
         self,
         target_key: str,
         target_value: str,
         data_source_id: str,
         domain_id: str,
         operator: str = "eq",
-    ) -> Union[dict, None]:
+    ) -> Union[DataSourceAccount, None]:
         query = {
             "filter": [
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
@@ -220,8 +222,8 @@ class DataSourceAccountManager(BaseManager):
         }
 
         data_source_account_vos, total_count = self.list_data_source_accounts(query)
-        data_source_account_info = None
+        data_source_account_vo = None
         if total_count > 0:
-            data_source_account_info = data_source_account_vos[0].to_dict()
+            data_source_account_vo = data_source_account_vos[0]
 
-        return data_source_account_info
+        return data_source_account_vo
