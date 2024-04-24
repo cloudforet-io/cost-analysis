@@ -101,13 +101,12 @@ class DataSourceAccountManager(BaseManager):
             )
             for account_connect_policy in account_connect_polices:
                 if account_connect_policy.get("name") == "connect_cost_to_account":
-                    polices = account_connect_policy.get("polices")
-                    source = polices["connect_account_to_workspace"].get("source")
-                    target_key = polices["connect_account_to_workspace"].get(
-                        "target", "account_id"
-                    )
+                    name = account_connect_policy.get("name")
+                    policy = account_connect_policy["polices"].get(name)
+                    source = policy["source"]
+                    target_key = policy.get("target", "account_id")
                     target_value = utils.get_dict_value(cost_data, source)
-                    operator = polices["connect_account_to_workspace"].get("operator")
+                    operator = policy.get("operator")
 
                     if target_value:
                         ds_account_vo = self._get_data_source_account_vo(
@@ -118,7 +117,7 @@ class DataSourceAccountManager(BaseManager):
                             operator,
                         )
                         if ds_account_vo:
-                            cost_data.update({"account_id": ds_account_vo.account_id})
+                            cost_data["account_id"] = ds_account_vo.account_id
 
         return cost_data, ds_account_vo
 
@@ -136,17 +135,16 @@ class DataSourceAccountManager(BaseManager):
 
         for account_connect_policy in account_connect_polices:
             if account_connect_policy.get("name") == "connect_account_to_workspace":
-                polices = account_connect_policy.get("polices")
-                source = polices["connect_account_to_workspace"].get("source")
-                target_key = polices["connect_account_to_workspace"].get(
-                    "target", "references"
-                )
+                name = account_connect_policy.get("name")
+                policy = account_connect_policy["polices"].get(name)
+                source = policy["source"]
+                target_key = policy.get("target", "references")
 
                 target_value = utils.get_dict_value(
                     data_source_account_vo.to_dict(),
                     source,
                 )
-                operator = polices["connect_account_to_workspace"].get("operator")
+                operator = policy.get("operator")
 
                 if target_value:
                     workspace_info = self._get_workspace(
