@@ -275,7 +275,7 @@ class CostReportConfigService(BaseService):
         (
             cost_report_config_vos,
             total_count,
-        ) = self.cost_report_mgr.list_cost_report_config(query, params.domain_id)
+        ) = self.cost_report_mgr.list_cost_report_configs(query, params.domain_id)
 
         cost_report_configs_info = [
             cost_report_config_vo.to_dict()
@@ -307,4 +307,4 @@ class CostReportConfigService(BaseService):
             CostReportConfigStatResponse:
         """
         query = params.query or {}
-        return self.cost_report_mgr.stat_cost_report_config(query)
+        return self.cost_report_mgr.stat_cost_report_configs(query)

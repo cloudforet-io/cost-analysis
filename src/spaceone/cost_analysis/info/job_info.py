@@ -3,7 +3,7 @@ from typing import List
 from spaceone.api.cost_analysis.v1 import job_pb2
 from spaceone.core.pygrpc.message_type import *
 from spaceone.core import utils
-from spaceone.cost_analysis.model.job_model import Job, Changed
+from spaceone.cost_analysis.model.job_model import Job, Changed, SyncedAccount
 
 __all__ = ["JobInfo", "JobsInfo"]
 
@@ -26,6 +26,22 @@ def ChangedInfo(changed_vos: List[Changed]):
     return changed_info
 
 
+def SyncedAccountInfo(synced_account_vos: List[SyncedAccount]):
+    if synced_account_vos is None:
+        synced_account_vos = []
+
+    synced_account_info = []
+
+    for vo in synced_account_vos:
+        info = {
+            "account_id": vo.account_id,
+        }
+
+        synced_account_info.append(job_pb2.SyncedAccountInfo(**info))
+
+    return synced_account_info
+
+
 def JobInfo(job_vo: Job, minimal=False):
     info = {
         "job_id": job_vo.job_id,
@@ -45,6 +61,7 @@ def JobInfo(job_vo: Job, minimal=False):
                 "resource_group": job_vo.resource_group,
                 "domain_id": job_vo.domain_id,
                 "changed": ChangedInfo(job_vo.changed),
+                "synced_accounts": SyncedAccountInfo(job_vo.synced_accounts),
                 "created_at": utils.datetime_to_iso8601(job_vo.created_at),
                 "updated_at": utils.datetime_to_iso8601(job_vo.updated_at),
                 "finished_at": utils.datetime_to_iso8601(job_vo.finished_at),

@@ -47,16 +47,30 @@ class DataSourcePluginManager(BaseManager):
         last_synchronized_at: str,
         domain_id: str,
         schema: str = None,
-    ):
+        linked_accounts: list = None,
+    ) -> tuple:
         response = self.dsp_connector.get_tasks(
-            options, secret_data, schema, domain_id, start, last_synchronized_at
+            options,
+            secret_data,
+            schema,
+            domain_id,
+            start,
+            last_synchronized_at,
+            linked_accounts,
         )
         tasks = response.get("tasks", [])
 
         for task in tasks:
             task.update({"secret_id": secret_id, "schema": schema})
 
-        return tasks, response.get("changed", [])
+        return tasks, response.get("changed", []), response.get("synced_accounts", [])
+
+    def get_linked_accounts(
+        self, options: dict, secret_data: dict, domain_id: str, schema: dict = None
+    ) -> dict:
+        return self.dsp_connector.get_linked_accounts(
+            options, secret_data, domain_id, schema
+        )
 
     def get_cost_data(self, options, secret_data, schema, task_options, domain_id):
         return self.dsp_connector.get_cost_data(

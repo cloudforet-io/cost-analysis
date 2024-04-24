@@ -2,15 +2,21 @@ import copy
 import datetime
 import logging
 from datetime import timedelta, datetime
+from typing import Dict
+
 from dateutil.relativedelta import relativedelta
 
 from spaceone.core.service import *
 from spaceone.core import utils
 from spaceone.cost_analysis.error import *
+from spaceone.cost_analysis.model import DataSourceAccount
 from spaceone.cost_analysis.model.job_task_model import JobTask
 from spaceone.cost_analysis.model.job_model import Job
 from spaceone.cost_analysis.model.data_source_model import DataSource
 from spaceone.cost_analysis.manager.cost_manager import CostManager
+from spaceone.cost_analysis.manager.data_source_account_manager import (
+    DataSourceAccountManager,
+)
 from spaceone.cost_analysis.manager.job_manager import JobManager
 from spaceone.cost_analysis.manager.job_task_manager import JobTaskManager
 from spaceone.cost_analysis.manager.data_source_plugin_manager import (
@@ -44,6 +50,7 @@ class JobService(BaseService):
         self.budget_usage_mgr: BudgetUsageManager = self.locator.get_manager(
             "BudgetUsageManager"
         )
+        self.data_source_account_mgr = DataSourceAccountManager()
 
     @transaction(exclude=["authentication", "authorization", "mutation"])
     def create_jobs_by_data_source(self, params):
@@ -305,6 +312,7 @@ class JobService(BaseService):
     def create_cost_job(self, data_source_vo: DataSource, job_options):
         tasks = []
         changed = []
+        synced_accounts = []
 
         resource_group = data_source_vo.resource_group
         data_source_id = data_source_vo.data_source_id
@@ -339,7 +347,16 @@ class JobService(BaseService):
         for secret_id in secret_ids:
             try:
                 secret_data = self._get_secret_data(secret_id, domain_id)
-                single_tasks, single_changed = self.ds_plugin_mgr.get_tasks(
+
+                linked_accounts = self._get_linked_accounts_from_data_source_vo(
+                    data_source_vo, options, secret_data, schema
+                )
+
+                (
+                    single_tasks,
+                    single_changed,
+                    single_synced_accounts,
+                ) = self.ds_plugin_mgr.get_tasks(
                     options,
                     secret_id,
                     secret_data,
@@ -347,9 +364,11 @@ class JobService(BaseService):
                     last_synchronized_at,
                     domain_id,
                     schema,
+                    linked_accounts,
                 )
                 tasks.extend(single_tasks)
                 changed.extend(single_changed)
+                synced_accounts.extend(single_synced_accounts)
             except Exception as e:
                 _LOGGER.error(f"[create_cost_job] get_tasks error: {e}", exc_info=True)
 
@@ -371,6 +390,7 @@ class JobService(BaseService):
             job_options,
             len(tasks),
             changed,
+            synced_accounts,
         )
 
         if self._check_duplicate_job(data_source_id, domain_id, job_vo):
@@ -633,8 +653,8 @@ class JobService(BaseService):
                         )
 
                     self.budget_usage_mgr.update_budget_usage(domain_id, data_source_id)
-
                     self._update_last_sync_time(job_vo)
+                    self._update_data_source_is_synced(job_vo)
                     self.job_mgr.change_success_status(job_vo)
 
                 except Exception as e:
@@ -930,3 +950,106 @@ class JobService(BaseService):
             job_task_ids.append(job_task_vo.job_task_id)
 
         return job_task_ids
+
+    def _get_data_source_account_map(
+        self,
+        data_source_id: str,
+        domain_id: str,
+        workspace_id: str,
+        resource_group: str,
+    ) -> Dict[str, DataSourceAccount]:
+        data_source_account_map = {}
+        conditions = {
+            "data_source_id": data_source_id,
+            "domain_id": domain_id,
+        }
+        if resource_group == "WORKSPACE":
+            conditions["workspace_id"] = workspace_id
+
+        data_source_account_vos = (
+            self.data_source_account_mgr.filter_data_source_accounts(**conditions)
+        )
+
+        for data_source_account_vo in data_source_account_vos:
+            data_source_account_map[
+                data_source_account_vo.account_id
+            ] = data_source_account_vo
+
+        return data_source_account_map
+
+    def _get_linked_accounts_from_data_source_vo(
+        self,
+        data_source_vo: DataSource,
+        options: dict,
+        secret_data: dict,
+        schema: dict = None,
+    ) -> list:
+        linked_accounts = []
+
+        use_account_routing = self._check_use_account_routing(data_source_vo)
+        if not use_account_routing:
+            return linked_accounts
+
+        data_source_svc = self.locator.get_service("DataSourceService")
+
+        data_source_id = data_source_vo.data_source_id
+        domain_id = data_source_vo.domain_id
+
+        accounts_info = self.ds_plugin_mgr.get_linked_accounts(
+            options, secret_data, domain_id, schema
+        )
+
+        # Create data source account
+        data_source_svc.create_data_source_account_with_data_source_vo(
+            accounts_info, data_source_vo
+        )
+
+        # Connect data source account by metadata account connect polices
+        data_source_account_vos = (
+            self.data_source_account_mgr.filter_data_source_accounts(
+                data_source_id=data_source_id, domain_id=domain_id
+            )
+        )
+        for data_source_account_vo in data_source_account_vos:
+            self.data_source_account_mgr.connect_account_by_data_source_vo(
+                data_source_account_vo, data_source_vo
+            )
+            linked_accounts.append(
+                {
+                    "account_id": data_source_account_vo.account_id,
+                    "name": data_source_account_vo.name,
+                    "is_sync": data_source_account_vo.is_sync,
+                }
+            )
+
+        return linked_accounts
+
+    def _update_data_source_is_synced(self, job_vo: Job) -> None:
+        domain_id = job_vo.domain_id
+        data_source_id = job_vo.data_source_id
+        synced_accounts = job_vo.synced_accounts or []
+
+        for synced_account_info in synced_accounts:
+            data_source_account_vo = (
+                self.data_source_account_mgr.get_data_source_account(
+                    data_source_id, synced_account_info.get("account_id"), domain_id
+                )
+            )
+
+            self.data_source_account_mgr.update_data_source_account_by_vo(
+                {"is_sync": True},
+                data_source_account_vo,
+            )
+        _LOGGER.debug(
+            f"[_update_data_source_account_sync_status] synced_account_ids: {synced_accounts} / {data_source_id} {domain_id}"
+        )
+
+    @staticmethod
+    def _check_use_account_routing(data_source_vo: DataSource) -> bool:
+        plugin_info = data_source_vo.plugin_info or {}
+        metadata = plugin_info.get("metadata", {})
+
+        if metadata.get("use_account_routing", False):
+            return True
+
+        return False
