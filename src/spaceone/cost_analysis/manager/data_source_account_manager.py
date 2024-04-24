@@ -92,7 +92,7 @@ class DataSourceAccountManager(BaseManager):
         data_source_vo = self._get_data_source(data_source_id, domain_id)
         plugin_info_metadata = data_source_vo.plugin_info.metadata
 
-        use_account_routing = plugin_info_metadata.get("user_account_routing", False)
+        use_account_routing = plugin_info_metadata.get("use_account_routing", False)
 
         ds_account_vo = None
         if use_account_routing:
