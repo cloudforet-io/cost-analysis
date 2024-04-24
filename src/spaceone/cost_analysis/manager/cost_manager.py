@@ -46,11 +46,9 @@ class CostManager(BaseManager):
         params["billed_year"] = billed_at.strftime("%Y")
         params["billed_month"] = billed_at.strftime("%Y-%m")
 
-        params, use_account_routing = self.data_source_account_mgr.connect_cost_data(
-            params
-        )
-        if not use_account_routing:
-            params = self.data_source_rule_mgr.change_cost_data(params)
+        params, ds_account_vo = self.data_source_account_mgr.connect_cost_data(params)
+
+        params = self.data_source_rule_mgr.change_cost_data(params, ds_account_vo)
 
         cost_vo: Cost = self.cost_model.create(params)
 
