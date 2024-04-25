@@ -94,10 +94,6 @@ class DataSourceAccountManager(BaseManager):
 
         use_account_routing = plugin_info_metadata.get("use_account_routing", False)
 
-        _LOGGER.debug(
-            f"[connect_cost_data] data_source_id: {data_source_id}, domain_id: {domain_id}, use_account_routing: {use_account_routing}, plugin_info_metadata: {plugin_info_metadata}"
-        )
-
         ds_account_vo = None
         if use_account_routing:
             account_connect_polices: list = plugin_info_metadata.get(
@@ -112,10 +108,6 @@ class DataSourceAccountManager(BaseManager):
                     target_value = utils.get_dict_value(cost_data, source)
                     operator = policy.get("operator")
 
-                    _LOGGER.debug(
-                        f"[connect_cost_data] source: {source}, target_key: {target_key}, target_value: {target_value}"
-                    )
-
                     if target_value:
                         ds_account_vo = self._get_data_source_account_vo(
                             target_key,
@@ -124,11 +116,10 @@ class DataSourceAccountManager(BaseManager):
                             domain_id,
                             operator,
                         )
-                        _LOGGER.debug(
-                            f"[connect_cost_data] ds_account_vo: {ds_account_vo.to_dict()}"
-                        )
-                        if ds_account_vo:
-                            cost_data["account_id"] = ds_account_vo.account_id
+
+        if ds_account_vo:
+            cost_data["account_id"] = ds_account_vo.account_id
+            cost_data["workspace_id"] = ds_account_vo.v_workspace_id
 
         return cost_data, ds_account_vo
 
