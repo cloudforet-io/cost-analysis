@@ -463,7 +463,7 @@ class CostManager(BaseManager):
                 if total_count > 0:
                     for ds_accounts_vo in ds_accounts_vos:
                         if ds_accounts_vo.workspace_id:
-                            workspace_ids.append(ds_accounts_vo.workspace_id)
+                            workspace_ids.append(ds_accounts_vo.v_workspace_id)
 
                 change_filter.append(
                     {"k": "workspace_id", "v": workspace_ids, "o": "in"}
