@@ -155,8 +155,9 @@ class DataSourceRuleManager(BaseManager):
                         target_key, target_value, domain_id, workspace_id
                     )
                     if project_info:
-                        cost_data["workspace_id"] = project_info.get("workspace_id")
                         cost_data["project_id"] = project_info["project_id"]
+                    if not data_source_account_vo:
+                        cost_data["workspace_id"] = project_info.get("workspace_id")
 
             elif action == "match_service_account" and value:
                 source = value["source"]
@@ -170,10 +171,11 @@ class DataSourceRuleManager(BaseManager):
                         cost_data["service_account_id"] = service_account_info[
                             "service_account_id"
                         ]
+                        cost_data["project_id"] = service_account_info.get("project_id")
+                    if not data_source_account_vo:
                         cost_data["workspace_id"] = service_account_info.get(
                             "workspace_id"
                         )
-                        cost_data["project_id"] = service_account_info.get("project_id")
 
             if action == "add_additional_info" and value:
                 cost_data["additional_info"] = cost_data.get("additional_info", {})

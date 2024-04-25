@@ -87,11 +87,11 @@ class CostManager(BaseManager):
         history_vos.delete()
 
     def get_cost(
-        self,
-        cost_id: str,
-        domain_id: str,
-        workspace_id=None,
-        user_projects: list = None,
+            self,
+            cost_id: str,
+            domain_id: str,
+            workspace_id=None,
+            user_projects: list = None,
     ):
         conditions = {"cost_id": cost_id, "domain_id": domain_id}
 
@@ -108,10 +108,13 @@ class CostManager(BaseManager):
 
     def list_costs(self, query: dict, domain_id: str):
         query = self._change_filter_project_group_id(query, domain_id)
+        query = self._change_filter_v_workspace_id(query, domain_id)
         return self.cost_model.query(**query)
 
     def stat_costs(self, query: dict, domain_id: str):
         query = self._change_filter_project_group_id(query, domain_id)
+        query = self._change_filter_v_workspace_id(query, domain_id)
+
         return self.cost_model.stat(**query)
 
     def filter_monthly_costs(self, **conditions):
@@ -119,10 +122,12 @@ class CostManager(BaseManager):
 
     def list_monthly_costs(self, query: dict, domain_id: str):
         query = self._change_filter_project_group_id(query, domain_id)
+        query = self._change_filter_v_workspace_id(query, domain_id)
         return self.monthly_cost_model.query(**query)
 
     def stat_monthly_costs(self, query: dict, domain_id: str):
         query = self._change_filter_project_group_id(query, domain_id)
+        query = self._change_filter_v_workspace_id(query, domain_id)
         return self.monthly_cost_model.stat(**query)
 
     def analyze_costs(self, query, domain_id, target="SECONDARY_PREFERRED"):
@@ -132,6 +137,7 @@ class CostManager(BaseManager):
         _LOGGER.debug(f"[analyze_costs] query: {query}")
 
         query = self._change_filter_project_group_id(query, domain_id)
+        query = self._change_filter_v_workspace_id(query, domain_id)
         return self.cost_model.analyze(**query)
 
     def analyze_monthly_costs(self, query, domain_id, target="SECONDARY_PREFERRED"):
@@ -141,6 +147,7 @@ class CostManager(BaseManager):
         _LOGGER.debug(f"[analyze_monthly_costs] query: {query}")
 
         query = self._change_filter_project_group_id(query, domain_id)
+        query = self._change_filter_v_workspace_id(query, domain_id)
         return self.monthly_cost_model.analyze(**query)
 
     def analyze_yearly_costs(self, query, domain_id, target="SECONDARY_PREFERRED"):
@@ -150,6 +157,7 @@ class CostManager(BaseManager):
         _LOGGER.debug(f"[analyze_yearly_costs] query: {query}")
 
         query = self._change_filter_project_group_id(query, domain_id)
+        query = self._change_filter_v_workspace_id(query, domain_id)
         return self.monthly_cost_model.analyze(**query)
 
     @cache.cacheable(
@@ -157,7 +165,7 @@ class CostManager(BaseManager):
         expire=3600 * 24,
     )
     def stat_monthly_costs_with_cache(
-        self, query, query_hash, domain_id, data_source_id
+            self, query, query_hash, domain_id, data_source_id
     ):
         return self.stat_monthly_costs(query, domain_id)
 
@@ -166,7 +174,7 @@ class CostManager(BaseManager):
         expire=3600 * 24,
     )
     def analyze_costs_with_cache(
-        self, query, query_hash, domain_id, data_source_id, target="SECONDARY_PREFERRED"
+            self, query, query_hash, domain_id, data_source_id, target="SECONDARY_PREFERRED"
     ):
         return self.analyze_costs(query, domain_id, target)
 
@@ -175,7 +183,7 @@ class CostManager(BaseManager):
         expire=3600 * 24,
     )
     def analyze_monthly_costs_with_cache(
-        self, query, query_hash, domain_id, data_source_id, target="SECONDARY_PREFERRED"
+            self, query, query_hash, domain_id, data_source_id, target="SECONDARY_PREFERRED"
     ):
         return self.analyze_monthly_costs(query, domain_id, target)
 
@@ -184,12 +192,12 @@ class CostManager(BaseManager):
         expire=3600 * 24,
     )
     def analyze_yearly_costs_with_cache(
-        self, query, query_hash, domain_id, data_source_id, target="SECONDARY_PREFERRED"
+            self, query, query_hash, domain_id, data_source_id, target="SECONDARY_PREFERRED"
     ):
         return self.analyze_yearly_costs(query, domain_id, target)
 
     def analyze_costs_by_granularity(
-        self, query: dict, domain_id: dict, data_source_id: dict
+            self, query: dict, domain_id: dict, data_source_id: dict
     ):
         self._check_date_range(query)
         granularity = query["granularity"]
@@ -418,3 +426,49 @@ class CostManager(BaseManager):
 
         query["filter"] = change_filter
         return query
+
+    def _change_filter_v_workspace_id(self, query: dict, domain_id: str) -> dict:
+        change_filter = []
+        workspace_ids = []
+        data_source_id = self._get_data_source_id_from_filter(query)
+
+        for condition in query.get("filter", []):
+            key = condition.get("k", condition.get("key"))
+            value = condition.get("v", condition.get("value"))
+            operator = condition.get("o", condition.get("operator"))
+
+            if key == "workspace_id":
+                query = {
+                    "filter": [
+                        {"k": "domain_id", "v": domain_id, "o": "eq"},
+                        {"k": "data_source_id", "v": data_source_id, "o": "eq"},
+                        {"k": key, "v": value, "o": operator},
+                    ]
+                }
+                (
+                    ds_accounts_vos,
+                    total_count,
+                ) = self.data_source_account_mgr.list_data_source_accounts(query)
+
+                if total_count > 0:
+                    for ds_accounts_vo in ds_accounts_vos:
+                        if ds_accounts_vo.workspace_id:
+                            workspace_ids.append(ds_accounts_vo.workspace_id)
+
+                change_filter.append(
+                    {"k": "workspace_id", "v": workspace_ids, "o": "in"}
+                )
+
+            else:
+                change_filter.append(condition)
+            query["filter"] = change_filter
+        return query
+
+    @staticmethod
+    def _get_data_source_id_from_filter(query: dict) -> str:
+        for condition in query.get("filter", []):
+            key = condition.get("k", condition.get("key"))
+            value = condition.get("v", condition.get("value"))
+
+            if key == "data_source_id":
+                return value
