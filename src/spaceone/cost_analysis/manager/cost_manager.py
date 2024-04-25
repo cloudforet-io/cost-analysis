@@ -50,7 +50,6 @@ class CostManager(BaseManager):
 
         params = self.data_source_rule_mgr.change_cost_data(params, ds_account_vo)
 
-        _LOGGER.debug(f"[create_cost] params: {params}")
         cost_vo: Cost = self.cost_model.create(params)
 
         if execute_rollback:
@@ -447,7 +446,7 @@ class CostManager(BaseManager):
             operator = condition.get("o", condition.get("operator"))
 
             if key == "workspace_id":
-                query = {
+                ds_account_list_query = {
                     "filter": [
                         {"k": "domain_id", "v": domain_id, "o": "eq"},
                         {"k": "data_source_id", "v": data_source_id, "o": "eq"},
@@ -457,7 +456,9 @@ class CostManager(BaseManager):
                 (
                     ds_accounts_vos,
                     total_count,
-                ) = self.data_source_account_mgr.list_data_source_accounts(query)
+                ) = self.data_source_account_mgr.list_data_source_accounts(
+                    ds_account_list_query
+                )
 
                 if total_count > 0:
                     for ds_accounts_vo in ds_accounts_vos:
