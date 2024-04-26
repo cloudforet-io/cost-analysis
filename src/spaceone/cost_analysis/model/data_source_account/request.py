@@ -13,8 +13,6 @@ __all__ = [
 class DataSourceAccountUpdateRequest(BaseModel):
     data_source_id: str
     account_id: str
-    service_account_id: Union[str, None] = None
-    project_id: Union[str, None] = None
     workspace_id: Union[str, None] = None
     domain_id: str
 
@@ -36,8 +34,6 @@ class DataSourceAccountSearchQueryRequest(BaseModel):
     query: Union[dict, None] = None
     data_source_id: Union[str, None] = None
     account_id: Union[str, None] = None
-    service_account_id: Union[str, None] = None
-    project_id: Union[str, None] = None
     workspace_id: Union[str, None] = None
     domain_id: str
 
