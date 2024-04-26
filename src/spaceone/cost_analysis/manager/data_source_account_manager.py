@@ -221,8 +221,6 @@ class DataSourceAccountManager(BaseManager):
             ]
         }
 
-        _LOGGER.debug(f"[_get_data_source_account_vo] query: {query}")
-
         data_source_account_vos, total_count = self.list_data_source_accounts(query)
         data_source_account_vo = None
         if total_count > 0:
