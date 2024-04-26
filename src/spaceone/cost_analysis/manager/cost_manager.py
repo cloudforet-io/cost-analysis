@@ -137,7 +137,6 @@ class CostManager(BaseManager):
         _LOGGER.debug(f"[analyze_costs] query: {query}")
 
         query = self._change_filter_project_group_id(query, domain_id)
-        query = self._change_filter_v_workspace_id(query, domain_id)
         return self.cost_model.analyze(**query)
 
     def analyze_monthly_costs(self, query, domain_id, target="SECONDARY_PREFERRED"):
@@ -147,7 +146,6 @@ class CostManager(BaseManager):
         _LOGGER.debug(f"[analyze_monthly_costs] query: {query}")
 
         query = self._change_filter_project_group_id(query, domain_id)
-        query = self._change_filter_v_workspace_id(query, domain_id)
         response = self.monthly_cost_model.analyze(**query)
         return response
 
@@ -158,7 +156,6 @@ class CostManager(BaseManager):
         _LOGGER.debug(f"[analyze_yearly_costs] query: {query}")
 
         query = self._change_filter_project_group_id(query, domain_id)
-        query = self._change_filter_v_workspace_id(query, domain_id)
         return self.monthly_cost_model.analyze(**query)
 
     @cache.cacheable(
@@ -202,6 +199,9 @@ class CostManager(BaseManager):
     ):
         self._check_date_range(query)
         granularity = query["granularity"]
+
+        # Change filter v_workspace_id to workspace_id
+        query = self._change_filter_v_workspace_id(query, domain_id)
 
         # Save query history to speed up data loading
         query_hash: str = utils.dict_to_hash(query)
@@ -513,6 +513,7 @@ class CostManager(BaseManager):
                     workspace_id = result.get("workspace_id")
                     if workspace_id in workspace_id_map:
                         result["workspace_id"] = workspace_id_map[workspace_id]
+                response["results"] = results
         return response
 
     def _get_workspace_id_from_v_workspace_id(
