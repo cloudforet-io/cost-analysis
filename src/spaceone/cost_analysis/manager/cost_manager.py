@@ -14,6 +14,7 @@ from spaceone.cost_analysis.manager.data_source_account_manager import (
     DataSourceAccountManager,
 )
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
+from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -31,6 +32,9 @@ class CostManager(BaseManager):
         )
         self.data_source_account_mgr: DataSourceAccountManager = (
             self.locator.get_manager("DataSourceAccountManager")
+        )
+        self.data_source_mgr: DataSourceManager = self.locator.get_manager(
+            "DataSourceManager"
         )
 
     def create_cost(self, params: dict, execute_rollback=True):
@@ -108,12 +112,12 @@ class CostManager(BaseManager):
 
     def list_costs(self, query: dict, domain_id: str):
         query = self._change_filter_project_group_id(query, domain_id)
-        query = self._change_filter_v_workspace_id(query, domain_id)
+        # query = self._change_filter_v_workspace_id(query, domain_id)
         return self.cost_model.query(**query)
 
     def stat_costs(self, query: dict, domain_id: str):
         query = self._change_filter_project_group_id(query, domain_id)
-        query = self._change_filter_v_workspace_id(query, domain_id)
+        # query = self._change_filter_v_workspace_id(query, domain_id)
 
         return self.cost_model.stat(**query)
 
@@ -122,12 +126,12 @@ class CostManager(BaseManager):
 
     def list_monthly_costs(self, query: dict, domain_id: str):
         query = self._change_filter_project_group_id(query, domain_id)
-        query = self._change_filter_v_workspace_id(query, domain_id)
+        # query = self._change_filter_v_workspace_id(query, domain_id)
         return self.monthly_cost_model.query(**query)
 
     def stat_monthly_costs(self, query: dict, domain_id: str):
         query = self._change_filter_project_group_id(query, domain_id)
-        query = self._change_filter_v_workspace_id(query, domain_id)
+        # query = self._change_filter_v_workspace_id(query, domain_id)
         return self.monthly_cost_model.stat(**query)
 
     def analyze_costs(self, query, domain_id, target="SECONDARY_PREFERRED"):
@@ -201,7 +205,14 @@ class CostManager(BaseManager):
         granularity = query["granularity"]
 
         # Change filter v_workspace_id to workspace_id
-        query = self._change_filter_v_workspace_id(query, domain_id)
+        data_source_vo = self.data_source_mgr.get_data_source(data_source_id, domain_id)
+        plugin_metadata = data_source_vo.plugin_info.metadata
+        use_account_routing = plugin_metadata.get("use_account_routing", False)
+        if use_account_routing:
+            _LOGGER.debug(
+                f"[analyze_costs_by_granularity] add v_workspace_id filter: {data_source_id}"
+            )
+            query = self._change_filter_v_workspace_id(query, domain_id)
 
         # Save query history to speed up data loading
         query_hash: str = utils.dict_to_hash(query)

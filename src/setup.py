@@ -26,7 +26,16 @@ setup(
     author_email="admin@spaceone.dev",
     license="Apache License 2.0",
     packages=find_packages(),
-    install_requires=["spaceone-core", "spaceone-api", "pandas", "numpy"],
+    install_requires=[
+        "spaceone-core",
+        "spaceone-api",
+        "pandas",
+        "numpy",
+        "jinja2",
+        "finance-datareader",
+        "plotly",
+        "bs4",
+    ],
     package_data={
         "spaceone": [
             "cost_analysis/template/*.html",
