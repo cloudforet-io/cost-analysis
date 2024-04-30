@@ -50,9 +50,17 @@ class CostManager(BaseManager):
         params["billed_year"] = billed_at.strftime("%Y")
         params["billed_month"] = billed_at.strftime("%Y-%m")
 
-        params, ds_account_vo = self.data_source_account_mgr.connect_cost_data(params)
+        (
+            workspace_id,
+            v_workspace_id,
+        ) = self.data_source_account_mgr.get_workspace_id_from_account_id(
+            params["domain_id"], params["data_source_id"]
+        )
 
-        params = self.data_source_rule_mgr.change_cost_data(params, ds_account_vo)
+        if v_workspace_id:
+            params["workspace_id"] = v_workspace_id
+
+        params = self.data_source_rule_mgr.change_cost_data(params, workspace_id)
 
         cost_vo: Cost = self.cost_model.create(params)
 
@@ -110,14 +118,14 @@ class CostManager(BaseManager):
     def filter_costs(self, **conditions):
         return self.cost_model.filter(**conditions)
 
-    def list_costs(self, query: dict, domain_id: str):
+    def list_costs(self, query: dict, domain_id: str, data_source_id: str):
         query = self._change_filter_project_group_id(query, domain_id)
-        # query = self._change_filter_v_workspace_id(query, domain_id)
+        # query = self._change_filter_v_workspace_id(query, domain_id, data_source_id)
         return self.cost_model.query(**query)
 
-    def stat_costs(self, query: dict, domain_id: str):
+    def stat_costs(self, query: dict, domain_id: str, data_source_id: str):
         query = self._change_filter_project_group_id(query, domain_id)
-        # query = self._change_filter_v_workspace_id(query, domain_id)
+        # query = self._change_filter_v_workspace_id(query, domain_id, data_source_id)
 
         return self.cost_model.stat(**query)
 
@@ -205,14 +213,14 @@ class CostManager(BaseManager):
         granularity = query["granularity"]
 
         # Change filter v_workspace_id to workspace_id
-        data_source_vo = self.data_source_mgr.get_data_source(data_source_id, domain_id)
-        plugin_metadata = data_source_vo.plugin_info.metadata
-        use_account_routing = plugin_metadata.get("use_account_routing", False)
-        if use_account_routing:
-            _LOGGER.debug(
-                f"[analyze_costs_by_granularity] add v_workspace_id filter: {data_source_id}"
-            )
-            query = self._change_filter_v_workspace_id(query, domain_id)
+        # data_source_vo = self.data_source_mgr.get_data_source(data_source_id, domain_id)
+        # plugin_metadata = data_source_vo.plugin_info.metadata
+        # use_account_routing = plugin_metadata.get("use_account_routing", False)
+        # if use_account_routing:
+        #     _LOGGER.debug(
+        #         f"[analyze_costs_by_granularity] add v_workspace_id filter: {data_source_id}"
+        #     )
+        query = self._change_filter_v_workspace_id(query, domain_id, data_source_id)
 
         # Save query history to speed up data loading
         query_hash: str = utils.dict_to_hash(query)
@@ -446,10 +454,21 @@ class CostManager(BaseManager):
         query["filter"] = change_filter
         return query
 
-    def _change_filter_v_workspace_id(self, query: dict, domain_id: str) -> dict:
+    def _change_filter_v_workspace_id(
+        self, query: dict, domain_id: str, data_source_id: str
+    ) -> dict:
         change_filter = []
         workspace_ids = []
-        data_source_id = self._get_data_source_id_from_filter(query)
+
+        data_source_vo = self.data_source_mgr.get_data_source(data_source_id, domain_id)
+        plugin_metadata = data_source_vo.plugin_info.metadata
+        use_account_routing = plugin_metadata.get("use_account_routing", False)
+        if not use_account_routing:
+            return query
+
+        _LOGGER.debug(
+            f"[analyze_costs_by_granularity] add v_workspace_id filter: {data_source_id}"
+        )
 
         for condition in query.get("filter", []):
             key = condition.get("k", condition.get("key"))
