@@ -1,4 +1,8 @@
+import copy
 import logging
+from typing import Tuple, Union
+
+from mongoengine import QuerySet
 from spaceone.core.service import *
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.service.job_service import JobService
@@ -575,6 +579,7 @@ class DataSourceService(BaseService):
                 'state': 'str',
                 'data_source_type': 'str',
                 'provider': 'str',
+                'connected_workspace_id': str,
                 'workspace_id': 'list,
                 'domain_id': 'str',
                 'query': 'dict (spaceone.api.core.v1.Query)'
@@ -586,7 +591,19 @@ class DataSourceService(BaseService):
         """
 
         query = params.get("query", {})
-        return self.data_source_mgr.list_data_sources(query)
+        connected_workspace_id = params.get("connected_workspace_id")
+
+        if connected_workspace_id:
+            (
+                data_source_vos,
+                total_count,
+            ) = self._change_filter_connected_workspace_data_source(
+                query, connected_workspace_id
+            )
+        else:
+            data_source_vos, total_count = self.data_source_mgr.list_data_sources(query)
+
+        return data_source_vos, total_count
 
     @transaction(
         permission="cost-analysis:DataSource.read",
@@ -705,7 +722,7 @@ class DataSourceService(BaseService):
         domain_id = data_source_vo.domain_id
         resource_group = data_source_vo.resource_group
 
-        data_source_account_vo_map = self._get_data_source_account_vo_map(
+        exist_data_source_account_vo_map = self._get_data_source_account_vo_map(
             data_source_id, domain_id
         )
 
@@ -726,6 +743,7 @@ class DataSourceService(BaseService):
                 self.data_source_account_mgr.filter_data_source_accounts(
                     data_source_id=data_source_vo.data_source_id,
                     account_id=account_info["account_id"],
+                    domain_id=domain_id,
                 )
             )
             if len(data_source_account_vos) == 0:
@@ -740,16 +758,16 @@ class DataSourceService(BaseService):
                         {"name": account_info["name"]}, data_source_account_vo
                     )
 
-            # Remove account from map for delete old data source accounts after loop
-            if data_source_account_vo_map.get(account_info["account_id"]):
-                data_source_account_vo_map.pop(account_info["account_id"])
+            # Remove account from map if account is exist or updated
+            if exist_data_source_account_vo_map.get(account_info["account_id"]):
+                exist_data_source_account_vo_map.pop(account_info["account_id"])
 
         _LOGGER.debug(
             f"[register] create data source account: {data_source_vo.data_source_id} / total count = {create_account_count}"
         )
 
         # Delete old data source accounts
-        for data_source_account_vo in data_source_account_vo_map.values():
+        for data_source_account_vo in exist_data_source_account_vo_map.values():
             self.data_source_account_mgr.delete_source_account_by_vo(
                 data_source_account_vo
             )
@@ -768,3 +786,80 @@ class DataSourceService(BaseService):
                 data_source_account_vo.account_id
             ] = data_source_account_vo
         return data_source_account_vo_map
+
+    def _change_filter_connected_workspace_data_source(
+        self, query: dict, connected_workspace_id: str
+    ) -> Tuple[Union[QuerySet, list], int]:
+        connected_data_source_ids = []
+        domain_id = self._get_domain_id_from_filter(query)
+        workspace_ids = self._get_workspace_ids_from_filter(query)
+
+        # Check permission for connected_workspace_id
+        if len(workspace_ids) > 0 and connected_workspace_id not in workspace_ids:
+            return [], 0
+
+        copied_query = self._get_copied_remove_only_filter_query(query)
+        data_source_vos, _ = self.data_source_mgr.list_data_sources(copied_query)
+
+        for data_source_vo in data_source_vos:
+            resource_group = data_source_vo.resource_group
+            if resource_group == "DOMAIN":
+                plugin_info_metadata = data_source_vo.plugin_info.metadata
+                use_account_routing = plugin_info_metadata.get(
+                    "use_account_routing", False
+                )
+                if use_account_routing:
+                    data_source_account_vos = (
+                        self.data_source_account_mgr.filter_data_source_accounts(
+                            domain_id=domain_id, workspace_id=connected_workspace_id
+                        )
+                    )
+                    if len(data_source_account_vos) > 0:
+                        connected_data_source_ids.append(data_source_vo.data_source_id)
+                else:
+                    connected_data_source_ids.append(data_source_vo.data_source_id)
+            else:
+                connected_data_source_ids.append(data_source_vo.data_source_id)
+
+        if connected_data_source_ids:
+            query["filter"] = [
+                {"k": "data_source_id", "v": connected_data_source_ids, "o": "in"},
+                {"k": "domain_id", "v": domain_id, "o": "eq"},
+            ]
+
+        _LOGGER.debug(
+            f"[_change_filter_connected_workspace_data_source] query: {query}"
+        )
+
+        return self.data_source_mgr.list_data_sources(query)
+
+    @staticmethod
+    def _get_domain_id_from_filter(query: dict) -> str:
+        for condition in query.get("filter", []):
+            key = condition.get("k", condition.get("key"))
+            value = condition.get("v", condition.get("value"))
+
+            if key == "domain_id":
+                return value
+
+    @staticmethod
+    def _get_workspace_ids_from_filter(query: dict) -> list:
+        workspace_ids = []
+        for condition in query.get("filter", []):
+            key = condition.get("k", condition.get("key"))
+            value = condition.get("v", condition.get("value"))
+
+            if key == "workspace_id":
+                if isinstance(value, list):
+                    workspace_ids.extend(value)
+                else:
+                    workspace_ids.append(value)
+        return workspace_ids
+
+    @staticmethod
+    def _get_copied_remove_only_filter_query(query: dict) -> dict:
+        copied_query = copy.deepcopy(query)
+        copied_query.pop("only", None)
+        copied_query.pop("minimal", None)
+        _LOGGER.debug(f"[_get_copied_remove_only_filter_query] query: {copied_query}")
+        return copied_query
