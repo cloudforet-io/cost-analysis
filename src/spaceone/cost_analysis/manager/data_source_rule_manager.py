@@ -66,7 +66,7 @@ class DataSourceRuleManager(BaseManager):
         data_source_rule_vo.delete()
 
     def get_data_source_rule(
-        self, data_source_rule_id: str, domain_id: str, workspace_id: str = None
+            self, data_source_rule_id: str, domain_id: str, workspace_id: str = None
     ):
         conditions = {
             "data_source_rule_id": data_source_rule_id,
@@ -106,11 +106,11 @@ class DataSourceRuleManager(BaseManager):
         return cost_data
 
     def _apply_data_source_rule_to_cost_data(
-        self,
-        cost_data: dict,
-        data_source_rule_vos: QuerySet,
-        domain_id: str,
-        workspace_id: str = None,
+            self,
+            cost_data: dict,
+            data_source_rule_vos: QuerySet,
+            domain_id: str,
+            workspace_id: str = None,
     ):
         for data_source_rule_vo in data_source_rule_vos:
             is_match = self._change_cost_data_by_rule(cost_data, data_source_rule_vo)
@@ -128,11 +128,11 @@ class DataSourceRuleManager(BaseManager):
         return cost_data
 
     def _change_cost_data_with_actions(
-        self,
-        cost_data: dict,
-        actions: dict,
-        domain_id: str,
-        workspace_id: str = None,
+            self,
+            cost_data: dict,
+            actions: dict,
+            domain_id: str,
+            workspace_id: str = None,
     ):
         for action, value in actions.items():
             if action == "change_project" and value:
@@ -148,8 +148,8 @@ class DataSourceRuleManager(BaseManager):
                     )
                     if project_info:
                         cost_data["project_id"] = project_info["project_id"]
-                    if not workspace_id:
-                        cost_data["workspace_id"] = project_info["workspace_id"]
+                        if not workspace_id:
+                            cost_data["workspace_id"] = project_info["workspace_id"]
 
             elif action == "match_service_account" and value:
                 source = value["source"]
@@ -164,10 +164,10 @@ class DataSourceRuleManager(BaseManager):
                             "service_account_id"
                         ]
                         cost_data["project_id"] = service_account_info.get("project_id")
-                    if not workspace_id:
-                        cost_data["workspace_id"] = service_account_info.get(
-                            "workspace_id"
-                        )
+                        if not workspace_id:
+                            cost_data["workspace_id"] = service_account_info.get(
+                                "workspace_id"
+                            )
 
             if action == "add_additional_info" and value:
                 cost_data["additional_info"] = cost_data.get("additional_info", {})
@@ -176,11 +176,11 @@ class DataSourceRuleManager(BaseManager):
         return cost_data
 
     def _get_service_account(
-        self, target_key, target_value, domain_id: str, workspace_id: str = None
+            self, target_key, target_value, domain_id: str, workspace_id: str = None
     ):
         if (
-            f"service-account:{domain_id}:{target_key}:{target_value}"
-            in self._service_account_info
+                f"service-account:{domain_id}:{target_key}:{target_value}"
+                in self._service_account_info
         ):
             return self._service_account_info[
                 f"service-account:{domain_id}:{target_key}:{target_value}"
@@ -212,7 +212,7 @@ class DataSourceRuleManager(BaseManager):
         return service_account_info
 
     def _get_project(
-        self, target_key, target_value, domain_id: str, workspace_id: str = None
+            self, target_key, target_value, domain_id: str, workspace_id: str = None
     ):
         if f"project:{domain_id}:{target_key}:{target_value}" in self._project_info:
             return self._project_info[
