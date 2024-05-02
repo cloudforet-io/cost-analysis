@@ -54,15 +54,11 @@ class CostManager(BaseManager):
             workspace_id,
             v_workspace_id,
         ) = self.data_source_account_mgr.get_workspace_id_from_account_id(
-            params["domain_id"], params["data_source_id"]
+            params, params["domain_id"], params["data_source_id"]
         )
 
         if v_workspace_id:
             params["workspace_id"] = v_workspace_id
-
-        _LOGGER.debug(
-            f"[create_cost] v-workspace_id:{v_workspace_id}, v-workspace_id: {workspace_id}"
-        )
 
         params = self.data_source_rule_mgr.change_cost_data(params, workspace_id)
 
