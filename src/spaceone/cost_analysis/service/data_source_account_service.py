@@ -71,6 +71,7 @@ class DataSourceAccountService(BaseService):
         permission="cost-analysis:DataSourceAccount.write",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
+    @convert_model
     def reset(
         self, params: DataSourceAccountResetRequest
     ) -> Union[DataSourceAccountsResponse, dict]:
@@ -78,6 +79,7 @@ class DataSourceAccountService(BaseService):
         Args:
             params (dict): {
                 'data_source_id': 'str',    # required
+                'account_id': 'str',        # optional
                 'workspace_id': 'str',      # injected from auth
                 'domain_id': 'str'          # injected from auth
             }
@@ -85,6 +87,7 @@ class DataSourceAccountService(BaseService):
             dict
         """
         data_source_id = params.data_source_id
+        account_id = params.account_id
         workspace_id = params.workspace_id
         domain_id = params.domain_id
 
@@ -93,40 +96,41 @@ class DataSourceAccountService(BaseService):
             data_source_id, domain_id, workspace_id
         )
 
-        query = {
-            "filter": [
-                {"k": "data_source_id", "v": data_source_id, "o": "eq"},
-                {"k": "domain_id", "v": domain_id, "o": "eq"},
-            ]
+        conditions = {
+            "data_source_id": data_source_id,
+            "domain_id": domain_id,
         }
-        if data_source_vo.resource_group == "WORKSPACE":
-            query["filter"].append({"k": "workspace_id", "v": workspace_id, "o": "eq"})
+        if account_id:
+            conditions["account_id"] = account_id
+        if workspace_id:
+            conditions["workspace_id"] = workspace_id
 
-        (
-            data_source_account_vos,
-            total_count,
-        ) = self.data_source_account_mgr.list_data_source_accounts(query)
-
+        updated_data_source_account_vos = []
+        data_source_account_vos = (
+            self.data_source_account_mgr.filter_data_source_accounts(**conditions)
+        )
         for data_source_account_vo in data_source_account_vos:
             update_params = {
-                "project_id": None,
-                "service_account_id": None,
                 "is_sync": False,
                 "updated_at": datetime.utcnow(),
             }
             if data_source_vo.resource_group == "DOMAIN":
                 update_params["workspace_id"] = None
-            self.data_source_account_mgr.update_data_source_account_by_vo(
-                update_params, data_source_account_vo
+            data_source_account_vo = (
+                self.data_source_account_mgr.update_data_source_account_by_vo(
+                    update_params, data_source_account_vo
+                )
             )
+            updated_data_source_account_vos.append(data_source_account_vo)
 
         data_source_accounts_info = [
-            data_source_account_vo.to_dict()
-            for data_source_account_vo in data_source_account_vos
+            updated_data_source_account_vo.to_dict()
+            for updated_data_source_account_vo in updated_data_source_account_vos
         ]
 
         return DataSourceAccountsResponse(
-            results=data_source_accounts_info, total_count=total_count
+            results=data_source_accounts_info,
+            total_count=len(data_source_accounts_info),
         )
 
     @transaction(

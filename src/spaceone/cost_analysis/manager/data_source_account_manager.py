@@ -96,12 +96,15 @@ class DataSourceAccountManager(BaseManager):
         if use_account_routing:
             account_match_key_value = plugin_info_metadata.get("account_match_key")
             if account_match_key_value:
-                ds_account_vo = self.get_data_source_account(
-                    data_source_id, account_match_key_value, domain_id
+                ds_account_vos = self.filter_data_source_accounts(
+                    data_source_id=data_source_id,
+                    account_id=account_match_key_value,
+                    domain_id=domain_id,
                 )
-
-                workspace_id = ds_account_vo.workspace_id
-                v_workspace_id = ds_account_vo.v_workspace_id
+                if ds_account_vos.count() > 0:
+                    ds_account_vo = ds_account_vos[0]
+                    workspace_id = ds_account_vo.workspace_id
+                    v_workspace_id = ds_account_vo.v_workspace_id
 
         return workspace_id, v_workspace_id
 

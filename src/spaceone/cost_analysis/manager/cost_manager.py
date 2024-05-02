@@ -60,6 +60,10 @@ class CostManager(BaseManager):
         if v_workspace_id:
             params["workspace_id"] = v_workspace_id
 
+        _LOGGER.debug(
+            f"[create_cost] v-workspace_id:{v_workspace_id}, v-workspace_id: {workspace_id}"
+        )
+
         params = self.data_source_rule_mgr.change_cost_data(params, workspace_id)
 
         cost_vo: Cost = self.cost_model.create(params)

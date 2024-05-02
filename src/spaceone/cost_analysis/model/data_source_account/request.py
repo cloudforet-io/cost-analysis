@@ -19,6 +19,7 @@ class DataSourceAccountUpdateRequest(BaseModel):
 
 class DataSourceAccountResetRequest(BaseModel):
     data_source_id: str
+    account_id: Union[str, None] = None
     workspace_id: Union[str, None] = None
     domain_id: str
 
