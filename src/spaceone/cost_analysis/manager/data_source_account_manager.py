@@ -2,6 +2,7 @@ import logging
 from typing import Tuple, Union
 
 from mongoengine import QuerySet
+from spaceone.core import utils
 from spaceone.core.manager import BaseManager
 
 from spaceone.cost_analysis.model import DataSource
@@ -83,7 +84,7 @@ class DataSourceAccountManager(BaseManager):
         return self.data_source_account_model.stat(**query)
 
     def get_workspace_id_from_account_id(
-        self, domain_id: str, data_source_id: str
+        self, cost_data: dict, domain_id: str, data_source_id: str
     ) -> Tuple[str, str]:
         workspace_id = None
         v_workspace_id = None
@@ -94,7 +95,9 @@ class DataSourceAccountManager(BaseManager):
         use_account_routing = plugin_info_metadata.get("use_account_routing", False)
 
         if use_account_routing:
-            account_match_key_value = plugin_info_metadata.get("account_match_key")
+            account_match_key = plugin_info_metadata.get("account_match_key")
+            account_match_key_value = utils.get_dict_value(cost_data, account_match_key)
+
             if account_match_key_value:
                 ds_account_vos = self.filter_data_source_accounts(
                     data_source_id=data_source_id,
