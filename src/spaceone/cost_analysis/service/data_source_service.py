@@ -169,6 +169,10 @@ class DataSourceService(BaseService):
                     accounts_info, data_source_vo
                 )
 
+                data_source_vo = self.data_source_mgr.update_data_source_account_and_connected_workspace_count_by_vo(
+                    data_source_vo
+                )
+
         return data_source_vo
 
     @transaction(
