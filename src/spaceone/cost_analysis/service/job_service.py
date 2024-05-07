@@ -1014,7 +1014,6 @@ class JobService(BaseService):
                     )
                 )
 
-            # if data_source_account_vo.workspace_id:
             linked_accounts.append(
                 {
                     "account_id": data_source_account_vo.account_id,
@@ -1022,6 +1021,11 @@ class JobService(BaseService):
                     "is_sync": data_source_account_vo.is_sync,
                 }
             )
+
+        # Update data_source_account and connected_workspace count related to data_source
+        self.data_source_mgr.update_data_source_account_and_connected_workspace_count_by_vo(
+            data_source_vo
+        )
 
         _LOGGER.debug(
             f"[_get_linked_accounts_from_data_source_vo] linked_accounts total count: {len(linked_accounts)} / {data_source_id}"
@@ -1034,16 +1038,19 @@ class JobService(BaseService):
         synced_accounts = job_vo.synced_accounts or []
 
         for synced_account_vo in synced_accounts:
-            data_source_account_vo = (
-                self.data_source_account_mgr.get_data_source_account(
-                    data_source_id, synced_account_vo.account_id, domain_id
+            data_source_account_vos = (
+                self.data_source_account_mgr.filter_data_source_accounts(
+                    data_source_id=data_source_id,
+                    account_id=synced_account_vo.account_id,
+                    domain_id=domain_id,
                 )
             )
 
-            self.data_source_account_mgr.update_data_source_account_by_vo(
-                {"is_sync": True},
-                data_source_account_vo,
-            )
+            if data_source_account_vos:
+                self.data_source_account_mgr.update_data_source_account_by_vo(
+                    {"is_sync": True},
+                    data_source_account_vos[0],
+                )
         _LOGGER.debug(
             f"[_update_data_source_account_sync_status] synced_account_ids: {synced_accounts} / {data_source_id} {domain_id}"
         )

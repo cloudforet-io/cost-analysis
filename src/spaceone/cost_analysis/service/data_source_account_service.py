@@ -54,7 +54,9 @@ class DataSourceAccountService(BaseService):
         workspace_id = params.workspace_id
 
         # Check if the data source exists
-        self.data_source_mgr.get_data_source(data_source_id, domain_id, workspace_id)
+        data_source_vo = self.data_source_mgr.get_data_source(
+            data_source_id, domain_id, workspace_id
+        )
 
         data_source_account_vo = self.data_source_account_mgr.get_data_source_account(
             data_source_id, account_id, domain_id, workspace_id
@@ -65,6 +67,14 @@ class DataSourceAccountService(BaseService):
             )
         )
 
+        if (
+            params.workspace_id
+            and params.workspace_id != data_source_account_vo.workspace_id
+        ):
+            self.data_source_mgr.update_data_source_account_and_connected_workspace_count_by_vo(
+                data_source_vo
+            )
+
         return DataSourceAccountResponse(**data_source_account_vo.to_dict())
 
     @transaction(
@@ -72,9 +82,7 @@ class DataSourceAccountService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @convert_model
-    def reset(
-        self, params: DataSourceAccountResetRequest
-    ) -> Union[DataSourceAccountsResponse, dict]:
+    def reset(self, params: DataSourceAccountResetRequest) -> None:
         """Reset data source account
         Args:
             params (dict): {
@@ -84,7 +92,7 @@ class DataSourceAccountService(BaseService):
                 'domain_id': 'str'          # injected from auth
             }
         Returns:
-            dict
+            None
         """
         data_source_id = params.data_source_id
         account_id = params.account_id
@@ -105,7 +113,6 @@ class DataSourceAccountService(BaseService):
         if workspace_id:
             conditions["workspace_id"] = workspace_id
 
-        updated_data_source_account_vos = []
         data_source_account_vos = (
             self.data_source_account_mgr.filter_data_source_accounts(**conditions)
         )
@@ -116,22 +123,14 @@ class DataSourceAccountService(BaseService):
             }
             if data_source_vo.resource_group == "DOMAIN":
                 update_params["workspace_id"] = None
-            data_source_account_vo = (
                 self.data_source_account_mgr.update_data_source_account_by_vo(
                     update_params, data_source_account_vo
                 )
+
+        if data_source_account_vos:
+            self.data_source_mgr.update_data_source_account_and_connected_workspace_count_by_vo(
+                data_source_vo
             )
-            updated_data_source_account_vos.append(data_source_account_vo)
-
-        data_source_accounts_info = [
-            updated_data_source_account_vo.to_dict()
-            for updated_data_source_account_vo in updated_data_source_account_vos
-        ]
-
-        return DataSourceAccountsResponse(
-            results=data_source_accounts_info,
-            total_count=len(data_source_accounts_info),
-        )
 
     @transaction(
         permission="cost-analysis:DataSourceAccount.read",

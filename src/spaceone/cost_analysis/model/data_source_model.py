@@ -50,6 +50,8 @@ class DataSource(MongoModel):
     cost_tag_keys = ListField(StringField())
     cost_additional_info_keys = ListField(StringField())
     cost_data_keys = ListField(StringField())
+    data_source_account_count = IntField(default=0, min_value=0)
+    connected_workspace_count = IntField(default=0, min_value=0)
     resource_group = StringField(
         max_length=255, default=None, null=True, choices=("DOMAIN", "WORKSPACE")
     )
@@ -70,6 +72,8 @@ class DataSource(MongoModel):
             "cost_tag_keys",
             "cost_additional_info_keys",
             "cost_data_keys",
+            "data_source_account_count",
+            "connected_workspace_count",
         ],
         "minimal_fields": [
             "data_source_id",
@@ -87,6 +91,6 @@ class DataSource(MongoModel):
             "provider",
             "resource_group",
             "workspace_id",
-            "domain_id"
+            "domain_id",
         ],
     }

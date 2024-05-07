@@ -28,8 +28,8 @@ class DataSourceAccount(
     def reset(self, request, context):
         params, metadata = self.parse_request(request, context)
         data_source_account_svc = DataSourceAccountService(metadata)
-        response: dict = data_source_account_svc.reset(params)
-        return self.dict_to_message(response)
+        data_source_account_svc.reset(params)
+        return self.empty()
 
     def get(self, request, context):
         params, metadata = self.parse_request(request, context)
