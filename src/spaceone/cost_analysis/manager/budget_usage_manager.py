@@ -34,8 +34,11 @@ class BudgetUsageManager(BaseManager):
 
             dts = [dt for dt in rrule(MONTHLY, dtstart=start_dt, until=end_dt)]
             limit_per_month = round(budget_vo.limit / len(dts), 3)
+            budget_limit = budget_vo.limit
 
             for dt in dts:
+                if budget_limit - limit_per_month < 0:
+                    limit_per_month = round(budget_limit, 3)
                 budget_usage_data = {
                     "budget_id": budget_vo.budget_id,
                     "name": budget_vo.name,
@@ -53,6 +56,7 @@ class BudgetUsageManager(BaseManager):
                 }
 
                 budget_usage_vo = self.budget_usage_model.create(budget_usage_data)
+                budget_limit -= limit_per_month
 
         else:
             for planned_limit in budget_vo.planned_limits:
