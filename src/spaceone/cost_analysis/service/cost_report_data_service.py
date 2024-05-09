@@ -4,6 +4,7 @@ from typing import Union, Tuple
 from spaceone.core.service import *
 from spaceone.core.service.utils import *
 
+from spaceone.cost_analysis.manager import DataSourceAccountManager
 from spaceone.cost_analysis.manager.cost_manager import CostManager
 from spaceone.cost_analysis.manager.cost_report_data_manager import (
     CostReportDataManager,
@@ -32,6 +33,7 @@ class CostReportDataService(BaseService):
         super().__init__(*args, **kwargs)
         self.cost_mgr = CostManager()
         self.cost_report_data_mgr = CostReportDataManager()
+        self.ds_account_mgr = DataSourceAccountManager()
         self.currency_map: Union[dict, None] = None
         self.currency_date: Union[str, None] = None
 
@@ -195,13 +197,20 @@ class CostReportDataService(BaseService):
             "start": report_month,
             "end": report_month,
             "filter": [
-                {"k": "workspace_id", "v": workspace_id, "o": "eq"},
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
                 {"k": "billed_year", "v": report_year, "o": "eq"},
                 {"k": "billed_month", "v": report_month, "o": "eq"},
                 {"k": "data_source_id", "v": data_source_ids, "o": "in"},
             ],
         }
+
+        v_workspace_ids = self._get_virtual_workspace_ids(domain_id, workspace_id)
+        if v_workspace_ids:
+            query["filter"].append(
+                {"k": "workspace_id", "v": [workspace_id] + v_workspace_ids, "o": "in"}
+            )
+        else:
+            query["filter"].append({"k": "workspace_id", "v": workspace_id, "o": "eq"})
 
         _LOGGER.debug(f"[aggregate_monthly_cost_report_data] query: {query}")
         response = self.cost_mgr.analyze_monthly_costs(query, domain_id)
@@ -236,6 +245,7 @@ class CostReportDataService(BaseService):
 
             aggregated_cost_report_data["cost_report_config_id"] = cost_report_config_id
             aggregated_cost_report_data["cost_report_id"] = cost_report_id
+            aggregated_cost_report_data["workspace_id"] = workspace_id
             aggregated_cost_report_data["domain_id"] = domain_id
             aggregated_cost_report_data["is_confirmed"] = is_confirmed
 
@@ -322,3 +332,14 @@ class CostReportDataService(BaseService):
             data_source_ids.append(data_source_vo.data_source_id)
 
         return data_source_currency_map, data_source_ids
+
+    def _get_virtual_workspace_ids(self, domain_id: str, workspace_id: str) -> list:
+        v_workspace_ids = []
+        ds_account_vos = self.ds_account_mgr.filter_data_source_accounts(
+            domain_id=domain_id, workspace_id=workspace_id
+        )
+
+        for ds_account_vo in ds_account_vos:
+            v_workspace_ids.append(ds_account_vo.v_workspace_id)
+
+        return v_workspace_ids

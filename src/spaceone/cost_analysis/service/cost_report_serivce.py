@@ -9,6 +9,7 @@ from mongoengine import QuerySet
 from spaceone.core import config
 from spaceone.core.service import *
 
+from spaceone.cost_analysis.manager import DataSourceAccountManager
 from spaceone.cost_analysis.model.cost_report.database import CostReport
 from spaceone.cost_analysis.model.cost_report_config.database import CostReportConfig
 from spaceone.cost_analysis.model.cost_report.request import *
@@ -45,6 +46,7 @@ class CostReportService(BaseService):
         self.cost_report_config_mgr = CostReportConfigManager()
         self.cost_report_mgr = CostReportManager()
         self.cost_report_data_mgr = CostReportDataManager()
+        self.ds_account_mgr = DataSourceAccountManager()
         self.currency_map: Union[dict, None] = None
         self.currency_date: Union[str, None] = None
 
@@ -259,7 +261,7 @@ class CostReportService(BaseService):
             domain_id, cost_report_config_id, report_month, status
         )
 
-        # collect enabled data sources
+        # collect enabled data_sources cost data
         query = {
             "group_by": ["workspace_id", "billed_year", "data_source_id"],
             "fields": {
@@ -272,9 +274,16 @@ class CostReportService(BaseService):
                 {"k": "billed_year", "v": report_year, "o": "eq"},
                 {"k": "billed_month", "v": report_month, "o": "eq"},
                 {"k": "data_source_id", "v": data_source_ids, "o": "in"},
-                {"k": "workspace_id", "v": workspace_ids, "o": "in"},
             ],
         }
+
+        v_workspace_ids, v_workspace_id_map = self._get_virtual_workspace_ids_and_map(
+            domain_id, workspace_ids
+        )
+        if v_workspace_ids:
+            workspace_ids.extend(v_workspace_ids)
+
+        query["filter"].append({"k": "workspace_id", "v": workspace_ids, "o": "in"})
 
         _LOGGER.debug(f"[aggregate_monthly_cost_report] query: {query}")
         response = self.cost_mgr.analyze_monthly_costs(query, domain_id)
@@ -282,13 +291,18 @@ class CostReportService(BaseService):
         issue_date = f"{issue_month}-{str(issue_day).zfill(2)}" if issue_month else None
 
         for aggregated_cost_report in results:
-            ag_cost = aggregated_cost_report.pop("cost", 0.0)
+            aggregated_cost_report["workspace_id"] = v_workspace_id_map.get(
+                aggregated_cost_report["workspace_id"],
+                aggregated_cost_report["workspace_id"],
+            )
+
+            _ag_cost = aggregated_cost_report.pop("cost", 0.0)
             ag_cost_report_currency = data_source_currency_map.get(
                 aggregated_cost_report.pop("data_source_id")
             )
 
             aggregated_cost_report["cost"] = CostReportManager.get_exchange_currency(
-                ag_cost, ag_cost_report_currency, self.currency_map
+                _ag_cost, ag_cost_report_currency, self.currency_map
             )
             aggregated_cost_report["status"] = status
             aggregated_cost_report["currency"] = currency
@@ -578,3 +592,26 @@ class CostReportService(BaseService):
                 workspace_result_map[workspace_id] = result.copy()
 
         return [workspace_result for workspace_result in workspace_result_map.values()]
+
+    def _get_virtual_workspace_ids_and_map(
+        self, domain_id: str, workspace_ids: list
+    ) -> Tuple[list, dict]:
+        v_workspace_ids = []
+        v_workspace_id_map = {}
+
+        query = {
+            "filter": [
+                {"k": "domain_id", "v": domain_id, "o": "eq"},
+                {"k": "workspace_id", "v": workspace_ids, "o": "in"},
+            ]
+        }
+        ds_account_vos, _ = self.ds_account_mgr.list_data_source_accounts(query)
+
+        for ds_account_vo in ds_account_vos:
+            v_workspace_ids.append(ds_account_vo.v_workspace_id)
+            if not v_workspace_id_map.get(ds_account_vo.v_workspace_id):
+                v_workspace_id_map[
+                    ds_account_vo.v_workspace_id
+                ] = ds_account_vo.workspace_id
+
+        return v_workspace_ids, v_workspace_id_map

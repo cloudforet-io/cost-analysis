@@ -9,8 +9,6 @@ from spaceone.cost_analysis.manager.budget_manager import BudgetManager
 from spaceone.cost_analysis.manager.budget_usage_manager import BudgetUsageManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 from spaceone.cost_analysis.model.budget_model import Budget
-from spaceone.cost_analysis.model.data_source_model import DataSource
-from spaceone.cost_analysis.model.budget_usage_model import BudgetUsage
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -95,9 +93,7 @@ class BudgetService(BaseService):
         else:
             params["provider_filter"] = {"state": "DISABLED", "providers": []}
 
-        data_source_mgr: DataSourceManager = self.locator.get_manager(
-            "DataSourceManager"
-        )
+        data_source_mgr = DataSourceManager()
 
         data_source_vos = data_source_mgr.filter_data_sources(
             data_source_id=data_source_id,
