@@ -41,7 +41,7 @@ class DataSourceRuleService(BaseService):
 
     @transaction(
         permission="cost-analysis:DataSourceRule.write",
-        role_types=["DOMAIN_OWNER", "WORKSPACE_OWNER"],
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     def create(self, params):
         """Create data source rule
@@ -114,7 +114,7 @@ class DataSourceRuleService(BaseService):
 
     @transaction(
         permission="cost-analysis:DataSourceRule.write",
-        role_types=["DOMAIN_OWNER", "WORKSPACE_OWNER"],
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @check_required(["data_source_rule_id", "domain_id"])
     @change_date_value(["end"])
@@ -169,7 +169,7 @@ class DataSourceRuleService(BaseService):
 
     @transaction(
         permission="cost-analysis:DataSourceRule.write",
-        role_types=["DOMAIN_OWNER", "WORKSPACE_OWNER"],
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @check_required(["data_source_rule_id", "order", "domain_id"])
     def change_order(self, params):
@@ -242,7 +242,7 @@ class DataSourceRuleService(BaseService):
 
     @transaction(
         permission="cost-analysis:DataSourceRule.write",
-        role_types=["DOMAIN_OWNER", "WORKSPACE_OWNER"],
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @check_required(["data_source_rule_id", "domain_id"])
     def delete(self, params):
@@ -288,7 +288,7 @@ class DataSourceRuleService(BaseService):
 
     @transaction(
         permission="cost-analysis:DataSourceRule.read",
-        role_types=["DOMAIN_OWNER", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
     @change_value_by_rule("APPEND", "workspace_id", "*")
     @check_required(["data_source_rule_id", "domain_id"])
@@ -316,7 +316,7 @@ class DataSourceRuleService(BaseService):
 
     @transaction(
         permission="cost-analysis:DataSourceRule.read",
-        role_types=["DOMAIN_OWNER", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
     @change_value_by_rule("APPEND", "workspace_id", "*")
     @check_required(["domain_id"])
@@ -347,7 +347,7 @@ class DataSourceRuleService(BaseService):
 
     @transaction(
         permission="cost-analysis:DataSourceRule.read",
-        role_types=["DOMAIN_OWNER", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
     @change_value_by_rule("APPEND", "workspace_id", "*")
     @check_required(["query", "domain_id"])
