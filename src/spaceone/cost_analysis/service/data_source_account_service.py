@@ -111,9 +111,15 @@ class DataSourceAccountService(BaseService):
         domain_id = params.domain_id
 
         # Check if the data source exists
-        data_source_vo = self.data_source_mgr.get_data_source(
-            data_source_id, domain_id, workspace_id
-        )
+        role_type = self.transaction.get_meta("authorization.role_type")
+        if role_type != "DOMAIN_ADMIN":
+            data_source_vo = self.data_source_mgr.get_data_source(
+                data_source_id, domain_id, workspace_id
+            )
+        else:
+            data_source_vo = self.data_source_mgr.get_data_source(
+                data_source_id, domain_id
+            )
 
         conditions = {
             "data_source_id": data_source_id,
