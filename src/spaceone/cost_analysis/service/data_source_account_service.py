@@ -54,9 +54,12 @@ class DataSourceAccountService(BaseService):
         workspace_id = params.workspace_id
 
         # Check if the data source exists
-        data_source_vo = self.data_source_mgr.get_data_source(
-            data_source_id, domain_id, workspace_id
-        )
+        data_source_vo = self.data_source_mgr.get_data_source(data_source_id, domain_id)
+
+        # Check workspace
+        if workspace_id:
+            identity_mgr = self.locator.get_manager("IdentityManager")
+            identity_mgr.check_workspace(workspace_id, domain_id)
 
         data_source_account_vo = self.data_source_account_mgr.get_data_source_account(
             data_source_id, account_id, domain_id, workspace_id
