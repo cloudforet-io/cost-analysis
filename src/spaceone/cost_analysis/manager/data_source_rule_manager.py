@@ -196,7 +196,7 @@ class DataSourceRuleManager(BaseManager):
                 {"k": target_key, "v": target_value, "o": "eq"},
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
             ],
-            "only": ["service_account_id", "project_id", "workspace_id"],
+            "only": ["service_account_id", "project_id", "workspace_id", "tags"],
         }
 
         if workspace_id:
