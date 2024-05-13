@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Union
 
 from spaceone.core.service import *
+from spaceone.core.error import ERROR_PERMISSION_DENIED
 
 from spaceone.cost_analysis.manager import DataSourceManager
 from spaceone.cost_analysis.manager.data_source_account_manager import (
@@ -39,8 +40,6 @@ class DataSourceAccountService(BaseService):
             params (dict): {
                 'data_source_id': 'str',        # required
                 'account_id': 'str',            # required
-                'service_account_id': 'str',
-                'project_id': 'str',
                 'workspace_id': 'str',          # injected from auth
                 'domain_id': 'str'              # injected from auth
             }
@@ -54,7 +53,15 @@ class DataSourceAccountService(BaseService):
         workspace_id = params.workspace_id
 
         # Check if the data source exists
-        data_source_vo = self.data_source_mgr.get_data_source(data_source_id, domain_id)
+        role_type = self.transaction.get_meta("authorization.role_type")
+        if role_type != "DOMAIN_ADMIN":
+            data_source_vo = self.data_source_mgr.get_data_source(
+                data_source_id, domain_id, workspace_id
+            )
+        else:
+            data_source_vo = self.data_source_mgr.get_data_source(
+                data_source_id, domain_id
+            )
 
         # Check workspace
         if workspace_id:
@@ -62,8 +69,9 @@ class DataSourceAccountService(BaseService):
             identity_mgr.check_workspace(workspace_id, domain_id)
 
         data_source_account_vo = self.data_source_account_mgr.get_data_source_account(
-            data_source_id, account_id, domain_id, workspace_id
+            data_source_id, account_id, domain_id
         )
+
         data_source_account_vo = (
             self.data_source_account_mgr.update_data_source_account_by_vo(
                 params.dict(exclude_unset=True), data_source_account_vo
