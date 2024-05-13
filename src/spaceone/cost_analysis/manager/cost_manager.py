@@ -489,11 +489,16 @@ class CostManager(BaseManager):
                 ) = self.data_source_account_mgr.list_data_source_accounts(
                     ds_account_list_query
                 )
+                if not isinstance(value, list):
+                    workspace_ids.append(value)
+                else:
+                    workspace_ids.extend(value)
 
                 if total_count > 0:
                     for ds_accounts_vo in ds_accounts_vos:
                         if ds_accounts_vo.workspace_id:
                             workspace_ids.append(ds_accounts_vo.v_workspace_id)
+                            workspace_ids.remove(ds_accounts_vo.workspace_id)
 
                 change_filter.append(
                     {"k": "workspace_id", "v": workspace_ids, "o": "in"}

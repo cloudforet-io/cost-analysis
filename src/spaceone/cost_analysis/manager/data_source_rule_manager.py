@@ -155,6 +155,11 @@ class DataSourceRuleManager(BaseManager):
                 source = value["source"]
                 target_key = value.get("target", "service_account_id")
                 target_value = utils.get_dict_value(cost_data, source)
+                all_workspaces = value.get("all_workspaces", False)
+
+                if all_workspaces:
+                    workspace_id = None
+
                 if target_value:
                     service_account_info = self._get_service_account(
                         target_key, target_value, domain_id, workspace_id
@@ -179,11 +184,11 @@ class DataSourceRuleManager(BaseManager):
         self, target_key, target_value, domain_id: str, workspace_id: str = None
     ):
         if (
-            f"service-account:{domain_id}:{target_key}:{target_value}"
+            f"service-account:{domain_id}:{target_key}:{target_value}:{workspace_id}"
             in self._service_account_info
         ):
             return self._service_account_info[
-                f"service-account:{domain_id}:{target_key}:{target_value}"
+                f"service-account:{domain_id}:{target_key}:{target_value}:{workspace_id}"
             ]
 
         query = {
@@ -207,7 +212,7 @@ class DataSourceRuleManager(BaseManager):
             service_account_info = results[0]
 
         self._service_account_info[
-            f"service-account:{domain_id}:{target_key}:{target_value}"
+            f"service-account:{domain_id}:{target_key}:{target_value}:{workspace_id}"
         ] = service_account_info
         return service_account_info
 
