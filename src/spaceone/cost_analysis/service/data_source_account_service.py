@@ -236,6 +236,29 @@ class DataSourceAccountService(BaseService):
         permission="cost-analysis:DataSourceAccount.read",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
+    @append_query_filter(["data_source_id", "account_id", "workspace_id", "domain_id"])
+    @convert_model
+    def analyze(self, params: DataSourceAnalyzeQueryRequest) -> dict:
+        """Analyze data source account
+        Args:
+            params (dict): {
+                'query': 'dict',
+                'data_source_id': 'str',    # required
+                'account_id': 'str',        # required
+                'workspace_id': 'str',      # injected from auth
+                'domain_id': 'str'          # injected from auth
+            }
+        Returns:
+            dict
+        """
+
+        query = params.query or {}
+        return self.data_source_account_mgr.analyze_data_source_accounts(query)
+
+    @transaction(
+        permission="cost-analysis:DataSourceAccount.read",
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
+    )
     @append_query_filter(["domain_id", "workspace_id"])
     @append_keyword_filter(["name", "account_id", "data_source_id"])
     @convert_model
