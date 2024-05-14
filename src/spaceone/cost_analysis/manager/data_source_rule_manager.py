@@ -157,10 +157,6 @@ class DataSourceRuleManager(BaseManager):
                 target_value = utils.get_dict_value(cost_data, source)
                 all_workspaces = value.get("all_workspaces", False)
 
-                _LOGGER.debug(
-                    [source, target_key, target_value, all_workspaces]
-                )  # todo: remove
-
                 if all_workspaces:
                     workspace_id = None
 
@@ -168,15 +164,17 @@ class DataSourceRuleManager(BaseManager):
                     service_account_info = self._get_service_account(
                         target_key, target_value, domain_id, workspace_id
                     )
-                    _LOGGER.debug(
-                        f"service_account_info: {service_account_info}"
-                    )  # todo: remove
+
                     if service_account_info:
                         cost_data["service_account_id"] = service_account_info[
                             "service_account_id"
                         ]
                         cost_data["project_id"] = service_account_info.get("project_id")
                         if cost_data.get("workspace_id") is None:
+                            cost_data["workspace_id"] = service_account_info.get(
+                                "workspace_id"
+                            )
+                        elif all_workspaces:
                             cost_data["workspace_id"] = service_account_info.get(
                                 "workspace_id"
                             )
