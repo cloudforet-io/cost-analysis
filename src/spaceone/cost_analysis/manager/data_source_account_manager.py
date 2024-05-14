@@ -183,26 +183,3 @@ class DataSourceAccountManager(BaseManager):
         ] = data_source_vo
 
         return data_source_vo
-
-    def _get_data_source_account_vo(
-        self,
-        target_key: str,
-        target_value: str,
-        data_source_id: str,
-        domain_id: str,
-        operator: str = "eq",
-    ) -> Union[DataSourceAccount, None]:
-        query = {
-            "filter": [
-                {"k": "domain_id", "v": domain_id, "o": "eq"},
-                {"k": "data_source_id", "v": data_source_id, "o": "eq"},
-                {"k": target_key, "v": target_value, "o": operator},
-            ]
-        }
-
-        data_source_account_vos, total_count = self.list_data_source_accounts(query)
-        data_source_account_vo = None
-        if total_count > 0:
-            data_source_account_vo = data_source_account_vos[0]
-
-        return data_source_account_vo
