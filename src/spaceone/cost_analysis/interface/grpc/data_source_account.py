@@ -43,6 +43,12 @@ class DataSourceAccount(
         response: dict = data_source_account_svc.list(params)
         return self.dict_to_message(response)
 
+    def analyze(self, request, context):
+        params, metadata = self.parse_request(request, context)
+        data_source_account_svc = DataSourceAccountService(metadata)
+        response: dict = data_source_account_svc.analyze(params)
+        return self.dict_to_message(response)
+
     def stat(self, request, context):
         params, metadata = self.parse_request(request, context)
         data_source_account_svc = DataSourceAccountService(metadata)

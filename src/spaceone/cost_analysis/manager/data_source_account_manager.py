@@ -80,6 +80,9 @@ class DataSourceAccountManager(BaseManager):
     def filter_data_source_accounts(self, **conditions) -> QuerySet:
         return self.data_source_account_model.filter(**conditions)
 
+    def analyze_data_source_accounts(self, query: dict) -> dict:
+        return self.data_source_account_model.analyze(**query)
+
     def stat_data_source_accounts(self, query: dict) -> dict:
         return self.data_source_account_model.stat(**query)
 

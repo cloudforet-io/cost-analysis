@@ -6,6 +6,7 @@ __all__ = [
     "DataSourceAccountResetRequest",
     "DataSourceAccountGetRequest",
     "DataSourceAccountSearchQueryRequest",
+    "DataSourceAnalyzeQueryRequest",
     "DataSourceAccountStatQueryRequest",
 ]
 
@@ -27,6 +28,14 @@ class DataSourceAccountResetRequest(BaseModel):
 class DataSourceAccountGetRequest(BaseModel):
     data_source_id: str
     account_id: str
+    workspace_id: Union[str, None] = None
+    domain_id: str
+
+
+class DataSourceAnalyzeQueryRequest(BaseModel):
+    query: dict
+    data_source_id: Union[str, None] = None
+    account_id: Union[str, None] = None
     workspace_id: Union[str, None] = None
     domain_id: str
 
