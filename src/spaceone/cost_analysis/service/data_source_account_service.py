@@ -72,13 +72,14 @@ class DataSourceAccountService(BaseService):
             data_source_id, account_id, domain_id
         )
 
+        prev_workspace_id = data_source_account_vo.workspace_id
         data_source_account_vo = (
             self.data_source_account_mgr.update_data_source_account_by_vo(
                 params.dict(exclude_unset=True), data_source_account_vo
             )
         )
 
-        if params.workspace_id != data_source_account_vo.workspace_id:
+        if prev_workspace_id != data_source_account_vo.workspace_id:
             self.data_source_mgr.update_data_source_account_and_connected_workspace_count_by_vo(
                 data_source_vo
             )

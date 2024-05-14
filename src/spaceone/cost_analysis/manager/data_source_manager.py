@@ -47,7 +47,7 @@ class DataSourceManager(BaseManager):
             "domain_id": data_source_vo.domain_id,
         }
         if data_source_vo.resource_group == "WORKSPACE":
-            conditions["workspace_id"] = DataSource.workspace_id
+            conditions["workspace_id"] = data_source_vo.workspace_id
 
         ds_account_vos = self.data_source_account_model.filter(**conditions)
 
