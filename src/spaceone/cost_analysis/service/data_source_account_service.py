@@ -78,10 +78,7 @@ class DataSourceAccountService(BaseService):
             )
         )
 
-        if (
-            params.workspace_id
-            and params.workspace_id != data_source_account_vo.workspace_id
-        ):
+        if params.workspace_id != data_source_account_vo.workspace_id:
             self.data_source_mgr.update_data_source_account_and_connected_workspace_count_by_vo(
                 data_source_vo
             )
