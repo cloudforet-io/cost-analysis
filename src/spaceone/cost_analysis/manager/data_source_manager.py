@@ -41,6 +41,7 @@ class DataSourceManager(BaseManager):
     def update_data_source_account_and_connected_workspace_count_by_vo(
         self, data_source_vo: DataSource
     ) -> DataSource:
+        connected_workspaces = []
         conditions = {
             "data_source_id": data_source_vo.data_source_id,
             "domain_id": data_source_vo.domain_id,
@@ -50,9 +51,9 @@ class DataSourceManager(BaseManager):
 
         ds_account_vos = self.data_source_account_model.filter(**conditions)
 
-        connected_workspaces = [
-            data_source_vo.workspace_id for data_source_vo in ds_account_vos
-        ]
+        for ds_account_vo in ds_account_vos:
+            if ds_account_vo.workspace_id:
+                connected_workspaces.append(ds_account_vo.workspace_id)
 
         data_source_vo = self.update_data_source_by_vo(
             {
