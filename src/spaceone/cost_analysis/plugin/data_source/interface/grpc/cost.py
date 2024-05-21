@@ -10,7 +10,8 @@ class Cost(BaseAPI, cost_pb2_grpc.CostServicer):
     def get_linked_accounts(self, request, context):
         params, metadata = self.parse_request(request, context)
         cost_svc = CostService(metadata)
-        return cost_svc.get_linked_accounts(params)
+        response: dict = cost_svc.get_linked_accounts(params)
+        return self.dict_to_message(response)
 
     def get_data(self, request, context):
         params, metadata = self.parse_request(request, context)
