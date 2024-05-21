@@ -6,7 +6,7 @@ __all__ = ["CostGetLinkedAccountsRequest", "CostGetDataRequest"]
 
 class CostGetLinkedAccountsRequest(BaseModel):
     options: dict
-    schema_name: Union[dict, None] = Field(None, alias="schema")
+    schema_name: Union[str, None] = Field(None, alias="schema")
     secret_data: dict
     domain_id: str
 
