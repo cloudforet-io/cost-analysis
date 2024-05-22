@@ -98,11 +98,11 @@ class CostManager(BaseManager):
         history_vos.delete()
 
     def get_cost(
-        self,
-        cost_id: str,
-        domain_id: str,
-        workspace_id=None,
-        user_projects: list = None,
+            self,
+            cost_id: str,
+            domain_id: str,
+            workspace_id=None,
+            user_projects: list = None,
     ):
         conditions = {"cost_id": cost_id, "domain_id": domain_id}
 
@@ -175,7 +175,7 @@ class CostManager(BaseManager):
         expire=3600 * 24,
     )
     def stat_monthly_costs_with_cache(
-        self, query, query_hash, domain_id, data_source_id
+            self, query, query_hash, domain_id, data_source_id
     ):
         return self.stat_monthly_costs(query, domain_id)
 
@@ -184,7 +184,7 @@ class CostManager(BaseManager):
         expire=3600 * 24,
     )
     def analyze_costs_with_cache(
-        self, query, query_hash, domain_id, data_source_id, target="SECONDARY_PREFERRED"
+            self, query, query_hash, domain_id, data_source_id, target="SECONDARY_PREFERRED"
     ):
         return self.analyze_costs(query, domain_id, target)
 
@@ -193,7 +193,7 @@ class CostManager(BaseManager):
         expire=3600 * 24,
     )
     def analyze_monthly_costs_with_cache(
-        self, query, query_hash, domain_id, data_source_id, target="SECONDARY_PREFERRED"
+            self, query, query_hash, domain_id, data_source_id, target="SECONDARY_PREFERRED"
     ):
         return self.analyze_monthly_costs(query, domain_id, target)
 
@@ -202,12 +202,12 @@ class CostManager(BaseManager):
         expire=3600 * 24,
     )
     def analyze_yearly_costs_with_cache(
-        self, query, query_hash, domain_id, data_source_id, target="SECONDARY_PREFERRED"
+            self, query, query_hash, domain_id, data_source_id, target="SECONDARY_PREFERRED"
     ):
         return self.analyze_yearly_costs(query, domain_id, target)
 
     def analyze_costs_by_granularity(
-        self, query: dict, domain_id: str, data_source_id: str
+            self, query: dict, domain_id: str, data_source_id: str
     ):
         self._check_date_range(query)
         granularity = query["granularity"]
@@ -251,7 +251,7 @@ class CostManager(BaseManager):
         expire=600,
     )
     def create_cost_query_history(
-        self, query: dict, query_hash: str, domain_id: str, data_source_id: str
+            self, query: dict, query_hash: str, domain_id: str, data_source_id: str
     ):
         def _rollback(history_vo):
             _LOGGER.info(
@@ -455,7 +455,7 @@ class CostManager(BaseManager):
         return query
 
     def _change_filter_v_workspace_id(
-        self, query: dict, domain_id: str, data_source_id: str
+            self, query: dict, domain_id: str, data_source_id: str
     ) -> dict:
         change_filter = []
         workspace_ids = []
@@ -498,7 +498,7 @@ class CostManager(BaseManager):
                     for ds_accounts_vo in ds_accounts_vos:
                         if ds_accounts_vo.workspace_id:
                             workspace_ids.append(ds_accounts_vo.v_workspace_id)
-                        if ds_accounts_vo.v_workspace_id in workspace_ids:
+                        if ds_accounts_vo.workspace_id in workspace_ids:
                             workspace_ids.remove(ds_accounts_vo.workspace_id)
 
                 change_filter.append(
@@ -520,7 +520,7 @@ class CostManager(BaseManager):
                 return value
 
     def _change_response_workspace_group_by(
-        self, response: dict, query: dict, domain_id: str, data_source_id: str
+            self, response: dict, query: dict, domain_id: str, data_source_id: str
     ) -> dict:
         if query_group_by := query.get("group_by"):
             if "workspace_id" in query_group_by:
@@ -553,7 +553,7 @@ class CostManager(BaseManager):
         return response
 
     def _get_workspace_id_from_v_workspace_id(
-        self, domain_id: str, v_workspace_id: str
+            self, domain_id: str, v_workspace_id: str
     ) -> str:
         workspace_id = v_workspace_id
         ds_account_vos = self.data_source_account_mgr.filter_data_source_accounts(

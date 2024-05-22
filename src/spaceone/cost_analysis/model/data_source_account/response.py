@@ -11,6 +11,7 @@ class DataSourceAccountResponse(BaseModel):
     data_source_id: Union[str, None] = None
     name: Union[str, None] = None
     is_sync: Union[bool, None] = None
+    v_workspace_id: Union[str, None] = None
     workspace_id: Union[str, None] = None
     domain_id: Union[str, None] = None
     created_at: Union[datetime, None] = None
