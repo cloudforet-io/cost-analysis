@@ -250,7 +250,9 @@ class DataSourceRuleManager(BaseManager):
         ] = project_info
         return project_info
 
-    def _change_cost_data_by_rule(self, cost_data, data_source_rule_vo: DataSourceRule):
+    def _change_cost_data_by_rule(
+        self, cost_data: dict, data_source_rule_vo: DataSourceRule
+    ) -> bool:
         conditions_policy = data_source_rule_vo.conditions_policy
 
         if conditions_policy == "ALWAYS":
