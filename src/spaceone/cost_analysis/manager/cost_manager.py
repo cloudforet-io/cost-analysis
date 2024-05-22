@@ -498,6 +498,7 @@ class CostManager(BaseManager):
                     for ds_accounts_vo in ds_accounts_vos:
                         if ds_accounts_vo.workspace_id:
                             workspace_ids.append(ds_accounts_vo.v_workspace_id)
+                        if ds_accounts_vo.v_workspace_id in workspace_ids:
                             workspace_ids.remove(ds_accounts_vo.workspace_id)
 
                 change_filter.append(
