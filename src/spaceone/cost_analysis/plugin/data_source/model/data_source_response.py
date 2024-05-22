@@ -58,6 +58,7 @@ class PluginMetadata(BaseModel):
     currency: str = "USD"
     alias: dict = {}
     use_account_routing: bool = False
+    account_match_key: Union[str, None] = None
     account_connect_polices: List[dict] = []
 
 
