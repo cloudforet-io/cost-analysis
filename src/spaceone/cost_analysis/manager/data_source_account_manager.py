@@ -125,7 +125,7 @@ class DataSourceAccountManager(BaseManager):
         workspace_info = self._get_workspace_by_references(reference_id, domain_id)
         if workspace_info:
             data_source_account_vo = self.update_data_source_account_by_vo(
-                {"workspace_id": workspace_info.get("workspace_id")},
+                {"workspace_id": workspace_info.get("workspace_id"), "is_linked": True},
                 data_source_account_vo,
             )
 

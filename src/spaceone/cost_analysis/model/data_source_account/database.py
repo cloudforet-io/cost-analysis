@@ -10,6 +10,7 @@ class DataSourceAccount(MongoModel):
     data_source_id = StringField(max_length=255, required=True)
     name = StringField(max_length=255)
     is_sync = BooleanField(default=False)
+    is_linked = BooleanField(default=False)
     v_workspace_id = StringField(max_length=40, generate_id="v-workspace", unique=True)
     workspace_id = StringField(max_length=40, default=None, null=True)
     domain_id = StringField(max_length=40)
@@ -20,6 +21,7 @@ class DataSourceAccount(MongoModel):
         "updatable_fields": [
             "name",
             "is_sync",
+            "is_linked",
             "workspace_id",
             "updated_at",
         ],
@@ -28,6 +30,8 @@ class DataSourceAccount(MongoModel):
             "data_source_id",
             "name",
             "is_sync",
+            "is_linked",
+            "v_workspace_id",
             "workspace_id",
         ],
         "ordering": ["-created_at"],
