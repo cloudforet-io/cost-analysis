@@ -51,6 +51,7 @@ class DataSourceAccountService(BaseService):
         account_id = params.account_id
         domain_id = params.domain_id
         workspace_id = params.workspace_id
+        params_dict = params.dict(exclude_unset=True)
 
         # Check if the data source exists
         role_type = self.transaction.get_meta("authorization.role_type")
@@ -67,6 +68,7 @@ class DataSourceAccountService(BaseService):
         if workspace_id:
             identity_mgr = self.locator.get_manager("IdentityManager")
             identity_mgr.check_workspace(workspace_id, domain_id)
+            params_dict["is_linked"] = True
 
         data_source_account_vo = self.data_source_account_mgr.get_data_source_account(
             data_source_id, account_id, domain_id
@@ -75,7 +77,7 @@ class DataSourceAccountService(BaseService):
         prev_workspace_id = data_source_account_vo.workspace_id
         data_source_account_vo = (
             self.data_source_account_mgr.update_data_source_account_by_vo(
-                params.dict(exclude_unset=True), data_source_account_vo
+                params_dict, data_source_account_vo
             )
         )
 
@@ -138,6 +140,7 @@ class DataSourceAccountService(BaseService):
             }
             if data_source_vo.resource_group == "DOMAIN":
                 update_params["workspace_id"] = None
+                update_params["is_linked"] = False
                 self.data_source_account_mgr.update_data_source_account_by_vo(
                     update_params, data_source_account_vo
                 )
