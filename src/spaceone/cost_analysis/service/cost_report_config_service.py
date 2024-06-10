@@ -9,9 +9,6 @@ from spaceone.cost_analysis.manager.cost_report_config_manager import (
 )
 from spaceone.cost_analysis.manager.currency_manager import CurrencyManager
 from spaceone.cost_analysis.service.cost_report_serivce import CostReportService
-from spaceone.cost_analysis.service.cost_report_data_service import (
-    CostReportDataService,
-)
 from spaceone.cost_analysis.model.cost_report_config.request import *
 from spaceone.cost_analysis.model.cost_report_config.response import *
 
@@ -32,7 +29,7 @@ class CostReportConfigService(BaseService):
     )
     @convert_model
     def create(
-        self, params: CostReportConfigCreateRequest
+            self, params: CostReportConfigCreateRequest
     ) -> Union[CostReportConfigResponse, dict]:
         """Create cost report config
 
@@ -61,7 +58,7 @@ class CostReportConfigService(BaseService):
     )
     @convert_model
     def update(
-        self, params: CostReportConfigUpdateRequest
+            self, params: CostReportConfigUpdateRequest
     ) -> Union[CostReportConfigResponse, dict]:
         """Update cost report config
 
@@ -97,7 +94,7 @@ class CostReportConfigService(BaseService):
     )
     @convert_model
     def update_recipients(
-        self, params: CostReportConfigUpdateRecipientsRequest
+            self, params: CostReportConfigUpdateRecipientsRequest
     ) -> Union[CostReportConfigResponse, dict]:
         """Update recipients cost report config
 
@@ -128,7 +125,7 @@ class CostReportConfigService(BaseService):
     )
     @convert_model
     def enable(
-        self, params: CostReportConfigEnableRequest
+            self, params: CostReportConfigEnableRequest
     ) -> Union[CostReportConfigResponse, dict]:
         """Enable cost report config
 
@@ -155,7 +152,7 @@ class CostReportConfigService(BaseService):
     )
     @convert_model
     def disable(
-        self, params: CostReportConfigDisableRequest
+            self, params: CostReportConfigDisableRequest
     ) -> Union[CostReportConfigResponse, dict]:
         """Disable cost report config
 
@@ -200,11 +197,19 @@ class CostReportConfigService(BaseService):
         self.cost_report_mgr.delete_cost_report_config_by_vo(cost_report_config_vo)
 
     @transaction(
-        permission="cost-analysis:CostReportConfig.read", role_types=["DOMAIN_ADMIN"]
+        permission="cost-analysis:CostReportConfig.write", role_types=["DOMAIN_ADMIN"]
     )
     @convert_model
     def run(self, params: CostReportConfigRunRequest) -> None:
-        """RUN cost report config"""
+        """RUN cost report config
+        Args:
+            params (CostReportConfigRunRequest): {
+                'cost_report_config_id': 'str',     # required
+                'domain_id': 'str'                  # injected from auth (required)
+            }
+        Returns:
+            None
+        """
 
         cost_report_config_vo = self.cost_report_mgr.get_cost_report_config(
             params.domain_id, params.cost_report_config_id
@@ -230,7 +235,7 @@ class CostReportConfigService(BaseService):
     )
     @convert_model
     def get(
-        self, params: CostReportConfigGetRequest
+            self, params: CostReportConfigGetRequest
     ) -> Union[CostReportConfigResponse, dict]:
         """Get cost report config
 
@@ -255,7 +260,7 @@ class CostReportConfigService(BaseService):
     @append_query_filter(["cost_report_config_id", "domain_id"])
     @convert_model
     def list(
-        self, params: CostReportConfigSearchQueryRequest
+            self, params: CostReportConfigSearchQueryRequest
     ) -> Union[CostReportConfigsResponse, dict]:
         """List cost report configs
 

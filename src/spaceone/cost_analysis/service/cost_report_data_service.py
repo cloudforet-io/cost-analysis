@@ -198,9 +198,9 @@ class CostReportDataService(BaseService):
             "end": report_month,
             "filter": [
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
+                {"k": "data_source_id", "v": data_source_ids, "o": "in"},
                 {"k": "billed_year", "v": report_year, "o": "eq"},
                 {"k": "billed_month", "v": report_month, "o": "eq"},
-                {"k": "data_source_id", "v": data_source_ids, "o": "in"},
             ],
         }
 
