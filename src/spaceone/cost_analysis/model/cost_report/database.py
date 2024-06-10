@@ -35,6 +35,13 @@ class CostReport(MongoModel):
             "workspace_id",
             "domain_id",
         ],
-        "ordering": ["-created_at", "-report_number"],
-        "indexes": ["cost_report_config_id"],
+        "ordering": [
+            "-report_number",
+            "-created_at",
+        ],
+        "indexes": [
+            "cost_report_config_id",
+            "-report_number",
+            "domain_id",
+        ],
     }

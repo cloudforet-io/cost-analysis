@@ -29,7 +29,7 @@ class CostReportConfigService(BaseService):
     )
     @convert_model
     def create(
-            self, params: CostReportConfigCreateRequest
+        self, params: CostReportConfigCreateRequest
     ) -> Union[CostReportConfigResponse, dict]:
         """Create cost report config
 
@@ -41,6 +41,7 @@ class CostReportConfigService(BaseService):
                 'recipients': 'dict',
                 'data_source_filter': 'dict'
                 'domain_id': 'str'             # injected from auth (required)
+                }
 
         Returns:
             CostReportConfigResponse:
@@ -58,7 +59,7 @@ class CostReportConfigService(BaseService):
     )
     @convert_model
     def update(
-            self, params: CostReportConfigUpdateRequest
+        self, params: CostReportConfigUpdateRequest
     ) -> Union[CostReportConfigResponse, dict]:
         """Update cost report config
 
@@ -71,7 +72,7 @@ class CostReportConfigService(BaseService):
                 'recipients': 'dict',
                 'data_source_filter': 'dict'
                 'domain_id': 'str'                  # injected from auth (required)
-
+            }
         Returns:
             CostReportConfigResponse:
         """
@@ -94,7 +95,7 @@ class CostReportConfigService(BaseService):
     )
     @convert_model
     def update_recipients(
-            self, params: CostReportConfigUpdateRecipientsRequest
+        self, params: CostReportConfigUpdateRecipientsRequest
     ) -> Union[CostReportConfigResponse, dict]:
         """Update recipients cost report config
 
@@ -125,7 +126,7 @@ class CostReportConfigService(BaseService):
     )
     @convert_model
     def enable(
-            self, params: CostReportConfigEnableRequest
+        self, params: CostReportConfigEnableRequest
     ) -> Union[CostReportConfigResponse, dict]:
         """Enable cost report config
 
@@ -152,7 +153,7 @@ class CostReportConfigService(BaseService):
     )
     @convert_model
     def disable(
-            self, params: CostReportConfigDisableRequest
+        self, params: CostReportConfigDisableRequest
     ) -> Union[CostReportConfigResponse, dict]:
         """Disable cost report config
 
@@ -235,7 +236,7 @@ class CostReportConfigService(BaseService):
     )
     @convert_model
     def get(
-            self, params: CostReportConfigGetRequest
+        self, params: CostReportConfigGetRequest
     ) -> Union[CostReportConfigResponse, dict]:
         """Get cost report config
 
@@ -260,7 +261,7 @@ class CostReportConfigService(BaseService):
     @append_query_filter(["cost_report_config_id", "domain_id"])
     @convert_model
     def list(
-            self, params: CostReportConfigSearchQueryRequest
+        self, params: CostReportConfigSearchQueryRequest
     ) -> Union[CostReportConfigsResponse, dict]:
         """List cost report configs
 
