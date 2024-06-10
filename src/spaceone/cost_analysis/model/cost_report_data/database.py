@@ -4,7 +4,7 @@ from spaceone.core.model.mongo_model import MongoModel
 
 
 class CostReportData(MongoModel):
-    cost_report_data_id = StringField(max_length=40, generate_id="cdr", unique=True)
+    cost_report_data_id = StringField(max_length=40, generate_id="crd", unique=True)
     cost = DictField(default={})
     cost_report_name = StringField(max_length=255)
     issue_date = StringField(max_length=20)
@@ -15,8 +15,8 @@ class CostReportData(MongoModel):
     product = StringField(max_length=255)
     service_account_name = StringField(max_length=255)
     data_source_name = StringField(max_length=255)
-    project_name = StringField(max_length=40)
-    workspace_name = StringField(max_length=40)
+    project_name = StringField(max_length=255)
+    workspace_name = StringField(max_length=255)
     service_account_id = StringField(max_length=40)
     data_source_id = StringField(max_length=40)
     cost_report_id = StringField(max_length=40)
@@ -36,5 +36,9 @@ class CostReportData(MongoModel):
             "workspace_id",
         ],
         "ordering": ["is_confirmed", "-report_year"],
-        "indexes": ["cost_report_config_id", "cost_report_id"],
+        "indexes": [
+            "cost_report_config_id",
+            "cost_report_id",
+            "domain_id",
+        ],
     }
