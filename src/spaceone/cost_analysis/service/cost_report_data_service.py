@@ -54,8 +54,8 @@ class CostReportDataService(BaseService):
         ]
     )
     @append_keyword_filter(["product", "cost_report_data_id"])
-    @convert_model
     @set_query_page_limit(1000)
+    @convert_model
     def list(
         self, params: CostReportDataSearchQueryRequest
     ) -> Union[CostReportsDataResponse, dict]:
