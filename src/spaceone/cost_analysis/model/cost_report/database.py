@@ -36,12 +36,11 @@ class CostReport(MongoModel):
             "domain_id",
         ],
         "ordering": [
-            "-report_number",
             "-created_at",
+            "-report_number",
         ],
         "indexes": [
             "cost_report_config_id",
-            "-report_number",
             "domain_id",
         ],
     }
