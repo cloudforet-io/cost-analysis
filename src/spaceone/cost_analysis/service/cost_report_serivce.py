@@ -138,8 +138,8 @@ class CostReportService(BaseService):
     )
     @append_query_filter(
         [
-            "status",
             "cost_report_id",
+            "status",
             "workspace_id",
             "domain_id",
         ]
@@ -152,6 +152,7 @@ class CostReportService(BaseService):
             "report_month",
         ]
     )
+    @set_query_page_limit(default_limit=100)
     @convert_model
     def list(
             self, params: CostReportSearchQueryRequest
