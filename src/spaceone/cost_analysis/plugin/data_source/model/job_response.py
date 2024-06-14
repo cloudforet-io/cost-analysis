@@ -11,6 +11,7 @@ class Task(BaseModel):
 class Changed(BaseModel):
     start: str
     end: Union[str, None] = None
+    filter: Union[dict, None] = None
 
 
 class SyncedAccount(BaseModel):
