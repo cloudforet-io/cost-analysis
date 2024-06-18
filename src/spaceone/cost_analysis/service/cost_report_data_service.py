@@ -267,7 +267,7 @@ class CostReportDataService(BaseService):
     def _get_project_name_map(self, workspace_id: str, domain_id: str) -> dict:
         identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
         project_name_map = {}
-        projects = identity_mgr.list_projects(
+        response = identity_mgr.list_projects(
             {
                 "query": {
                     "filter": [
@@ -278,7 +278,7 @@ class CostReportDataService(BaseService):
             },
             domain_id,
         )
-        for project in projects.get("results", []):
+        for project in response.get("results", []):
             project_name_map[project["project_id"]] = project["name"]
         return project_name_map
 

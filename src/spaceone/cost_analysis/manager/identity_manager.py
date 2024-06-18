@@ -40,6 +40,10 @@ class IdentityManager(BaseManager):
         )
         return domain_info["name"]
 
+    def list_domains(self, params: dict) -> dict:
+        system_token = config.get_global("TOKEN")
+        return self.identity_conn.dispatch("Domain.list", params, token=system_token)
+
     def check_workspace(self, workspace_id: str, domain_id: str) -> None:
         system_token = config.get_global("TOKEN")
 
@@ -110,7 +114,7 @@ class IdentityManager(BaseManager):
                 "Project.get", {"project_id": project_id}
             )
 
-    def list_projects(self, params: dict, domain_id):
+    def list_projects(self, params: dict, domain_id: str):
         if self.token_type == "SYSTEM_TOKEN":
             return self.identity_conn.dispatch(
                 "Project.list", params, x_domain_id=domain_id

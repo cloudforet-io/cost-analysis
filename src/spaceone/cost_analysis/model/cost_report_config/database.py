@@ -41,7 +41,9 @@ class CostReportConfig(MongoModel):
         ],
         "ordering": ["-created_at"],
         "indexes": [
+            "state",
             "domain_id",
+            "cost_report_config_id",
         ],
     }
 
