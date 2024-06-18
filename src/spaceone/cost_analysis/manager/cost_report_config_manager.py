@@ -83,8 +83,10 @@ class CostReportConfigManager(BaseManager):
             domain_id=domain_id, cost_report_config_id=cost_report_config_id
         )
 
-    def list_cost_report_configs(self, query: dict, domain_id) -> Tuple[QuerySet, int]:
-        self._create_default_cost_report_config(domain_id)
+    def list_cost_report_configs(
+        self, query: dict, domain_id: str
+    ) -> Tuple[QuerySet, int]:
+        self.create_default_cost_report_config(domain_id)
 
         return self.cost_report_config_model.query(**query)
 
@@ -94,14 +96,13 @@ class CostReportConfigManager(BaseManager):
     def stat_cost_report_configs(self, query: dict) -> dict:
         return self.cost_report_config_model.stat(**query)
 
-    def _create_default_cost_report_config(self, domain_id):
+    def create_default_cost_report_config(self, domain_id: str) -> None:
         cost_report_config_vos = self.cost_report_config_model.filter(
-            domain_id=domain_id, state="ENABLED"
+            state="ENABLED",
+            domain_id=domain_id,
         )
         if not cost_report_config_vos:
-            _LOGGER.debug(
-                f"[_create_default_cost_report_config] domain_id: {domain_id}"
-            )
+            _LOGGER.debug(f"[create_default_cost_report_config] domain_id: {domain_id}")
             self.cost_report_config_model.create(
                 {
                     "issue_day": 10,

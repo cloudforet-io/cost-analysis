@@ -258,7 +258,7 @@ class CostReportConfigService(BaseService):
         permission="cost-analysis:CostReportConfig.read",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
-    @append_query_filter(["cost_report_config_id", "domain_id"])
+    @append_query_filter(["state", "domain", "cost_report_config_id"])
     @convert_model
     def list(
         self, params: CostReportConfigSearchQueryRequest

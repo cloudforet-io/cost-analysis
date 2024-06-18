@@ -56,6 +56,9 @@ class CostReportService(BaseService):
         """Create cost report by cost report config"""
 
         currency_mgr = CurrencyManager()
+
+        self.create_default_cost_report_config_for_all_domains()
+
         for cost_report_config_vo in self._get_all_cost_report_configs():
             (
                 currency_map,
@@ -155,7 +158,7 @@ class CostReportService(BaseService):
     @set_query_page_limit(default_limit=100)
     @convert_model
     def list(
-            self, params: CostReportSearchQueryRequest
+        self, params: CostReportSearchQueryRequest
     ) -> Union[CostReportsResponse, dict]:
         """List cost reports"""
 
@@ -240,18 +243,18 @@ class CostReportService(BaseService):
         )
 
     def _aggregate_monthly_cost_report(
-            self,
-            domain_id: str,
-            cost_report_config_id: str,
-            workspace_name_map: dict,
-            workspace_ids: list,
-            data_source_currency_map: dict,
-            data_source_ids: list,
-            report_month: str,
-            currency: str,
-            issue_day: int,
-            status: str,
-            issue_month: str = None,
+        self,
+        domain_id: str,
+        cost_report_config_id: str,
+        workspace_name_map: dict,
+        workspace_ids: list,
+        data_source_currency_map: dict,
+        data_source_ids: list,
+        report_month: str,
+        currency: str,
+        issue_day: int,
+        status: str,
+        issue_month: str = None,
     ) -> None:
         report_year = report_month.split("-")[0]
 
@@ -331,7 +334,7 @@ class CostReportService(BaseService):
         )
 
         for cost_report_idx, aggregated_cost_report in enumerate(
-                aggregated_cost_report_results, start=start_cost_report_number
+            aggregated_cost_report_results, start=start_cost_report_number
         ):
             aggregated_cost_report["report_number"] = self.generate_report_number(
                 report_month, issue_day, cost_report_idx
@@ -357,7 +360,7 @@ class CostReportService(BaseService):
         return self.cost_report_config_mgr.filter_cost_report_configs(state="ENABLED")
 
     def _delete_old_cost_reports(
-            self, report_month: str, domain_id: str, cost_report_config_id: str, status: str
+        self, report_month: str, domain_id: str, cost_report_config_id: str, status: str
     ) -> None:
         cost_report_delete_query = {
             "filter": [
@@ -377,11 +380,11 @@ class CostReportService(BaseService):
         cost_reports_vos.delete()
 
     def _delete_old_is_confirmed_cost_report_data(
-            self,
-            domain_id: str,
-            cost_report_config_id,
-            report_month: str,
-            status: str,
+        self,
+        domain_id: str,
+        cost_report_config_id,
+        report_month: str,
+        status: str,
     ):
         if status == "SUCCESS":
             cost_report_data_vos = self.cost_report_data_mgr.filter_cost_reports_data(
@@ -435,7 +438,7 @@ class CostReportService(BaseService):
         )
 
     def get_email_verified_workspace_owner_users(
-            self, domain_id: str, workspace_id: str, role_types: list = None
+        self, domain_id: str, workspace_id: str, role_types: list = None
     ) -> list:
         identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
 
@@ -460,13 +463,13 @@ class CostReportService(BaseService):
         return users_info
 
     def get_start_cost_report_number(
-            self, domain_id: str, issue_date: str = None
+        self, domain_id: str, issue_date: str = None
     ) -> int:
         return (
-                self.cost_report_mgr.filter_cost_reports(
-                    domain_id=domain_id, issue_date=issue_date
-                ).count()
-                + 1
+            self.cost_report_mgr.filter_cost_reports(
+                domain_id=domain_id, issue_date=issue_date
+            ).count()
+            + 1
         )
 
     def _get_workspace_name_map(self, domain_id: str) -> Tuple[dict, list]:
@@ -483,7 +486,7 @@ class CostReportService(BaseService):
         return workspace_name_map, workspace_ids
 
     def _get_console_cost_report_url(
-            self, domain_id: str, cost_report_id: str, token: str, language: str
+        self, domain_id: str, cost_report_id: str, token: str, language: str
     ) -> str:
         domain_name = self._get_domain_name(domain_id)
 
@@ -523,6 +526,29 @@ class CostReportService(BaseService):
         }
         return identity_mgr.grant_token(params)
 
+    def _get_virtual_workspace_ids_and_map(
+        self, domain_id: str, workspace_ids: list
+    ) -> Tuple[list, dict]:
+        v_workspace_ids = []
+        v_workspace_id_map = {}
+
+        query = {
+            "filter": [
+                {"k": "domain_id", "v": domain_id, "o": "eq"},
+                {"k": "workspace_id", "v": workspace_ids, "o": "in"},
+            ]
+        }
+        ds_account_vos, _ = self.ds_account_mgr.list_data_source_accounts(query)
+
+        for ds_account_vo in ds_account_vos:
+            v_workspace_ids.append(ds_account_vo.v_workspace_id)
+            if not v_workspace_id_map.get(ds_account_vo.v_workspace_id):
+                v_workspace_id_map[
+                    ds_account_vo.v_workspace_id
+                ] = ds_account_vo.workspace_id
+
+        return v_workspace_ids, v_workspace_id_map
+
     @staticmethod
     def _get_current_and_last_month() -> Tuple[str, str]:
         current_month = datetime.utcnow().strftime("%Y-%m")
@@ -544,7 +570,7 @@ class CostReportService(BaseService):
 
     @staticmethod
     def generate_report_number(
-            report_month: str, issue_day: int, cost_report_idx: int
+        report_month: str, issue_day: int, cost_report_idx: int
     ) -> str:
         report_date = f"{report_month}-{issue_day}"
         date_object = datetime.strptime(report_date, "%Y-%m-%d")
@@ -553,7 +579,7 @@ class CostReportService(BaseService):
 
     @staticmethod
     def _get_data_source_currency_map(
-            domain_id: str, workspace_ids: list, data_source_filter: dict
+        domain_id: str, workspace_ids: list, data_source_filter: dict
     ) -> Tuple[dict, list]:
         data_source_currency_map = {}
         data_source_mgr = DataSourceManager()
@@ -597,25 +623,21 @@ class CostReportService(BaseService):
 
         return [workspace_result for workspace_result in workspace_result_map.values()]
 
-    def _get_virtual_workspace_ids_and_map(
-            self, domain_id: str, workspace_ids: list
-    ) -> Tuple[list, dict]:
-        v_workspace_ids = []
-        v_workspace_id_map = {}
+    @staticmethod
+    def create_default_cost_report_config_for_all_domains():
+        identity_mgr = IdentityManager()
+        cost_report_config_mgr = CostReportConfigManager()
 
-        query = {
-            "filter": [
-                {"k": "domain_id", "v": domain_id, "o": "eq"},
-                {"k": "workspace_id", "v": workspace_ids, "o": "in"},
-            ]
+        params = {
+            "query": {
+                "filter": [{"k": "state", "v": "ENABLED", "o": "eq"}],
+                "only": ["domain_id", "state"],
+            }
         }
-        ds_account_vos, _ = self.ds_account_mgr.list_data_source_accounts(query)
 
-        for ds_account_vo in ds_account_vos:
-            v_workspace_ids.append(ds_account_vo.v_workspace_id)
-            if not v_workspace_id_map.get(ds_account_vo.v_workspace_id):
-                v_workspace_id_map[
-                    ds_account_vo.v_workspace_id
-                ] = ds_account_vo.workspace_id
+        response = identity_mgr.list_domains(params)
+        domain_infos = response.get("results", [])
 
-        return v_workspace_ids, v_workspace_id_map
+        for domain_info in domain_infos:
+            domain_id = domain_info["domain_id"]
+            cost_report_config_mgr.create_default_cost_report_config(domain_id)
