@@ -7,9 +7,6 @@ __all__ = [
     "CostReportDataStatQueryRequest",
 ]
 
-State = Literal["ENABLED", "DISABLED", "PENDING"]
-AuthType = Literal["LOCAL", "EXTERNAL"]
-
 
 class CostReportDataSearchQueryRequest(BaseModel):
     query: Union[dict, None] = None
