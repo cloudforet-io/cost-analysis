@@ -119,6 +119,7 @@ class CostManager(BaseManager):
         return self.cost_model.filter(**conditions)
 
     def list_costs(self, query: dict, domain_id: str, data_source_id: str):
+        query = self.change_filter_v_workspace_id(query, domain_id, data_source_id)
         query = self._change_filter_project_group_id(query, domain_id)
         return self.cost_model.query(**query)
 
@@ -204,6 +205,7 @@ class CostManager(BaseManager):
     def analyze_costs_by_granularity(
         self, query: dict, domain_id: str, data_source_id: str
     ):
+        self._check_group_by(query)
         self._check_date_range(query)
         granularity = query["granularity"]
 
@@ -497,15 +499,6 @@ class CostManager(BaseManager):
             query["filter"] = change_filter
         return query
 
-    @staticmethod
-    def _get_data_source_id_from_filter(query: dict) -> str:
-        for condition in query.get("filter", []):
-            key = condition.get("k", condition.get("key"))
-            value = condition.get("v", condition.get("value"))
-
-            if key == "data_source_id":
-                return value
-
     def _change_response_workspace_group_by(
         self, response: dict, query: dict, domain_id: str, data_source_id: str
     ) -> dict:
@@ -550,3 +543,26 @@ class CostManager(BaseManager):
             workspace_id = ds_account_vos[0].workspace_id
 
         return workspace_id
+
+    @staticmethod
+    def _get_data_source_id_from_filter(query: dict) -> str:
+        for condition in query.get("filter", []):
+            key = condition.get("k", condition.get("key"))
+            value = condition.get("v", condition.get("value"))
+
+            if key == "data_source_id":
+                return value
+
+    @staticmethod
+    def _check_group_by(query: dict) -> None:
+        group_by = query.get("group_by", [])
+        for group_by_field in group_by:
+            if group_by_field.split(".")[0] == "data":
+                raise ERROR_INVALID_PARAMETER(
+                    key=group_by_field, reason=f"Data field is not allowed to group by."
+                )
+            elif group_by_field in ["cost", "usage_quantity"]:
+                raise ERROR_INVALID_PARAMETER(
+                    key=group_by_field,
+                    reason=f"{group_by_field} are not allowed to group by.",
+                )
