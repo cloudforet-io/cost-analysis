@@ -5,6 +5,10 @@ from typing import Tuple, Union
 from mongoengine import QuerySet
 from spaceone.core.service import *
 from spaceone.cost_analysis.error import *
+from spaceone.cost_analysis.model.data_source.request import (
+    DataSourceUpdatePermissionsRequest,
+)
+from spaceone.cost_analysis.model.data_source.response import DataSourceResponse
 from spaceone.cost_analysis.service.job_service import JobService
 from spaceone.cost_analysis.manager.repository_manager import RepositoryManager
 from spaceone.cost_analysis.manager.secret_manager import SecretManager
@@ -218,6 +222,38 @@ class DataSourceService(BaseService):
                 raise ERROR_NOT_ALLOW_PLUGIN_SETTINGS(data_source_id=data_source_id)
 
         return self.data_source_mgr.update_data_source_by_vo(params, data_source_vo)
+
+    @transaction(
+        permission="cost-analysis:DataSource.write", role_types=["DOMAIN_ADMIN"]
+    )
+    @convert_model
+    def update_permissions(
+        self, params: DataSourceUpdatePermissionsRequest
+    ) -> Union[DataSourceResponse, dict]:
+        """Update data source permissions
+
+        Args:
+            params (dict): {
+                'data_source_id': 'str',    # required
+                'permissions': 'dict',      # required
+                'domain_id': 'str'          # injected from auth
+            }
+
+        Returns:
+            data_source_vo (object)
+        """
+
+        data_source_id = params.data_source_id
+        domain_id = params.domain_id
+
+        data_source_vo: DataSource = self.data_source_mgr.get_data_source(
+            data_source_id, domain_id
+        )
+
+        data_source_vo = self.data_source_mgr.update_data_source_by_vo(
+            params.dict(exclude_unset=True), data_source_vo
+        )
+        return DataSourceResponse(**data_source_vo.to_dict())
 
     @transaction(
         permission="cost-analysis:DataSource.write",

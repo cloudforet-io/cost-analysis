@@ -27,7 +27,9 @@ class DataSourceManager(BaseManager):
 
         return data_source_vo
 
-    def update_data_source_by_vo(self, params, data_source_vo: DataSource):
+    def update_data_source_by_vo(
+        self, params, data_source_vo: DataSource
+    ) -> DataSource:
         def _rollback(old_data):
             _LOGGER.info(
                 f"[update_data_source_by_vo._rollback] Revert Data : "

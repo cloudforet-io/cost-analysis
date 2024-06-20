@@ -1,10 +1,20 @@
 import logging
+from typing import Union
 
 from spaceone.core.service import *
 from spaceone.core import utils
+from spaceone.cost_analysis.model.cost.response import CostsResponse
+
+from spaceone.cost_analysis.manager.data_source_account_manager import (
+    DataSourceAccountManager,
+)
+
 from spaceone.cost_analysis.error import *
+from spaceone.cost_analysis.manager import DataSourceManager
 from spaceone.cost_analysis.manager.cost_manager import CostManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
+from spaceone.cost_analysis.model import DataSource
+from spaceone.cost_analysis.model.cost.response import CostResponse
 from spaceone.cost_analysis.model.cost_model import Cost
 
 _LOGGER = logging.getLogger(__name__)
@@ -20,6 +30,7 @@ class CostService(BaseService):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.cost_mgr: CostManager = self.locator.get_manager("CostManager")
+        self.data_source_mgr = DataSourceManager()
 
     @transaction(permission="cost-analysis:Cost.write", role_types=["WORKSPACE_OWNER"])
     @check_required(
@@ -55,6 +66,8 @@ class CostService(BaseService):
         # validation check (service_account_id / project_id / data_source_id)
         identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
         identity_mgr.get_project(params["project_id"], params["domain_id"])
+
+        # todo : only local type datasource can create
 
         cost_vo: Cost = self.cost_mgr.create_cost(params)
 
@@ -98,7 +111,8 @@ class CostService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
     @check_required(["cost_id", "domain_id"])
-    def get(self, params):
+    @convert_model
+    def get(self, params: dict) -> Union[CostResponse, dict]:
         """Get cost
 
         Args:
@@ -118,7 +132,35 @@ class CostService(BaseService):
         workspace_id = params.get("workspace_id")
         domain_id = params["domain_id"]
 
-        return self.cost_mgr.get_cost(cost_id, domain_id, workspace_id, user_projects)
+        if workspace_id:
+            cost_vo: Cost = self.cost_mgr.get_cost(cost_id, domain_id, user_projects)
+
+            v_workspace_ids = self._get_v_workspace_ids_related_with_workspace_id(
+                domain_id, workspace_id
+            )
+            if (
+                cost_vo.workspace_id not in v_workspace_ids
+                and cost_vo.workspace_id != workspace_id
+            ):
+                raise ERROR_PERMISSION_DENIED()
+        else:
+            cost_vo: Cost = self.cost_mgr.get_cost(
+                cost_id, domain_id, workspace_id, user_projects
+            )
+
+        cost_info = cost_vo.to_dict()
+
+        # Check fields permissions
+        if self.transaction.get_meta("authorization.role_type") != "DOMAIN_ADMIN":
+            data_source_id = cost_vo.data_source_id
+            data_source_vo = self.data_source_mgr.get_data_source(
+                data_source_id, domain_id
+            )
+            cost_info = self._remove_deny_fields_with_data_source_vo(
+                cost_info, data_source_vo
+            )
+
+        return CostResponse(**cost_info)
 
     @transaction(
         permission="cost-analysis:Cost.read",
@@ -146,7 +188,8 @@ class CostService(BaseService):
     )
     @append_keyword_filter(["cost_id"])
     @set_query_page_limit(1000)
-    def list(self, params):
+    @convert_model
+    def list(self, params: dict) -> Union[CostsResponse, dict]:
         """List costs
 
         Args:
@@ -174,7 +217,28 @@ class CostService(BaseService):
         query = params.get("query", {})
         domain_id = params["domain_id"]
         data_source_id = params["data_source_id"]
-        return self.cost_mgr.list_costs(query, domain_id, data_source_id)
+
+        cost_vos, total_count = self.cost_mgr.list_costs(
+            query, domain_id, data_source_id
+        )
+
+        # Check data fields permissions
+        if self.transaction.get_meta("authorization.role_type") != "DOMAIN_ADMIN":
+            data_source_vo = self.data_source_mgr.get_data_source(
+                data_source_id, domain_id
+            )
+            cost_reports_info = []
+            for cost_vo in cost_vos:
+                cost_info = cost_vo.to_dict()
+
+                cost_info = self._remove_deny_fields_with_data_source_vo(
+                    cost_info, data_source_vo
+                )
+                cost_reports_info.append(cost_info)
+        else:
+            cost_reports_info = [cost_vo.to_dict() for cost_vo in cost_vos]
+
+        return CostsResponse(results=cost_reports_info, total_count=total_count)
 
     @transaction(
         permission="cost-analysis:Cost.read",
@@ -214,6 +278,12 @@ class CostService(BaseService):
         domain_id = params["domain_id"]
         data_source_id = params["data_source_id"]
         query = params.get("query", {})
+
+        if self.transaction.get_meta("authorization.role_type") != "DOMAIN_ADMIN":
+            data_source_vo = self.data_source_mgr.get_data_source(
+                data_source_id, domain_id
+            )
+            self._check_fields_with_data_source_permissions(query, data_source_vo)
 
         return self.cost_mgr.analyze_costs_by_granularity(
             query, domain_id, data_source_id
@@ -335,3 +405,44 @@ class CostService(BaseService):
             response["results"] = results
 
         return response
+
+    @staticmethod
+    def _get_v_workspace_ids_related_with_workspace_id(
+        domain_id: str, workspace_id: str
+    ) -> list:
+        v_workspace_ids = []
+        data_source_account_mgr = DataSourceAccountManager()
+        data_source_account_vos = data_source_account_mgr.filter_data_source_accounts(
+            domain_id=domain_id,
+            workspace_id=workspace_id,
+        )
+
+        v_workspace_ids.extend(data_source_account_vos.values_list("v_workspace_id"))
+        return v_workspace_ids
+
+    @staticmethod
+    def _remove_deny_fields_with_data_source_vo(
+        cost_info: dict, data_source_vo: DataSource
+    ):
+        permissions = data_source_vo.permissions or {}
+        if permissions:
+            deny = permissions.get("deny", [])
+            for deny_field in deny:
+                if utils.get_dict_value(cost_info, deny_field):
+                    utils.change_dict_value(cost_info, deny_field, None)
+        return cost_info
+
+    @staticmethod
+    def _check_fields_with_data_source_permissions(
+        query: dict, data_source_vo: DataSource
+    ):
+        permissions = data_source_vo.permissions or {}
+        deny = permissions.get("deny", [])
+
+        fields = query.get("fields", {})
+
+        for field_key in fields.keys():
+            field_info = fields[field_key]
+            if _field_info_key := field_info.get("key"):
+                if _field_info_key in deny:
+                    raise ERROR_PERMISSION_DENIED()

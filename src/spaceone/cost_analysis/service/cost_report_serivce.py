@@ -141,10 +141,11 @@ class CostReportService(BaseService):
     )
     @append_query_filter(
         [
-            "cost_report_id",
+            "cost_report_config_id",
             "status",
-            "workspace_id",
             "domain_id",
+            "workspace_id",
+            "cost_report_id",
         ]
     )
     @append_keyword_filter(
@@ -173,6 +174,15 @@ class CostReportService(BaseService):
             cost_report_vo.to_dict() for cost_report_vo in cost_report_vos
         ]
         return CostReportsResponse(results=cost_reports_info, total_count=total_count)
+
+    @transaction(
+        permission="cost-analysis:CostReport.read",
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
+    )
+    @append_query_filter(["cost_config_report_id", "domain_id"])
+    @convert_model
+    def analyze(self):
+        pass
 
     @transaction(
         permission="cost-analysis:CostReport.read",

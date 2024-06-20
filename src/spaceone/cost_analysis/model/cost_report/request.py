@@ -33,6 +33,7 @@ class CostReportGetRequest(BaseModel):
 class CostReportSearchQueryRequest(BaseModel):
     query: Union[dict, None] = None
     cost_report_id: Union[str, None] = None
+    cost_report_config_id: Union[str, None] = None
     status: Union[Status, None] = None
     issue_date: Union[str, None] = None
     workspace_name: Union[str, None] = None

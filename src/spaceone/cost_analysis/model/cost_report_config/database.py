@@ -40,11 +40,7 @@ class CostReportConfig(MongoModel):
             "created_at",
         ],
         "ordering": ["-created_at"],
-        "indexes": [
-            "state",
-            "domain_id",
-            "cost_report_config_id",
-        ],
+        "indexes": ["state", "domain_id"],
     }
 
     @queryset_manager

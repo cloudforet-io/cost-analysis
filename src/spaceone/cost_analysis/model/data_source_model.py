@@ -43,6 +43,7 @@ class DataSource(MongoModel):
         choices=("MANUAL", "USE_SERVICE_ACCOUNT_SECRET"),
     )
     secret_filter = EmbeddedDocumentField(SecretFilter, default=None, null=True)
+    permissions = DictField(default=None, null=True)
     provider = StringField(max_length=40, default=None, null=True)
     plugin_info = EmbeddedDocumentField(PluginInfo, default=None, null=True)
     template = DictField(default={})
@@ -58,16 +59,19 @@ class DataSource(MongoModel):
     workspace_id = StringField(max_length=40)
     domain_id = StringField(max_length=40)
     created_at = DateTimeField(auto_now_add=True)
+    updated_at = DateTimeField(auto_now=True)
     last_synchronized_at = DateTimeField(default=None, null=True)
 
     meta = {
         "updatable_fields": [
             "name",
             "state",
+            "permissions",
             "plugin_info",
             "secret_filter",
             "template",
             "tags",
+            "updated_at",
             "last_synchronized_at",
             "cost_tag_keys",
             "cost_additional_info_keys",
