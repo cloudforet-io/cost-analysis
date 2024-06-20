@@ -3,6 +3,8 @@ import logging
 from spaceone.api.cost_analysis.v1 import data_source_pb2, data_source_pb2_grpc
 from spaceone.core.pygrpc import BaseAPI
 
+from spaceone.cost_analysis.service import DataSourceService
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -29,6 +31,12 @@ class DataSource(BaseAPI, data_source_pb2_grpc.DataSourceServicer):
             return self.locator.get_info(
                 "DataSourceInfo", data_source_service.update(params)
             )
+
+    def update_permissions(self, request, context):
+        params, metadata = self.parse_request(request, context)
+        data_source_svc = DataSourceService(metadata)
+        response: dict = data_source_svc.update_permissions(params)
+        return self.dict_to_message(response)
 
     def update_secret_data(self, request, context):
         params, metadata = self.parse_request(request, context)
