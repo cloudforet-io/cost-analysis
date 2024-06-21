@@ -556,13 +556,30 @@ class CostManager(BaseManager):
     @staticmethod
     def _check_group_by(query: dict) -> None:
         group_by = query.get("group_by", [])
-        for group_by_field in group_by:
-            if group_by_field.split(".")[0] == "data":
+        for grop_by_option in group_by:
+            key = None
+
+            if isinstance(grop_by_option, dict):
+                key = grop_by_option.get("key")
+                name = grop_by_option.get("name")
+                if not (key and name):
+                    raise ERROR_INVALID_PARAMETER(
+                        key="group_by",
+                        reason="group_by option requires a key and name.",
+                    )
+            elif isinstance(grop_by_option, str):
+                key = grop_by_option
+
+            if key is None or not isinstance(key, str):
                 raise ERROR_INVALID_PARAMETER(
-                    key=group_by_field, reason=f"Data field is not allowed to group by."
+                    key="group_by", reason="Group by key is not exist or invalid type."
                 )
-            elif group_by_field in ["cost", "usage_quantity"]:
+            elif key.split(".")[0] == "data":
                 raise ERROR_INVALID_PARAMETER(
-                    key=group_by_field,
-                    reason=f"{group_by_field} are not allowed to group by.",
+                    key=key, reason="Data field is not allowed to group by."
+                )
+            elif key in ["cost", "usage_quantity"]:
+                raise ERROR_INVALID_PARAMETER(
+                    key=key,
+                    reason=f"{key} are not allowed to group by.",
                 )
