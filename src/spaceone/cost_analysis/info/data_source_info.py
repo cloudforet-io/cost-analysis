@@ -55,6 +55,7 @@ def DataSourceInfo(data_source_vo: DataSource, minimal=False):
                 "plugin_info": PluginInfo(data_source_vo.plugin_info),
                 "secret_filter": SecretFilterInfo(data_source_vo.secret_filter),
                 "template": change_struct_type(data_source_vo.template),
+                "permissions": change_struct_type(data_source_vo.permissions),
                 "tags": change_struct_type(data_source_vo.tags),
                 "cost_tag_keys": data_source_vo.cost_tag_keys,
                 "cost_additional_info_keys": data_source_vo.cost_additional_info_keys,
