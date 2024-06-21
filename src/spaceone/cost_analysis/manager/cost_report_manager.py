@@ -41,6 +41,7 @@ class CostReportManager(BaseManager):
         return self.cost_report_model.filter(**conditions)
 
     def list_cost_reports(self, query: dict) -> Tuple[QuerySet, int]:
+        _LOGGER.debug(f"[list_cost_reports] query: {query}")
         return self.cost_report_model.query(**query)
 
     def stat_cost_reports(self, query: dict) -> dict:

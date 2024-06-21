@@ -37,5 +37,24 @@ class CostReport(MongoModel):
             "-created_at",
             "-report_number",
         ],
-        "indexes": ["cost_report_config_id", "status", "domain_id", "workspace_id"],
+        "indexes": [
+            {
+                "fields": [
+                    "cost_report_config_id",
+                    "status",
+                    "domain_id",
+                    "workspace_id",
+                ],
+                "name": "COMPOUND_INDEX_FOR_CONFIRM_REPORT",
+            },
+            {
+                "fields": [
+                    "report_month",
+                    "status",
+                    "domain_id",
+                    "workspace_id",
+                ],
+                "name": "COMPOUND_INDEX_FOR_CONFIRM_REPORT_2",
+            },
+        ],
     }

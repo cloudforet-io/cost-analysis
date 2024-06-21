@@ -27,7 +27,10 @@ class CostReportDataAnalyzeQueryRequest(BaseModel):
     product: Union[str, None] = None
     provider: Union[str, None] = None
     data_source_id: Union[str, None] = None
+    cost_report_id: Union[str, None] = None
     cost_report_config_id: Union[str, None] = None
+    user_projects: Union[list, None] = None
+    project_id: Union[str, None] = None
     workspace_id: Union[str, None] = None
     domain_id: str
 

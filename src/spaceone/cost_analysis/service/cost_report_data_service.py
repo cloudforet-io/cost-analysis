@@ -77,7 +77,7 @@ class CostReportDataService(BaseService):
 
     @transaction(
         permission="cost-analysis:CostReportData.read",
-        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
     @append_query_filter(
         [
@@ -85,10 +85,13 @@ class CostReportDataService(BaseService):
             "provider",
             "is_confirmed",
             "cost_report_config_id",
+            "cost_report_id",
             "cost_report_data_id",
             "data_source_id",
             "workspace_id",
             "domain_id",
+            "project_id",
+            "user_projects",
         ]
     )
     @append_keyword_filter(
