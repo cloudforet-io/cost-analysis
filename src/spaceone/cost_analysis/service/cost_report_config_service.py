@@ -22,7 +22,7 @@ class CostReportConfigService(BaseService):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.cost_report_mgr = CostReportConfigManager()
+        self.cost_report_config_mgr = CostReportConfigManager()
 
     @transaction(
         permission="cost-analysis:CostReportConfig.write", role_types=["DOMAIN_ADMIN"]
@@ -50,7 +50,9 @@ class CostReportConfigService(BaseService):
             if not params.issue_day:
                 raise ERROR_REQUIRED_PARAMETER(key="issue_day")
 
-        cost_report_vo = self.cost_report_mgr.create_cost_report_config(params.dict())
+        cost_report_vo = self.cost_report_config_mgr.create_cost_report_config(
+            params.dict()
+        )
 
         return CostReportConfigResponse(**cost_report_vo.to_dict())
 
@@ -76,7 +78,7 @@ class CostReportConfigService(BaseService):
         Returns:
             CostReportConfigResponse:
         """
-        cost_report_config_vo = self.cost_report_mgr.get_cost_report_config(
+        cost_report_config_vo = self.cost_report_config_mgr.get_cost_report_config(
             params.domain_id,
             params.cost_report_config_id,
         )
@@ -84,8 +86,10 @@ class CostReportConfigService(BaseService):
         if params.is_last_day is None:
             params.is_last_day = False
 
-        cost_report_config_vo = self.cost_report_mgr.update_cost_report_config_by_vo(
-            params.dict(exclude_unset=True), cost_report_config_vo
+        cost_report_config_vo = (
+            self.cost_report_config_mgr.update_cost_report_config_by_vo(
+                params.dict(exclude_unset=True), cost_report_config_vo
+            )
         )
 
         return CostReportConfigResponse(**cost_report_config_vo.to_dict())
@@ -108,13 +112,13 @@ class CostReportConfigService(BaseService):
         Returns:
             CostReportConfigResponse:
         """
-        cost_report_config_vo = self.cost_report_mgr.get_cost_report_config(
+        cost_report_config_vo = self.cost_report_config_mgr.get_cost_report_config(
             params.domain_id,
             params.cost_report_config_id,
         )
 
         cost_report_config_vo = (
-            self.cost_report_mgr.update_recipients_cost_report_config(
+            self.cost_report_config_mgr.update_recipients_cost_report_config(
                 params.dict(exclude_unset=True), cost_report_config_vo
             )
         )
@@ -138,11 +142,11 @@ class CostReportConfigService(BaseService):
         Returns:
             CostReportConfigResponse:
         """
-        cost_report_config_vo = self.cost_report_mgr.get_cost_report_config(
+        cost_report_config_vo = self.cost_report_config_mgr.get_cost_report_config(
             params.domain_id, params.cost_report_config_id
         )
 
-        cost_report_config_vo = self.cost_report_mgr.enable_cost_report_config(
+        cost_report_config_vo = self.cost_report_config_mgr.enable_cost_report_config(
             cost_report_config_vo
         )
 
@@ -165,12 +169,12 @@ class CostReportConfigService(BaseService):
         Returns:
             CostReportConfigResponse:
         """
-        cost_report_config_vo = self.cost_report_mgr.get_cost_report_config(
+        cost_report_config_vo = self.cost_report_config_mgr.get_cost_report_config(
             params.domain_id,
             params.cost_report_config_id,
         )
 
-        cost_report_config_vo = self.cost_report_mgr.disable_cost_report_config(
+        cost_report_config_vo = self.cost_report_config_mgr.disable_cost_report_config(
             cost_report_config_vo
         )
 
@@ -191,11 +195,13 @@ class CostReportConfigService(BaseService):
         Returns:
             None
         """
-        cost_report_config_vo = self.cost_report_mgr.get_cost_report_config(
+        cost_report_config_vo = self.cost_report_config_mgr.get_cost_report_config(
             params.domain_id, params.cost_report_config_id
         )
 
-        self.cost_report_mgr.delete_cost_report_config_by_vo(cost_report_config_vo)
+        self.cost_report_config_mgr.delete_cost_report_config_by_vo(
+            cost_report_config_vo
+        )
 
     @transaction(
         permission="cost-analysis:CostReportConfig.write", role_types=["DOMAIN_ADMIN"]
@@ -212,7 +218,7 @@ class CostReportConfigService(BaseService):
             None
         """
 
-        cost_report_config_vo = self.cost_report_mgr.get_cost_report_config(
+        cost_report_config_vo = self.cost_report_config_mgr.get_cost_report_config(
             params.domain_id, params.cost_report_config_id
         )
 
@@ -248,7 +254,7 @@ class CostReportConfigService(BaseService):
         Returns:
             CostReportConfigResponse:
         """
-        cost_report_config_vo = self.cost_report_mgr.get_cost_report_config(
+        cost_report_config_vo = self.cost_report_config_mgr.get_cost_report_config(
             params.domain_id, params.cost_report_config_id
         )
 
@@ -281,7 +287,9 @@ class CostReportConfigService(BaseService):
         (
             cost_report_config_vos,
             total_count,
-        ) = self.cost_report_mgr.list_cost_report_configs(query, params.domain_id)
+        ) = self.cost_report_config_mgr.list_cost_report_configs(
+            query, params.domain_id
+        )
 
         cost_report_configs_info = [
             cost_report_config_vo.to_dict()
@@ -313,4 +321,4 @@ class CostReportConfigService(BaseService):
             CostReportConfigStatResponse:
         """
         query = params.query or {}
-        return self.cost_report_mgr.stat_cost_report_configs(query)
+        return self.cost_report_config_mgr.stat_cost_report_configs(query)
