@@ -634,7 +634,7 @@ class JobService(BaseService):
                     raise e
 
                 try:
-                    self._delete_old_cost_data(domain_id, data_source_id)
+                    self._delete_old_cost_data(data_source_id, domain_id)
                 except Exception as e:
                     _LOGGER.error(
                         f"[_close_job] delete old cost data error: {e}", exc_info=True
@@ -720,7 +720,7 @@ class JobService(BaseService):
             {"last_synchronized_at": job_vo.created_at}, data_source_vo
         )
 
-    def _delete_old_cost_data(self, data_source_id, domain_id):
+    def _delete_old_cost_data(self, data_source_id: str, domain_id: str):
         now = datetime.utcnow().date()
         old_billed_month = (now - relativedelta(months=12)).strftime("%Y-%m")
         old_billed_year = (now - relativedelta(months=36)).strftime("%Y")
