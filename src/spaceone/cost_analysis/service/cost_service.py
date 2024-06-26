@@ -315,7 +315,13 @@ class CostService(BaseService):
         """
 
         domain_id = params["domain_id"]
+        data_source_id = params.get("data_source_id", "global")
         query = params.get("query", {})
+
+        if data_source_id and data_source_id != "global":
+            query = self.cost_mgr.change_filter_v_workspace_id(
+                query, domain_id, data_source_id
+            )
 
         if self._is_distinct_query(query):
             page, query = self._get_page_from_query(query)
@@ -323,11 +329,11 @@ class CostService(BaseService):
             query_hash = utils.dict_to_hash(query)
 
             self.cost_mgr.create_cost_query_history(
-                query, query_hash, domain_id, "global"
+                query, query_hash, domain_id, data_source_id
             )
 
             response = self.cost_mgr.stat_monthly_costs_with_cache(
-                query, query_hash, domain_id, "global"
+                query, query_hash, domain_id, data_source_id
             )
 
             if search:
