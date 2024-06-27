@@ -77,13 +77,13 @@ class CostService(BaseService):
 
     @transaction(permission="cost-analysis:Cost.write", role_types=["WORKSPACE_OWNER"])
     @check_required(["cost_id", "domain_id"])
-    def delete(self, params):
+    def delete(self, params: dict):
         """Deregister cost
 
         Args:
             params (dict): {
                 'cost_id': 'str',           # injected from path
-                'workspace_id' : str',      # injected from auth(optional)
+                'workspace_id' : str',      # injected from auth
                 'domain_id': 'str'          # injected from auth
             }
 
@@ -91,13 +91,15 @@ class CostService(BaseService):
             None
         """
 
+        cost_id = params["cost_id"]
         domain_id = params["domain_id"]
+        workspace_id = params.get("workspace_id")
 
-        cost_vo: Cost = self.cost_mgr.get_cost(
-            params["cost_id"],
-            params["domain_id"],
-            params.get("workspace_id"),
-        )
+        if workspace_id:
+            cost_vo: Cost = self.cost_mgr.get_cost(cost_id, domain_id)
+            self._check_workspace_id_with_cost_vo(cost_vo, domain_id, workspace_id)
+        else:
+            cost_vo: Cost = self.cost_mgr.get_cost(cost_id, domain_id)
 
         self.cost_mgr.remove_stat_cache(
             domain_id=domain_id,
@@ -134,15 +136,7 @@ class CostService(BaseService):
 
         if workspace_id:
             cost_vo: Cost = self.cost_mgr.get_cost(cost_id, domain_id, user_projects)
-
-            v_workspace_ids = self._get_v_workspace_ids_related_with_workspace_id(
-                domain_id, workspace_id
-            )
-            if (
-                cost_vo.workspace_id not in v_workspace_ids
-                and cost_vo.workspace_id != workspace_id
-            ):
-                raise ERROR_PERMISSION_DENIED()
+            self._check_workspace_id_with_cost_vo(cost_vo, domain_id, workspace_id)
         else:
             cost_vo: Cost = self.cost_mgr.get_cost(
                 cost_id, domain_id, workspace_id, user_projects
@@ -278,10 +272,11 @@ class CostService(BaseService):
         domain_id = params["domain_id"]
         data_source_id = params["data_source_id"]
         query = params.get("query", {})
+        workspace_id = query.get("workspace_id")
 
         if self.transaction.get_meta("authorization.role_type") != "DOMAIN_ADMIN":
             data_source_vo = self.data_source_mgr.get_data_source(
-                data_source_id, domain_id
+                data_source_id, domain_id, workspace_id
             )
             self._check_fields_with_data_source_permissions(query, data_source_vo)
 
@@ -406,29 +401,15 @@ class CostService(BaseService):
             if start < 1:
                 start = 1
 
-            response["results"] = results[start - 1 : start + page["limit"] - 1]
+            response["results"] = results[start - 1: start + page["limit"] - 1]
         else:
             response["results"] = results
 
         return response
 
     @staticmethod
-    def _get_v_workspace_ids_related_with_workspace_id(
-        domain_id: str, workspace_id: str
-    ) -> list:
-        v_workspace_ids = []
-        data_source_account_mgr = DataSourceAccountManager()
-        data_source_account_vos = data_source_account_mgr.filter_data_source_accounts(
-            domain_id=domain_id,
-            workspace_id=workspace_id,
-        )
-
-        v_workspace_ids.extend(data_source_account_vos.values_list("v_workspace_id"))
-        return v_workspace_ids
-
-    @staticmethod
     def _remove_deny_fields_with_data_source_vo(
-        cost_info: dict, data_source_vo: DataSource
+            cost_info: dict, data_source_vo: DataSource
     ):
         permissions = data_source_vo.permissions or {}
         if permissions:
@@ -440,15 +421,35 @@ class CostService(BaseService):
 
     @staticmethod
     def _check_fields_with_data_source_permissions(
-        query: dict, data_source_vo: DataSource
+            query: dict, data_source_vo: DataSource
     ):
         permissions = data_source_vo.permissions or {}
         deny = permissions.get("deny", [])
 
         fields = query.get("fields", {})
 
-        for field_key in fields.keys():
-            field_info = fields[field_key]
-            if _field_info_key := field_info.get("key"):
+        for field_key, field_info in fields.items():
+            if _field_info_key := field_info.get("key", field_info.get("k")):
                 if _field_info_key in deny:
                     raise ERROR_PERMISSION_DENIED()
+
+    @staticmethod
+    def _check_workspace_id_with_cost_vo(
+            cost_vo: Cost, domain_id: str, workspace_id: str
+    ) -> None:
+        if cost_vo.workspace_id.startswith("v-"):
+            data_source_account_mgr = DataSourceAccountManager()
+            data_source_account_vos = (
+                data_source_account_mgr.filter_data_source_accounts(
+                    domain_id=domain_id,
+                    v_workspace_id=cost_vo.workspace_id,
+                )
+            )
+            if not data_source_account_vos:
+                raise ERROR_PERMISSION_DENIED()
+
+            if workspace_id != data_source_account_vos[0].workspace_id:
+                raise ERROR_PERMISSION_DENIED()
+
+        elif cost_vo.workspace_id != workspace_id:
+            raise ERROR_PERMISSION_DENIED()
