@@ -254,7 +254,7 @@ class CostService(BaseService):
     )
     @append_keyword_filter(["cost_id"])
     @set_query_page_limit(1000)
-    def analyze(self, params):
+    def analyze(self, params: dict):
         """
         Args:
             params (dict): {
@@ -310,8 +310,8 @@ class CostService(BaseService):
         """
 
         domain_id = params["domain_id"]
-        data_source_id = params.get("data_source_id", "global")
         query = params.get("query", {})
+        data_source_id = self._get_data_source_id_from_query(params, query)
 
         if data_source_id and data_source_id != "global":
             query = self.cost_mgr.change_filter_v_workspace_id(
@@ -401,7 +401,7 @@ class CostService(BaseService):
             if start < 1:
                 start = 1
 
-            response["results"] = results[start - 1: start + page["limit"] - 1]
+            response["results"] = results[start - 1 : start + page["limit"] - 1]
         else:
             response["results"] = results
 
@@ -409,7 +409,7 @@ class CostService(BaseService):
 
     @staticmethod
     def _remove_deny_fields_with_data_source_vo(
-            cost_info: dict, data_source_vo: DataSource
+        cost_info: dict, data_source_vo: DataSource
     ):
         permissions = data_source_vo.permissions or {}
         if permissions:
@@ -421,7 +421,7 @@ class CostService(BaseService):
 
     @staticmethod
     def _check_fields_with_data_source_permissions(
-            query: dict, data_source_vo: DataSource
+        query: dict, data_source_vo: DataSource
     ):
         permissions = data_source_vo.permissions or {}
         deny = permissions.get("deny", [])
@@ -435,7 +435,7 @@ class CostService(BaseService):
 
     @staticmethod
     def _check_workspace_id_with_cost_vo(
-            cost_vo: Cost, domain_id: str, workspace_id: str
+        cost_vo: Cost, domain_id: str, workspace_id: str
     ) -> None:
         if cost_vo.workspace_id.startswith("v-"):
             data_source_account_mgr = DataSourceAccountManager()
@@ -453,3 +453,14 @@ class CostService(BaseService):
 
         elif cost_vo.workspace_id != workspace_id:
             raise ERROR_PERMISSION_DENIED()
+
+    @staticmethod
+    def _get_data_source_id_from_query(params: dict, query: dict):
+        data_source_id = params.get("data_source_id", "global")
+        if data_source_id == "global":
+            for condition in query.get("filter", []):
+                key = condition.get("k", condition.get("key"))
+                value = condition.get("v", condition.get("value"))
+                if key == "data_source_id":
+                    data_source_id = value
+        return data_source_id
