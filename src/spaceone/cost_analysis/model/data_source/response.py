@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Union, Literal
+from typing import Union, Literal, List
 from pydantic import BaseModel
 
 from spaceone.core import utils
@@ -13,6 +13,7 @@ from spaceone.cost_analysis.model.data_source.request import (
 
 __all__ = [
     "DataSourceResponse",
+    "DataSourcesResponse",
 ]
 
 
@@ -48,3 +49,8 @@ class DataSourceResponse(BaseModel):
             data.get("last_synchronized_at")
         )
         return data
+
+
+class DataSourcesResponse(BaseModel):
+    results: List[DataSourceResponse]
+    total_count: int

@@ -5,10 +5,8 @@ from typing import Tuple, Union
 from mongoengine import QuerySet
 from spaceone.core.service import *
 from spaceone.cost_analysis.error import *
-from spaceone.cost_analysis.model.data_source.request import (
-    DataSourceUpdatePermissionsRequest,
-)
-from spaceone.cost_analysis.model.data_source.response import DataSourceResponse
+from spaceone.cost_analysis.model.data_source.request import *
+from spaceone.cost_analysis.model.data_source.response import *
 from spaceone.cost_analysis.service.job_service import JobService
 from spaceone.cost_analysis.manager.repository_manager import RepositoryManager
 from spaceone.cost_analysis.manager.secret_manager import SecretManager
@@ -48,8 +46,10 @@ class DataSourceService(BaseService):
         permission="cost-analysis:DataSource.write",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
-    @check_required(["name", "data_source_type", "domain_id"])
-    def register(self, params):
+    @convert_model
+    def register(
+            self, params: DataSourceRegisterRequest
+    ) -> Union[DataSourceResponse, dict]:
         """Register data source
 
         Args:
@@ -70,6 +70,7 @@ class DataSourceService(BaseService):
         Returns:
             data_source_vo (object)
         """
+        params = params.dict(exclude_unset=True)
 
         domain_id = params["domain_id"]
         data_source_type = params["data_source_type"]
@@ -177,7 +178,7 @@ class DataSourceService(BaseService):
                     data_source_vo
                 )
 
-        return data_source_vo
+        return DataSourceResponse(**data_source_vo.to_dict())
 
     @transaction(
         permission="cost-analysis:DataSource.write",
@@ -228,7 +229,7 @@ class DataSourceService(BaseService):
     )
     @convert_model
     def update_permissions(
-        self, params: DataSourceUpdatePermissionsRequest
+            self, params: DataSourceUpdatePermissionsRequest
     ) -> Union[DataSourceResponse, dict]:
         """Update data source permissions
 
@@ -567,14 +568,15 @@ class DataSourceService(BaseService):
         permission="cost-analysis:DataSource.read",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
-    @check_required(["data_source_id", "domain_id"])
-    def get(self, params):
+    @change_value_by_rule("APPEND", "workspace_id", "*")
+    @convert_model
+    def get(self, params: DataSourceGetRequest) -> Union[DataSourceResponse, dict]:
         """Get data source
 
         Args:
             params (dict): {
                 'data_source_id': 'str',  # required
-                'workspace_id': 'str'
+                'workspace_id': 'list'
                 'domain_id': 'str',      # injected from auth
             }
 
@@ -582,20 +584,29 @@ class DataSourceService(BaseService):
             data_source_vo (object)
         """
 
-        data_source_id = params["data_source_id"]
-        domain_id = params["domain_id"]
-        workspace_id = params.get("workspace_id")
+        data_source_id = params.data_source_id
+        domain_id = params.domain_id
+        workspace_id = params.workspace_id
 
-        return self.data_source_mgr.get_data_source(
+        data_source_vo = self.data_source_mgr.get_data_source(
             data_source_id, domain_id, workspace_id
         )
+
+        # Check data fields permissions
+        if self.transaction.get_meta("authorization.role_type") != "DOMAIN_ADMIN":
+            data_source_vo = (
+                self._filter_cost_data_keys_with_permissions_by_data_source_vo(
+                    data_source_vo
+                )
+            )
+
+        return DataSourceResponse(**data_source_vo.to_dict())
 
     @transaction(
         permission="cost-analysis:DataSource.read",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
     @change_value_by_rule("APPEND", "workspace_id", "*")
-    @check_required(["domain_id"])
     @append_query_filter(
         [
             "data_source_id",
@@ -609,11 +620,15 @@ class DataSourceService(BaseService):
     )
     @change_tag_filter("tags")
     @append_keyword_filter(["data_source_id", "name"])
-    def list(self, params):
+    @convert_model
+    def list(
+            self, params: DataSourceSearchQueryRequest
+    ) -> Union[DataSourcesResponse, dict]:
         """List data sources
 
         Args:
             params (dict): {
+                'query': 'dict (spaceone.api.core.v1.Query)'
                 'data_source_id': 'str',
                 'name': 'str',
                 'state': 'str',
@@ -622,7 +637,7 @@ class DataSourceService(BaseService):
                 'connected_workspace_id': str,
                 'workspace_id': 'list,
                 'domain_id': 'str',
-                'query': 'dict (spaceone.api.core.v1.Query)'
+
             }
 
         Returns:
@@ -630,8 +645,11 @@ class DataSourceService(BaseService):
             total_count
         """
 
-        query = params.get("query", {})
-        connected_workspace_id = params.get("connected_workspace_id")
+        query = params.query or {}
+        connected_workspace_id = params.connected_workspace_id
+
+        if self.transaction.get_meta("authorization.role_type") != "DOMAIN_ADMIN":
+            self._check_only_fields_for_permissions(query)
 
         if connected_workspace_id:
             (
@@ -643,7 +661,9 @@ class DataSourceService(BaseService):
         else:
             data_source_vos, total_count = self.data_source_mgr.list_data_sources(query)
 
-        return data_source_vos, total_count
+        data_sources_info = self._get_data_sources_info_by_role_type(data_source_vos)
+
+        return DataSourcesResponse(results=data_sources_info, total_count=total_count)
 
     @transaction(
         permission="cost-analysis:DataSource.read",
@@ -741,13 +761,13 @@ class DataSourceService(BaseService):
         return secret_data
 
     @staticmethod
-    def _validate_plugin_info(plugin_info, secret_type):
+    def _validate_plugin_info(plugin_info: dict, secret_type: str) -> None:
         if "plugin_id" not in plugin_info:
             raise ERROR_REQUIRED_PARAMETER(key="plugin_info.plugin_id")
 
         if (
-            plugin_info.get("upgrade_mode", "AUTO") == "MANUAL"
-            and "version" not in plugin_info
+                plugin_info.get("upgrade_mode", "AUTO") == "MANUAL"
+                and "version" not in plugin_info
         ):
             raise ERROR_REQUIRED_PARAMETER(key="plugin_info.version")
 
@@ -755,7 +775,7 @@ class DataSourceService(BaseService):
             raise ERROR_REQUIRED_PARAMETER(key="plugin_info.secret_data")
 
     def create_data_source_account_with_data_source_vo(
-        self, accounts_info: dict, data_source_vo: DataSource
+            self, accounts_info: dict, data_source_vo: DataSource
     ) -> None:
         data_source_id = data_source_vo.data_source_id
         workspace_id = data_source_vo.workspace_id
@@ -813,7 +833,7 @@ class DataSourceService(BaseService):
             )
 
     def _get_data_source_account_vo_map(
-        self, data_source_id: str, domain_id: str
+            self, data_source_id: str, domain_id: str
     ) -> dict:
         data_source_account_vo_map = {}
         data_source_account_vos = (
@@ -828,7 +848,7 @@ class DataSourceService(BaseService):
         return data_source_account_vo_map
 
     def _change_filter_connected_workspace_data_source(
-        self, query: dict, connected_workspace_id: str
+            self, query: dict, connected_workspace_id: str
     ) -> Tuple[Union[QuerySet, list], int]:
         connected_data_source_ids = []
         domain_id = self._get_domain_id_from_filter(query)
@@ -873,6 +893,22 @@ class DataSourceService(BaseService):
 
         return self.data_source_mgr.list_data_sources(query)
 
+    def _get_data_sources_info_by_role_type(self, data_source_vos: list) -> list:
+        data_sources_info = []
+        if self.transaction.get_meta("authorization.role_type") != "DOMAIN_ADMIN":
+            for data_source_vo in data_source_vos:
+                data_source_vo = (
+                    self._filter_cost_data_keys_with_permissions_by_data_source_vo(
+                        data_source_vo
+                    )
+                )
+                data_sources_info.append(data_source_vo.to_dict())
+        else:
+            for data_source_vo in data_source_vos:
+                data_sources_info.append(data_source_vo.to_dict())
+
+        return data_sources_info
+
     @staticmethod
     def _get_domain_id_from_filter(query: dict) -> str:
         for condition in query.get("filter", []):
@@ -903,3 +939,29 @@ class DataSourceService(BaseService):
         copied_query.pop("minimal", None)
         _LOGGER.debug(f"[_get_copied_remove_only_filter_query] query: {copied_query}")
         return copied_query
+
+    @staticmethod
+    def _filter_cost_data_keys_with_permissions_by_data_source_vo(
+            data_source_vo: DataSource,
+    ) -> DataSource:
+        if data_source_vo.permissions:
+            deny = data_source_vo.permissions.get("deny", [])
+            cost_data_keys = data_source_vo.cost_data_keys or []
+            for deny_key in deny:
+                if deny_key.startswith("data."):
+                    split_denied_key = deny_key.split(".")[1]
+                    if split_denied_key in cost_data_keys:
+                        cost_data_keys.remove(split_denied_key)
+            data_source_vo.cost_data_keys = cost_data_keys
+        return data_source_vo
+
+    @staticmethod
+    def _check_only_fields_for_permissions(query: dict) -> None:
+        only_fields = query.get("only")
+        for only_field in only_fields:
+            if only_field == "cost_data_keys":
+                if "permissions" not in only_fields:
+                    raise ERROR_INVALID_PARAMETER(
+                        key="permissions",
+                        reason="when you want to get 'cost_data_keys', you must include 'permissions' field in 'only' field.",
+                    )

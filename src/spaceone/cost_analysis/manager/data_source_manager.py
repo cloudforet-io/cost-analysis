@@ -80,7 +80,7 @@ class DataSourceManager(BaseManager):
 
     def get_data_source(
         self, data_source_id: str, domain_id: str, workspace_id: str = None
-    ):
+    ) -> DataSource:
         conditions = {"data_source_id": data_source_id, "domain_id": domain_id}
 
         if workspace_id:
