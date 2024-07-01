@@ -48,7 +48,7 @@ class DataSourceService(BaseService):
     )
     @convert_model
     def register(
-            self, params: DataSourceRegisterRequest
+        self, params: DataSourceRegisterRequest
     ) -> Union[DataSourceResponse, dict]:
         """Register data source
 
@@ -229,7 +229,7 @@ class DataSourceService(BaseService):
     )
     @convert_model
     def update_permissions(
-            self, params: DataSourceUpdatePermissionsRequest
+        self, params: DataSourceUpdatePermissionsRequest
     ) -> Union[DataSourceResponse, dict]:
         """Update data source permissions
 
@@ -622,7 +622,7 @@ class DataSourceService(BaseService):
     @append_keyword_filter(["data_source_id", "name"])
     @convert_model
     def list(
-            self, params: DataSourceSearchQueryRequest
+        self, params: DataSourceSearchQueryRequest
     ) -> Union[DataSourcesResponse, dict]:
         """List data sources
 
@@ -766,8 +766,8 @@ class DataSourceService(BaseService):
             raise ERROR_REQUIRED_PARAMETER(key="plugin_info.plugin_id")
 
         if (
-                plugin_info.get("upgrade_mode", "AUTO") == "MANUAL"
-                and "version" not in plugin_info
+            plugin_info.get("upgrade_mode", "AUTO") == "MANUAL"
+            and "version" not in plugin_info
         ):
             raise ERROR_REQUIRED_PARAMETER(key="plugin_info.version")
 
@@ -775,7 +775,7 @@ class DataSourceService(BaseService):
             raise ERROR_REQUIRED_PARAMETER(key="plugin_info.secret_data")
 
     def create_data_source_account_with_data_source_vo(
-            self, accounts_info: dict, data_source_vo: DataSource
+        self, accounts_info: dict, data_source_vo: DataSource
     ) -> None:
         data_source_id = data_source_vo.data_source_id
         workspace_id = data_source_vo.workspace_id
@@ -833,7 +833,7 @@ class DataSourceService(BaseService):
             )
 
     def _get_data_source_account_vo_map(
-            self, data_source_id: str, domain_id: str
+        self, data_source_id: str, domain_id: str
     ) -> dict:
         data_source_account_vo_map = {}
         data_source_account_vos = (
@@ -848,7 +848,7 @@ class DataSourceService(BaseService):
         return data_source_account_vo_map
 
     def _change_filter_connected_workspace_data_source(
-            self, query: dict, connected_workspace_id: str
+        self, query: dict, connected_workspace_id: str
     ) -> Tuple[Union[QuerySet, list], int]:
         connected_data_source_ids = []
         domain_id = self._get_domain_id_from_filter(query)
@@ -942,7 +942,7 @@ class DataSourceService(BaseService):
 
     @staticmethod
     def _filter_cost_data_keys_with_permissions_by_data_source_vo(
-            data_source_vo: DataSource,
+        data_source_vo: DataSource,
     ) -> DataSource:
         if data_source_vo.permissions:
             deny = data_source_vo.permissions.get("deny", [])
@@ -957,7 +957,7 @@ class DataSourceService(BaseService):
 
     @staticmethod
     def _check_only_fields_for_permissions(query: dict) -> None:
-        only_fields = query.get("only")
+        only_fields = query.get("only", [])
         for only_field in only_fields:
             if only_field == "cost_data_keys":
                 if "permissions" not in only_fields:
