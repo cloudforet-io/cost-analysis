@@ -14,13 +14,9 @@ class DataSource(BaseAPI, data_source_pb2_grpc.DataSourceServicer):
 
     def register(self, request, context):
         params, metadata = self.parse_request(request, context)
-
-        with self.locator.get_service(
-            "DataSourceService", metadata
-        ) as data_source_service:
-            return self.locator.get_info(
-                "DataSourceInfo", data_source_service.register(params)
-            )
+        data_source_svc = DataSourceService(metadata)
+        response: dict = data_source_svc.register(params)
+        return self.dict_to_message(response)
 
     def update(self, request, context):
         params, metadata = self.parse_request(request, context)
