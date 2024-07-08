@@ -222,6 +222,7 @@ class CostReportService(BaseService):
         )
 
         issue_day = self._get_issue_day(is_last_day, issue_day)
+        current_issue_day = datetime.utcnow().day
         current_month, last_month = self._get_current_and_last_month()
 
         if issue_day == datetime.utcnow().day:
@@ -248,8 +249,9 @@ class CostReportService(BaseService):
             data_source_currency_map=data_source_currency_map,
             report_month=current_month,
             currency=currency,
-            issue_day=issue_day,
+            issue_day=current_issue_day,
             status="IN_PROGRESS",
+            issue_month=current_month,
         )
 
     def _aggregate_monthly_cost_report(
@@ -267,6 +269,7 @@ class CostReportService(BaseService):
         issue_month: str = None,
     ) -> None:
         report_year = report_month.split("-")[0]
+        issue_date = f"{issue_month}-{str(issue_day).zfill(2)}"
 
         # delete old cost_reports and cost_reports_data
         self._delete_old_cost_reports(
@@ -303,7 +306,6 @@ class CostReportService(BaseService):
         _LOGGER.debug(f"[aggregate_monthly_cost_report] query: {query}")
         response = self.cost_mgr.analyze_monthly_costs(query, domain_id)
         results = response.get("results", [])
-        issue_date = f"{issue_month}-{str(issue_day).zfill(2)}" if issue_month else None
 
         for aggregated_cost_report in results:
             aggregated_cost_report["workspace_id"] = v_workspace_id_map.get(
@@ -395,6 +397,7 @@ class CostReportService(BaseService):
         cost_report_config_id,
         report_month: str,
         status: str,
+        issue_date: str = None,
     ):
         if status == "SUCCESS":
             cost_report_data_vos = self.cost_report_data_mgr.filter_cost_reports_data(
