@@ -60,15 +60,20 @@ class CostReportService(BaseService):
         self.create_default_cost_report_config_for_all_domains()
 
         for cost_report_config_vo in self._get_all_cost_report_configs():
-            (
-                currency_map,
-                currency_date,
-            ) = currency_mgr.get_currency_map_date()
+            try:
+                (
+                    currency_map,
+                    currency_date,
+                ) = currency_mgr.get_currency_map_date()
 
-            self.currency_map = currency_map
-            self.currency_date = currency_date
+                self.currency_map = currency_map
+                self.currency_date = currency_date
 
-            self.create_cost_report(cost_report_config_vo)
+                self.create_cost_report(cost_report_config_vo)
+            except Exception as e:
+                _LOGGER.error(
+                    f"[create_cost_report_by_cost_report_config] failed to create cost report ({cost_report_config_vo.cost_report_config_id}), {e}"
+                )
 
     @transaction(
         permission="cost-analysis:CostReport.read",
@@ -216,12 +221,16 @@ class CostReportService(BaseService):
         issue_day = cost_report_config_vo.issue_day
         currency = cost_report_config_vo.currency
 
+        _LOGGER.debug(
+            f"[create_cost_report] start to create cost report by cost_report_config({cost_report_config_id})"
+        )
+
         workspace_name_map, workspace_ids = self._get_workspace_name_map(domain_id)
         data_source_currency_map, data_source_ids = self._get_data_source_currency_map(
             domain_id, workspace_ids, data_source_filter
         )
 
-        issue_day = self._get_issue_day(is_last_day, issue_day)
+        issue_day = self.get_issue_day(is_last_day, issue_day)
         current_issue_day = datetime.utcnow().day
         current_month, last_month = self._get_current_and_last_month()
 
@@ -569,7 +578,7 @@ class CostReportService(BaseService):
         return current_month, last_month
 
     @staticmethod
-    def _get_issue_day(is_last_day: bool, issue_day: int) -> int:
+    def get_issue_day(is_last_day: bool, issue_day: int) -> int:
         current_date = datetime.utcnow()
         current_year = current_date.year
         current_month = current_date.month
@@ -590,9 +599,8 @@ class CostReportService(BaseService):
 
         return f"CostReport_{date_object.strftime('%y%m%d')}{str(cost_report_idx).zfill(4)}"
 
-    @staticmethod
     def _get_data_source_currency_map(
-        domain_id: str, workspace_ids: list, data_source_filter: dict
+        self, domain_id: str, workspace_ids: list, data_source_filter: dict
     ) -> Tuple[dict, list]:
         data_source_currency_map = {}
         data_source_mgr = DataSourceManager()
@@ -616,12 +624,21 @@ class CostReportService(BaseService):
         data_source_vos, total_count = data_source_mgr.list_data_sources(query)
         data_source_ids = []
         for data_source_vo in data_source_vos:
-            data_source_currency_map[
-                data_source_vo.data_source_id
-            ] = data_source_vo.plugin_info["metadata"]["currency"]
+            currency = self._get_currency_from_plugin_info(data_source_vo.plugin_info)
+            data_source_currency_map[data_source_vo.data_source_id] = currency
             data_source_ids.append(data_source_vo.data_source_id)
 
         return data_source_currency_map, data_source_ids
+
+    @staticmethod
+    def _get_currency_from_plugin_info(plugin_info: dict) -> str:
+        currency = plugin_info["metadata"].get("currency", "USD")
+
+        metadata_cost_info = plugin_info["metadata"].get("cost_info", {})
+        if metadata_cost_info:
+            currency = metadata_cost_info.get("unit", "USD")
+
+        return currency
 
     @staticmethod
     def _aggregate_result_by_currency(results: list) -> list:

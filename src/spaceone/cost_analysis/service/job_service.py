@@ -1030,6 +1030,7 @@ class JobService(BaseService):
         domain_id = job_vo.domain_id
         data_source_id = job_vo.data_source_id
         synced_accounts = job_vo.synced_accounts or []
+        synced_account_ids = []
 
         for synced_account_vo in synced_accounts:
             data_source_account_vos = (
@@ -1045,8 +1046,9 @@ class JobService(BaseService):
                     {"is_sync": True},
                     data_source_account_vos[0],
                 )
+            synced_account_ids.append(synced_account_vo.account_id)
         _LOGGER.debug(
-            f"[_update_data_source_account_sync_status] synced_account_ids: {synced_accounts} / {data_source_id} {domain_id}"
+            f"[_update_data_source_account_sync_status] synced_account_ids: {synced_account_ids} / {data_source_id} {domain_id}"
         )
 
     @staticmethod
