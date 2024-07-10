@@ -21,6 +21,7 @@ class DataSourceSyncScheduler(HourlyScheduler):
         if self._token is None:
             raise ERROR_CONFIGURATION(key="TOKEN")
         self._data_source_sync_hour = config.get_global("DATA_SOURCE_SYNC_HOUR", 16)
+        self._cost_report_sync_hour = config.get_global("COST_REPORT_SYNC_HOUR", 0)
 
     def create_task(self) -> list:
         tasks = []
@@ -59,7 +60,7 @@ class DataSourceSyncScheduler(HourlyScheduler):
             return []
 
     def _create_cost_report_run_task(self):
-        if datetime.utcnow().hour == 0:
+        if datetime.utcnow().hour == self._cost_report_sync_hour:
             stp = {
                 "name": "cost_report_data_sync_schedule",
                 "version": "v1",
