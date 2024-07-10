@@ -84,6 +84,6 @@ class DataSourceSyncScheduler(HourlyScheduler):
                 f"{utils.datetime_to_iso8601(datetime.utcnow())} [INFO] [create_task] create_cost_report_by_cost_report_config => SKIP"
             )
             print(
-                f"{utils.datetime_to_iso8601(datetime.utcnow())} [INFO] [create_task] data_source_sync_time: {self._data_source_sync_hour} hour (UTC)"
+                f"{utils.datetime_to_iso8601(datetime.utcnow())} [INFO] [create_task] cost_report_sync_time: {self._cost_report_sync_hour} hour (UTC)"
             )
             return []
