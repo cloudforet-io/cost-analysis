@@ -425,11 +425,12 @@ class CostReportService(BaseService):
                 cost_report_id=cost_report_vo.cost_report_id,
                 domain_id=cost_report_vo.domain_id,
             )
-
             _LOGGER.debug(
                 f"[_delete_old_cost_reports] delete cost report data ({cost_report_config_id}:{cost_report_vo.cost_report_id}:{report_month}) (count = {len(cost_report_data_vos)})"
             )
+
             cost_report_data_vos.delete()
+            cost_report_vo.delete()
 
         _LOGGER.debug(
             f"[_delete_last_month_cost_reports] delete cost reports ({cost_report_config_id}:{report_month}) (count = {total_count}))"
