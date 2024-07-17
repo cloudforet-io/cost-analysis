@@ -234,7 +234,8 @@ class CostReportService(BaseService):
         current_issue_day = datetime.utcnow().day
         current_month, last_month = self._get_current_and_last_month()
 
-        if issue_day == datetime.utcnow().day:
+        if issue_day == current_issue_day:
+            cost_report_created_at = datetime.utcnow()
             self._aggregate_monthly_cost_report(
                 domain_id=domain_id,
                 workspace_ids=workspace_ids,
@@ -249,6 +250,17 @@ class CostReportService(BaseService):
                 issue_month=current_month,
             )
 
+            self._delete_old_cost_reports(
+                last_month,
+                domain_id,
+                cost_report_config_id,
+                "SUCCESS",
+                cost_report_created_at,
+            )
+
+        # delete last month cost report
+        cost_report_created_at = datetime.utcnow()
+
         self._aggregate_monthly_cost_report(
             domain_id=domain_id,
             workspace_ids=workspace_ids,
@@ -261,6 +273,14 @@ class CostReportService(BaseService):
             issue_day=current_issue_day,
             status="IN_PROGRESS",
             issue_month=current_month,
+        )
+
+        self._delete_old_cost_reports(
+            current_month,
+            domain_id,
+            cost_report_config_id,
+            "IN_PROGRESS",
+            cost_report_created_at,
         )
 
     def _aggregate_monthly_cost_report(
@@ -279,14 +299,6 @@ class CostReportService(BaseService):
     ) -> None:
         report_year = report_month.split("-")[0]
         issue_date = f"{issue_month}-{str(issue_day).zfill(2)}"
-
-        # delete old cost_reports and cost_reports_data
-        self._delete_old_cost_reports(
-            report_month, domain_id, cost_report_config_id, status
-        )
-        self._delete_old_is_confirmed_cost_report_data(
-            domain_id, cost_report_config_id, report_month, status
-        )
 
         # collect enabled data_sources cost data
         query = {
@@ -381,44 +393,47 @@ class CostReportService(BaseService):
         return self.cost_report_config_mgr.filter_cost_report_configs(state="ENABLED")
 
     def _delete_old_cost_reports(
-        self, report_month: str, domain_id: str, cost_report_config_id: str, status: str
+        self,
+        report_month: str,
+        domain_id: str,
+        cost_report_config_id: str,
+        status: str,
+        cost_report_created_at: datetime,
     ) -> None:
+        if status == "IN_PROGRESS":
+            report_month_operator = "eq"
+        else:
+            report_month_operator = "lte"
+
         cost_report_delete_query = {
             "filter": [
                 {"k": "cost_report_config_id", "v": cost_report_config_id, "o": "eq"},
-                {"k": "report_month", "v": report_month, "o": "eq"},
+                {"k": "report_month", "v": report_month, "o": report_month_operator},
                 {"k": "status", "v": status, "o": "eq"},
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
+                {"k": "created_at", "v": cost_report_created_at, "o": "lt"},
             ]
         }
+
         cost_reports_vos, total_count = self.cost_report_mgr.list_cost_reports(
             cost_report_delete_query
         )
 
-        _LOGGER.debug(
-            f"[delete_old_cost_reports] delete cost reports ({cost_report_config_id}:{report_month}) (count = {total_count})"
-        )
-        cost_reports_vos.delete()
-
-    def _delete_old_is_confirmed_cost_report_data(
-        self,
-        domain_id: str,
-        cost_report_config_id,
-        report_month: str,
-        status: str,
-        issue_date: str = None,
-    ):
-        if status == "SUCCESS":
+        for cost_report_vo in cost_reports_vos:
             cost_report_data_vos = self.cost_report_data_mgr.filter_cost_reports_data(
-                domain_id=domain_id,
-                cost_report_config_id=cost_report_config_id,
-                report_month=report_month,
-                is_confirmed=True,
+                cost_report_config_id=cost_report_vo.cost_report_config_id,
+                cost_report_id=cost_report_vo.cost_report_id,
+                domain_id=cost_report_vo.domain_id,
             )
+
             _LOGGER.debug(
-                f"[delete_cost_report_data] delete is_confirmed cost report data ({cost_report_config_id, report_month}) {cost_report_data_vos.count()}"
+                f"[_delete_old_cost_reports] delete cost report data ({cost_report_config_id}:{cost_report_vo.cost_report_id}:{report_month}) (count = {len(cost_report_data_vos)})"
             )
             cost_report_data_vos.delete()
+
+        _LOGGER.debug(
+            f"[_delete_last_month_cost_reports] delete cost reports ({cost_report_config_id}:{report_month}) (count = {total_count}))"
+        )
 
     def send_cost_report(self, cost_report_vo: CostReport) -> None:
         domain_id = cost_report_vo.domain_id
