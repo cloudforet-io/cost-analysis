@@ -222,19 +222,8 @@ class CostReportConfigService(BaseService):
             params.domain_id, params.cost_report_config_id
         )
 
-        currency_mgr = CurrencyManager()
-
-        (
-            currency_map,
-            currency_date,
-        ) = currency_mgr.get_currency_map_date()
-
         cost_report_service = CostReportService()
-
-        cost_report_service.currency_map = currency_map
-        cost_report_service.currency_date = currency_date
-
-        cost_report_service.create_cost_report(cost_report_config_vo)
+        cost_report_service.create_cost_report(cost_report_config_vo.to_dict())
 
     @transaction(
         permission="cost-analysis:CostReportConfig.read",

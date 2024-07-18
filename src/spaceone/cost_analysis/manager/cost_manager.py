@@ -98,11 +98,11 @@ class CostManager(BaseManager):
         history_vos.delete()
 
     def get_cost(
-            self,
-            cost_id: str,
-            domain_id: str,
-            workspace_id=None,
-            user_projects: list = None,
+        self,
+        cost_id: str,
+        domain_id: str,
+        workspace_id=None,
+        user_projects: list = None,
     ):
         conditions = {"cost_id": cost_id, "domain_id": domain_id}
 
@@ -171,7 +171,7 @@ class CostManager(BaseManager):
         expire=3600 * 24,
     )
     def stat_monthly_costs_with_cache(
-            self, query, query_hash, domain_id, data_source_id
+        self, query, query_hash, domain_id, data_source_id
     ):
         return self.stat_monthly_costs(query, domain_id)
 
@@ -180,7 +180,7 @@ class CostManager(BaseManager):
         expire=3600 * 24,
     )
     def analyze_costs_with_cache(
-            self, query, query_hash, domain_id, data_source_id, target="SECONDARY_PREFERRED"
+        self, query, query_hash, domain_id, data_source_id, target="SECONDARY_PREFERRED"
     ):
         return self.analyze_costs(query, domain_id, target)
 
@@ -189,7 +189,7 @@ class CostManager(BaseManager):
         expire=3600 * 24,
     )
     def analyze_monthly_costs_with_cache(
-            self, query, query_hash, domain_id, data_source_id, target="SECONDARY_PREFERRED"
+        self, query, query_hash, domain_id, data_source_id, target="SECONDARY_PREFERRED"
     ):
         return self.analyze_monthly_costs(query, domain_id, target)
 
@@ -198,12 +198,12 @@ class CostManager(BaseManager):
         expire=3600 * 24,
     )
     def analyze_yearly_costs_with_cache(
-            self, query, query_hash, domain_id, data_source_id, target="SECONDARY_PREFERRED"
+        self, query, query_hash, domain_id, data_source_id, target="SECONDARY_PREFERRED"
     ):
         return self.analyze_yearly_costs(query, domain_id, target)
 
     def analyze_costs_by_granularity(
-            self, query: dict, domain_id: str, data_source_id: str
+        self, query: dict, domain_id: str, data_source_id: str
     ):
         self._check_group_by(query)
         self._check_date_range(query)
@@ -240,7 +240,7 @@ class CostManager(BaseManager):
         expire=600,
     )
     def create_cost_query_history(
-            self, query: dict, query_hash: str, domain_id: str, data_source_id: str
+        self, query: dict, query_hash: str, domain_id: str, data_source_id: str
     ):
         def _rollback(history_vo):
             _LOGGER.info(
@@ -265,7 +265,7 @@ class CostManager(BaseManager):
         else:
             history_vos[0].update({})
 
-    def list_cost_query_history(self, query={}):
+    def list_cost_query_history(self, query: dict):
         history_model: CostQueryHistory = self.locator.get_model("CostQueryHistory")
         return history_model.query(**query)
 
@@ -444,7 +444,7 @@ class CostManager(BaseManager):
         return query
 
     def change_filter_v_workspace_id(
-            self, query: dict, domain_id: str, data_source_id: str
+        self, query: dict, domain_id: str, data_source_id: str
     ) -> dict:
         change_filter = []
         workspace_ids = []
@@ -500,7 +500,7 @@ class CostManager(BaseManager):
         return query
 
     def _change_response_workspace_group_by(
-            self, response: dict, query: dict, domain_id: str, data_source_id: str
+        self, response: dict, query: dict, domain_id: str, data_source_id: str
     ) -> dict:
         if query_group_by := query.get("group_by"):
             if "workspace_id" in query_group_by:
@@ -533,7 +533,7 @@ class CostManager(BaseManager):
         return response
 
     def _get_workspace_id_from_v_workspace_id(
-            self, domain_id: str, v_workspace_id: str
+        self, domain_id: str, v_workspace_id: str
     ) -> str:
         workspace_id = v_workspace_id
         ds_account_vos = self.data_source_account_mgr.filter_data_source_accounts(

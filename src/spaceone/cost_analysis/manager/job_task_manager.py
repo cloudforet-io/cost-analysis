@@ -3,7 +3,6 @@ from datetime import datetime
 from typing import Union
 
 from spaceone.core import queue, utils
-from spaceone.core.token import get_token
 from spaceone.core.manager import BaseManager
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.manager.job_manager import JobManager
