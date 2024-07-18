@@ -1,7 +1,8 @@
 import logging
 from typing import Tuple
-
 from mongoengine import QuerySet
+
+from spaceone.core import config
 from spaceone.core.manager import BaseManager
 
 from spaceone.cost_analysis.model.cost_report_config.database import CostReportConfig
@@ -105,8 +106,12 @@ class CostReportConfigManager(BaseManager):
             _LOGGER.debug(f"[create_default_cost_report_config] domain_id: {domain_id}")
             self.cost_report_config_model.create(
                 {
-                    "issue_day": 10,
-                    "currency": "KRW",
+                    "issue_day": config.get_global(
+                        "COST_REPORT_CONFIG_DEFAULT_ISSUE_DAY", 10
+                    ),
+                    "currency": config.get_global(
+                        "COST_REPORT_CONFIG_DEFAULT_CURRENCY", "KRW"
+                    ),
                     "recipients": {},
                     "domain_id": domain_id,
                 }

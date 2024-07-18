@@ -2,6 +2,7 @@ import logging
 from typing import Tuple
 from mongoengine import QuerySet
 
+from spaceone.core import queue, utils
 from spaceone.core.manager import BaseManager
 from spaceone.cost_analysis.model.cost_report.database import CostReport
 
@@ -46,6 +47,27 @@ class CostReportManager(BaseManager):
 
     def stat_cost_reports(self, query: dict) -> dict:
         return self.cost_report_model.stat(**query)
+
+    def push_creating_cost_report_job(self, params: dict) -> None:
+        token = self.transaction.meta.get("token")
+        task = {
+            "name": "create_cost_report_job",
+            "version": "v1",
+            "executionEngine": "BaseWorker",
+            "stages": [
+                {
+                    "locator": "SERVICE",
+                    "name": "CostReportService",
+                    "metadata": {"token": token},
+                    "method": "create_cost_report_by_cost_report_config_info",
+                    "params": {"params": params},
+                }
+            ],
+        }
+
+        _LOGGER.debug(f"[push_creating_cost_report_job] task param: {params}")
+
+        queue.put("cost_analysis_q", utils.dump_json(task))
 
     @staticmethod
     def get_exchange_currency(cost: float, currency: str, currency_map: dict) -> dict:
