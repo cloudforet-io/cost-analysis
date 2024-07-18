@@ -701,8 +701,10 @@ class CostReportService(BaseService):
     ) -> Tuple[bool, str]:
         is_create_report = False
 
+        retry_days = min(config.get_global("COST_REPORT_RETRY_DAYS", 7), 25)
+
         current_day = current_date.day
-        retry_date = current_date - relativedelta(days=7)
+        retry_date = current_date - relativedelta(days=retry_days)
         report_month = (current_date - relativedelta(months=1)).strftime("%Y-%m")
 
         if retry_date <= (current_date - relativedelta(months=1)).replace(
