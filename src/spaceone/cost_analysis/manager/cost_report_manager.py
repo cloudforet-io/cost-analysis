@@ -59,7 +59,7 @@ class CostReportManager(BaseManager):
                     "locator": "SERVICE",
                     "name": "CostReportService",
                     "metadata": {"token": token},
-                    "method": "create_cost_report_by_cost_report_config_info",
+                    "method": "create_cost_report_by_cost_report_config_id",
                     "params": {"params": params},
                 }
             ],
