@@ -11,10 +11,6 @@ from spaceone.core import config
 from spaceone.core.service import *
 
 from spaceone.cost_analysis.manager import DataSourceAccountManager
-from spaceone.cost_analysis.manager.daily_cost_record_manager import (
-    DailyCostRecordManager,
-)
-from spaceone.cost_analysis.model import DailyCostRecord
 from spaceone.cost_analysis.model.cost_report.database import CostReport
 from spaceone.cost_analysis.model.cost_report_config.database import CostReportConfig
 from spaceone.cost_analysis.model.cost_report.request import *
@@ -192,7 +188,7 @@ class CostReportService(BaseService):
     @set_query_page_limit(default_limit=100)
     @convert_model
     def list(
-        self, params: CostReportSearchQueryRequest
+            self, params: CostReportSearchQueryRequest
     ) -> Union[CostReportsResponse, dict]:
         """List cost reports"""
 
@@ -360,165 +356,165 @@ class CostReportService(BaseService):
         #     domain_id, cost_report_config_id, current_date, currency
         # )
 
-    def _create_daily_cost_record(
-        self,
-        domain_id: str,
-        cost_report_config_id: str,
-        current_date: datetime,
-        currency: str,
-    ):
-        # check if create today's daily cost report
-        cost_report_data_query = {
-            "group_by": [
-                "domain_id",
-                "workspace_id",
-                "project_id",
-                "data_source_id",
-                "product",
-                "workspace_name",
-                "project_name",
-            ],
-            "fields": {
-                "value_sum": {"key": f"cost.{currency}", "operator": "sum"},
-            },
-            "filter": [
-                {"k": "is_confirmed", "v": False, "o": "eq"},
-                {"k": "cost_report_config_id", "v": cost_report_config_id, "o": "eq"},
-                {"k": "domain_id", "v": domain_id, "o": "eq"},
-                {"k": "report_month", "v": current_date.strftime("%Y-%m"), "o": "eq"},
-            ],
-        }
-        results = self.cost_report_data_mgr.analyze_cost_reports_data(
-            query=cost_report_data_query
-        ).get("results", [])
-
-        daily_cost_record_mgr = DailyCostRecordManager()
-        (
-            daily_cost_record_vos,
-            daily_cost_record_total_count,
-        ) = daily_cost_record_mgr.list_daily_cost_records(
-            query={
-                "filter": [
-                    {"k": "domain_id", "v": domain_id, "o": "eq"},
-                    {
-                        "k": "record_month",
-                        "v": current_date.strftime("%Y-%m"),
-                        "o": "eq",
-                    },
-                ]
-            }
-        )
-
-        df1 = pd.DataFrame(results)
-
-        daily_cost_record_created_at = datetime.utcnow()
-        record_month = current_date.strftime("%Y-%m")
-        record_date = current_date.strftime("%Y-%m-%d")
-        if daily_cost_record_total_count > 0:
-            if self._is_daily_cost_report_created_today(daily_cost_record_vos[0]):
-                return
-
-            daily_cost_records_info = [
-                daily_cost_record_vo.to_dict()
-                for daily_cost_record_vo in daily_cost_record_vos
-            ]
-            df2 = pd.DataFrame(daily_cost_records_info)
-            df2 = df2.drop(["_id"], axis=1)
-
-            joined_df = df1.merge(
-                df2,
-                on=[
-                    "domain_id",
-                    "workspace_id",
-                    "project_id",
-                    "data_source_id",
-                    "product",
-                ],
-                how="left",
-            )
-
-            for joined_data in joined_df.to_dict(orient="records"):
-                monthly_cost = joined_data.get("value_sum", 0)
-                before_monthly_cost = joined_data.get("monthly_cost", 0)
-
-                daily_cost_diff_percent = 0.0
-                daily_cost_diff = 0.0
-
-                if before_monthly_cost > 0:
-                    daily_cost_diff = monthly_cost - before_monthly_cost
-                    daily_cost_diff_percent = (
-                        daily_cost_diff / before_monthly_cost
-                    ) * 100
-
-                create_params = {
-                    "daily_cost_diff": daily_cost_diff,
-                    "daily_cost_diff_percent": daily_cost_diff_percent,
-                    "monthly_cost": monthly_cost,
-                    "record_month": record_month,
-                    "record_date": record_date,
-                    "product": joined_data.get("product"),
-                    "project_name": joined_data.get("project_name"),
-                    "workspace_name": joined_data.get("workspace_name"),
-                    "cost_report_config_id": cost_report_config_id,
-                    "data_source_id": joined_data["data_source_id"],
-                    "project_id": joined_data.get("project_id"),
-                    "workspace_id": joined_data["workspace_id"],
-                    "domain_id": joined_data["domain_id"],
-                }
-                daily_cost_record_mgr.create_daily_cost_record(create_params)
-
-            _LOGGER.debug(
-                f"[create_daily_cost_record] delete previous daily cost record {record_month} ({len(daily_cost_record_vos)}"
-            )
-            daily_cost_record_vos.delete()
-
-        else:
-            for result in results:
-                create_params = {
-                    "daily_cost_diff": 0.0,
-                    "daily_cost_diff_percent": 0.0,
-                    "monthly_cost": result.get("value_sum", 0, 0),
-                    "record_month": record_month,
-                    "record_date": record_date,
-                    "product": result.get("product"),
-                    "project_name": result.get("project_name"),
-                    "workspace_name": result.get("workspace_name"),
-                    "data_source_id": result["data_source_id"],
-                    "cost_report_config_id": cost_report_config_id,
-                    "project_id": result.get("project_id"),
-                    "workspace_id": result["workspace_id"],
-                    "domain_id": result["domain_id"],
-                }
-                daily_cost_record_mgr.create_daily_cost_record(create_params)
-
-    @staticmethod
-    def _is_daily_cost_report_created_today(
-        daily_cost_record_vo: DailyCostRecord,
-    ) -> bool:
-        daily_cost_record_created_at: datetime = daily_cost_record_vo.created_at
-        if daily_cost_record_created_at.strftime(
-            "%Y-%m-%d"
-        ) == datetime.utcnow().strftime("%Y-%m-%d"):
-            _LOGGER.debug(
-                f"[_is_daily_cost_report_created_today] This workspace ({daily_cost_record_vo.workspace_id}) -> SKIP"
-            )
-            return True
-
-        return False
+    # def _create_daily_cost_record(
+    #     self,
+    #     domain_id: str,
+    #     cost_report_config_id: str,
+    #     current_date: datetime,
+    #     currency: str,
+    # ):
+    #     # check if create today's daily cost report
+    #     cost_report_data_query = {
+    #         "group_by": [
+    #             "domain_id",
+    #             "workspace_id",
+    #             "project_id",
+    #             "data_source_id",
+    #             "product",
+    #             "workspace_name",
+    #             "project_name",
+    #         ],
+    #         "fields": {
+    #             "value_sum": {"key": f"cost.{currency}", "operator": "sum"},
+    #         },
+    #         "filter": [
+    #             {"k": "is_confirmed", "v": False, "o": "eq"},
+    #             {"k": "cost_report_config_id", "v": cost_report_config_id, "o": "eq"},
+    #             {"k": "domain_id", "v": domain_id, "o": "eq"},
+    #             {"k": "report_month", "v": current_date.strftime("%Y-%m"), "o": "eq"},
+    #         ],
+    #     }
+    #     results = self.cost_report_data_mgr.analyze_cost_reports_data(
+    #         query=cost_report_data_query
+    #     ).get("results", [])
+    #
+    #     daily_cost_record_mgr = DailyCostRecordManager()
+    #     (
+    #         daily_cost_record_vos,
+    #         daily_cost_record_total_count,
+    #     ) = daily_cost_record_mgr.list_daily_cost_records(
+    #         query={
+    #             "filter": [
+    #                 {"k": "domain_id", "v": domain_id, "o": "eq"},
+    #                 {
+    #                     "k": "record_month",
+    #                     "v": current_date.strftime("%Y-%m"),
+    #                     "o": "eq",
+    #                 },
+    #             ]
+    #         }
+    #     )
+    #
+    #     df1 = pd.DataFrame(results)
+    #
+    #     daily_cost_record_created_at = datetime.utcnow()
+    #     record_month = current_date.strftime("%Y-%m")
+    #     record_date = current_date.strftime("%Y-%m-%d")
+    #     if daily_cost_record_total_count > 0:
+    #         if self._is_daily_cost_report_created_today(daily_cost_record_vos[0]):
+    #             return
+    #
+    #         daily_cost_records_info = [
+    #             daily_cost_record_vo.to_dict()
+    #             for daily_cost_record_vo in daily_cost_record_vos
+    #         ]
+    #         df2 = pd.DataFrame(daily_cost_records_info)
+    #         df2 = df2.drop(["_id"], axis=1)
+    #
+    #         joined_df = df1.merge(
+    #             df2,
+    #             on=[
+    #                 "domain_id",
+    #                 "workspace_id",
+    #                 "project_id",
+    #                 "data_source_id",
+    #                 "product",
+    #             ],
+    #             how="left",
+    #         )
+    #
+    #         for joined_data in joined_df.to_dict(orient="records"):
+    #             monthly_cost = joined_data.get("value_sum", 0)
+    #             before_monthly_cost = joined_data.get("monthly_cost", 0)
+    #
+    #             daily_cost_diff_percent = 0.0
+    #             daily_cost_diff = 0.0
+    #
+    #             if before_monthly_cost > 0:
+    #                 daily_cost_diff = monthly_cost - before_monthly_cost
+    #                 daily_cost_diff_percent = (
+    #                     daily_cost_diff / before_monthly_cost
+    #                 ) * 100
+    #
+    #             create_params = {
+    #                 "daily_cost_diff": daily_cost_diff,
+    #                 "daily_cost_diff_percent": daily_cost_diff_percent,
+    #                 "monthly_cost": monthly_cost,
+    #                 "record_month": record_month,
+    #                 "record_date": record_date,
+    #                 "product": joined_data.get("product"),
+    #                 "project_name": joined_data.get("project_name"),
+    #                 "workspace_name": joined_data.get("workspace_name"),
+    #                 "cost_report_config_id": cost_report_config_id,
+    #                 "data_source_id": joined_data["data_source_id"],
+    #                 "project_id": joined_data.get("project_id"),
+    #                 "workspace_id": joined_data["workspace_id"],
+    #                 "domain_id": joined_data["domain_id"],
+    #             }
+    #             daily_cost_record_mgr.create_daily_cost_record(create_params)
+    #
+    #         _LOGGER.debug(
+    #             f"[create_daily_cost_record] delete previous daily cost record {record_month} ({len(daily_cost_record_vos)}"
+    #         )
+    #         daily_cost_record_vos.delete()
+    #
+    #     else:
+    #         for result in results:
+    #             create_params = {
+    #                 "daily_cost_diff": 0.0,
+    #                 "daily_cost_diff_percent": 0.0,
+    #                 "monthly_cost": result.get("value_sum", 0, 0),
+    #                 "record_month": record_month,
+    #                 "record_date": record_date,
+    #                 "product": result.get("product"),
+    #                 "project_name": result.get("project_name"),
+    #                 "workspace_name": result.get("workspace_name"),
+    #                 "data_source_id": result["data_source_id"],
+    #                 "cost_report_config_id": cost_report_config_id,
+    #                 "project_id": result.get("project_id"),
+    #                 "workspace_id": result["workspace_id"],
+    #                 "domain_id": result["domain_id"],
+    #             }
+    #             daily_cost_record_mgr.create_daily_cost_record(create_params)
+    #
+    # @staticmethod
+    # def _is_daily_cost_report_created_today(
+    #     daily_cost_record_vo: DailyCostRecord,
+    # ) -> bool:
+    #     daily_cost_record_created_at: datetime = daily_cost_record_vo.created_at
+    #     if daily_cost_record_created_at.strftime(
+    #         "%Y-%m-%d"
+    #     ) == datetime.utcnow().strftime("%Y-%m-%d"):
+    #         _LOGGER.debug(
+    #             f"[_is_daily_cost_report_created_today] This workspace ({daily_cost_record_vo.workspace_id}) -> SKIP"
+    #         )
+    #         return True
+    #
+    #     return False
 
     def _aggregate_monthly_cost_report(
-        self,
-        domain_id: str,
-        cost_report_config_id: str,
-        workspace_name_map: dict,
-        workspace_ids: list,
-        data_source_currency_map: dict,
-        data_source_ids: list,
-        report_month: str,
-        currency: str,
-        issue_day: int,
-        status: str,
-        issue_month: str = None,
+            self,
+            domain_id: str,
+            cost_report_config_id: str,
+            workspace_name_map: dict,
+            workspace_ids: list,
+            data_source_currency_map: dict,
+            data_source_ids: list,
+            report_month: str,
+            currency: str,
+            issue_day: int,
+            status: str,
+            issue_month: str = None,
     ) -> None:
         report_year = report_month.split("-")[0]
         issue_date = f"{issue_month}-{str(issue_day).zfill(2)}"
@@ -590,7 +586,7 @@ class CostReportService(BaseService):
         )
 
         for cost_report_idx, aggregated_cost_report in enumerate(
-            aggregated_cost_report_results, start=start_cost_report_number
+                aggregated_cost_report_results, start=start_cost_report_number
         ):
             aggregated_cost_report["report_number"] = self.generate_report_number(
                 report_month, issue_day, cost_report_idx
@@ -616,12 +612,12 @@ class CostReportService(BaseService):
         return self.cost_report_config_mgr.filter_cost_report_configs(state="ENABLED")
 
     def _delete_old_cost_reports(
-        self,
-        report_month: str,
-        domain_id: str,
-        cost_report_config_id: str,
-        status: str,
-        cost_report_created_at: datetime,
+            self,
+            report_month: str,
+            domain_id: str,
+            cost_report_config_id: str,
+            status: str,
+            cost_report_created_at: datetime,
     ) -> None:
         if status == "IN_PROGRESS":
             report_month_operator = "eq"
@@ -711,7 +707,7 @@ class CostReportService(BaseService):
         )
 
     def get_email_verified_workspace_owner_users(
-        self, domain_id: str, workspace_id: str, role_types: list = None
+            self, domain_id: str, workspace_id: str, role_types: list = None
     ) -> list:
         identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
 
@@ -736,13 +732,13 @@ class CostReportService(BaseService):
         return users_info
 
     def get_start_cost_report_number(
-        self, domain_id: str, issue_date: str = None
+            self, domain_id: str, issue_date: str = None
     ) -> int:
         return (
-            self.cost_report_mgr.filter_cost_reports(
-                domain_id=domain_id, issue_date=issue_date
-            ).count()
-            + 1
+                self.cost_report_mgr.filter_cost_reports(
+                    domain_id=domain_id, issue_date=issue_date
+                ).count()
+                + 1
         )
 
     def _get_workspace_name_map(self, domain_id: str) -> Tuple[dict, list]:
@@ -759,7 +755,7 @@ class CostReportService(BaseService):
         return workspace_name_map, workspace_ids
 
     def _get_console_cost_report_url(
-        self, domain_id: str, cost_report_id: str, token: str, language: str
+            self, domain_id: str, cost_report_id: str, token: str, language: str
     ) -> str:
         domain_name = self._get_domain_name(domain_id)
 
@@ -800,7 +796,7 @@ class CostReportService(BaseService):
         return identity_mgr.grant_token(params)
 
     def _get_virtual_workspace_ids_and_map(
-        self, domain_id: str, workspace_ids: list
+            self, domain_id: str, workspace_ids: list
     ) -> Tuple[list, dict]:
         v_workspace_ids = []
         v_workspace_id_map = {}
@@ -823,7 +819,7 @@ class CostReportService(BaseService):
         return v_workspace_ids, v_workspace_id_map
 
     def _get_data_source_currency_map(
-        self, domain_id: str, workspace_ids: list, data_source_filter: dict
+            self, domain_id: str, workspace_ids: list, data_source_filter: dict
     ) -> Tuple[dict, list]:
         data_source_currency_map = {}
         data_source_mgr = DataSourceManager()
@@ -854,11 +850,11 @@ class CostReportService(BaseService):
         return data_source_currency_map, data_source_ids
 
     def _get_is_create_report_and_report_month(
-        self,
-        issue_day: int,
-        current_date: datetime,
-        domain_id: str,
-        cost_report_config_id: str,
+            self,
+            issue_day: int,
+            current_date: datetime,
+            domain_id: str,
+            cost_report_config_id: str,
     ) -> Tuple[bool, str]:
         is_create_report = False
 
@@ -869,7 +865,7 @@ class CostReportService(BaseService):
         report_month = (current_date - relativedelta(months=1)).strftime("%Y-%m")
 
         if retry_date <= (current_date - relativedelta(months=1)).replace(
-            day=issue_day
+                day=issue_day
         ):
             is_create_report = True
             report_month = (current_date - relativedelta(months=2)).strftime("%Y-%m")
@@ -877,7 +873,7 @@ class CostReportService(BaseService):
             is_create_report = True
 
         if is_create_report and self._check_success_cost_report_exist(
-            domain_id, cost_report_config_id, report_month
+                domain_id, cost_report_config_id, report_month
         ):
             is_create_report = False
 
@@ -887,10 +883,10 @@ class CostReportService(BaseService):
         return is_create_report, report_month
 
     def _check_success_cost_report_exist(
-        self,
-        domain_id: str,
-        cost_report_config_id: str,
-        report_month: str,
+            self,
+            domain_id: str,
+            cost_report_config_id: str,
+            report_month: str,
     ):
         cost_report_vos = self.cost_report_mgr.filter_cost_reports(
             cost_report_config_id=cost_report_config_id,
@@ -919,7 +915,7 @@ class CostReportService(BaseService):
 
     @staticmethod
     def generate_report_number(
-        report_month: str, issue_day: int, cost_report_idx: int
+            report_month: str, issue_day: int, cost_report_idx: int
     ) -> str:
         report_date = f"{report_month}-{issue_day}"
         date_object = datetime.strptime(report_date, "%Y-%m-%d")

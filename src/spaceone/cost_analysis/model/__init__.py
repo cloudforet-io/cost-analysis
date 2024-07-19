@@ -10,4 +10,5 @@ from spaceone.cost_analysis.model.job_task_model import JobTask
 from spaceone.cost_analysis.model.cost_report_config.database import CostReportConfig
 from spaceone.cost_analysis.model.cost_report_data.database import CostReportData
 from spaceone.cost_analysis.model.cost_report.database import CostReport
-from spaceone.cost_analysis.model.daily_cost_record.database import DailyCostRecord
+
+# from spaceone.cost_analysis.model.daily_cost_record.database import DailyCostRecord
