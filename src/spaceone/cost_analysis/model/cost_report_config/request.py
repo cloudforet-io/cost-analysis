@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, Literal
 
 from pydantic import BaseModel
 
@@ -14,6 +14,8 @@ __all__ = [
     "CostReportConfigSearchQueryRequest",
     "CostReportConfigStatQueryRequest",
 ]
+
+State = Literal["ENABLED", "DISABLED"]
 
 
 class CostReportConfigCreateRequest(BaseModel):
@@ -70,6 +72,7 @@ class CostReportConfigGetRequest(BaseModel):
 class CostReportConfigSearchQueryRequest(BaseModel):
     query: Union[dict, None] = None
     cost_report_config_id: Union[str, None] = None
+    state: Union[State, None] = None
     domain_id: str
 
 
