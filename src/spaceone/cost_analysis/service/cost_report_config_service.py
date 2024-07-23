@@ -264,8 +264,9 @@ class CostReportConfigService(BaseService):
             params (CostReportConfigSearchQueryRequest): {
                 'query': 'dict',
                 'cost_report_config_id': 'str',
-                'domain_id': 'str'                # injected from auth (required)
+                'state": 'str',
                 'workspace_id': 'str'
+                'domain_id': 'str'                # injected from auth (required)
             }
 
         Returns:
