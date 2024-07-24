@@ -187,7 +187,7 @@ class CostReportService(BaseService):
     @set_query_page_limit(default_limit=100)
     @convert_model
     def list(
-            self, params: CostReportSearchQueryRequest
+        self, params: CostReportSearchQueryRequest
     ) -> Union[CostReportsResponse, dict]:
         """List cost reports"""
 
@@ -320,6 +320,14 @@ class CostReportService(BaseService):
                 cost_report_created_at,
             )
 
+            self._delete_old_cost_reports(
+                report_month,
+                domain_id,
+                cost_report_config_id,
+                "IN_PROGRESS",
+                cost_report_created_at,
+            )
+
         (
             currency_map,
             currency_date,
@@ -352,18 +360,18 @@ class CostReportService(BaseService):
         )
 
     def _aggregate_monthly_cost_report(
-            self,
-            domain_id: str,
-            cost_report_config_id: str,
-            workspace_name_map: dict,
-            workspace_ids: list,
-            data_source_currency_map: dict,
-            data_source_ids: list,
-            report_month: str,
-            currency: str,
-            issue_day: int,
-            status: str,
-            issue_month: str = None,
+        self,
+        domain_id: str,
+        cost_report_config_id: str,
+        workspace_name_map: dict,
+        workspace_ids: list,
+        data_source_currency_map: dict,
+        data_source_ids: list,
+        report_month: str,
+        currency: str,
+        issue_day: int,
+        status: str,
+        issue_month: str = None,
     ) -> None:
         report_year = report_month.split("-")[0]
         issue_date = f"{issue_month}-{str(issue_day).zfill(2)}"
@@ -435,7 +443,7 @@ class CostReportService(BaseService):
         )
 
         for cost_report_idx, aggregated_cost_report in enumerate(
-                aggregated_cost_report_results, start=start_cost_report_number
+            aggregated_cost_report_results, start=start_cost_report_number
         ):
             aggregated_cost_report["report_number"] = self.generate_report_number(
                 report_month, issue_day, cost_report_idx
@@ -461,22 +469,17 @@ class CostReportService(BaseService):
         return self.cost_report_config_mgr.filter_cost_report_configs(state="ENABLED")
 
     def _delete_old_cost_reports(
-            self,
-            report_month: str,
-            domain_id: str,
-            cost_report_config_id: str,
-            status: str,
-            cost_report_created_at: datetime,
+        self,
+        report_month: str,
+        domain_id: str,
+        cost_report_config_id: str,
+        status: str,
+        cost_report_created_at: datetime,
     ) -> None:
-        if status == "IN_PROGRESS":
-            report_month_operator = "eq"
-        else:
-            report_month_operator = "lte"
-
         cost_report_delete_query = {
             "filter": [
                 {"k": "cost_report_config_id", "v": cost_report_config_id, "o": "eq"},
-                {"k": "report_month", "v": report_month, "o": report_month_operator},
+                {"k": "report_month", "v": report_month, "o": "eq"},
                 {"k": "status", "v": status, "o": "eq"},
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
                 {"k": "created_at", "v": cost_report_created_at, "o": "lt"},
@@ -556,7 +559,7 @@ class CostReportService(BaseService):
         )
 
     def get_email_verified_workspace_owner_users(
-            self, domain_id: str, workspace_id: str, role_types: list = None
+        self, domain_id: str, workspace_id: str, role_types: list = None
     ) -> list:
         identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
 
@@ -581,13 +584,13 @@ class CostReportService(BaseService):
         return users_info
 
     def get_start_cost_report_number(
-            self, domain_id: str, issue_date: str = None
+        self, domain_id: str, issue_date: str = None
     ) -> int:
         return (
-                self.cost_report_mgr.filter_cost_reports(
-                    domain_id=domain_id, issue_date=issue_date
-                ).count()
-                + 1
+            self.cost_report_mgr.filter_cost_reports(
+                domain_id=domain_id, issue_date=issue_date
+            ).count()
+            + 1
         )
 
     def _get_workspace_name_map(self, domain_id: str) -> Tuple[dict, list]:
@@ -604,7 +607,7 @@ class CostReportService(BaseService):
         return workspace_name_map, workspace_ids
 
     def _get_console_cost_report_url(
-            self, domain_id: str, cost_report_id: str, token: str, language: str
+        self, domain_id: str, cost_report_id: str, token: str, language: str
     ) -> str:
         domain_name = self._get_domain_name(domain_id)
 
@@ -645,7 +648,7 @@ class CostReportService(BaseService):
         return identity_mgr.grant_token(params)
 
     def _get_virtual_workspace_ids_and_map(
-            self, domain_id: str, workspace_ids: list
+        self, domain_id: str, workspace_ids: list
     ) -> Tuple[list, dict]:
         v_workspace_ids = []
         v_workspace_id_map = {}
@@ -668,7 +671,7 @@ class CostReportService(BaseService):
         return v_workspace_ids, v_workspace_id_map
 
     def _get_data_source_currency_map(
-            self, domain_id: str, workspace_ids: list, data_source_filter: dict
+        self, domain_id: str, workspace_ids: list, data_source_filter: dict
     ) -> Tuple[dict, list]:
         data_source_currency_map = {}
         data_source_mgr = DataSourceManager()
@@ -699,11 +702,11 @@ class CostReportService(BaseService):
         return data_source_currency_map, data_source_ids
 
     def _get_is_create_report_and_report_month(
-            self,
-            issue_day: int,
-            current_date: datetime,
-            domain_id: str,
-            cost_report_config_id: str,
+        self,
+        issue_day: int,
+        current_date: datetime,
+        domain_id: str,
+        cost_report_config_id: str,
     ) -> Tuple[bool, str]:
         is_create_report = False
 
@@ -714,7 +717,7 @@ class CostReportService(BaseService):
         report_month = (current_date - relativedelta(months=1)).strftime("%Y-%m")
 
         if retry_date <= (current_date - relativedelta(months=1)).replace(
-                day=issue_day
+            day=issue_day
         ):
             is_create_report = True
             report_month = (current_date - relativedelta(months=2)).strftime("%Y-%m")
@@ -722,7 +725,7 @@ class CostReportService(BaseService):
             is_create_report = True
 
         if is_create_report and self._check_success_cost_report_exist(
-                domain_id, cost_report_config_id, report_month
+            domain_id, cost_report_config_id, report_month
         ):
             is_create_report = False
 
@@ -732,10 +735,10 @@ class CostReportService(BaseService):
         return is_create_report, report_month
 
     def _check_success_cost_report_exist(
-            self,
-            domain_id: str,
-            cost_report_config_id: str,
-            report_month: str,
+        self,
+        domain_id: str,
+        cost_report_config_id: str,
+        report_month: str,
     ):
         cost_report_vos = self.cost_report_mgr.filter_cost_reports(
             cost_report_config_id=cost_report_config_id,
@@ -764,7 +767,7 @@ class CostReportService(BaseService):
 
     @staticmethod
     def generate_report_number(
-            report_month: str, issue_day: int, cost_report_idx: int
+        report_month: str, issue_day: int, cost_report_idx: int
     ) -> str:
         report_date = f"{report_month}-{issue_day}"
         date_object = datetime.strptime(report_date, "%Y-%m-%d")
