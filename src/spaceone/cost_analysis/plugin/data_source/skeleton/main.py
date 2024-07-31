@@ -77,8 +77,13 @@ def cost_get_linked_accounts(params: dict) -> dict:
             'secret_data': 'dict',  # Required
             'domain_id': 'str'      # Required
 
-
+    }
+    Returns:
+        LinkedAccountsResponse: {
+            'linked_accounts': 'list'
+        }
     """
+
     pass
 
 

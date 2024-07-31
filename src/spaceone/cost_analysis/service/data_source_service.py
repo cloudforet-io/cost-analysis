@@ -251,6 +251,11 @@ class DataSourceService(BaseService):
             data_source_id, domain_id
         )
 
+        deny = params.permissions.get("deny", [])
+
+        if deny:
+            params.permissions["deny"] = list(set(deny))
+
         data_source_vo = self.data_source_mgr.update_data_source_by_vo(
             params.dict(exclude_unset=True), data_source_vo
         )
@@ -842,9 +847,9 @@ class DataSourceService(BaseService):
             )
         )
         for data_source_account_vo in data_source_account_vos:
-            data_source_account_vo_map[
-                data_source_account_vo.account_id
-            ] = data_source_account_vo
+            data_source_account_vo_map[data_source_account_vo.account_id] = (
+                data_source_account_vo
+            )
         return data_source_account_vo_map
 
     def _change_filter_connected_workspace_data_source(
