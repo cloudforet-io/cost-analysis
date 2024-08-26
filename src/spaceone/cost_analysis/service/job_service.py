@@ -882,13 +882,11 @@ class JobService(BaseService):
         cursor = self.cost_mgr.analyze_costs(query, domain_id, target="PRIMARY")
 
         row_count = 0
-        for aggregated_cost_data in cursor:
-            _LOGGER.debug(
-                f"[_aggregate_monthly_cost_data] data: {aggregated_cost_data}"
-            )
-            _LOGGER.debug(
-                f"[_aggregate_monthly_cost_data] data type: {type(aggregated_cost_data)}"
-            )
+        for row in cursor:
+            aggregated_cost_data = copy.deepcopy(row)
+            for key, value in row.get("_id", {}).items():
+                aggregated_cost_data[key] = value
+
             aggregated_cost_data["data_source_id"] = data_source_id
             aggregated_cost_data["billed_month"] = billed_month
             aggregated_cost_data["job_id"] = job_id
@@ -901,9 +899,6 @@ class JobService(BaseService):
                     f"data_{data_key}", None
                 )
 
-            _LOGGER.debug(
-                f"[_aggregate_monthly_cost_data] input data: {aggregated_cost_data}"
-            )
             self.cost_mgr.create_monthly_cost(aggregated_cost_data)
             row_count += 1
 
