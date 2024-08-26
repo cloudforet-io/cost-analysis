@@ -869,6 +869,7 @@ class JobService(BaseService):
                 {"k": "job_task_id", "v": job_task_id, "o": "eq"},
             ],
             "allow_disk_use": True,  # Allow disk use for large data
+            "return_type": "cursor",  # Return type is cursor
         }
 
         for data_key in data_keys:
@@ -876,9 +877,12 @@ class JobService(BaseService):
                 {f"data_{data_key}": {"key": f"data.{data_key}", "operator": "sum"}}
             )
 
-        response = self.cost_mgr.analyze_costs(query, domain_id, target="PRIMARY")
-        results = response.get("results", [])
-        for aggregated_cost_data in results:
+        # response = self.cost_mgr.analyze_costs(query, domain_id, target="PRIMARY")
+        # results = response.get("results", [])
+        cursor = self.cost_mgr.analyze_costs(query, domain_id, target="PRIMARY")
+
+        row_count = 0
+        for aggregated_cost_data in cursor:
             aggregated_cost_data["data_source_id"] = data_source_id
             aggregated_cost_data["billed_month"] = billed_month
             aggregated_cost_data["job_id"] = job_id
@@ -891,9 +895,10 @@ class JobService(BaseService):
                     f"data_{data_key}", None
                 )
             self.cost_mgr.create_monthly_cost(aggregated_cost_data)
+            row_count += 1
 
         _LOGGER.debug(
-            f"[_aggregate_monthly_cost_data] create monthly costs ({billed_month}): {job_id} (count = {len(results)})"
+            f"[_aggregate_monthly_cost_data] create monthly costs ({billed_month}): {job_id} (count = {row_count})"
         )
 
     def _get_all_data_sources(self):
