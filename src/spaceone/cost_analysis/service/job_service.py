@@ -306,6 +306,8 @@ class JobService(BaseService):
             data_source_id,
             domain_id,
             data_source_vo.cost_data_keys,
+            data_source_vo.cost_additional_info_keys,
+            data_source_vo.cost_tag_keys,
             job_task_vo.workspace_id,
         )
 
@@ -604,6 +606,8 @@ class JobService(BaseService):
         data_source_id: str,
         domain_id: str,
         data_keys: list,
+        additional_info_keys: list,
+        tag_keys: list,
         workspace_id: str = None,
     ) -> None:
         job_vo: Job = self.job_mgr.get_job(job_id, domain_id, workspace_id)
@@ -612,7 +616,9 @@ class JobService(BaseService):
         if job_vo.remained_tasks == 0:
             if job_vo.status == "IN_PROGRESS":
                 try:
-                    self._aggregate_cost_data(job_vo, data_keys)
+                    self._aggregate_cost_data(
+                        job_vo, data_keys, additional_info_keys, tag_keys
+                    )
 
                     for changed_vo in job_vo.changed:
                         self._delete_changed_cost_data(
@@ -791,7 +797,9 @@ class JobService(BaseService):
             f"[_delete_changed_cost_data] delete monthly costs (count = {total_count})"
         )
 
-    def _aggregate_cost_data(self, job_vo: Job, data_keys: list):
+    def _aggregate_cost_data(
+        self, job_vo: Job, data_keys: list, additional_info_keys: list, tag_keys: list
+    ):
         data_source_id = job_vo.data_source_id
         domain_id = job_vo.domain_id
         job_id = job_vo.job_id
@@ -808,6 +816,8 @@ class JobService(BaseService):
                     job_task_id,
                     billed_month,
                     data_keys,
+                    additional_info_keys,
+                    tag_keys,
                 )
 
     def _distinct_billed_month(
@@ -839,6 +849,8 @@ class JobService(BaseService):
         job_task_id: str,
         billed_month: str,
         data_keys: list,
+        additional_info_keys: list,
+        tag_keys: list,
     ):
         query = {
             "group_by": [
@@ -849,8 +861,8 @@ class JobService(BaseService):
                 "product",
                 "usage_type",
                 "resource",
-                "tags",
-                "additional_info",
+                # "tags",
+                # "additional_info",
                 "service_account_id",
                 "project_id",
                 "workspace_id",
@@ -872,31 +884,52 @@ class JobService(BaseService):
             "return_type": "cursor",  # Return type is cursor
         }
 
+        for info_key in additional_info_keys:
+            query["group_by"].append(
+                {
+                    "key": f"additional_info.{info_key}",
+                    "name": f"additional_info_{info_key}",
+                }
+            )
+
+        for tag_key in tag_keys:
+            query["group_by"].append(
+                {"key": f"tags.{tag_key}", "name": f"tags_{tag_key}"}
+            )
+
         for data_key in data_keys:
             query["fields"].update(
                 {f"data_{data_key}": {"key": f"data.{data_key}", "operator": "sum"}}
             )
 
-        # response = self.cost_mgr.analyze_costs(query, domain_id, target="PRIMARY")
-        # results = response.get("results", [])
         cursor = self.cost_mgr.analyze_costs(query, domain_id, target="PRIMARY")
 
         row_count = 0
         for row in cursor:
             aggregated_cost_data = copy.deepcopy(row)
+            aggregated_cost_data["additional_info"] = {}
+            aggregated_cost_data["tags"] = {}
+
             for key, value in row.get("_id", {}).items():
-                aggregated_cost_data[key] = value
+                if key.startswith("additional_info_"):
+                    aggregated_cost_data["additional_info"][
+                        key.replace("additional_info_", "")
+                    ] = value
+                elif key.startswith("tags_"):
+                    aggregated_cost_data["tags"][key.replace("tags_", "")] = value
+                else:
+                    aggregated_cost_data[key] = value
 
             aggregated_cost_data["data_source_id"] = data_source_id
             aggregated_cost_data["billed_month"] = billed_month
             aggregated_cost_data["job_id"] = job_id
-            aggregated_cost_data["job_task_id"] = job_id
+            aggregated_cost_data["job_task_id"] = job_task_id
             aggregated_cost_data["domain_id"] = domain_id
             aggregated_cost_data["data"] = {}
 
             for data_key in data_keys:
-                aggregated_cost_data["data"][data_key] = aggregated_cost_data.pop(
-                    f"data_{data_key}", None
+                aggregated_cost_data["data"][data_key] = aggregated_cost_data.get(
+                    f"data_{data_key}", 0
                 )
 
             self.cost_mgr.create_monthly_cost(aggregated_cost_data)
