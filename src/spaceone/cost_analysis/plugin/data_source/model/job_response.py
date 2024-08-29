@@ -16,6 +16,7 @@ class Changed(BaseModel):
 
 class SyncedAccount(BaseModel):
     account_id: str
+    name: Union[str, None] = None
 
 
 class TasksResponse(BaseModel):

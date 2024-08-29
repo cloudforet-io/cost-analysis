@@ -60,7 +60,7 @@ class PluginMetadata(BaseModel):
     use_account_routing: bool = False
     account_match_key: Union[str, None] = None
     account_connect_polices: List[dict] = []
-    additional_info: Dict[str, dict] = {}
+    additional_info: Dict[str, dict] = None
 
 
 class PluginResponse(BaseModel):
