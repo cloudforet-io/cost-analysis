@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List, Union, Dict
 from enum import Enum
 from pydantic import BaseModel
 
@@ -60,6 +60,7 @@ class PluginMetadata(BaseModel):
     use_account_routing: bool = False
     account_match_key: Union[str, None] = None
     account_connect_polices: List[dict] = []
+    additional_info: Dict[str, dict] = None
 
 
 class PluginResponse(BaseModel):
