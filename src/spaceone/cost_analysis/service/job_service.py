@@ -892,10 +892,11 @@ class JobService(BaseService):
                 }
             )
 
-        for tag_key in tag_keys:
-            query["group_by"].append(
-                {"key": f"tags.{tag_key}", "name": f"tags_{tag_key}"}
-            )
+        # temporary remove tag group by
+        # for tag_key in tag_keys:
+        #     query["group_by"].append(
+        #         {"key": f"tags.{tag_key}", "name": f"tags_{tag_key}"}
+        #     )
 
         for data_key in data_keys:
             query["fields"].update(
@@ -1002,9 +1003,9 @@ class JobService(BaseService):
         )
 
         for data_source_account_vo in data_source_account_vos:
-            data_source_account_map[
-                data_source_account_vo.account_id
-            ] = data_source_account_vo
+            data_source_account_map[data_source_account_vo.account_id] = (
+                data_source_account_vo
+            )
 
         return data_source_account_map
 
