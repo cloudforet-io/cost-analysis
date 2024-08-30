@@ -260,7 +260,7 @@ class JobService(BaseService):
                 is_canceled = False
 
                 for costs_data in self.ds_plugin_mgr.get_cost_data(
-                    options, secret_data, schema, task_options, domain_id
+                        options, secret_data, schema, task_options, domain_id
                 ):
                     results = costs_data.get("results", [])
                     for cost_data in results:
@@ -370,7 +370,12 @@ class JobService(BaseService):
                 )
                 tasks.extend(single_tasks)
                 changed.extend(single_changed)
-                synced_accounts.extend(single_synced_accounts)
+                synced_accounts.extend(
+                    [
+                        single_synced_account.get("account_id")
+                        for single_synced_account in single_synced_accounts
+                    ]
+                )
             except Exception as e:
                 _LOGGER.error(f"[create_cost_job] get_tasks error: {e}", exc_info=True)
 
@@ -436,11 +441,11 @@ class JobService(BaseService):
         return job_vo
 
     def _list_secret_ids_from_secret_type(
-        self,
-        data_source_vo: DataSource,
-        secret_type: str,
-        workspace_id: str,
-        domain_id: str,
+            self,
+            data_source_vo: DataSource,
+            secret_type: str,
+            workspace_id: str,
+            domain_id: str,
     ):
         secret_ids = []
 
@@ -461,7 +466,7 @@ class JobService(BaseService):
         return secret_ids
 
     def _list_secret_ids_from_secret_filter(
-        self, secret_filter, provider: str, workspace_id: str, domain_id: str
+            self, secret_filter, provider: str, workspace_id: str, domain_id: str
     ):
         secret_manager: SecretManager = self.locator.get_manager(SecretManager)
 
@@ -476,7 +481,7 @@ class JobService(BaseService):
 
     @staticmethod
     def _set_secret_filter(
-        secret_filter, provider: str, workspace_id: str, domain_id: str
+            secret_filter, provider: str, workspace_id: str, domain_id: str
     ):
         _filter = [{"k": "domain_id", "v": domain_id, "o": "eq"}]
 
@@ -491,8 +496,8 @@ class JobService(BaseService):
                     {"k": "secret_id", "v": secret_filter["secrets"], "o": "in"}
                 )
             if (
-                "service_accounts" in secret_filter
-                and secret_filter["service_accounts"]
+                    "service_accounts" in secret_filter
+                    and secret_filter["service_accounts"]
             ):
                 _filter.append(
                     {
@@ -588,10 +593,10 @@ class JobService(BaseService):
         self.cost_mgr.create_cost(cost_data, execute_rollback=False)
 
     def _is_job_failed(
-        self,
-        job_id: str,
-        domain_id: str,
-        workspace_id: str,
+            self,
+            job_id: str,
+            domain_id: str,
+            workspace_id: str,
     ):
         job_vo: Job = self.job_mgr.get_job(job_id, domain_id, workspace_id)
 
@@ -601,14 +606,14 @@ class JobService(BaseService):
             return False
 
     def _close_job(
-        self,
-        job_id: str,
-        data_source_id: str,
-        domain_id: str,
-        data_keys: list,
-        additional_info_keys: list,
-        tag_keys: list,
-        workspace_id: str = None,
+            self,
+            job_id: str,
+            data_source_id: str,
+            domain_id: str,
+            data_keys: list,
+            additional_info_keys: list,
+            tag_keys: list,
+            workspace_id: str = None,
     ) -> None:
         job_vo: Job = self.job_mgr.get_job(job_id, domain_id, workspace_id)
         no_preload_cache = job_vo.options.get("no_preload_cache", False)
@@ -762,7 +767,7 @@ class JobService(BaseService):
         monthly_cost_vos.delete()
 
     def _delete_changed_cost_data(
-        self, job_vo: Job, start, end, change_filter, domain_id
+            self, job_vo: Job, start, end, change_filter, domain_id
     ):
         query = {
             "filter": [
@@ -798,7 +803,7 @@ class JobService(BaseService):
         )
 
     def _aggregate_cost_data(
-        self, job_vo: Job, data_keys: list, additional_info_keys: list, tag_keys: list
+            self, job_vo: Job, data_keys: list, additional_info_keys: list, tag_keys: list
     ):
         data_source_id = job_vo.data_source_id
         domain_id = job_vo.domain_id
@@ -807,7 +812,7 @@ class JobService(BaseService):
 
         for job_task_id in job_task_ids:
             for billed_month in self._distinct_billed_month(
-                domain_id, data_source_id, job_id, job_task_id
+                    domain_id, data_source_id, job_id, job_task_id
             ):
                 self._aggregate_monthly_cost_data(
                     data_source_id,
@@ -821,7 +826,7 @@ class JobService(BaseService):
                 )
 
     def _distinct_billed_month(
-        self, domain_id: str, data_source_id: str, job_id: str, job_task_id: str
+            self, domain_id: str, data_source_id: str, job_id: str, job_task_id: str
     ):
         query = {
             "distinct": "billed_month",
@@ -842,15 +847,15 @@ class JobService(BaseService):
         return values
 
     def _aggregate_monthly_cost_data(
-        self,
-        data_source_id: str,
-        domain_id: str,
-        job_id: str,
-        job_task_id: str,
-        billed_month: str,
-        data_keys: list,
-        additional_info_keys: list,
-        tag_keys: list,
+            self,
+            data_source_id: str,
+            domain_id: str,
+            job_id: str,
+            job_task_id: str,
+            billed_month: str,
+            data_keys: list,
+            additional_info_keys: list,
+            tag_keys: list,
     ):
         query = {
             "group_by": [
@@ -946,7 +951,7 @@ class JobService(BaseService):
         )
 
     def _check_duplicate_job(
-        self, data_source_id: str, domain_id: str, this_job_vo: Job
+            self, data_source_id: str, domain_id: str, this_job_vo: Job
     ):
         query = {
             "filter": [
@@ -984,11 +989,11 @@ class JobService(BaseService):
         return job_task_ids
 
     def _get_data_source_account_map(
-        self,
-        data_source_id: str,
-        domain_id: str,
-        workspace_id: str,
-        resource_group: str,
+            self,
+            data_source_id: str,
+            domain_id: str,
+            workspace_id: str,
+            resource_group: str,
     ) -> Dict[str, DataSourceAccount]:
         data_source_account_map = {}
         conditions = {
@@ -1010,11 +1015,11 @@ class JobService(BaseService):
         return data_source_account_map
 
     def _get_linked_accounts_from_data_source_vo(
-        self,
-        data_source_vo: DataSource,
-        options: dict,
-        secret_data: dict,
-        schema: dict = None,
+            self,
+            data_source_vo: DataSource,
+            options: dict,
+            secret_data: dict,
+            schema: dict = None,
     ) -> list:
         linked_accounts = []
 
