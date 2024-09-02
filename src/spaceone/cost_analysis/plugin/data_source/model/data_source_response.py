@@ -15,7 +15,13 @@ class MatchProject(BaseModel):
     target: str
 
 
+class MatchWorkspace(BaseModel):
+    source: str
+    target: str
+
+
 class Actions(BaseModel):
+    match_workspace: Union[MatchWorkspace] = None
     match_service_account: Union[MatchServiceAccount, None] = None
     match_project: Union[MatchProject, None] = None
     change_project: Union[str, None] = None
