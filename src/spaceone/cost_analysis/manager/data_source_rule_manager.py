@@ -1,5 +1,6 @@
 import logging
 import functools
+from typing import Any
 
 from mongoengine import QuerySet
 from spaceone.core import utils
@@ -19,6 +20,8 @@ class DataSourceRuleManager(BaseManager):
         self.data_source_rule_model: DataSourceRule = self.locator.get_model(
             "DataSourceRule"
         )
+
+        self._workspace_info = {}
         self._project_info = {}
         self._service_account_info = {}
         self._data_source_rule_info = {}
@@ -135,7 +138,20 @@ class DataSourceRuleManager(BaseManager):
         workspace_id: str = None,
     ):
         for action, value in actions.items():
-            if action == "change_project" and value:
+
+            if action == "match_workspace" and value:
+                source = value["source"]
+                target_key = value.get("target", "workspace_id")
+                target_value = utils.get_dict_value(cost_data, source)
+
+                if target_value:
+                    workspace_info = self._get_workspace(
+                        target_key, target_value, domain_id
+                    )
+                    if workspace_info:
+                        cost_data["workspace_id"] = workspace_info["workspace_id"]
+
+            elif action == "change_project" and value:
                 cost_data["project_id"] = value
 
             elif action == "match_project" and value:
@@ -245,10 +261,37 @@ class DataSourceRuleManager(BaseManager):
         if total_count > 0:
             project_info = results[0]
 
-        self._project_info[
-            f"project:{domain_id}:{target_key}:{target_value}"
-        ] = project_info
+        self._project_info[f"project:{domain_id}:{target_key}:{target_value}"] = (
+            project_info
+        )
         return project_info
+
+    def _get_workspace(
+        self, target_key: str, target_value: Any, domain_id: str
+    ) -> dict:
+        if f"workspace:{domain_id}:{target_key}:{target_value}" in self._workspace_info:
+            return self._workspace_info[
+                f"workspace:{domain_id}:{target_key}:{target_value}"
+            ]
+
+        query = {
+            "filter": [{"k": target_key, "v": target_value, "o": "eq"}],
+            "only": ["workspace_id"],
+        }
+
+        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
+        response = identity_mgr.list_projects({"query": query}, domain_id)
+        results = response.get("results", [])
+        total_count = response.get("total_count", 0)
+
+        workspace_info = None
+        if total_count > 0:
+            workspace_info = results[0]
+
+        self._workspace_info[f"workspace:{domain_id}:{target_key}:{target_value}"] = (
+            workspace_info
+        )
+        return workspace_info
 
     def _change_cost_data_by_rule(
         self, cost_data: dict, data_source_rule_vo: DataSourceRule
