@@ -401,6 +401,10 @@ class DataSourceRuleService(BaseService):
                 )
 
     def _check_actions(self, actions: dict, domain_id: str) -> None:
+        if match_workspace := actions.get("match_workspace"):
+            if "source" not in match_workspace:
+                raise ERROR_REQUIRED_PARAMETER(key="actions.match_workspace.source")
+
         if project_id := actions.get("change_project"):
             identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
             identity_mgr.get_project(project_id, domain_id)
@@ -415,7 +419,7 @@ class DataSourceRuleService(BaseService):
                     key="actions.match_service_account.source"
                 )
 
-    def _get_highest_order(self, data_source_id, rule_type, domain_id):
+    def _get_highest_order(self, data_source_id: str, rule_type: str, domain_id: str):
         data_source_rule_vos = self.data_source_rule_mgr.filter_data_source_rules(
             data_source_id=data_source_id, rule_type=rule_type, domain_id=domain_id
         )

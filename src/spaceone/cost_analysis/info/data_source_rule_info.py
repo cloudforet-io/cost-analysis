@@ -46,7 +46,7 @@ def DataSourceRuleActionsInfo(actions_data):
         info = {}
 
         for key, value in actions_data.items():
-            if key in ["match_project", "match_service_account"]:
+            if key in ["match_project", "match_service_account", "match_workspace"]:
                 info[key] = DataSourceRuleActionMatchRuleInfo(value)
             elif key == "add_additional_info":
                 info[key] = change_struct_type(value)
