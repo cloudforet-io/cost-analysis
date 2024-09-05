@@ -717,6 +717,7 @@ class CostReportService(BaseService):
 
         if retry_date.month != current_date.month:
             issue_date = (current_date - relativedelta(months=1)).replace(day=issue_day)
+
             report_date = current_date - relativedelta(months=2)
             issue_day = self.get_issue_day(is_last_day, issue_day)
         else:
@@ -738,6 +739,7 @@ class CostReportService(BaseService):
 
         if issue_day == current_day:
             is_create_report = True
+            report_month = (current_date - relativedelta(months=1)).strftime("%Y-%m")
 
         return is_create_report, report_month
 
