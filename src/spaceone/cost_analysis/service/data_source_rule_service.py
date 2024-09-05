@@ -75,7 +75,7 @@ class DataSourceRuleService(BaseService):
         ]
     )
     @change_date_value(["start", "end"])
-    def create_data_source_rule(self, params):
+    def create_data_source_rule(self, params: dict):
         domain_id: str = params["domain_id"]
         data_source_id: str = params["data_source_id"]
         conditions: list = params.get("conditions", [])
@@ -401,6 +401,20 @@ class DataSourceRuleService(BaseService):
                 )
 
     def _check_actions(self, actions: dict, domain_id: str) -> None:
+        actions_keys = set(actions.keys())
+        allowed_actions = {
+            "match_workspace",
+            "change_project",
+            "match_project",
+            "match_service_account",
+        }
+
+        if len(actions_keys & allowed_actions) > 1:
+            raise ERROR_INVALID_PARAMETER(
+                key="actions",
+                reason="Only one of 'match_workspace', 'change_project', 'match_project', 'match_service_account' can be set.",
+            )
+
         if match_workspace := actions.get("match_workspace"):
             if "source" not in match_workspace:
                 raise ERROR_REQUIRED_PARAMETER(key="actions.match_workspace.source")
