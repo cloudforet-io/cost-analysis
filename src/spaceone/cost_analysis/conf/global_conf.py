@@ -23,7 +23,7 @@ COST_REPORT_DEFAULT_PERMISSIONS = [
     "cost-analysis:CostReport.read",
     "cost-analysis:CostReportData.read",
     "cost-analysis:CostReportConfig.read",
-    "config:Domain.read",
+    "config:DomainConfig.read",
     "identity:Provider.read",
 ]
 
