@@ -38,6 +38,10 @@ class CostReportManager(BaseManager):
 
         return self.cost_report_model.get(**conditions)
 
+    @staticmethod
+    def delete_cost_report_by_vo(cost_report_vo: CostReport) -> None:
+        cost_report_vo.delete()
+
     def filter_cost_reports(self, **conditions) -> QuerySet:
         return self.cost_report_model.filter(**conditions)
 

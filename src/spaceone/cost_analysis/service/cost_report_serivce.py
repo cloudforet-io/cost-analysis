@@ -500,7 +500,7 @@ class CostReportService(BaseService):
             )
 
             cost_report_data_vos.delete()
-            cost_report_vo.delete()
+            self.cost_report_mgr.delete_cost_report_by_vo(cost_report_vo)
 
         _LOGGER.debug(
             f"[_delete_last_month_cost_reports] delete cost reports ({cost_report_config_id}:{report_month}) (count = {total_count}))"
@@ -725,7 +725,7 @@ class CostReportService(BaseService):
             report_date = current_date - relativedelta(months=1)
 
         if (
-            current_date < report_date
+            current_date > report_date
             and retry_date <= issue_date.replace(day=issue_day) <= current_date
         ):
             is_create_report = True
@@ -741,6 +741,9 @@ class CostReportService(BaseService):
             is_create_report = True
             report_month = (current_date - relativedelta(months=1)).strftime("%Y-%m")
 
+        _LOGGER.debug(
+            f"[get_is_create_report_and_report_month] cost_report_config_id: {cost_report_config_id} is_create_report: {is_create_report}, report_month: {report_month}"
+        )
         return is_create_report, report_month
 
     def _check_success_cost_report_exist(
