@@ -832,10 +832,10 @@ class DataSourceService(BaseService):
         )
 
         # Delete old data source accounts
-        for data_source_account_vo in exist_data_source_account_vo_map.values():
-            self.data_source_account_mgr.delete_source_account_by_vo(
-                data_source_account_vo
-            )
+        # for data_source_account_vo in exist_data_source_account_vo_map.values():
+        #     self.data_source_account_mgr.delete_source_account_by_vo(
+        #         data_source_account_vo
+        #     )
 
     def _get_data_source_account_vo_map(
         self, data_source_id: str, domain_id: str
