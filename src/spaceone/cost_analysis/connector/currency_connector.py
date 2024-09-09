@@ -1,9 +1,10 @@
 import logging
 import FinanceDataReader as fdr
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Tuple, Union
 
+import requests
 from dateutil.relativedelta import relativedelta
 from spaceone.core.connector import BaseConnector
 
@@ -51,20 +52,59 @@ class CurrencyConnector(BaseConnector):
         return currency_map
 
     @staticmethod
+    def http_datareader(pair, currency_end_date, currency_start_date) -> dict:
+        pair = f"{pair.replace('/','')}=X"
+        start_date_time_stamp = int(currency_start_date.timestamp())
+        end_date_time_stamp = int(currency_end_date.timestamp())
+
+        url = f"https://query2.finance.yahoo.com/v8/finance/chart/{pair}?period1={start_date_time_stamp}&period2={end_date_time_stamp}&interval=1d&events=history&includeAdjustedClose=true"
+        headers = {
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0",
+        }
+        response = requests.request(method="GET", url=url, headers=headers)
+        return response.json()
+
     def _get_exchange_rate_info(
+        self,
         pair: str,
         currency_end_date: datetime,
         currency_start_date: Union[datetime, None] = None,
     ):
         if not currency_start_date:
-            currency_start_date = currency_end_date - relativedelta(days=14)
-
-        return (
-            fdr.DataReader(
-                symbol=pair,
-                start=currency_start_date,
-                end=currency_end_date,
+            currency_start_date = currency_end_date - relativedelta(days=15)
+        currency_end_date = currency_end_date.utcnow()
+        try:
+            return (
+                fdr.DataReader(
+                    pair,
+                    start=currency_start_date,
+                    end=currency_end_date,
+                )
+                .dropna()
+                .reset_index()[["Date", "Close"]]
             )
-            .dropna()
-            .reset_index()[["Date", "Close"]]
-        )
+        except Exception as e:
+            import pandas as pd
+
+            _LOGGER.error(f"[get_exchange_rate_info] Error {e}")
+            response_json = self.http_datareader(
+                pair, currency_end_date, currency_start_date
+            )
+
+            quotes = response_json["chart"]["result"][0]["indicators"]["quote"][0]
+            timestamps = response_json["chart"]["result"][0]["timestamp"]
+
+            # convert bst to utc
+            converted_datetime = [
+                datetime.utcfromtimestamp(ts + 3600) for ts in timestamps
+            ]
+
+            df = pd.DataFrame(
+                {
+                    "Date": converted_datetime,
+                    "Close": quotes["close"],
+                }
+            )
+
+            return df.dropna().reset_index()[["Date", "Close"]]
