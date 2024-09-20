@@ -368,6 +368,7 @@ class DataSourceService(BaseService):
                 'version': 'str',
                 'options': 'dict',
                 'upgrade_mode': 'str',
+                'workspace_id': 'str',   # injected from auth
                 'domain_id': 'str'       # injected from auth
             }
 
@@ -377,11 +378,19 @@ class DataSourceService(BaseService):
 
         data_source_id = params["data_source_id"]
         domain_id = params["domain_id"]
+        workspace_id = params.get("workspace_id")
         version = params.get("version")
         options = params.get("options")
         upgrade_mode = params.get("upgrade_mode")
 
-        data_source_vo = self.data_source_mgr.get_data_source(data_source_id, domain_id)
+        conditions = {
+            "data_source_id": data_source_id,
+            "domain_id": domain_id,
+        }
+        if workspace_id:
+            conditions["workspace_id"] = workspace_id
+
+        data_source_vo = self.data_source_mgr.get_data_source(**conditions)
 
         if data_source_vo.data_source_type == "LOCAL":
             raise ERROR_NOT_ALLOW_PLUGIN_SETTINGS(data_source_id=data_source_id)
