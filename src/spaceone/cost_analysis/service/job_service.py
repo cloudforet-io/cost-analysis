@@ -9,8 +9,6 @@ from dateutil.relativedelta import relativedelta
 from spaceone.core.service import *
 from spaceone.core import utils, config
 from spaceone.cost_analysis.error import *
-from spaceone.cost_analysis.manager import IdentityManager
-from spaceone.cost_analysis.manager.config_manager import ConfigManager
 from spaceone.cost_analysis.model import DataSourceAccount
 from spaceone.cost_analysis.model.job_task_model import JobTask
 from spaceone.cost_analysis.model.job_model import Job
@@ -945,7 +943,7 @@ class JobService(BaseService):
             row_count += 1
 
         _LOGGER.debug(
-            f"[_aggregate_monthly_cost_data] create monthly costs ({billed_month}): {job_id} (count = {row_count})"
+            f"[_aggregate_monthly_cost_data] create monthly costs ({billed_month}): {job_id}, {job_task} (count = {row_count})"
         )
 
     def _get_all_data_sources(self):
