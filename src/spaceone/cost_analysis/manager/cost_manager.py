@@ -537,15 +537,14 @@ class CostManager(BaseManager):
 
     @staticmethod
     def _get_workspace_key_name_from_query(query_group_by: list) -> str:
-        workspace_key_name = "workspace_id"
+        workspace_id_key_name = "workspace_id"
         for group_by_info in query_group_by:
             if isinstance(group_by_info, dict):
                 key = group_by_info.get("key")
-            else:
-                key = group_by_info
-            if key == "workspace_id":
-                workspace_key_name = group_by_info.get("name")
-        return workspace_key_name
+                if key == "workspace_id":
+                    workspace_id_key_name = group_by_info.get("name", "workspace_id")
+
+        return workspace_id_key_name
 
     def _get_workspace_id_from_v_workspace_id(
         self, domain_id: str, v_workspace_id: str

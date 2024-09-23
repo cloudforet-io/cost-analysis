@@ -133,7 +133,7 @@ class JobService(BaseService):
     @change_value_by_rule("APPEND", "workspace_id", "*")
     @check_required(["domain_id"])
     @append_query_filter(
-        ["job_id", "status", "data_source_id", "workspace_id", "domain_id"]
+        ["status", "job_id", "data_source_id", "workspace_id", "domain_id"]
     )
     @append_keyword_filter(["job_id"])
     def list(self, params):
