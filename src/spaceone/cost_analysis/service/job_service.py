@@ -7,8 +7,10 @@ from typing import Dict
 from dateutil.relativedelta import relativedelta
 
 from spaceone.core.service import *
-from spaceone.core import utils
+from spaceone.core import utils, config
 from spaceone.cost_analysis.error import *
+from spaceone.cost_analysis.manager import IdentityManager
+from spaceone.cost_analysis.manager.config_manager import ConfigManager
 from spaceone.cost_analysis.model import DataSourceAccount
 from spaceone.cost_analysis.model.job_task_model import JobTask
 from spaceone.cost_analysis.model.job_model import Job
@@ -899,11 +901,10 @@ class JobService(BaseService):
                 }
             )
 
-        # temporary remove tag group by
-        # for tag_key in tag_keys:
-        #     query["group_by"].append(
-        #         {"key": f"tags.{tag_key}", "name": f"tags_{tag_key}"}
-        #     )
+        for tag_key in tag_keys:
+            query["group_by"].append(
+                {"key": f"tags.{tag_key}", "name": f"tags_{tag_key}"}
+            )
 
         for data_key in data_keys:
             query["fields"].update(
