@@ -1,8 +1,10 @@
 import calendar
+import copy
 import logging
 from typing import Union, Tuple
 from datetime import datetime
 
+from dateutil.relativedelta import relativedelta
 from spaceone.core import config
 from spaceone.core.service import *
 from spaceone.core.service.utils import *
@@ -13,7 +15,11 @@ from spaceone.cost_analysis.manager.cost_manager import CostManager
 from spaceone.cost_analysis.manager.currency_manager import CurrencyManager
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
+from spaceone.cost_analysis.manager.unified_cost_job_manager import (
+    UnifiedCostJobManager,
+)
 from spaceone.cost_analysis.manager.unified_cost_manager import UnifiedCostManager
+from spaceone.cost_analysis.model.unified_cost.database import UnifiedCostJob
 from spaceone.cost_analysis.model.unified_cost.request import *
 from spaceone.cost_analysis.model.unified_cost.response import *
 
@@ -29,12 +35,13 @@ class UnifiedCostService(BaseService):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.data_source_mgr = DataSourceManager()
         self.cost_mgr = CostManager()
+        self.data_source_mgr = DataSourceManager()
         self.ds_account_mgr = DataSourceAccountManager()
         self.unified_cost_mgr = UnifiedCostManager()
-        self.currency_date: Union[str, None] = None
+        self.unified_cost_job_mgr = UnifiedCostJobManager()
 
+    @transaction(exclude=["authenticate", "authorization", "mutation"])
     def run_unified_cost_by_scheduler(self, params: dict) -> None:
         """Create cost report by cost report config
         Args:
@@ -44,30 +51,25 @@ class UnifiedCostService(BaseService):
         Returns:
             None
         """
-
         config_mgr = ConfigManager()
+
         current_hour = params["current_hour"]
         current_month = datetime.utcnow().strftime("%Y-%m")
 
-        list_domain_params = {
-            "query": {
-                "filter": [{"k": "state", "v": "ENABLED", "o": "eq"}],
-                "only": ["domain_id", "state"],
-            }
-        }
-
         identity_mgr = IdentityManager()
-        response = identity_mgr.list_domains(list_domain_params)
+        domain_ids = identity_mgr.list_enabled_domain_ids()
 
-        for domain_info in response.get("results", []):
+        for domain_id in domain_ids:
             try:
-                domain_id = domain_info["domain_id"]
-
                 unified_cost_config = config_mgr.get_unified_cost_config(domain_id)
                 unified_cost_run_hour = unified_cost_config.get("run_hour")
 
                 if current_hour == unified_cost_run_hour:
                     self.run_current_month_unified_costs(domain_id)
+
+                if self._check_unified_cost_job_is_confirmed_with_month(
+                    domain_id, current_month
+                ):
                     self.run_last_month_unified_costs(domain_id, current_month)
 
             except Exception as e:
@@ -76,12 +78,13 @@ class UnifiedCostService(BaseService):
                     exc_info=True,
                 )
 
+    @transaction(exclude=["authenticate", "authorization", "mutation"])
     def run_unified_cost(self, params: dict):
         """
         Args:
             params (dict): {
                 'domain_id': 'str',
-                "month": 'str', (optional)
+                "month": 'str', (optional),
             }
         """
 
@@ -90,63 +93,57 @@ class UnifiedCostService(BaseService):
         )
 
         domain_id = params["domain_id"]
+        aggregation_month: str = params.get(
+            "month", datetime.utcnow().strftime("%Y-%m")
+        )
+
+        # todo: create job logic
+        unified_cost_job_vo = self._get_unified_cost_job(domain_id, aggregation_month)
+        is_confirmed = self._get_is_confirmed_with_aggregation_month(aggregation_month)
 
         config_mgr = ConfigManager()
         unified_cost_config = config_mgr.get_unified_cost_config(domain_id)
 
-        is_last_day = unified_cost_config.get("is_last_day", False)
-        aggregation_day = unified_cost_config.get("aggregation_day", 15)
-        exchange_rate_mode = unified_cost_config.get("exchange_rate_mode", "AUTO")
-        current_date = datetime.utcnow()
+        aggregation_date = self._get_aggregation_date(
+            unified_cost_config, aggregation_month, is_confirmed
+        )
+        exchange_date = self._get_exchange_date(
+            unified_cost_config, aggregation_month, is_confirmed
+        )
 
-        if aggregation_month := params.get("month"):
-            is_confirmed = True
-            aggregation_date = datetime.strptime(aggregation_month, "%Y-%m")
-            aggregation_day = self.get_is_last_day(
-                aggregation_date, is_last_day, aggregation_day
-            )
-            aggregation_date = aggregation_date.replace(day=aggregation_day)
-
-            if not self._check_aggregation_date_validity(
-                aggregation_date, current_date
-            ):
-                return None
-
-            is_exchange_last_day = unified_cost_config.get(
-                "is_exchange_last_day", False
-            )
-            exchange_day = unified_cost_config.get("exchange_date", aggregation_day)
-            exchange_day = self.get_is_last_day(
-                aggregation_date, is_exchange_last_day, exchange_day
-            )
-            exchange_date = aggregation_date.replace(day=exchange_day)
-        else:
-            is_confirmed = False
-            aggregation_date = current_date
-            exchange_date = current_date
-
+        # exchange_rate_mode = unified_cost_config.get("exchange_rate_mode", "AUTO")
+        exchange_rate_mode = "AUTO"
         if exchange_rate_mode == "AUTO":
             currency_mgr = CurrencyManager()
             currency_map, exchange_date = currency_mgr.get_currency_map_date(
                 currency_end_date=exchange_date
             )
-            exchange_source = unified_cost_config.get(
-                "exchange_source", "Yahoo Finance!"
-            )
+            exchange_source = "Yahoo Finance!"
         else:
             currency_map = unified_cost_config["custom_exchange_rate"]
             exchange_source = unified_cost_config.get("exchange_source", "MANUAL")
 
         workspace_ids = self._get_workspace_ids(domain_id)
-        for workspace_id in workspace_ids:
-            self.create_unified_cost_with_workspace(
-                exchange_source,
-                domain_id,
-                workspace_id,
-                currency_map,
-                exchange_date,
-                aggregation_date,
-                is_confirmed,
+
+        try:
+            for workspace_id in workspace_ids:
+                self.create_unified_cost_with_workspace(
+                    exchange_source,
+                    domain_id,
+                    workspace_id,
+                    currency_map,
+                    exchange_date,
+                    aggregation_date,
+                    is_confirmed,
+                )
+
+            self.unified_cost_job_mgr.update_is_confirmed_unified_cost_job(
+                unified_cost_job_vo, is_confirmed
+            )
+        except Exception as e:
+            _LOGGER.error(f"[run_unified_cost] error: {e}", exc_info=True)
+            self.unified_cost_job_mgr.update_is_confirmed_unified_cost_job(
+                unified_cost_job_vo, False
             )
 
     @transaction(
@@ -167,13 +164,14 @@ class UnifiedCostService(BaseService):
             UnifiedCostResponse
         """
 
-        cost_report_data_vo = self.unified_cost_mgr.get_unified_cost(
+        unified_cost_vo = self.unified_cost_mgr.get_unified_cost(
             unified_cost_id=params.unified_cost_id,
             domain_id=params.domain_id,
             workspace_id=params.workspace_id,
             project_id=params.users_projects,
         )
-        return cost_report_data_vo
+
+        return UnifiedCostResponse(**unified_cost_vo.to_dict())
 
     @transaction(
         permission="cost-analysis:UnifiedCost.read",
@@ -364,20 +362,26 @@ class UnifiedCostService(BaseService):
                 {"k": "workspace_id", "v": workspace_ids, "o": "in"},
                 {"k": "billed_year", "v": unified_cost_billed_year, "o": "eq"},
             ],
+            "return_type": "cursor",
         }
 
         _LOGGER.debug(
             f"[create_unified_cost_with_workspace] monthly_costs query: {query}"
         )
 
-        response = self.cost_mgr.analyze_monthly_costs(query, domain_id)
-        results = response.get("results", [])
+        # todo : use cursor
+        cursor = self.cost_mgr.analyze_monthly_costs(query, domain_id)
 
         exchange_date_str = exchange_date.strftime("%Y-%m-%d")
         aggregation_date_str = aggregation_date.strftime("%Y-%m-%d")
         unified_cost_created_at = datetime.utcnow()
 
-        for aggregated_unified_cost_data in results:
+        row_count = 0
+        for row in cursor:
+            aggregated_unified_cost_data = copy.deepcopy(row)
+
+            for key, value in row.get("_id", {}).items():
+                aggregated_unified_cost_data[key] = value
 
             # set data source name and currency
             data_source_id = aggregated_unified_cost_data["data_source_id"]
@@ -420,12 +424,12 @@ class UnifiedCostService(BaseService):
             aggregated_unified_cost_data["exchange_source"] = exchange_source
 
             aggregated_unified_cost_data["is_confirmed"] = is_confirmed
-            aggregated_unified_cost_data["aggregation_day"] = aggregation_date_str
+            aggregated_unified_cost_data["aggregation_date"] = aggregation_date_str
 
             self.unified_cost_mgr.create_unified_cost(aggregated_unified_cost_data)
 
         _LOGGER.debug(
-            f"[create_unified_cost_with_workspace] create count: {len(results)} (workspace_id: {workspace_id})"
+            f"[create_unified_cost_with_workspace] create count: {row_count} (workspace_id: {workspace_id})"
         )
         self._delete_old_unified_costs(
             domain_id,
@@ -481,7 +485,7 @@ class UnifiedCostService(BaseService):
         is_confirmed: bool,
         created_at: datetime,
     ):
-        created_at_operator = "eq" if is_confirmed else "lt"
+
         query_filter = {
             "filter": [
                 {"key": "workspace_id", "value": workspace_id, "operator": "eq"},
@@ -493,13 +497,13 @@ class UnifiedCostService(BaseService):
                 {"key": "billed_month", "value": unified_cost_month, "operator": "eq"},
                 {"key": "is_confirmed", "value": is_confirmed, "operator": "eq"},
                 {"key": "domain_id", "value": domain_id, "operator": "eq"},
-                {
-                    "key": "created_at",
-                    "value": created_at,
-                    "operator": created_at_operator,
-                },
             ],
         }
+
+        if not is_confirmed:
+            query_filter["filter"].append(
+                {"key": "created_at", "value": created_at, "operator": "lt"}
+            )
 
         _LOGGER.debug(
             f"[delete_old_unified_costs] delete query filter conditions: {query_filter}"
@@ -514,19 +518,91 @@ class UnifiedCostService(BaseService):
         )
         unified_cost_vos.delete()
 
+    def _check_unified_cost_job_is_confirmed_with_month(
+        self, domain_id: str, current_month: str
+    ) -> bool:
+        unified_cost_job_vos = self.unified_cost_job_mgr.filter_unified_cost_jobs(
+            domain_id=domain_id, billed_month=current_month
+        )
+        if unified_cost_job_vos:
+            if unified_cost_job_vos[0].is_confirmed:
+                return False
+            else:
+                return True
+        else:
+            return True
+
+    def _get_unified_cost_job(
+        self, domain_id: str, aggregation_month: str
+    ) -> UnifiedCostJob:
+
+        unified_cost_job_vo = self.unified_cost_job_mgr.filter_unified_cost_jobs(
+            domain_id=domain_id, billed_month=aggregation_month
+        )
+        if not unified_cost_job_vo:
+            unified_cost_job_vo = self.unified_cost_job_mgr.create_unified_cost(
+                {
+                    "domain_id": domain_id,
+                    "billed_month": aggregation_month,
+                }
+            )
+        return unified_cost_job_vo
+
+    def _get_aggregation_date(
+        self,
+        unified_cost_config: dict,
+        aggregation_month: str,
+        is_confirmed: bool = False,
+    ) -> datetime:
+        if is_confirmed:
+            is_last_day = unified_cost_config.get("is_last_day", False)
+            aggregation_day = unified_cost_config.get("aggregation_day", 15)
+
+            aggregation_date: datetime = datetime.strptime(aggregation_month, "%Y-%m")
+            aggregation_day = self.get_is_last_day(
+                aggregation_date, is_last_day, aggregation_day
+            )
+            aggregation_date = aggregation_date.replace(day=aggregation_day)
+        else:
+            aggregation_date = datetime.utcnow()
+
+        return aggregation_date
+
+    def _get_exchange_date(
+        self,
+        unified_cost_config: dict,
+        aggregation_month: str,
+        is_confirmed: bool = False,
+    ) -> datetime:
+        if is_confirmed:
+            is_exchange_last_day = unified_cost_config.get(
+                "is_exchange_last_day", False
+            )
+            exchange_day = unified_cost_config.get("exchange_day", 15)
+
+            exchange_date: datetime = datetime.strptime(aggregation_month, "%Y-%m")
+            exchange_day = self.get_is_last_day(
+                exchange_date, is_exchange_last_day, exchange_day
+            )
+            exchange_date = exchange_date.replace(day=exchange_day)
+        else:
+            exchange_date = datetime.utcnow()
+
+        return exchange_date
+
     @staticmethod
     def get_is_last_day(
-        issue_date: datetime, is_last_day: bool, issue_day: int = None
+        current_date: datetime, is_last_day: bool, current_day: int = None
     ) -> int:
-        issue_year = issue_date.year
-        issue_month = issue_date.month
+        current_year = current_date.year
+        current_month = current_date.month
 
-        _, last_day = calendar.monthrange(issue_year, issue_month)
+        _, last_day = calendar.monthrange(current_year, current_month)
 
         if is_last_day:
             return last_day
         else:
-            return min(issue_day, last_day)
+            return min(current_day, last_day)
 
     @staticmethod
     def _get_workspace_ids(domain_id: str) -> list:
@@ -604,3 +680,19 @@ class UnifiedCostService(BaseService):
             is_aggregation_date_valid = False
 
         return is_aggregation_date_valid
+
+    @staticmethod
+    def _get_is_confirmed_with_aggregation_month(aggregation_month: str) -> bool:
+        is_confirmed = False
+        aggregation_date: datetime = datetime.strptime(aggregation_month, "%Y-%m")
+        current_date = datetime.utcnow()
+        if current_date > aggregation_date:
+            if current_date.year == aggregation_date.year:
+                if current_date.month == aggregation_date.month:
+                    is_confirmed = False
+                else:
+                    is_confirmed = True
+            else:
+                is_confirmed = True
+
+        return is_confirmed

@@ -1,11 +1,11 @@
-import logging
 import FinanceDataReader as fdr
-
+import logging
+import pandas as pd
+import requests
 from datetime import datetime
 from typing import Tuple, Union
-
-import requests
 from dateutil.relativedelta import relativedelta
+
 from spaceone.core.connector import BaseConnector
 
 __all__ = ["CurrencyConnector"]
@@ -84,8 +84,6 @@ class CurrencyConnector(BaseConnector):
                 .reset_index()[["Date", "Close"]]
             )
         except Exception as e:
-            import pandas as pd
-
             _LOGGER.error(f"[get_exchange_rate_info] Error {e}")
             response_json = self.http_datareader(
                 pair, currency_end_date, currency_start_date
