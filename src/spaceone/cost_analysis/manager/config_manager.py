@@ -7,17 +7,6 @@ from spaceone.core.connector.space_connector import SpaceConnector
 _LOGGER = logging.getLogger(__name__)
 
 _AUTH_CONFIG_KEYS = ["settings"]
-_DEFAULT_UNIFIED_COST_CONFIG = {
-    "run_hour": config.get_global("UNIFIED_COST_RUN_HOUR", 0),
-    "aggregation_day": config.get_global("UNIFIED_COST_AGGREGATION_DAY", 15),
-    "is_last_day": False,
-    "exchange_source": "Yahoo Finance!",
-    "exchange_date": 15,
-    "is_exchange_last_day": False,
-    "exchange_rate_mode": "AUTO",
-    "custom_exchange_rate": {},
-    "currency": "KRW",
-}
 
 
 class ConfigManager(BaseManager):
@@ -45,10 +34,10 @@ class ConfigManager(BaseManager):
         for config_info in response.get("results", []):
             if data := config_info.get("data", {}):
                 unified_cost_config = data.get(
-                    "unified_cost_config", _DEFAULT_UNIFIED_COST_CONFIG
+                    "unified_cost_config", self._get_default_unified_cost_config()
                 )
         if not unified_cost_config:
-            unified_cost_config = _DEFAULT_UNIFIED_COST_CONFIG
+            unified_cost_config = self._get_default_unified_cost_config()
 
         return unified_cost_config
 
@@ -61,3 +50,19 @@ class ConfigManager(BaseManager):
             token=token,
             x_domain_id=x_domain_id,
         )
+
+    # todo: use method
+    @staticmethod
+    def _get_default_unified_cost_config() -> dict:
+        default_unified_cost_config = {
+            "run_hour": config.get_global("UNIFIED_COST_RUN_HOUR", 0),
+            "aggregation_day": config.get_global("UNIFIED_COST_AGGREGATION_DAY", 15),
+            "is_last_day": False,
+            "exchange_source": "Yahoo Finance!",
+            "exchange_date": 15,
+            "is_exchange_last_day": False,
+            "exchange_rate_mode": "AUTO",
+            "custom_exchange_rate": {},
+            "currency": "KRW",
+        }
+        return default_unified_cost_config

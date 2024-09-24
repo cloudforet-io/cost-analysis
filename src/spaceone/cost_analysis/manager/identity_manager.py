@@ -46,6 +46,24 @@ class IdentityManager(BaseManager):
         system_token = config.get_global("TOKEN")
         return self.identity_conn.dispatch("Domain.list", params, token=system_token)
 
+    def list_enabled_domain_ids(self) -> list:
+        system_token = config.get_global("TOKEN")
+        params = {
+            "query": {
+                "filter": [
+                    {"k": "state", "v": "ENABLED", "o": "eq"},
+                ]
+            }
+        }
+        response = self.identity_conn.dispatch(
+            "Domain.list",
+            params,
+            token=system_token,
+        )
+        domains_info = response.get("results", [])
+        domain_ids = [domain["domain_id"] for domain in domains_info]
+        return domain_ids
+
     def check_workspace(self, workspace_id: str, domain_id: str) -> None:
         system_token = config.get_global("TOKEN")
 
@@ -55,9 +73,9 @@ class IdentityManager(BaseManager):
             token=system_token,
         )
 
-    # @cache.cacheable(
-    #     key="cost-analysis:workspace-name:{domain_id}:{workspace_id}:name", expire=300
-    # )
+    @cache.cacheable(
+        key="cost-analysis:workspace-name:{domain_id}:{workspace_id}:name", expire=300
+    )
     def get_workspace(self, workspace_id: str, domain_id: str) -> str:
         try:
             workspace_info = self.identity_conn.dispatch(

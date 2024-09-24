@@ -14,7 +14,7 @@ class UnifiedCostManager(BaseManager):
         super().__init__(*args, **kwargs)
         self.unified_cost_model = UnifiedCost
 
-    def create_unified_cost(self, params: dict):
+    def create_unified_cost(self, params: dict) -> UnifiedCost:
         def _rollback(vo: UnifiedCost):
             _LOGGER.info(
                 f"[create_unified_cost._rollback] Delete unified_cost : {vo.unified_cost_id}, {vo.unified_cost_id} "
@@ -27,7 +27,7 @@ class UnifiedCostManager(BaseManager):
         return unified_cost_vo
 
     @staticmethod
-    def delete_unified_cost(unified_cost_vo: UnifiedCost):
+    def delete_unified_cost_by_vo(unified_cost_vo: UnifiedCost) -> None:
         unified_cost_vo.delete()
 
     def get_unified_cost(
@@ -36,7 +36,7 @@ class UnifiedCostManager(BaseManager):
         domain_id: str,
         workspace_id: str = None,
         project_id: Union[list, str] = None,
-    ):
+    ) -> UnifiedCost:
         conditions = {
             "unified_cost_id": unified_cost_id,
             "domain_id": domain_id,
@@ -50,7 +50,7 @@ class UnifiedCostManager(BaseManager):
 
         return self.unified_cost_model.get(**conditions)
 
-    def filter_unified_costs(self, **conditions):
+    def filter_unified_costs(self, **conditions) -> QuerySet:
         return self.unified_cost_model.filter(**conditions)
 
     def list_unified_costs(self, query: dict) -> Tuple[QuerySet, int]:
@@ -68,7 +68,7 @@ class UnifiedCostManager(BaseManager):
         return self.unified_cost_model.stat(**query)
 
     @staticmethod
-    def push_unified_cost_job_task(params: dict):
+    def push_unified_cost_job_task(params: dict) -> None:
         token = config.get_global("TOKEN")
         task = {
             "name": "run_unified_cost",

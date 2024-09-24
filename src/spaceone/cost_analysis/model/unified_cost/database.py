@@ -15,7 +15,7 @@ class UnifiedCost(MongoModel):
     exchange_source = StringField(max_length=40)
     aggregation_date = StringField(max_length=40)
     currency = StringField(max_length=40)
-    is_confirmed = BooleanField(default=False)
+    is_confirmed = BooleanField(default=None, null=True)
     provider = StringField(max_length=40)
     region_code = StringField(max_length=60)
     region_key = StringField(max_length=60)
@@ -29,7 +29,7 @@ class UnifiedCost(MongoModel):
     service_account_id = StringField(max_length=40)
     data_source_id = StringField(max_length=40)
     project_id = StringField(max_length=40, default=None, null=True)
-    workspace_id = StringField(max_length=40)
+    workspace_id = StringField(max_length=40, default=None, null=True)
     domain_id = StringField(max_length=40)
     created_at = DateTimeField(auto_now_add=True)
 
@@ -72,4 +72,24 @@ class UnifiedCost(MongoModel):
                 "name": "COMPOUND_INDEX_FOR_DELETE_UNIFIED_COST",
             },
         ],
+    }
+
+
+class UnifiedCostJob(MongoModel):
+    unified_cost_job_id = StringField(max_length=40, generate_id="ucj", unique=True)
+    is_confirmed = BooleanField(null=True, default=None)
+    billed_month = StringField(max_length=40, unique_with="domain_id")
+    domain_id = StringField(max_length=40)
+    created_at = DateTimeField(auto_now_add=True)
+    updated_at = DateTimeField(auto_now=True)
+    confirmed_at = DateTimeField(null=True)
+
+    eta = {
+        "updatable_fields": [
+            "confirmed_at",
+            "is_confirmed",
+        ],
+        "minimal_fields": [],
+        "ordering": ["-created_at"],
+        "indexes": ["is_confirmed", "billed_month"],
     }
