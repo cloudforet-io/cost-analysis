@@ -823,9 +823,9 @@ class JobService(BaseService):
         job_task_ids = self._get_job_task_ids(job_id, domain_id)
 
         for job_task_id in job_task_ids:
-            self._aggregate_cost_date_with_job_task_id(
-                domain_id,
+            self._aggregate_cost_data_with_job_task_id(
                 data_source_id,
+                domain_id,
                 job_id,
                 job_task_id,
                 data_keys,
@@ -833,10 +833,10 @@ class JobService(BaseService):
                 tag_keys,
             )
 
-    def _aggregate_cost_date_with_job_task_id(
+    def _aggregate_cost_data_with_job_task_id(
         self,
-        domain_id: str,
         data_source_id: str,
+        domain_id: str,
         job_id: str,
         job_task_id,
         data_keys: list,
