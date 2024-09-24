@@ -4,7 +4,7 @@ from typing import List, Union
 from datetime import datetime, timedelta
 
 from spaceone.core.error import *
-from spaceone.core import queue, utils, config
+from spaceone.core import config
 from spaceone.core.manager import BaseManager
 from spaceone.cost_analysis.model.job_model import Job
 from spaceone.cost_analysis.model.cost_model import CostQueryHistory

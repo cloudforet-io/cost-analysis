@@ -21,7 +21,7 @@ class CurrencyConnector(BaseConnector):
 
     def add_currency_map_date(
         self, currency_end_date: datetime, currency_start_date: datetime = None
-    ) -> Tuple[dict, str]:
+    ) -> Tuple[dict, datetime]:
         currency_map = self._initialize_currency_map()
         currency_date = currency_end_date
 
@@ -73,7 +73,6 @@ class CurrencyConnector(BaseConnector):
     ):
         if not currency_start_date:
             currency_start_date = currency_end_date - relativedelta(days=15)
-        currency_end_date = currency_end_date.utcnow()
         try:
             return (
                 fdr.DataReader(

@@ -11,6 +11,7 @@ from .job_task import JobTask
 from .cost_report_config import CostReportConfig
 from .cost_report import CostReport
 from .cost_report_data import CostReportData
+from .unified_cost import UnifiedCost
 
 _all_ = ["app"]
 
@@ -27,3 +28,4 @@ app.add_service(DataSourceAccount)
 app.add_service(DataSourceRule)
 app.add_service(Job)
 app.add_service(JobTask)
+app.add_service(UnifiedCost)

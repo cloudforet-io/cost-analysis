@@ -258,9 +258,9 @@ class BudgetUsageManager(BaseManager):
         message = {
             "resource_type": "identity.Project",
             "resource_id": budget_vo.project_id,
-            "notification_type": "WARNING"
-            if notification_type == "WARNING"
-            else "ERROR",
+            "notification_type": (
+                "WARNING" if notification_type == "WARNING" else "ERROR"
+            ),
             "topic": "cost_analysis.Budget",
             "message": {
                 "title": f"Budget usage exceeded - {budget_vo.name}",
