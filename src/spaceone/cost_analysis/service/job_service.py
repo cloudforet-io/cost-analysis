@@ -287,6 +287,16 @@ class JobService(BaseService):
                         )
 
                 if not is_canceled:
+                    # todo : add aggregate cost monthly cost
+                    self._aggregate_cost_date_with_job_task_id(
+                        domain_id,
+                        data_source_id,
+                        job_id,
+                        job_task_id,
+                        data_keys,
+                        additional_info_keys,
+                        tag_keys,
+                    )
                     end_dt = datetime.utcnow()
                     _LOGGER.debug(f"[get_cost_data] end job ({job_task_id}): {end_dt}")
                     _LOGGER.debug(
@@ -599,7 +609,7 @@ class JobService(BaseService):
         job_id: str,
         domain_id: str,
         workspace_id: str,
-    ):
+    ) -> bool:
         job_vo: Job = self.job_mgr.get_job(job_id, domain_id, workspace_id)
 
         if job_vo.status in ["CANCELED", "FAILURE"]:
@@ -623,9 +633,9 @@ class JobService(BaseService):
         if job_vo.remained_tasks == 0:
             if job_vo.status == "IN_PROGRESS":
                 try:
-                    self._aggregate_cost_data(
-                        job_vo, data_keys, additional_info_keys, tag_keys
-                    )
+                    # self._aggregate_cost_data(
+                    #     job_vo, data_keys, additional_info_keys, tag_keys
+                    # )
 
                     for changed_vo in job_vo.changed:
                         self._delete_changed_cost_data(
@@ -813,19 +823,39 @@ class JobService(BaseService):
         job_task_ids = self._get_job_task_ids(job_id, domain_id)
 
         for job_task_id in job_task_ids:
-            for billed_month in self._distinct_billed_month(
-                domain_id, data_source_id, job_id, job_task_id
-            ):
-                self._aggregate_monthly_cost_data(
-                    data_source_id,
-                    domain_id,
-                    job_id,
-                    job_task_id,
-                    billed_month,
-                    data_keys,
-                    additional_info_keys,
-                    tag_keys,
-                )
+            self._aggregate_cost_data_with_job_task_id(
+                data_source_id,
+                domain_id,
+                job_id,
+                job_task_id,
+                data_keys,
+                additional_info_keys,
+                tag_keys,
+            )
+
+    def _aggregate_cost_data_with_job_task_id(
+        self,
+        data_source_id: str,
+        domain_id: str,
+        job_id: str,
+        job_task_id,
+        data_keys: list,
+        additional_info_keys: list,
+        tag_keys: list,
+    ):
+        for billed_month in self._distinct_billed_month(
+            domain_id, data_source_id, job_id, job_task_id
+        ):
+            self._aggregate_monthly_cost_data(
+                data_source_id,
+                domain_id,
+                job_id,
+                job_task_id,
+                billed_month,
+                data_keys,
+                additional_info_keys,
+                tag_keys,
+            )
 
     def _distinct_billed_month(
         self, domain_id: str, data_source_id: str, job_id: str, job_task_id: str
