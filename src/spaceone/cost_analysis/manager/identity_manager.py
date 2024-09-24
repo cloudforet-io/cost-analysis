@@ -12,10 +12,12 @@ _LOGGER = logging.getLogger(__name__)
 class IdentityManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        token = self.transaction.get_meta("token")
+        token = self.transaction.get_meta("token") or kwargs.get("token")
         self.token_type = JWTUtil.get_value_from_token(token, "typ")
         self.identity_conn: SpaceConnector = self.locator.get_connector(
-            SpaceConnector, service="identity"
+            SpaceConnector,
+            service="identity",
+            token=token,
         )
 
     def get_user(self, domain_id: str, user_id: str) -> dict:
@@ -53,9 +55,9 @@ class IdentityManager(BaseManager):
             token=system_token,
         )
 
-    @cache.cacheable(
-        key="cost-analysis:workspace-name:{domain_id}:{workspace_id}:name", expire=300
-    )
+    # @cache.cacheable(
+    #     key="cost-analysis:workspace-name:{domain_id}:{workspace_id}:name", expire=300
+    # )
     def get_workspace(self, workspace_id: str, domain_id: str) -> str:
         try:
             workspace_info = self.identity_conn.dispatch(
@@ -65,13 +67,13 @@ class IdentityManager(BaseManager):
             )
             return workspace_info["name"]
         except Exception as e:
-            _LOGGER.error(f"[get_project_name] API Error: {e}")
+            _LOGGER.error(f"[get_workspace] API Error: {e}")
             return workspace_id
 
-    def list_workspaces(self, params: dict, domain_id: str) -> dict:
-        if self.token_type == "SYSTEM_TOKEN":
+    def list_workspaces(self, params: dict, domain_id: str, token: str = None) -> dict:
+        if self.token_type == "SYSTEM_TOKEN" or token:
             return self.identity_conn.dispatch(
-                "Workspace.list", params, x_domain_id=domain_id
+                "Workspace.list", params, x_domain_id=domain_id, token=token
             )
         else:
             return self.identity_conn.dispatch("Workspace.list", params)
@@ -83,6 +85,23 @@ class IdentityManager(BaseManager):
             )
         else:
             return self.identity_conn.dispatch("WorkspaceUser.list", params)
+
+    def get_service_account_name_map(self, domain_id: str, workspace_id: str) -> dict:
+        service_account_name_map = {}
+        service_accounts = self.list_service_accounts(
+            {
+                "filter": [
+                    {"k": "domain_id", "v": domain_id, "o": "eq"},
+                    {"k": "workspace_id", "v": workspace_id, "o": "eq"},
+                ]
+            },
+            domain_id,
+        )
+        for service_account in service_accounts.get("results", []):
+            service_account_name_map[service_account["service_account_id"]] = (
+                service_account["name"]
+            )
+        return service_account_name_map
 
     def list_service_accounts(self, query: dict, domain_id: str) -> dict:
         if self.token_type == "SYSTEM_TOKEN":
@@ -113,6 +132,25 @@ class IdentityManager(BaseManager):
             return self.identity_conn.dispatch(
                 "Project.get", {"project_id": project_id}
             )
+
+    def get_project_name_map(self, domain_id: str, workspace_id: str) -> dict:
+        project_name_map = {}
+        params = {
+            "query": {
+                "filter": [
+                    {"k": "domain_id", "v": domain_id, "o": "eq"},
+                    {"k": "workspace_id", "v": workspace_id, "o": "eq"},
+                ]
+            }
+        }
+
+        response = self.list_projects(
+            params=params,
+            domain_id=domain_id,
+        )
+        for project in response.get("results", []):
+            project_name_map[project["project_id"]] = project["name"]
+        return project_name_map
 
     def list_projects(self, params: dict, domain_id: str):
         if self.token_type == "SYSTEM_TOKEN":

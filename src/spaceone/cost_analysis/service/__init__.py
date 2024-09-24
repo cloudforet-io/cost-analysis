@@ -15,3 +15,4 @@ from spaceone.cost_analysis.service.cost_report_data_service import (
     CostReportDataService,
 )
 from spaceone.cost_analysis.service.cost_report_serivce import CostReportService
+from spaceone.cost_analysis.service.unified_cost_service import UnifiedCostService

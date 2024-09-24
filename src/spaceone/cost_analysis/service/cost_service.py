@@ -36,7 +36,7 @@ class CostService(BaseService):
     @check_required(
         ["cost", "data_source_id", "billed_date", "project_id", "domain_id"]
     )
-    def create(self, params):
+    def create(self, params: dict):
         """Register cost
 
         Args:
@@ -177,7 +177,6 @@ class CostService(BaseService):
             "user_projects",
             "workspace_id",
             "domain_id",
-            "user_projects",
         ]
     )
     @append_keyword_filter(["cost_id"])
@@ -197,10 +196,10 @@ class CostService(BaseService):
                 'usage_type': 'str',
                 'resource': 'str',
                 'service_account_id': 'str',
+                'data_source_id': 'str'
                 'user_projects': 'list'                         # injected from auth(optional)
-                'project_id': 'str',
-                'data_source_id': 'str'                         # injected from auth
-                'domain_id': 'str',
+                'workspace_id': 'str',                          # injected from auth(optional)
+                'domain_id': 'str',                             # injected from auth
             }
 
         Returns:
@@ -254,19 +253,20 @@ class CostService(BaseService):
     )
     @append_keyword_filter(["cost_id"])
     @set_query_page_limit(1000)
-    def analyze(self, params: dict):
+    def analyze(self, params: dict) -> dict:
         """
         Args:
             params (dict): {
-                'query': 'dict (spaceone.api.core.v1.TimeSeriesAnalyzeQuery)',
-                'data_source_id': 'str',
-                'domain_id': 'str',
-                'user_projects': 'list' // from meta
+                'query': 'dict (spaceone.api.core.v1.TimeSeriesAnalyzeQuery)', # required
+                'data_source_id': 'str',  # required
+                'user_projects': 'list'   # injected from auth
+                'domain_id': 'str',       # injected from auth
             }
 
         Returns:
-            values (list) : 'list of statistics data'
-
+            response (dict): {
+                "results" : "list",
+            }
         """
 
         domain_id = params["domain_id"]
