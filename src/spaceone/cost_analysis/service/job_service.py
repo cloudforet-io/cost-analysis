@@ -288,7 +288,7 @@ class JobService(BaseService):
 
                 if not is_canceled:
                     # todo : add aggregate cost monthly cost
-                    self._aggregate_cost_date_with_job_task_id(
+                    self._aggregate_cost_data_with_job_task_id(
                         domain_id,
                         data_source_id,
                         job_id,
