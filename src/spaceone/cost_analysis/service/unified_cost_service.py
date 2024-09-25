@@ -67,10 +67,10 @@ class UnifiedCostService(BaseService):
                 if current_hour == unified_cost_run_hour:
                     self.run_current_month_unified_costs(domain_id)
 
-                if self._check_unified_cost_job_is_confirmed_with_month(
-                    domain_id, current_month
-                ):
-                    self.run_last_month_unified_costs(domain_id, current_month)
+                    if self._check_unified_cost_job_is_confirmed_with_month(
+                        domain_id, current_month
+                    ):
+                        self.run_last_month_unified_costs(domain_id, current_month)
 
             except Exception as e:
                 _LOGGER.error(
@@ -88,18 +88,22 @@ class UnifiedCostService(BaseService):
             }
         """
 
-        _LOGGER.debug(
-            f"[run_unified_cost] start run unified cost with params: {params}"
-        )
-
         domain_id = params["domain_id"]
-        aggregation_month: str = params.get(
-            "month", datetime.utcnow().strftime("%Y-%m")
-        )
+        aggregation_month: Union[str, None] = params.get("month")
+
+        if not aggregation_month:
+            aggregation_month = datetime.utcnow().strftime("%Y-%m")
+            is_confirmed = False
+        elif self._get_is_confirmed_with_aggregation_month(aggregation_month):
+            is_confirmed = True
+        else:
+            _LOGGER.debug(
+                f"[run_unified_cost] skip aggregation month: {aggregation_month}"
+            )
+            return None
 
         # todo: create job logic
         unified_cost_job_vo = self._get_unified_cost_job(domain_id, aggregation_month)
-        is_confirmed = self._get_is_confirmed_with_aggregation_month(aggregation_month)
 
         config_mgr = ConfigManager()
         unified_cost_config = config_mgr.get_unified_cost_config(domain_id)
@@ -394,10 +398,10 @@ class UnifiedCostService(BaseService):
             aggregated_unified_cost_data["currency"] = unified_cost_origin_currency
 
             # set cost
-            _unified_cost = aggregated_unified_cost_data.get("cost", 0)
+            _single_cost = aggregated_unified_cost_data.get("cost", 0)
             aggregated_unified_cost_data["cost"] = (
                 self.unified_cost_mgr.get_exchange_currency(
-                    _unified_cost, unified_cost_origin_currency, currency_map
+                    _single_cost, unified_cost_origin_currency, currency_map
                 )
             )
 
