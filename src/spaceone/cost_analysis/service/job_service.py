@@ -301,23 +301,6 @@ class JobService(BaseService):
             except Exception as e:
                 self.job_task_mgr.change_error_status(job_task_vo, e, secret_type)
 
-            try:
-                # todo : add aggregate cost monthly cost
-                self._aggregate_cost_data_with_job_task_id(
-                    domain_id,
-                    data_source_id,
-                    job_id,
-                    job_task_id,
-                    data_source_vo.cost_data_keys,
-                    data_source_vo.cost_additional_info_keys,
-                    data_source_vo.cost_tag_keys,
-                )
-            except Exception as e:
-                _LOGGER.error(
-                    f"[get_cost_data] aggregate cost data error: {e}", exc_info=True
-                )
-                self.job_task_mgr.change_error_status(job_task_vo, e, secret_type)
-
         self._close_job(
             job_id,
             data_source_id,
@@ -642,9 +625,9 @@ class JobService(BaseService):
         if job_vo.remained_tasks == 0:
             if job_vo.status == "IN_PROGRESS":
                 try:
-                    # self._aggregate_cost_data(
-                    #     job_vo, data_keys, additional_info_keys, tag_keys
-                    # )
+                    self._aggregate_cost_data(
+                        job_vo, data_keys, additional_info_keys, tag_keys
+                    )
 
                     for changed_vo in job_vo.changed:
                         self._delete_changed_cost_data(
