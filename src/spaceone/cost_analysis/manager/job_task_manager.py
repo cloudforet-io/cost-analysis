@@ -91,12 +91,12 @@ class JobTaskManager(BaseManager):
         )
 
     @staticmethod
-    def update_sync_status(job_task_vo: JobTask, created_count):
+    def update_sync_status(job_task_vo: JobTask, created_count: int) -> JobTask:
         return job_task_vo.update(
             {"created_count": job_task_vo.created_count + created_count}
         )
 
-    def change_success_status(self, job_task_vo: JobTask, created_count):
+    def change_success_status(self, job_task_vo: JobTask, created_count: int) -> None:
         _LOGGER.debug(
             f"[change_success_status] success job task: {job_task_vo.job_task_id} "
             f"(created_count = {created_count})"
@@ -113,7 +113,7 @@ class JobTaskManager(BaseManager):
         job_vo = self.job_mgr.get_job(job_task_vo.job_id, job_task_vo.domain_id)
         self.job_mgr.decrease_remained_tasks(job_vo)
 
-    def change_canceled_status(self, job_task_vo: JobTask):
+    def change_canceled_status(self, job_task_vo: JobTask) -> None:
         _LOGGER.error(
             f"[change_canceled_status], job task canceled ({job_task_vo.job_task_id})"
         )
@@ -123,7 +123,7 @@ class JobTaskManager(BaseManager):
         job_vo = self.job_mgr.get_job(job_task_vo.job_id, job_task_vo.domain_id)
         self.job_mgr.decrease_remained_tasks(job_vo)
 
-    def change_error_status(self, job_task_vo: JobTask, e, secret_type):
+    def change_error_status(self, job_task_vo: JobTask, e, secret_type: str) -> None:
         if not isinstance(e, ERROR_BASE):
             e = ERROR_UNKNOWN(message=str(e))
 

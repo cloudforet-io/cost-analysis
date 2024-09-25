@@ -287,16 +287,6 @@ class JobService(BaseService):
                         )
 
                 if not is_canceled:
-                    # todo : add aggregate cost monthly cost
-                    self._aggregate_cost_data_with_job_task_id(
-                        domain_id,
-                        data_source_id,
-                        job_id,
-                        job_task_id,
-                        data_keys,
-                        additional_info_keys,
-                        tag_keys,
-                    )
                     end_dt = datetime.utcnow()
                     _LOGGER.debug(f"[get_cost_data] end job ({job_task_id}): {end_dt}")
                     _LOGGER.debug(
@@ -309,6 +299,23 @@ class JobService(BaseService):
                     self.job_task_mgr.change_success_status(job_task_vo, count)
 
             except Exception as e:
+                self.job_task_mgr.change_error_status(job_task_vo, e, secret_type)
+
+            try:
+                # todo : add aggregate cost monthly cost
+                self._aggregate_cost_data_with_job_task_id(
+                    domain_id,
+                    data_source_id,
+                    job_id,
+                    job_task_id,
+                    data_source_vo.cost_data_keys,
+                    data_source_vo.cost_additional_info_keys,
+                    data_source_vo.cost_tag_keys,
+                )
+            except Exception as e:
+                _LOGGER.error(
+                    f"[get_cost_data] aggregate cost data error: {e}", exc_info=True
+                )
                 self.job_task_mgr.change_error_status(job_task_vo, e, secret_type)
 
         self._close_job(
@@ -552,7 +559,9 @@ class JobService(BaseService):
         return tags_keys
 
     @staticmethod
-    def _append_additional_info_keys(additional_info_keys, cost_data):
+    def _append_additional_info_keys(
+        additional_info_keys: list, cost_data: dict
+    ) -> list:
         cost_additional_info = cost_data.get("additional_info") or {}
 
         for key in cost_additional_info.keys():
@@ -561,7 +570,7 @@ class JobService(BaseService):
         return additional_info_keys
 
     @staticmethod
-    def _append_data_keys(data_keys, cost_data) -> list:
+    def _append_data_keys(data_keys: list, cost_data: dict) -> list:
         cost_data_info = cost_data.get("data") or {}
 
         for key in cost_data_info.keys():
@@ -580,7 +589,7 @@ class JobService(BaseService):
         return secret_data
 
     @staticmethod
-    def _check_cost_data(cost_data):
+    def _check_cost_data(cost_data: dict) -> None:
         if "billed_date" not in cost_data:
             _LOGGER.error(f"[_check_cost_data] cost_data: {cost_data}")
             raise ERROR_REQUIRED_PARAMETER(key="plugin_cost_data.billed_date")
@@ -699,7 +708,13 @@ class JobService(BaseService):
             elif job_vo.status == "CANCELED":
                 self._rollback_cost_data(job_vo)
 
-    def _update_keys(self, data_source_vo, tag_keys, additional_info_keys, data_keys):
+    def _update_keys(
+        self,
+        data_source_vo: DataSource,
+        tag_keys: list,
+        additional_info_keys: list,
+        data_keys: list,
+    ) -> None:
         self.data_source_mgr.update_data_source_by_vo(
             {
                 "cost_tag_keys": tag_keys,
@@ -842,7 +857,7 @@ class JobService(BaseService):
         data_keys: list,
         additional_info_keys: list,
         tag_keys: list,
-    ):
+    ) -> None:
         for billed_month in self._distinct_billed_month(
             domain_id, data_source_id, job_id, job_task_id
         ):
@@ -859,7 +874,7 @@ class JobService(BaseService):
 
     def _distinct_billed_month(
         self, domain_id: str, data_source_id: str, job_id: str, job_task_id: str
-    ):
+    ) -> list:
         query = {
             "distinct": "billed_month",
             "filter": [
@@ -888,7 +903,7 @@ class JobService(BaseService):
         data_keys: list,
         additional_info_keys: list,
         tag_keys: list,
-    ):
+    ) -> None:
         query = {
             "group_by": [
                 "usage_unit",
