@@ -259,6 +259,10 @@ class JobService(BaseService):
                 count = 0
                 is_canceled = False
 
+                _LOGGER.debug(
+                    f"[get_cost_data] start job ({job_task_id}): {task_options}"
+                )
+
                 for costs_data in self.ds_plugin_mgr.get_cost_data(
                     options, secret_data, schema, task_options, domain_id
                 ):
@@ -288,7 +292,7 @@ class JobService(BaseService):
 
                 if not is_canceled:
                     end_dt = datetime.utcnow()
-                    _LOGGER.debug(f"[get_cost_data] end job ({job_task_id}): {end_dt}")
+                    _LOGGER.debug(f"[get_cost_data] end job ({job_task_id}): {count}")
                     _LOGGER.debug(
                         f"[get_cost_data] total job time ({job_task_id}): {end_dt - start_dt}"
                     )
@@ -981,7 +985,7 @@ class JobService(BaseService):
             row_count += 1
 
         _LOGGER.debug(
-            f"[_aggregate_monthly_cost_data] create monthly costs ({billed_month}): {job_id}, {job_task} (count = {row_count})"
+            f"[_aggregate_monthly_cost_data] create monthly costs ({billed_month}): {job_id}, {job_task_id} (count = {row_count})"
         )
 
     def _get_all_data_sources(self):
