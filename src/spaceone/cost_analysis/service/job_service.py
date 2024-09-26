@@ -301,6 +301,16 @@ class JobService(BaseService):
             except Exception as e:
                 self.job_task_mgr.change_error_status(job_task_vo, e, secret_type)
 
+        self._aggregate_cost_data_with_job_task_id(
+            data_source_id,
+            domain_id,
+            job_id,
+            job_task_id,
+            data_source_vo.cost_data_keys,
+            data_source_vo.cost_additional_info_keys,
+            data_source_vo.cost_tag_keys,
+        )
+
         self._close_job(
             job_id,
             data_source_id,
@@ -625,9 +635,9 @@ class JobService(BaseService):
         if job_vo.remained_tasks == 0:
             if job_vo.status == "IN_PROGRESS":
                 try:
-                    self._aggregate_cost_data(
-                        job_vo, data_keys, additional_info_keys, tag_keys
-                    )
+                    # self._aggregate_cost_data(
+                    #     job_vo, data_keys, additional_info_keys, tag_keys
+                    # )
 
                     for changed_vo in job_vo.changed:
                         self._delete_changed_cost_data(
@@ -1037,9 +1047,9 @@ class JobService(BaseService):
         )
 
         for data_source_account_vo in data_source_account_vos:
-            data_source_account_map[data_source_account_vo.account_id] = (
-                data_source_account_vo
-            )
+            data_source_account_map[
+                data_source_account_vo.account_id
+            ] = data_source_account_vo
 
         return data_source_account_map
 
