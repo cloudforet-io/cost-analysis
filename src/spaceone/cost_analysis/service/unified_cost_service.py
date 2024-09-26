@@ -54,7 +54,8 @@ class UnifiedCostService(BaseService):
         config_mgr = ConfigManager()
 
         current_hour = params["current_hour"]
-        current_month = datetime.utcnow().strftime("%Y-%m")
+        current_date = datetime.utcnow()
+        current_month = current_date.strftime("%Y-%m")
 
         identity_mgr = IdentityManager()
         domain_ids = identity_mgr.list_enabled_domain_ids()
@@ -70,7 +71,10 @@ class UnifiedCostService(BaseService):
                     if self._check_unified_cost_job_is_confirmed_with_month(
                         domain_id, current_month
                     ):
-                        self.run_last_month_unified_costs(domain_id, current_month)
+                        last_month = (current_date - relativedelta(months=1)).strftime(
+                            "%Y-%m"
+                        )
+                        self.run_last_month_unified_costs(domain_id, last_month)
 
             except Exception as e:
                 _LOGGER.error(
