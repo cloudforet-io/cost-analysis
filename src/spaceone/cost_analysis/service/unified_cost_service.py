@@ -78,7 +78,7 @@ class UnifiedCostService(BaseService):
 
             except Exception as e:
                 _LOGGER.error(
-                    f"[create_unified_cost_jobs_by_domain_config] error: {e}",
+                    f"[create_unified_cost_jobs_by_domain_config] domain_id :{domain_id}, error: {e}",
                     exc_info=True,
                 )
 
@@ -134,7 +134,9 @@ class UnifiedCostService(BaseService):
         workspace_ids = self._get_workspace_ids(domain_id)
 
         try:
+
             for workspace_id in workspace_ids:
+                unified_cost_created_at = datetime.utcnow()
                 self.create_unified_cost_with_workspace(
                     exchange_source,
                     domain_id,
@@ -143,6 +145,13 @@ class UnifiedCostService(BaseService):
                     exchange_date,
                     aggregation_date,
                     is_confirmed,
+                )
+                self._delete_old_unified_costs(
+                    domain_id,
+                    workspace_id,
+                    aggregation_month,
+                    is_confirmed,
+                    unified_cost_created_at,
                 )
 
             self.unified_cost_job_mgr.update_is_confirmed_unified_cost_job(
@@ -382,7 +391,6 @@ class UnifiedCostService(BaseService):
 
         exchange_date_str = exchange_date.strftime("%Y-%m-%d")
         aggregation_date_str = aggregation_date.strftime("%Y-%m-%d")
-        unified_cost_created_at = datetime.utcnow()
 
         row_count = 0
         for row in cursor:
@@ -438,13 +446,6 @@ class UnifiedCostService(BaseService):
 
         _LOGGER.debug(
             f"[create_unified_cost_with_workspace] create count: {row_count} (workspace_id: {workspace_id})"
-        )
-        self._delete_old_unified_costs(
-            domain_id,
-            workspace_id,
-            unified_cost_billed_month,
-            is_confirmed,
-            unified_cost_created_at,
         )
 
     def _get_data_source_currency_map(
@@ -505,13 +506,9 @@ class UnifiedCostService(BaseService):
                 {"key": "billed_month", "value": unified_cost_month, "operator": "eq"},
                 {"key": "is_confirmed", "value": is_confirmed, "operator": "eq"},
                 {"key": "domain_id", "value": domain_id, "operator": "eq"},
+                {"key": "created_at", "value": created_at, "operator": "lt"},
             ],
         }
-
-        if not is_confirmed:
-            query_filter["filter"].append(
-                {"key": "created_at", "value": created_at, "operator": "lt"}
-            )
 
         _LOGGER.debug(
             f"[delete_old_unified_costs] delete query filter conditions: {query_filter}"
@@ -522,7 +519,7 @@ class UnifiedCostService(BaseService):
         )
 
         _LOGGER.debug(
-            f"[delete_old_unified_costs] delete count: {total_count} ({unified_cost_month})({workspace_id})"
+            f"[delete_old_unified_costs] delete count: {total_count} ({unified_cost_month})({workspace_id}, is_confirmed: {is_confirmed})"
         )
         unified_cost_vos.delete()
 
@@ -544,16 +541,18 @@ class UnifiedCostService(BaseService):
         self, domain_id: str, aggregation_month: str
     ) -> UnifiedCostJob:
 
-        unified_cost_job_vo = self.unified_cost_job_mgr.filter_unified_cost_jobs(
+        unified_cost_job_vos = self.unified_cost_job_mgr.filter_unified_cost_jobs(
             domain_id=domain_id, billed_month=aggregation_month
         )
-        if not unified_cost_job_vo:
+        if not unified_cost_job_vos:
             unified_cost_job_vo = self.unified_cost_job_mgr.create_unified_cost(
                 {
                     "domain_id": domain_id,
                     "billed_month": aggregation_month,
                 }
             )
+        else:
+            unified_cost_job_vo = unified_cost_job_vos[0]
         return unified_cost_job_vo
 
     def _get_aggregation_date(
