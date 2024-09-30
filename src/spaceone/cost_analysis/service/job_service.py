@@ -291,6 +291,16 @@ class JobService(BaseService):
                         )
 
                 if not is_canceled:
+                    self._aggregate_cost_data_with_job_task_id(
+                        data_source_id,
+                        domain_id,
+                        job_id,
+                        job_task_id,
+                        data_keys,
+                        additional_info_keys,
+                        tag_keys,
+                    )
+
                     end_dt = datetime.utcnow()
                     _LOGGER.debug(f"[get_cost_data] end job ({job_task_id}): {count}")
                     _LOGGER.debug(
@@ -304,16 +314,6 @@ class JobService(BaseService):
 
             except Exception as e:
                 self.job_task_mgr.change_error_status(job_task_vo, e, secret_type)
-
-        self._aggregate_cost_data_with_job_task_id(
-            data_source_id,
-            domain_id,
-            job_id,
-            job_task_id,
-            data_source_vo.cost_data_keys,
-            data_source_vo.cost_additional_info_keys,
-            data_source_vo.cost_tag_keys,
-        )
 
         self._close_job(
             job_id,
