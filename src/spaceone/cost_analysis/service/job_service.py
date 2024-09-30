@@ -296,9 +296,9 @@ class JobService(BaseService):
                         domain_id,
                         job_id,
                         job_task_id,
-                        data_source_vo.cost_data_keys,
-                        data_source_vo.cost_additional_info_keys,
-                        data_source_vo.cost_tag_keys,
+                        data_keys,
+                        additional_info_keys,
+                        tag_keys,
                     )
 
                     end_dt = datetime.utcnow()
