@@ -67,6 +67,8 @@ class UnifiedCost(MongoModel):
                     "workspace_id",
                     "billed_year",
                     "billed_month",
+                    "domain_id",
+                    "created_at",
                     "is_confirmed",
                 ],
                 "name": "COMPOUND_INDEX_FOR_DELETE_UNIFIED_COST",
