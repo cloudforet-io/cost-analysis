@@ -131,7 +131,7 @@ class UnifiedCostService(BaseService):
             currency_map = unified_cost_config["custom_exchange_rate"]
             exchange_source = unified_cost_config.get("exchange_source", "MANUAL")
 
-        workspace_ids = self._get_workspace_ids(domain_id)
+        workspace_ids = self._get_workspace_ids_with_none(domain_id)
 
         try:
 
@@ -322,7 +322,7 @@ class UnifiedCostService(BaseService):
         self,
         exchange_source: str,
         domain_id: str,
-        workspace_id: str,
+        workspace_id: Union[str, None],
         currency_map: dict,
         exchange_date: datetime,
         aggregation_date: datetime,
@@ -504,11 +504,14 @@ class UnifiedCostService(BaseService):
                     "operator": "eq",
                 },
                 {"key": "billed_month", "value": unified_cost_month, "operator": "eq"},
-                {"key": "is_confirmed", "value": is_confirmed, "operator": "eq"},
                 {"key": "domain_id", "value": domain_id, "operator": "eq"},
                 {"key": "created_at", "value": created_at, "operator": "lt"},
             ],
         }
+        if not is_confirmed:
+            query_filter["filter"].append(
+                {"key": "is_confirmed", "value": is_confirmed, "operator": "eq"}
+            )
 
         _LOGGER.debug(
             f"[delete_old_unified_costs] delete query filter conditions: {query_filter}"
@@ -612,8 +615,8 @@ class UnifiedCostService(BaseService):
             return min(current_day, last_day)
 
     @staticmethod
-    def _get_workspace_ids(domain_id: str) -> list:
-        workspace_ids = []
+    def _get_workspace_ids_with_none(domain_id: str) -> list:
+        workspace_ids = [None]
 
         identity_mgr = IdentityManager()
         system_token = config.get_global("TOKEN")
@@ -627,66 +630,6 @@ class UnifiedCostService(BaseService):
             workspace_ids.append(workspace["workspace_id"])
 
         return workspace_ids
-
-    @staticmethod
-    def _get_project_name_map(
-        identity_mgr: IdentityManager, domain_id: str, workspace_id: str
-    ) -> dict:
-        project_name_map = {}
-        response = identity_mgr.list_projects(
-            {
-                "query": {
-                    "filter": [
-                        {"k": "domain_id", "v": domain_id, "o": "eq"},
-                        {"k": "workspace_id", "v": workspace_id, "o": "eq"},
-                    ]
-                }
-            },
-            domain_id,
-        )
-        for project in response.get("results", []):
-            project_name_map[project["project_id"]] = project["name"]
-        return project_name_map
-
-    @staticmethod
-    def _get_service_account_name_map(
-        identity_mgr: IdentityManager, workspace_id: str, domain_id: str
-    ) -> dict:
-        service_account_name_map = {}
-        service_accounts = identity_mgr.list_service_accounts(
-            {
-                "filter": [
-                    {"k": "domain_id", "v": domain_id, "o": "eq"},
-                    {"k": "workspace_id", "v": workspace_id, "o": "eq"},
-                ]
-            },
-            domain_id,
-        )
-        for service_account in service_accounts.get("results", []):
-            service_account_name_map[service_account["service_account_id"]] = (
-                service_account["name"]
-            )
-        return service_account_name_map
-
-    @staticmethod
-    def _check_aggregation_date_validity(
-        aggregation_date: datetime, current_date: datetime
-    ) -> bool:
-
-        is_aggregation_date_valid = True
-        if aggregation_date > current_date:
-            _LOGGER.debug(
-                f"skip unified cost aggregation, {aggregation_date} is greater than {current_date}."
-            )
-            is_aggregation_date_valid = False
-
-        elif aggregation_date.month == current_date.month:
-            _LOGGER.debug(
-                f"skip unified cost aggregation, {aggregation_date} should be previous month of {current_date}."
-            )
-            is_aggregation_date_valid = False
-
-        return is_aggregation_date_valid
 
     @staticmethod
     def _get_is_confirmed_with_aggregation_month(aggregation_month: str) -> bool:
