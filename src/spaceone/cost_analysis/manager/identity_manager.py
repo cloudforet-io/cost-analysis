@@ -1,4 +1,5 @@
 import logging
+from typing import Union
 
 from spaceone.core import cache
 from spaceone.core import config
@@ -76,7 +77,9 @@ class IdentityManager(BaseManager):
     @cache.cacheable(
         key="cost-analysis:workspace-name:{domain_id}:{workspace_id}:name", expire=300
     )
-    def get_workspace(self, workspace_id: str, domain_id: str) -> str:
+    def get_workspace(self, workspace_id: Union[str, None], domain_id: str) -> str:
+        if not workspace_id:
+            return workspace_id
         try:
             workspace_info = self.identity_conn.dispatch(
                 "Workspace.get",

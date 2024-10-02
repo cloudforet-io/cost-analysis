@@ -25,7 +25,7 @@ class UnifiedCost(MongoModel):
     service_account_name = StringField(max_length=255)
     data_source_name = StringField(max_length=255)
     project_name = StringField(max_length=255)
-    workspace_name = StringField(max_length=255)
+    workspace_name = StringField(max_length=255, default=None, null=True)
     service_account_id = StringField(max_length=40)
     data_source_id = StringField(max_length=40)
     project_id = StringField(max_length=40, default=None, null=True)

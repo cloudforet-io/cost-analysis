@@ -17,7 +17,7 @@ class UnifiedCostManager(BaseManager):
     def create_unified_cost(self, params: dict) -> UnifiedCost:
         def _rollback(vo: UnifiedCost):
             _LOGGER.info(
-                f"[create_unified_cost._rollback] Delete unified_cost : {vo.unified_cost_id}, {vo.unified_cost_id} "
+                f"[create_unified_cost._rollback] Delete unified_cost : {vo.unified_cost_id}, {vo.to_dict()} "
             )
             vo.delete()
 

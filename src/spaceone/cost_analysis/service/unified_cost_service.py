@@ -327,10 +327,14 @@ class UnifiedCostService(BaseService):
         exchange_date: datetime,
         aggregation_date: datetime,
         is_confirmed: bool = False,
-    ):
+    ) -> None:
+        if workspace_id:
+            return
+
         identity_mgr = IdentityManager(token=config.get_global("TOKEN"))
-        workspace_name = identity_mgr.get_workspace(workspace_id, domain_id)
         workspace_ids = [workspace_id]
+
+        workspace_name = identity_mgr.get_workspace(workspace_id, domain_id)
 
         v_workspace_ids = self._get_virtual_workspace_ids_from_ds_account(
             domain_id, workspace_id
@@ -421,11 +425,12 @@ class UnifiedCostService(BaseService):
             aggregated_unified_cost_data["domain_id"] = domain_id
 
             # set workspace name
-            aggregated_unified_cost_data["workspace_id"] = workspace_id
-            aggregated_unified_cost_data["workspace_name"] = workspace_name
+            if workspace_id:
+                aggregated_unified_cost_data["workspace_id"] = workspace_id
+                aggregated_unified_cost_data["workspace_name"] = workspace_name
 
             # set project name
-            project_id = aggregated_unified_cost_data.get("project_id")
+            project_id = aggregated_unified_cost_data.get("project_id", None)
             aggregated_unified_cost_data["project_name"] = project_name_map.get(
                 project_id, project_id
             )
