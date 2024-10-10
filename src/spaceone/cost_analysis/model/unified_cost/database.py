@@ -8,7 +8,6 @@ class UnifiedCost(MongoModel):
         max_length=40, generate_id="unified-cost", unique=True
     )
     cost = DictField(default={})
-    cost_report_name = StringField(max_length=255)
     billed_month = StringField(max_length=40)
     billed_year = StringField(max_length=20)
     exchange_date = StringField(max_length=40)

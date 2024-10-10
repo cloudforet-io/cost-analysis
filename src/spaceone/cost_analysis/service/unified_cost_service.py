@@ -91,7 +91,6 @@ class UnifiedCostService(BaseService):
                 "month": 'str', (optional),
             }
         """
-
         domain_id = params["domain_id"]
         aggregation_month: Union[str, None] = params.get("month")
 
