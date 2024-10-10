@@ -68,7 +68,7 @@ class UnifiedCostService(BaseService):
                 if current_hour == unified_cost_run_hour:
                     self.run_current_month_unified_costs(domain_id)
 
-                    if self._check_unified_cost_job_is_confirmed_with_month(
+                    if not self._check_unified_cost_job_is_confirmed_with_month(
                         domain_id, current_month
                     ):
                         last_month = (current_date - relativedelta(months=1)).strftime(
@@ -91,25 +91,22 @@ class UnifiedCostService(BaseService):
                 "month": 'str', (optional),
             }
         """
+
         domain_id = params["domain_id"]
         aggregation_month: Union[str, None] = params.get("month")
+
+        config_mgr = ConfigManager()
+        unified_cost_config = config_mgr.get_unified_cost_config(domain_id)
 
         if not aggregation_month:
             aggregation_month = datetime.utcnow().strftime("%Y-%m")
             is_confirmed = False
-        elif self._get_is_confirmed_with_aggregation_month(aggregation_month):
-            is_confirmed = True
         else:
-            _LOGGER.debug(
-                f"[run_unified_cost] skip aggregation month: {aggregation_month}"
+            is_confirmed = self._get_is_confirmed_with_aggregation_month(
+                aggregation_month, unified_cost_config
             )
-            return None
 
-        # todo: create job logic
         unified_cost_job_vo = self._get_unified_cost_job(domain_id, aggregation_month)
-
-        config_mgr = ConfigManager()
-        unified_cost_config = config_mgr.get_unified_cost_config(domain_id)
 
         aggregation_date = self._get_aggregation_date(
             unified_cost_config, aggregation_month, is_confirmed
@@ -327,8 +324,6 @@ class UnifiedCostService(BaseService):
         aggregation_date: datetime,
         is_confirmed: bool = False,
     ) -> None:
-        if workspace_id:
-            return
 
         identity_mgr = IdentityManager(token=config.get_global("TOKEN"))
         workspace_ids = [workspace_id]
@@ -537,12 +532,11 @@ class UnifiedCostService(BaseService):
             domain_id=domain_id, billed_month=current_month
         )
         if unified_cost_job_vos:
-            if unified_cost_job_vos[0].is_confirmed:
-                return False
-            else:
-                return True
+            unified_cost_job_vo = unified_cost_job_vos[0]
+
+            return unified_cost_job_vo.is_confirmed
         else:
-            return True
+            return False
 
     def _get_unified_cost_job(
         self, domain_id: str, aggregation_month: str
@@ -606,7 +600,7 @@ class UnifiedCostService(BaseService):
 
     @staticmethod
     def get_is_last_day(
-        current_date: datetime, is_last_day: bool, current_day: int = None
+        current_date: datetime, is_last_day: bool, current_day: int
     ) -> int:
         current_year = current_date.year
         current_month = current_date.month
@@ -614,9 +608,9 @@ class UnifiedCostService(BaseService):
         _, last_day = calendar.monthrange(current_year, current_month)
 
         if is_last_day:
-            return last_day
+            return int(last_day)
         else:
-            return min(current_day, last_day)
+            return int(min(current_day, last_day))
 
     @staticmethod
     def _get_workspace_ids_with_none(domain_id: str) -> list:
@@ -635,18 +629,22 @@ class UnifiedCostService(BaseService):
 
         return workspace_ids
 
-    @staticmethod
-    def _get_is_confirmed_with_aggregation_month(aggregation_month: str) -> bool:
+    def _get_is_confirmed_with_aggregation_month(
+        self, aggregation_month: str, unified_cost_config: dict
+    ) -> bool:
         is_confirmed = False
-        aggregation_date: datetime = datetime.strptime(aggregation_month, "%Y-%m")
-        current_date = datetime.utcnow()
-        if current_date > aggregation_date:
-            if current_date.year == aggregation_date.year:
-                if current_date.month == aggregation_date.month:
-                    is_confirmed = False
-                else:
-                    is_confirmed = True
-            else:
-                is_confirmed = True
+        current_date: datetime = datetime.utcnow()
+        aggregation_date = datetime.strptime(aggregation_month, "%Y-%m")
+
+        aggregation_day = unified_cost_config.get("aggregation_day", 15)
+        is_last_day = unified_cost_config.get("is_last_day", False)
+
+        last_day = self.get_is_last_day(current_date, is_last_day, aggregation_day)
+
+        aggregation_date = aggregation_date.replace(day=last_day) + relativedelta(
+            months=1
+        )
+        if current_date >= aggregation_date:
+            is_confirmed = True
 
         return is_confirmed
