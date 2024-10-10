@@ -30,16 +30,30 @@ class ConfigManager(BaseManager):
             params, token=system_token, x_domain_id=domain_id
         )
 
-        unified_cost_config = {}
-        for config_info in response.get("results", []):
-            if data := config_info.get("data", {}):
-                unified_cost_config = data.get(
-                    "unified_cost_config", self._get_default_unified_cost_config()
-                )
+        results = response.get("results", [])
+        total_count = response.get("total_count", 0)
+
+        if total_count > 0:
+            domain_config_data = results[0].get("data", {})
+            unified_cost_config = domain_config_data.get("unified_cost_config", {})
+        else:
+            domain_config_data = {}
+            unified_cost_config = {}
+
         if not unified_cost_config:
-            unified_cost_config = self._get_default_unified_cost_config()
+            unified_cost_config = self._set_default_unified_cost_config(
+                domain_id, data=domain_config_data
+            )
 
         return unified_cost_config
+
+    def set_domain_config(self, domain_id: str, name: str, data: dict) -> dict:
+        system_token = config.get_global("TOKEN")
+        params = {"name": name, "data": data}
+
+        return self.config_conn.dispatch(
+            "DomainConfig.set", params, token=system_token, x_domain_id=domain_id
+        )
 
     def list_domain_configs(
         self, params: dict, token: str = None, x_domain_id: str = None
@@ -51,7 +65,6 @@ class ConfigManager(BaseManager):
             x_domain_id=x_domain_id,
         )
 
-    # todo: use method
     @staticmethod
     def _get_default_unified_cost_config() -> dict:
         default_unified_cost_config = {
@@ -65,4 +78,26 @@ class ConfigManager(BaseManager):
             "custom_exchange_rate": {},
             "currency": "KRW",
         }
+        return default_unified_cost_config
+
+    def _set_default_unified_cost_config(self, domain_id: str, data: dict) -> dict:
+        default_unified_cost_config = self._get_default_unified_cost_config()
+
+        try:
+            domain_config_name = _AUTH_CONFIG_KEYS[0]
+            data["unified_cost_config"] = default_unified_cost_config
+
+            domain_config_info = self.set_domain_config(
+                domain_id, domain_config_name, data
+            )
+
+            default_unified_cost_config = domain_config_info["data"][
+                "unified_cost_config"
+            ]
+
+        except Exception as e:
+            _LOGGER.error(
+                f"Failed to set default unified cost config: {e}", exc_info=True
+            )
+
         return default_unified_cost_config
