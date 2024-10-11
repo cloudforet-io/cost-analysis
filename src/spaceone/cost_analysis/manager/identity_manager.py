@@ -77,9 +77,7 @@ class IdentityManager(BaseManager):
     @cache.cacheable(
         key="cost-analysis:workspace-name:{domain_id}:{workspace_id}:name", expire=300
     )
-    def get_workspace(self, workspace_id: Union[str, None], domain_id: str) -> str:
-        if not workspace_id:
-            return workspace_id
+    def get_workspace(self, workspace_id: str, domain_id: str) -> str:
         try:
             workspace_info = self.identity_conn.dispatch(
                 "Workspace.get",
