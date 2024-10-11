@@ -108,7 +108,7 @@ class UnifiedCostService(BaseService):
 
         unified_cost_job_vo = self._get_unified_cost_job(domain_id, aggregation_month)
 
-        aggregation_date = self._get_aggregation_date(
+        aggregation_execution_date = self._get_aggregation_date(
             unified_cost_config, aggregation_month, is_confirmed
         )
         exchange_date = self._get_exchange_date(
@@ -139,7 +139,8 @@ class UnifiedCostService(BaseService):
                     workspace_id,
                     currency_map,
                     exchange_date,
-                    aggregation_date,
+                    aggregation_execution_date,
+                    aggregation_month,
                     is_confirmed,
                 )
                 self._delete_old_unified_costs(
@@ -321,14 +322,18 @@ class UnifiedCostService(BaseService):
         workspace_id: Union[str, None],
         currency_map: dict,
         exchange_date: datetime,
-        aggregation_date: datetime,
+        aggregation_execution_date: datetime,
+        aggregation_month: str,
         is_confirmed: bool = False,
     ) -> None:
 
         identity_mgr = IdentityManager(token=config.get_global("TOKEN"))
         workspace_ids = [workspace_id]
 
-        workspace_name = identity_mgr.get_workspace(workspace_id, domain_id)
+        if workspace_id:
+            workspace_name = identity_mgr.get_workspace(workspace_id, domain_id)
+        else:
+            workspace_name = None
 
         v_workspace_ids = self._get_virtual_workspace_ids_from_ds_account(
             domain_id, workspace_id
@@ -346,8 +351,7 @@ class UnifiedCostService(BaseService):
             domain_id, workspace_id
         )
 
-        unified_cost_billed_year = aggregation_date.strftime("%Y")
-        unified_cost_billed_month = aggregation_date.strftime("%Y-%m")
+        unified_cost_billed_year = aggregation_month.split("-")[0]
 
         query = {
             "group_by": [
@@ -368,12 +372,12 @@ class UnifiedCostService(BaseService):
             "fields": {
                 "cost": {"key": "cost", "operator": "sum"},
             },
-            "start": unified_cost_billed_year,
-            "end": unified_cost_billed_month,
+            "start": aggregation_month,
+            "end": aggregation_month,
             "filter": [
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
                 {"k": "data_source_id", "v": data_source_ids, "o": "in"},
-                {"k": "billed_month", "v": unified_cost_billed_month, "o": "eq"},
+                {"k": "billed_month", "v": aggregation_month, "o": "eq"},
                 {"k": "workspace_id", "v": workspace_ids, "o": "in"},
                 {"k": "billed_year", "v": unified_cost_billed_year, "o": "eq"},
             ],
@@ -388,7 +392,7 @@ class UnifiedCostService(BaseService):
         cursor = self.cost_mgr.analyze_monthly_costs(query, domain_id)
 
         exchange_date_str = exchange_date.strftime("%Y-%m-%d")
-        aggregation_date_str = aggregation_date.strftime("%Y-%m-%d")
+        aggregation_execution_date_str = aggregation_execution_date.strftime("%Y-%m-%d")
 
         row_count = 0
         for row in cursor:
@@ -439,23 +443,31 @@ class UnifiedCostService(BaseService):
             aggregated_unified_cost_data["exchange_source"] = exchange_source
 
             aggregated_unified_cost_data["is_confirmed"] = is_confirmed
-            aggregated_unified_cost_data["aggregation_date"] = aggregation_date_str
+            aggregated_unified_cost_data["aggregation_date"] = (
+                aggregation_execution_date_str
+            )
 
             self.unified_cost_mgr.create_unified_cost(aggregated_unified_cost_data)
+            row_count += 1
 
         _LOGGER.debug(
             f"[create_unified_cost_with_workspace] create count: {row_count} (workspace_id: {workspace_id})"
         )
 
     def _get_data_source_currency_map(
-        self, domain_id: str, workspace_id: str
+        self, domain_id: str, workspace_id: Union[str, None]
     ) -> Tuple[dict, dict, list]:
         data_source_currency_map = {}
         data_source_name_map = {}
+        workspace_ids = ["*"]
+
+        if workspace_id:
+            workspace_ids.append(workspace_id)
+
         query = {
             "filter": [
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
-                {"k": "workspace_id", "v": [workspace_id, "*"], "o": "in"},
+                {"k": "workspace_id", "v": workspace_ids, "o": "in"},
             ]
         }
 
@@ -473,7 +485,7 @@ class UnifiedCostService(BaseService):
         return data_source_currency_map, data_source_name_map, data_source_ids
 
     def _get_virtual_workspace_ids_from_ds_account(
-        self, domain_id: str, workspace_id: str
+        self, domain_id: str, workspace_id: Union[str, None]
     ) -> list:
         v_workspace_ids = []
         ds_account_vos = self.ds_account_mgr.filter_data_source_accounts(
