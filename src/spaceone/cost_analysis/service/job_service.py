@@ -319,9 +319,6 @@ class JobService(BaseService):
             job_id,
             data_source_id,
             domain_id,
-            data_source_vo.cost_data_keys,
-            data_source_vo.cost_additional_info_keys,
-            data_source_vo.cost_tag_keys,
             job_task_vo.workspace_id,
         )
 
@@ -628,9 +625,6 @@ class JobService(BaseService):
         job_id: str,
         data_source_id: str,
         domain_id: str,
-        data_keys: list,
-        additional_info_keys: list,
-        tag_keys: list,
         workspace_id: str = None,
     ) -> None:
         job_vo: Job = self.job_mgr.get_job(job_id, domain_id, workspace_id)
@@ -639,10 +633,6 @@ class JobService(BaseService):
         if job_vo.remained_tasks == 0:
             if job_vo.status == "IN_PROGRESS":
                 try:
-                    # self._aggregate_cost_data(
-                    #     job_vo, data_keys, additional_info_keys, tag_keys
-                    # )
-
                     for changed_vo in job_vo.changed:
                         self._delete_changed_cost_data(
                             job_vo,
@@ -765,7 +755,8 @@ class JobService(BaseService):
                 {"k": "billed_month", "v": old_billed_month, "o": "lt"},
                 {"k": "data_source_id", "v": data_source_id, "o": "eq"},
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
-            ]
+            ],
+            "hint": "COMPOUND_INDEX_FOR_SYNC_JOB_2",
         }
 
         cost_vos, total_count = self.cost_mgr.list_costs(
@@ -779,7 +770,8 @@ class JobService(BaseService):
                 {"k": "billed_year", "v": old_billed_year, "o": "lt"},
                 {"k": "data_source_id", "v": data_source_id, "o": "eq"},
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
-            ]
+            ],
+            "hint": "COMPOUND_INDEX_FOR_SEARCH_2",
         }
 
         monthly_cost_vos, total_count = self.cost_mgr.list_monthly_costs(
@@ -799,7 +791,8 @@ class JobService(BaseService):
                 {"k": "data_source_id", "v": job_vo.data_source_id, "o": "eq"},
                 {"k": "domain_id", "v": job_vo.domain_id, "o": "eq"},
                 {"k": "job_id", "v": job_vo.job_id, "o": "not"},
-            ]
+            ],
+            "hint": "COMPOUND_INDEX_FOR_SYNC_JOB_2",
         }
 
         if end:
@@ -818,6 +811,7 @@ class JobService(BaseService):
             f"[_delete_changed_cost_data] delete costs (count = {total_count})"
         )
 
+        query["hint"] = "COMPOUND_INDEX_FOR_SYNC_JOB"
         monthly_cost_vos, total_count = self.cost_mgr.list_monthly_costs(
             copy.deepcopy(query), domain_id
         )
