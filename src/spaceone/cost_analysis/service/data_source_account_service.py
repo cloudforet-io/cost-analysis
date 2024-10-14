@@ -1,10 +1,7 @@
 import logging
-from datetime import datetime
 from typing import Union
 
 from spaceone.core.service import *
-from spaceone.core.error import ERROR_PERMISSION_DENIED
-
 from spaceone.cost_analysis.manager import DataSourceManager
 from spaceone.cost_analysis.manager.data_source_account_manager import (
     DataSourceAccountManager,
@@ -99,6 +96,7 @@ class DataSourceAccountService(BaseService):
             params (dict): {
                 'data_source_id': 'str',    # required
                 'account_id': 'str',        # optional
+                'reset_sync': 'bool',       # required
                 'workspace_id': 'str',      # injected from auth
                 'domain_id': 'str'          # injected from auth
             }
@@ -107,19 +105,13 @@ class DataSourceAccountService(BaseService):
         """
         data_source_id = params.data_source_id
         account_id = params.account_id
+        reset_sync = params.reset_sync
         workspace_id = params.workspace_id
         domain_id = params.domain_id
 
-        # Check if the data source exists
-        role_type = self.transaction.get_meta("authorization.role_type")
-        if role_type != "DOMAIN_ADMIN":
-            data_source_vo = self.data_source_mgr.get_data_source(
-                data_source_id, domain_id, workspace_id
-            )
-        else:
-            data_source_vo = self.data_source_mgr.get_data_source(
-                data_source_id, domain_id
-            )
+        data_source_vo = self.data_source_mgr.get_data_source(
+            data_source_id, domain_id, workspace_id
+        )
 
         conditions = {
             "data_source_id": data_source_id,
@@ -133,14 +125,16 @@ class DataSourceAccountService(BaseService):
         data_source_account_vos = (
             self.data_source_account_mgr.filter_data_source_accounts(**conditions)
         )
+
         for data_source_account_vo in data_source_account_vos:
-            update_params = {
-                "is_sync": False,
-                "updated_at": datetime.utcnow(),
-            }
+            update_params = {}
+
             if data_source_vo.resource_group == "DOMAIN":
                 update_params["workspace_id"] = None
+            if reset_sync:
                 update_params["is_linked"] = False
+
+            if update_params:
                 self.data_source_account_mgr.update_data_source_account_by_vo(
                     update_params, data_source_account_vo
                 )
