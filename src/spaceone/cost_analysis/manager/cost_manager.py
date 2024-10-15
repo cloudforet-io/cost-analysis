@@ -123,7 +123,7 @@ class CostManager(BaseManager):
         query = self._change_filter_project_group_id(query, domain_id)
         return self.cost_model.query(**query)
 
-    def stat_costs(self, query: dict, domain_id: str, data_source_id: str = None):
+    def stat_costs(self, query: dict, domain_id: str):
         query = self._change_filter_project_group_id(query, domain_id)
         return self.cost_model.stat(**query)
 
