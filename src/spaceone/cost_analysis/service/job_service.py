@@ -782,16 +782,14 @@ class JobService(BaseService):
         )
         monthly_cost_vos.delete()
 
-    def _distinct_job_id(
-        self, query_filter: list, domain_id: str, data_source_id: str
-    ) -> list:
+    def _distinct_job_id(self, query_filter: list, domain_id: str) -> list:
         query = {
             "distinct": "job_id",
             "filter": query_filter,
             "target": "PRIMARY",  # Execute a query to primary DB
         }
         _LOGGER.debug(f"[_distinct_job_id] query: {query}")
-        response = self.cost_mgr.stat_costs(query, domain_id, data_source_id)
+        response = self.cost_mgr.stat_monthly_costs(query, domain_id)
         values = response.get("results", [])
 
         _LOGGER.debug(f"[_distinct_job_id] job_ids: {values}")
@@ -814,9 +812,7 @@ class JobService(BaseService):
         if end:
             query["filter"].append({"k": "billed_month", "v": end, "o": "lte"})
 
-        job_ids = self._distinct_job_id(
-            copy.deepcopy(query["filter"]), domain_id, job_vo.data_source_id
-        )
+        job_ids = self._distinct_job_id(copy.deepcopy(query["filter"]), domain_id)
 
         for key, value in change_filter.items():
             query["filter"].append({"k": key, "v": value, "o": "eq"})
@@ -903,7 +899,7 @@ class JobService(BaseService):
             "target": "PRIMARY",  # Execute a query to primary DB
         }
         _LOGGER.debug(f"[_distinct_cost_data] query: {query}")
-        response = self.cost_mgr.stat_costs(query, domain_id, data_source_id)
+        response = self.cost_mgr.stat_costs(query, domain_id)
         values = response.get("results", [])
 
         _LOGGER.debug(f"[_distinct_cost_data] billed_month: {values}")
