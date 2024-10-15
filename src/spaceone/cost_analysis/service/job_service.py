@@ -814,12 +814,13 @@ class JobService(BaseService):
         if end:
             query["filter"].append({"k": "billed_month", "v": end, "o": "lte"})
 
+        job_ids = self._distinct_job_id(
+            copy.deepcopy(query["filter"]), domain_id, job_vo.data_source_id
+        )
+
         for key, value in change_filter.items():
             query["filter"].append({"k": key, "v": value, "o": "eq"})
 
-        job_ids = self._distinct_job_id(
-            query["filter"], domain_id, job_vo.data_source_id
-        )
         for job_id in job_ids:
             if job_vo.job_id == job_id:
                 continue
