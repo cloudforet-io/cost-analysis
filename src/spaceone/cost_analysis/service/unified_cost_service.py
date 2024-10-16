@@ -329,26 +329,28 @@ class UnifiedCostService(BaseService):
 
         identity_mgr = IdentityManager(token=config.get_global("TOKEN"))
         workspace_ids = [workspace_id]
+        workspace_name = None
+        project_name_map = {}
+        service_account_name_map = {}
 
         if workspace_id:
             workspace_name = identity_mgr.get_workspace(workspace_id, domain_id)
-        else:
-            workspace_name = None
+            v_workspace_ids = self._get_virtual_workspace_ids_from_ds_account(
+                domain_id, workspace_id
+            )
+            if v_workspace_ids:
+                workspace_ids.extend(v_workspace_ids)
 
-        v_workspace_ids = self._get_virtual_workspace_ids_from_ds_account(
-            domain_id, workspace_id
-        )
-        if v_workspace_ids:
-            workspace_ids.extend(v_workspace_ids)
+            project_name_map = identity_mgr.get_project_name_map(
+                domain_id, workspace_id
+            )
+
+            service_account_name_map = identity_mgr.get_service_account_name_map(
+                domain_id, workspace_id
+            )
 
         data_source_currency_map, data_source_name_map, data_source_ids = (
             self._get_data_source_currency_map(domain_id, workspace_id)
-        )
-
-        project_name_map = identity_mgr.get_project_name_map(domain_id, workspace_id)
-
-        service_account_name_map = identity_mgr.get_service_account_name_map(
-            domain_id, workspace_id
         )
 
         unified_cost_billed_year = aggregation_month.split("-")[0]
@@ -423,21 +425,22 @@ class UnifiedCostService(BaseService):
             aggregated_unified_cost_data["domain_id"] = domain_id
 
             # set workspace name
+            aggregated_unified_cost_data["workspace_id"] = workspace_id
             if workspace_id:
-                aggregated_unified_cost_data["workspace_id"] = workspace_id
                 aggregated_unified_cost_data["workspace_name"] = workspace_name
+                # set project name
+                project_id = aggregated_unified_cost_data.get("project_id", None)
+                aggregated_unified_cost_data["project_name"] = project_name_map.get(
+                    project_id, project_id
+                )
 
-            # set project name
-            project_id = aggregated_unified_cost_data.get("project_id", None)
-            aggregated_unified_cost_data["project_name"] = project_name_map.get(
-                project_id, project_id
-            )
-
-            # set service account name
-            service_account_id = aggregated_unified_cost_data.get("service_account_id")
-            aggregated_unified_cost_data["service_account_name"] = (
-                service_account_name_map.get(service_account_id)
-            )
+                # set service account name
+                service_account_id = aggregated_unified_cost_data.get(
+                    "service_account_id"
+                )
+                aggregated_unified_cost_data["service_account_name"] = (
+                    service_account_name_map.get(service_account_id)
+                )
 
             aggregated_unified_cost_data["exchange_date"] = exchange_date_str
             aggregated_unified_cost_data["exchange_source"] = exchange_source
