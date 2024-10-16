@@ -820,7 +820,7 @@ class JobService(BaseService):
                     {"k": "billed_month", "v": start, "o": "gte"},
                     {"k": "data_source_id", "v": job_vo.data_source_id, "o": "eq"},
                     {"k": "domain_id", "v": job_vo.domain_id, "o": "eq"},
-                    {"k": "job_id", "v": job_id, "o": "not"},
+                    {"k": "job_id", "v": job_id, "o": "eq"},
                 ],
                 "hint": "COMPOUND_INDEX_FOR_SYNC_JOB_2",
             }
