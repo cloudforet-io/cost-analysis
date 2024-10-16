@@ -782,12 +782,22 @@ class JobService(BaseService):
         )
         monthly_cost_vos.delete()
 
-    def _distinct_job_id(self, query_filter: list, domain_id: str) -> list:
+    def _distinct_job_id(
+        self, data_source_id: str, domain_id: str, start: str, end: str = None
+    ) -> list:
         query = {
             "distinct": "job_id",
-            "filter": query_filter,
+            "filter": [
+                {"k": "data_source_id", "v": data_source_id, "o": "eq"},
+                {"k": "domain_id", "v": domain_id, "o": "eq"},
+                {"k": "billed_month", "v": start, "o": "gte"},
+            ],
             "target": "PRIMARY",  # Execute a query to primary DB
         }
+
+        if end:
+            query["filter"].append({"k": "billed_month", "v": end, "o": "lte"})
+
         _LOGGER.debug(f"[_distinct_job_id] query: {query}")
         response = self.cost_mgr.stat_monthly_costs(query, domain_id)
         values = response.get("results", [])
@@ -799,29 +809,27 @@ class JobService(BaseService):
     def _delete_changed_cost_data(
         self, job_vo: Job, start, end, change_filter, domain_id
     ):
-        query = {
-            "filter": [
-                {"k": "billed_month", "v": start, "o": "gte"},
-                {"k": "data_source_id", "v": job_vo.data_source_id, "o": "eq"},
-                {"k": "domain_id", "v": job_vo.domain_id, "o": "eq"},
-                # {"k": "job_id", "v": job_vo.job_id, "o": "not"},
-            ],
-            "hint": "COMPOUND_INDEX_FOR_SYNC_JOB_2",
-        }
-
-        if end:
-            query["filter"].append({"k": "billed_month", "v": end, "o": "lte"})
-
-        job_ids = self._distinct_job_id(copy.deepcopy(query["filter"]), domain_id)
-
-        for key, value in change_filter.items():
-            query["filter"].append({"k": key, "v": value, "o": "eq"})
+        job_ids = self._distinct_job_id(job_vo.data_source_id, domain_id, start, end)
 
         for job_id in job_ids:
             if job_vo.job_id == job_id:
                 continue
 
-            query["filter"].append({"k": "job_id", "v": job_id, "o": "eq"})
+            query = {
+                "filter": [
+                    {"k": "billed_month", "v": start, "o": "gte"},
+                    {"k": "data_source_id", "v": job_vo.data_source_id, "o": "eq"},
+                    {"k": "domain_id", "v": job_vo.domain_id, "o": "eq"},
+                    {"k": "job_id", "v": job_id, "o": "not"},
+                ],
+                "hint": "COMPOUND_INDEX_FOR_SYNC_JOB_2",
+            }
+
+            if end:
+                query["filter"].append({"k": "billed_month", "v": end, "o": "lte"})
+
+            for key, value in change_filter.items():
+                query["filter"].append({"k": key, "v": value, "o": "eq"})
 
             _LOGGER.debug(f"[_delete_changed_cost_data] query: {query}")
 
