@@ -71,7 +71,7 @@ class ConfigManager(BaseManager):
             "run_hour": config.get_global("UNIFIED_COST_RUN_HOUR", 0),
             "aggregation_day": config.get_global("UNIFIED_COST_AGGREGATION_DAY", 15),
             "is_last_day": False,
-            "exchange_source": "Yahoo Finance!",
+            "exchange_source": "Yahoo! Finance",
             "exchange_date": 15,
             "is_exchange_last_day": False,
             "exchange_rate_mode": "AUTO",
