@@ -122,7 +122,7 @@ class UnifiedCostService(BaseService):
             currency_map, exchange_date = currency_mgr.get_currency_map_date(
                 currency_end_date=exchange_date
             )
-            exchange_source = "Yahoo Finance!"
+            exchange_source = "Yahoo! Finance"
         else:
             currency_map = unified_cost_config["custom_exchange_rate"]
             exchange_source = unified_cost_config.get("exchange_source", "MANUAL")

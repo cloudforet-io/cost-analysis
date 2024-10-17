@@ -1,6 +1,8 @@
 import logging
 
 from spaceone.core.service import *
+
+from spaceone.cost_analysis.manager import DataSourceManager
 from spaceone.cost_analysis.manager.cost_query_set_manager import CostQuerySetManager
 from spaceone.cost_analysis.model.cost_query_set_model import CostQuerySet
 
@@ -16,6 +18,7 @@ class CostQuerySetService(BaseService):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.data_source_mgr: DataSourceManager = DataSourceManager()
         self.cost_query_set_mgr: CostQuerySetManager = self.locator.get_manager(
             "CostQuerySetManager"
         )
@@ -43,6 +46,14 @@ class CostQuerySetService(BaseService):
         Returns:
             cost_query_set_vo (object)
         """
+
+        domain_id = params["domain_id"]
+        data_source_id = params["data_source_id"]
+
+        if data_source_id != "unified-cost-data-source":
+            self.data_source_mgr.get_data_source(
+                domain_id=domain_id, data_source_id=data_source_id
+            )
 
         return self.cost_query_set_mgr.create_cost_query_set(params)
 
