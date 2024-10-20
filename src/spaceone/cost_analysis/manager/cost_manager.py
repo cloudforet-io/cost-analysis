@@ -125,6 +125,7 @@ class CostManager(BaseManager):
 
     def stat_costs(self, query: dict, domain_id: str):
         query = self._change_filter_project_group_id(query, domain_id)
+        _LOGGER.debug(f"[stat_costs] query: {query}")
         return self.cost_model.stat(**query)
 
     def filter_monthly_costs(self, **conditions):
@@ -136,6 +137,7 @@ class CostManager(BaseManager):
 
     def stat_monthly_costs(self, query: dict, domain_id: str):
         query = self._change_filter_project_group_id(query, domain_id)
+        _LOGGER.debug(f"[stat_monthly_costs] query: {query}")
         return self.monthly_cost_model.stat(**query)
 
     def analyze_costs(self, query, domain_id, target="SECONDARY_PREFERRED"):
