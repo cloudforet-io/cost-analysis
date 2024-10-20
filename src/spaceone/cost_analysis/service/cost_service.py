@@ -252,7 +252,7 @@ class CostService(BaseService):
         ["data_source_id", "user_projects", "workspace_id", "domain_id"]
     )
     @append_keyword_filter(["cost_id"])
-    @set_query_page_limit(1000)
+    # @set_query_page_limit(1000)
     def analyze(self, params: dict) -> dict:
         """
         Args:
@@ -293,7 +293,7 @@ class CostService(BaseService):
         ["data_source_id", "workspace_id", "domain_id", "user_projects"]
     )
     @append_keyword_filter(["cost_id"])
-    @set_query_page_limit(1000)
+    # @set_query_page_limit(1000)
     def stat(self, params):
         """
         Args:
