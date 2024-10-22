@@ -522,10 +522,6 @@ class UnifiedCostService(BaseService):
                 {"key": "created_at", "value": created_at, "operator": "lt"},
             ],
         }
-        if not is_confirmed:
-            query_filter["filter"].append(
-                {"key": "is_confirmed", "value": is_confirmed, "operator": "eq"}
-            )
 
         _LOGGER.debug(
             f"[delete_old_unified_costs] delete query filter conditions: {query_filter}"
