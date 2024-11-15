@@ -270,7 +270,7 @@ class UnifiedCostService(BaseService):
 
         query = params.query or {}
 
-        return self.unified_cost_mgr.analyze_unified_costs(query)
+        return self.unified_cost_mgr.analyze_unified_costs_by_granularity(query)
 
     @transaction(
         permission="cost-analysis:UnifiedCost.read",
