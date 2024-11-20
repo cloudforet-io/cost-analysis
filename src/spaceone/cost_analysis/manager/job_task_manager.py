@@ -90,13 +90,17 @@ class JobTaskManager(BaseManager):
             {"status": "IN_PROGRESS", "started_at": datetime.utcnow()}
         )
 
-    @staticmethod
-    def update_sync_status(job_task_vo: JobTask, created_count: int) -> JobTask:
-        return job_task_vo.update(
+    def update_sync_status(self, job_task_vo: JobTask, created_count):
+        job_task_vo = job_task_vo.update(
             {"created_count": job_task_vo.created_count + created_count}
         )
 
-    def change_success_status(self, job_task_vo: JobTask, created_count: int) -> None:
+        job_vo = self.job_mgr.get_job(job_task_vo.job_id, job_task_vo.domain_id)
+        self.job_mgr.update_job_by_vo({}, job_vo)
+
+        return job_task_vo
+
+    def change_success_status(self, job_task_vo: JobTask, created_count):
         _LOGGER.debug(
             f"[change_success_status] success job task: {job_task_vo.job_task_id} "
             f"(created_count = {created_count})"
@@ -112,6 +116,7 @@ class JobTaskManager(BaseManager):
 
         job_vo = self.job_mgr.get_job(job_task_vo.job_id, job_task_vo.domain_id)
         self.job_mgr.decrease_remained_tasks(job_vo)
+        self.job_mgr.update_job_by_vo({}, job_vo)
 
     def change_canceled_status(self, job_task_vo: JobTask) -> None:
         _LOGGER.error(
