@@ -1,7 +1,8 @@
-spaceone-core
-spaceone-api==1.10.4.1
-mongoengine
-redis
-boto3
-pandas
-numpy
+spaceone-core==1.10.5.dev2
+spaceone-api==1.10.4.3
+mongoengine==0.24.2
+redis==4.4.0
+boto3==1.26.34
+pandas==1.5.2
+numpy==1.24.0
+pymongo==4.3.3

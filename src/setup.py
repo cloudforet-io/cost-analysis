@@ -15,28 +15,29 @@
 
 from setuptools import setup, find_packages
 
-with open('VERSION', 'r') as f: 
+with open("VERSION", "r") as f:
     VERSION = f.read().strip()
     f.close()
 
 setup(
-    name='spaceone-cost-analysis',
+    name="spaceone-cost-analysis",
     version=VERSION,
-    description='SpaceONE cost analysis service',
-    long_description='',
-    url='https://www.spaceone.dev/',
-    author='MEGAZONE SpaceONE Team',
-    author_email='admin@spaceone.dev',
-    license='Apache License 2.0',
+    description="SpaceONE cost analysis service",
+    long_description="",
+    url="https://www.spaceone.dev/",
+    author="MEGAZONE SpaceONE Team",
+    author_email="admin@spaceone.dev",
+    license="Apache License 2.0",
     packages=find_packages(),
     install_requires=[
-        'spaceone-core',
-        'spaceone-api==1.10.4.1',
-        'mongoengine',
-        'redis',
-        'boto3',
-        'pandas',
-        'numpy'
+        "spaceone-core==1.10.5.dev2",
+        "spaceone-api==1.10.4.3",
+        "mongoengine==0.24.2",
+        "redis==4.4.0",
+        "boto3==1.26.34",
+        "pandas==1.5.2",
+        "numpy==1.24.0",
+        "pymongo==4.3.3",
     ],
     zip_safe=False,
 )
