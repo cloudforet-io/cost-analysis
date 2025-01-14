@@ -138,7 +138,6 @@ class DataSourceRuleManager(BaseManager):
         workspace_id: str = None,
     ):
         for action, value in actions.items():
-
             if action == "match_workspace" and value:
                 source = value["source"]
                 target_key = value.get("target", "workspace_id")
@@ -261,9 +260,9 @@ class DataSourceRuleManager(BaseManager):
         if total_count > 0:
             project_info = results[0]
 
-        self._project_info[f"project:{domain_id}:{target_key}:{target_value}"] = (
-            project_info
-        )
+        self._project_info[
+            f"project:{domain_id}:{target_key}:{target_value}"
+        ] = project_info
         return project_info
 
     def _get_workspace(
@@ -288,9 +287,9 @@ class DataSourceRuleManager(BaseManager):
         if total_count > 0:
             workspace_info = results[0]
 
-        self._workspace_info[f"workspace:{domain_id}:{target_key}:{target_value}"] = (
-            workspace_info
-        )
+        self._workspace_info[
+            f"workspace:{domain_id}:{target_key}:{target_value}"
+        ] = workspace_info
         return workspace_info
 
     def _change_cost_data_by_rule(

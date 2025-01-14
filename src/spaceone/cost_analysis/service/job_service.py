@@ -799,7 +799,7 @@ class JobService(BaseService):
             query["filter"].append({"k": "billed_month", "v": end, "o": "lte"})
 
         _LOGGER.debug(f"[_distinct_job_id] query: {query}")
-        response = self.cost_mgr.stat_monthly_costs(query, domain_id)
+        response = self.cost_mgr.stat_costs(query, domain_id)
         values = response.get("results", [])
 
         _LOGGER.debug(f"[_distinct_job_id] job_ids: {values}")
