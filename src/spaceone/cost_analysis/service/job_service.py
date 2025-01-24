@@ -914,7 +914,7 @@ class JobService(BaseService):
                     {"k": "data_source_id", "v": job_task_vo.data_source_id, "o": "eq"},
                     {"k": "job_id", "v": job_task_vo.job_id, "o": "not"},
                     {"k": "billed_month", "v": start, "o": "gte"},
-                    {"k": "job_task_id", "v": job_task_vo.job_task_id, "o": "eq"},
+                    {"k": "job_task_id", "v": job_task_id, "o": "eq"},
                 ],
                 "hint": "COMPOUND_INDEX_FOR_SYNC_JOB_2",
             }
