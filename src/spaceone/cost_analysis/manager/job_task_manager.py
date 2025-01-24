@@ -26,6 +26,7 @@ class JobTaskManager(BaseManager):
         workspace_id: str,
         domain_id: str,
         task_options: dict,
+        task_changed: Union[dict, None] = None,
     ):
         data = {
             "resource_group": resource_group,
@@ -34,6 +35,7 @@ class JobTaskManager(BaseManager):
             "workspace_id": workspace_id,
             "domain_id": domain_id,
             "options": task_options,
+            "changed": task_changed,
         }
 
         _LOGGER.debug(f"[create_job_task] create job task: {data}")
@@ -59,7 +61,7 @@ class JobTaskManager(BaseManager):
     def stat_job_tasks(self, query):
         return self.job_task_model.stat(**query)
 
-    def push_job_task(self, params):
+    def push_job_task(self, params: dict) -> None:
         token = self.transaction.meta.get("token")
         task = {
             "name": "sync_data_source",

@@ -1,6 +1,7 @@
 from mongoengine import *
 
 from spaceone.core.model.mongo_model import MongoModel
+from spaceone.cost_analysis.model.job_model import Changed
 
 
 class JobTask(MongoModel):
@@ -11,6 +12,7 @@ class JobTask(MongoModel):
         choices=("PENDING", "IN_PROGRESS", "SUCCESS", "FAILURE", "CANCELED"),
     )
     options = DictField()
+    changed = EmbeddedDocumentField(Changed)
     created_count = IntField(default=0)
     error_code = StringField(max_length=254, default=None, null=True)
     error_message = StringField(default=None, null=True)
