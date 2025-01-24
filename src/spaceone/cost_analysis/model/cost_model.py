@@ -55,8 +55,13 @@ class Cost(MongoModel):
                 "name": "COMPOUND_INDEX_FOR_SYNC_JOB_1",
             },
             {
-                # TODO: Change Index Policy (Account ID to job_task_id)
-                "fields": ["domain_id", "data_source_id", "job_id", "-billed_month", "additional_info.Account ID",],
+                "fields": [
+                    "domain_id",
+                    "data_source_id",
+                    "job_id",
+                    "-billed_month",
+                    "job_task_id",
+                ],
                 "name": "COMPOUND_INDEX_FOR_SYNC_JOB_2",
             },
             {
@@ -125,7 +130,13 @@ class MonthlyCost(MongoModel):
         "change_query_keys": {"user_projects": "project_id"},
         "indexes": [
             {
-                "fields": ["domain_id", "data_source_id", "job_id", "-billed_month"],
+                "fields": [
+                    "domain_id",
+                    "data_source_id",
+                    "job_id",
+                    "-billed_month",
+                    "job_task_id",
+                ],
                 "name": "COMPOUND_INDEX_FOR_SYNC_JOB",
             },
             {

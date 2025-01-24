@@ -184,12 +184,13 @@ class JobService(BaseService):
 
     @transaction(exclude=["authentication", "authorization", "mutation"])
     @check_required(["task_options", "job_task_id", "domain_id"])
-    def get_cost_data(self, params):
+    def get_cost_data(self, params: dict):
         """Execute task to get cost data
 
         Args:
             params (dict): {
                 'task_options': 'dict',
+                'task_changed': 'dict',
                 'job_task_id': 'str',
                 'secret_id': 'str',
                 'domain_id': 'str'
@@ -200,6 +201,7 @@ class JobService(BaseService):
         """
 
         task_options = params["task_options"]
+        task_changed = params.get("task_changed")
         job_task_id = params["job_task_id"]
         secret_id = params["secret_id"]
         domain_id = params["domain_id"]
@@ -312,6 +314,11 @@ class JobService(BaseService):
                     )
                     self.job_task_mgr.change_success_status(job_task_vo, count)
 
+                    if task_changed:
+                        self._delete_changed_cost_data_with_job_task(
+                            job_task_vo, domain_id
+                        )
+
             except Exception as e:
                 self.job_task_mgr.change_error_status(job_task_vo, e, secret_type)
 
@@ -399,6 +406,7 @@ class JobService(BaseService):
 
         for task in tasks:
             _LOGGER.debug(f'[sync] task options: {task["task_options"]}')
+            _LOGGER.debug(f'[sync] task changed: {task.get("task_changed")}')
         _LOGGER.debug(f"[sync] changed: {changed}")
 
         # Add Job Options
@@ -422,6 +430,7 @@ class JobService(BaseService):
                 for task in tasks:
                     job_task_vo = None
                     task_options = task["task_options"]
+                    task_changed = task.get("task_changed")
                     try:
                         job_task_vo = self.job_task_mgr.create_job_task(
                             job_vo.resource_group,
@@ -430,10 +439,12 @@ class JobService(BaseService):
                             job_vo.workspace_id,
                             domain_id,
                             task_options,
+                            task_changed,
                         )
                         self.job_task_mgr.push_job_task(
                             {
                                 "task_options": task_options,
+                                "task_changed": task_changed,
                                 "secret_id": task.get("secret_id"),
                                 "secret_data": task.get("secret_data", {}),
                                 "job_task_id": job_task_vo.job_task_id,
@@ -752,9 +763,9 @@ class JobService(BaseService):
 
         cost_delete_query = {
             "filter": [
-                {"k": "billed_month", "v": old_billed_month, "o": "lt"},
-                {"k": "data_source_id", "v": data_source_id, "o": "eq"},
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
+                {"k": "data_source_id", "v": data_source_id, "o": "eq"},
+                {"k": "billed_month", "v": old_billed_month, "o": "lt"},
             ],
             "hint": "COMPOUND_INDEX_FOR_SYNC_JOB_2",
         }
@@ -767,9 +778,9 @@ class JobService(BaseService):
 
         monthly_cost_delete_query = {
             "filter": [
-                {"k": "billed_year", "v": old_billed_year, "o": "lt"},
-                {"k": "data_source_id", "v": data_source_id, "o": "eq"},
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
+                {"k": "data_source_id", "v": data_source_id, "o": "eq"},
+                {"k": "billed_year", "v": old_billed_year, "o": "lt"},
             ],
             "hint": "COMPOUND_INDEX_FOR_SEARCH_BY_YEARLY",
         }
@@ -806,6 +817,36 @@ class JobService(BaseService):
 
         return values
 
+    def _distinct_job_task_id(
+        self,
+        job_id: str,
+        data_source_id: str,
+        domain_id: str,
+        start: str,
+        end: str = None,
+    ) -> list:
+        query = {
+            "distinct": "job_task_id",
+            "filter": [
+                {"k": "domain_id", "v": domain_id, "o": "eq"},
+                {"k": "data_source_id", "v": data_source_id, "o": "eq"},
+                {"k": "job_id", "v": job_id, "o": "not"},
+                {"k": "billed_month", "v": start, "o": "gte"},
+            ],
+            "target": "PRIMARY",  # Execute a query to primary DB
+        }
+
+        if end:
+            query["filter"].append({"k": "billed_month", "v": end, "o": "lte"})
+
+        _LOGGER.debug(f"[_distinct_job_id] query: {query}")
+        response = self.cost_mgr.stat_costs(query, domain_id)
+        values = response.get("results", [])
+
+        _LOGGER.debug(f"[_distinct_job_id] job_ids: {values}")
+
+        return values
+
     def _delete_changed_cost_data(
         self, job_vo: Job, start, end, change_filter, domain_id
     ):
@@ -817,9 +858,9 @@ class JobService(BaseService):
 
             query = {
                 "filter": [
-                    {"k": "billed_month", "v": start, "o": "gte"},
-                    {"k": "data_source_id", "v": job_vo.data_source_id, "o": "eq"},
                     {"k": "domain_id", "v": job_vo.domain_id, "o": "eq"},
+                    {"k": "data_source_id", "v": job_vo.data_source_id, "o": "eq"},
+                    {"k": "billed_month", "v": start, "o": "gte"},
                     {"k": "job_id", "v": job_id, "o": "eq"},
                 ],
                 "hint": "COMPOUND_INDEX_FOR_SYNC_JOB_2",
@@ -848,6 +889,59 @@ class JobService(BaseService):
             monthly_cost_vos.delete()
             _LOGGER.debug(
                 f"[_delete_changed_cost_data] delete monthly costs (count = {total_count})"
+            )
+
+    def _delete_changed_cost_data_with_job_task(
+        self, job_task_vo: JobTask, domain_id: str
+    ) -> None:
+        changed = job_task_vo.changed
+
+        start = changed.get("start")
+        end = changed.get("end")
+        change_filter = changed.get("filter")
+
+        job_task_ids = self._distinct_job_task_id(
+            job_task_vo.job_id, job_task_vo.data_source_id, domain_id, start, end
+        )
+
+        for job_task_id in job_task_ids:
+            if job_task_vo.job_task_id == job_task_id:
+                continue
+
+            query = {
+                "filter": [
+                    {"k": "domain_id", "v": job_task_vo.domain_id, "o": "eq"},
+                    {"k": "data_source_id", "v": job_task_vo.data_source_id, "o": "eq"},
+                    {"k": "job_id", "v": job_task_vo.job_id, "o": "not"},
+                    {"k": "billed_month", "v": start, "o": "gte"},
+                    {"k": "job_task_id", "v": job_task_vo.job_task_id, "o": "eq"},
+                ],
+                "hint": "COMPOUND_INDEX_FOR_SYNC_JOB_2",
+            }
+
+            if end:
+                query["filter"].append({"k": "billed_month", "v": end, "o": "lte"})
+
+            for key, value in change_filter.items():
+                query["filter"].append({"k": key, "v": value, "o": "eq"})
+
+            _LOGGER.debug(f"[_delete_changed_cost_data_with_job_task] query: {query}")
+
+            cost_vos, total_count = self.cost_mgr.list_costs(
+                copy.deepcopy(query), domain_id, job_task_vo.data_source_id
+            )
+            cost_vos.delete()
+            _LOGGER.debug(
+                f"[_delete_changed_cost_data_with_job_task] delete costs (count = {total_count})"
+            )
+
+            query["hint"] = "COMPOUND_INDEX_FOR_SYNC_JOB"
+            monthly_cost_vos, total_count = self.cost_mgr.list_monthly_costs(
+                copy.deepcopy(query), domain_id
+            )
+            monthly_cost_vos.delete()
+            _LOGGER.debug(
+                f"[_delete_changed_cost_data_with_job_task] delete monthly costs (count = {total_count})"
             )
 
     def _aggregate_cost_data(
@@ -1077,9 +1171,9 @@ class JobService(BaseService):
         )
 
         for data_source_account_vo in data_source_account_vos:
-            data_source_account_map[
-                data_source_account_vo.account_id
-            ] = data_source_account_vo
+            data_source_account_map[data_source_account_vo.account_id] = (
+                data_source_account_vo
+            )
 
         return data_source_account_map
 

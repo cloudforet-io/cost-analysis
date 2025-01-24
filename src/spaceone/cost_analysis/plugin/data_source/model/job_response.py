@@ -4,14 +4,15 @@ from pydantic import BaseModel
 __all__ = ["TasksResponse"]
 
 
-class Task(BaseModel):
-    task_options: dict
-
-
 class Changed(BaseModel):
     start: str
     end: Union[str, None] = None
     filter: Union[dict, None] = None
+
+
+class Task(BaseModel):
+    task_options: dict
+    task_changed: Union[Changed, None] = None
 
 
 class SyncedAccount(BaseModel):
