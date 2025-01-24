@@ -55,7 +55,8 @@ class Cost(MongoModel):
                 "name": "COMPOUND_INDEX_FOR_SYNC_JOB_1",
             },
             {
-                "fields": ["domain_id", "data_source_id", "job_id", "-billed_month"],
+                # TODO: Change Index Policy (Account ID to job_task_id)
+                "fields": ["domain_id", "data_source_id", "job_id", "-billed_month", "additional_info.Account ID",],
                 "name": "COMPOUND_INDEX_FOR_SYNC_JOB_2",
             },
             {
@@ -64,15 +65,32 @@ class Cost(MongoModel):
                     "data_source_id",
                     "workspace_id",
                     "project_id",
-                    "product",
                     "-billed_date",
+                    "product",
                     "cost",
                 ],
-                "name": "COMPOUND_INDEX_FOR_SEARCH",
+                "name": "COMPOUND_INDEX_FOR_SEARCH_FOR_WORKSPACE_MEMBER",
             },
             {
-                "fields": ["domain_id", "cost_id", "workspace_id", "project_id"],
-                "name": "COMPOUND_INDEX_FOR_DELETE",
+                "fields": [
+                    "domain_id",
+                    "data_source_id",
+                    "workspace_id",
+                    "-billed_date",
+                    "product",
+                    "cost",
+                ],
+                "name": "COMPOUND_INDEX_FOR_SEARCH_FOR_WORKSPACE_OWNER",
+            },
+            {
+                "fields": [
+                    "domain_id",
+                    "data_source_id",
+                    "-billed_date",
+                    "product",
+                    "cost",
+                ],
+                "name": "COMPOUND_INDEX_FOR_SEARCH_FOR_ADMIN",
             },
         ],
     }
@@ -114,12 +132,34 @@ class MonthlyCost(MongoModel):
                 "fields": [
                     "domain_id",
                     "data_source_id",
-                    "-billed_month",
                     "workspace_id",
                     "project_id",
+                    "-billed_month",
+                    "product",
                     "cost",
                 ],
-                "name": "COMPOUND_INDEX_FOR_SEARCH_1",
+                "name": "COMPOUND_INDEX_FOR_SEARCH_FOR_WORKSPACE_MEMBER",
+            },
+            {
+                "fields": [
+                    "domain_id",
+                    "data_source_id",
+                    "workspace_id",
+                    "-billed_month",
+                    "product",
+                    "cost",
+                ],
+                "name": "COMPOUND_INDEX_FOR_SEARCH_FOR_WORKSPACE_OWNER",
+            },
+            {
+                "fields": [
+                    "domain_id",
+                    "data_source_id",
+                    "-billed_month",
+                    "product",
+                    "cost",
+                ],
+                "name": "COMPOUND_INDEX_FOR_SEARCH_FOR_ADMIN",
             },
             {
                 "fields": [
@@ -130,7 +170,7 @@ class MonthlyCost(MongoModel):
                     "project_id",
                     "cost",
                 ],
-                "name": "COMPOUND_INDEX_FOR_SEARCH_2",
+                "name": "COMPOUND_INDEX_FOR_SEARCH_BY_YEARLY",
             },
         ],
     }
