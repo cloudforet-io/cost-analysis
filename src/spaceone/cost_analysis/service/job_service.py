@@ -896,9 +896,9 @@ class JobService(BaseService):
     ) -> None:
         changed = job_task_vo.changed
 
-        start = changed.get("start")
-        end = changed.get("end")
-        change_filter = changed.get("filter")
+        start = changed.start
+        end = changed.end
+        change_filter = changed.filter
 
         job_task_ids = self._distinct_job_task_id(
             job_task_vo.job_id, job_task_vo.data_source_id, domain_id, start, end

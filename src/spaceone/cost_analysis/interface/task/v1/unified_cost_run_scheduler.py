@@ -22,10 +22,6 @@ class UnifiedCostRunScheduler(HourlyScheduler):
             raise ERROR_CONFIGURATION(key="TOKEN")
 
     def create_task(self) -> list:
-        from spaceone.core import model
-
-        model.init_all(False)
-
         tasks = []
         tasks.extend(self._create_unified_cost_run_task())
         return tasks
