@@ -771,7 +771,7 @@ class JobService(BaseService):
                 {"k": "data_source_id", "v": data_source_id, "o": "eq"},
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
             ],
-            "hint": "COMPOUND_INDEX_FOR_SEARCH_2",
+            "hint": "COMPOUND_INDEX_FOR_SEARCH_BY_YEARLY",
         }
 
         monthly_cost_vos, total_count = self.cost_mgr.list_monthly_costs(
