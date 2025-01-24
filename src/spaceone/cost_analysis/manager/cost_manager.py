@@ -147,6 +147,7 @@ class CostManager(BaseManager):
         _LOGGER.debug(f"[analyze_costs] query: {query}")
 
         query = self._change_filter_project_group_id(query, domain_id)
+        query["hint"] = "COMPOUND_INDEX_FOR_SEARCH"
         return self.cost_model.analyze(**query)
 
     def analyze_monthly_costs(self, query, domain_id, target="SECONDARY_PREFERRED"):

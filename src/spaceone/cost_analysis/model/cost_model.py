@@ -62,9 +62,10 @@ class Cost(MongoModel):
                 "fields": [
                     "domain_id",
                     "data_source_id",
-                    "-billed_date",
                     "workspace_id",
                     "project_id",
+                    "product",
+                    "-billed_date",
                     "cost",
                 ],
                 "name": "COMPOUND_INDEX_FOR_SEARCH",
