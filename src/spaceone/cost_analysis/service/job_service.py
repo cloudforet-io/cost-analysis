@@ -655,11 +655,11 @@ class JobService(BaseService):
 
                 except Exception as e:
                     _LOGGER.error(
-                        f"[_close_job] aggregate cost data error: {e}", exc_info=True
+                        f"[_close_job] delete changed cost data error: {e}", exc_info=True
                     )
                     self._rollback_cost_data(job_vo)
                     self.job_mgr.change_error_status(
-                        job_vo, f"aggregate cost data error: {e}"
+                        job_vo, f"delete changed cost data error: {e}"
                     )
                     raise e
 
@@ -864,6 +864,7 @@ class JobService(BaseService):
                     {"k": "job_id", "v": job_id, "o": "eq"},
                 ],
                 "hint": "COMPOUND_INDEX_FOR_SYNC_JOB_2",
+                "include_count": False,
             }
 
             if end:
@@ -1039,13 +1040,12 @@ class JobService(BaseService):
                 "cost": {"key": "cost", "operator": "sum"},
                 "usage_quantity": {"key": "usage_quantity", "operator": "sum"},
             },
-            "start": billed_month,
-            "end": billed_month,
             "filter": [
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
                 {"k": "data_source_id", "v": data_source_id, "o": "eq"},
                 {"k": "job_id", "v": job_id, "o": "eq"},
                 {"k": "job_task_id", "v": job_task_id, "o": "eq"},
+                {"k": "billed_month", "v": billed_month, "o": "eq"},
             ],
             "allow_disk_use": True,  # Allow disk use for large data
             "return_type": "cursor",  # Return type is cursor
