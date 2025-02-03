@@ -864,6 +864,7 @@ class JobService(BaseService):
                     {"k": "job_id", "v": job_id, "o": "eq"},
                 ],
                 "hint": "COMPOUND_INDEX_FOR_SYNC_JOB_2",
+                "include_count": False,
             }
 
             if end:
