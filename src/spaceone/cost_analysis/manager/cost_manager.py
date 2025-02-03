@@ -620,6 +620,9 @@ class CostManager(BaseManager):
 
     @staticmethod
     def _add_hint_to_query(query: dict) -> dict:
+        if "hint" in query:
+            return query
+
         query_filter = query.get("filter", [])
         workspace_id_exist = False
         project_id_exist = False
