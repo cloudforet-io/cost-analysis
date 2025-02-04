@@ -3,7 +3,7 @@ from typing import List
 from spaceone.api.cost_analysis.v1 import job_pb2
 from spaceone.core.pygrpc.message_type import *
 from spaceone.core import utils
-from spaceone.cost_analysis.model.job_model import Job, Changed, SyncedAccount
+from spaceone.cost_analysis.model.job.database import Job, Changed, SyncedAccount
 
 __all__ = ["JobInfo", "JobsInfo"]
 

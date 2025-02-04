@@ -208,7 +208,7 @@ class UnifiedCostService(BaseService):
     @convert_model
     def list(
         self, params: UnifiedCostSearchQueryRequest
-    ) -> Union[UnifiedCostResponse, dict]:
+    ) -> Union[UnifiedCostsResponse, dict]:
         """List cost report data
         Args:
             params (dict): {
@@ -232,7 +232,7 @@ class UnifiedCostService(BaseService):
             cost_report_data_vo.to_dict()
             for cost_report_data_vo in cost_report_data_vos
         ]
-        return UnifiedCostResponse(
+        return UnifiedCostsResponse(
             results=cost_reports_data_info, total_count=total_count
         )
 

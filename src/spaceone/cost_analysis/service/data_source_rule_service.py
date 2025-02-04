@@ -1,5 +1,6 @@
 import logging
 import fnmatch
+from typing import Union
 
 from spaceone.core.service import *
 from spaceone.cost_analysis.error import *
@@ -8,7 +9,11 @@ from spaceone.cost_analysis.manager.data_source_rule_manager import (
 )
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
-from spaceone.cost_analysis.model.data_source_rule_model import DataSourceRule
+from spaceone.cost_analysis.model.data_source_rule.database import DataSourceRule
+from spaceone.cost_analysis.model.data_source_rule.request import DataSourceRuleCreateRequest, \
+    DataSourceRuleUpdateRequest, DataSourceRuleChangeOrderRequest, DataSourceRuleDeleteRequest, \
+    DataSourceRuleGetRequest, DataSourceRuleStatQueryRequest
+from spaceone.cost_analysis.model.data_source_rule.response import DataSourceRuleResponse, DataSourceRulesResponse
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -43,27 +48,31 @@ class DataSourceRuleService(BaseService):
         permission="cost-analysis:DataSourceRule.write",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
-    def create(self, params):
+    def create(self, params: DataSourceRuleCreateRequest) -> Union[DataSourceRuleResponse, dict]:
         """Create data source rule
 
         Args:
             params (dict): {
-                'data_source_id': 'str',
+                'data_source_id': 'str',       # required
                 'name': 'str',
                 'conditions': 'list',
-                'conditions_policy': 'str',
-                'actions': 'dict',
+                'conditions_policy': 'str',    # required
+                'actions': 'dict',             # required
                 'options': 'dict',
                 'tags': 'dict',
-                'resource_group: 'str',
+                'resource_group: 'str',        # required
                 'workspace_id': 'str',
                 'domain_id': 'str'
             }
 
         Returns:
-            data_source_rule_vo (object)
+            DataSourceRuleResponse:
         """
-        return self.create_data_source_rule(params)
+        params_dict = params.dict(exclude_unset=True)
+
+        data_source_rule_vo = self.create_data_source_rule(params_dict)
+
+        return DataSourceRuleResponse(**data_source_rule_vo.to_dict())
 
     @check_required(
         [
@@ -83,7 +92,7 @@ class DataSourceRuleService(BaseService):
         actions: dict = params["actions"]
         rule_type: str = params.get("rule_type", "CUSTOM")
 
-        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
+        identity_mgr = IdentityManager()
 
         if params["resource_group"] == "WORKSPACE":
             identity_mgr.check_workspace(params["workspace_id"], domain_id)
@@ -100,14 +109,13 @@ class DataSourceRuleService(BaseService):
 
         self._check_actions(actions, domain_id)
 
-        data_source_mgr: DataSourceManager = self.locator.get_manager(
-            "DataSourceManager"
-        )
+        data_source_mgr =  DataSourceManager()
+
         data_source_vo = data_source_mgr.get_data_source(data_source_id, domain_id)
 
         params["data_source"] = data_source_vo
         params["order"] = (
-            self._get_highest_order(data_source_id, rule_type, domain_id) + 1
+                self._get_highest_order(data_source_id, rule_type, domain_id) + 1
         )
 
         return self.data_source_rule_mgr.create_data_source_rule(params)
@@ -118,12 +126,12 @@ class DataSourceRuleService(BaseService):
     )
     @check_required(["data_source_rule_id", "domain_id"])
     @change_date_value(["end"])
-    def update(self, params):
+    def update(self, params: DataSourceRuleUpdateRequest) -> Union[DataSourceRuleResponse, dict]:
         """Update data source rule
 
         Args:
             params (dict): {
-                'data_source_rule_id': 'str',
+                'data_source_rule_id': 'str',    # required
                 'name': 'str',
                 'conditions': 'list',
                 'conditions_policy': 'list',
@@ -135,14 +143,16 @@ class DataSourceRuleService(BaseService):
             }
 
         Returns:
-            data_source_rule_vo (object)
+            DataSourceRuleResponse:
         """
 
-        data_source_rule_id = params["data_source_rule_id"]
-        domain_id = params["domain_id"]
-        workspace_id = params.get("workspace_id")
-        conditions_policy = params.get("conditions_policy")
-        conditions = params.get("conditions", [])
+        params_dict = params.dict(exclude_unset=True)
+
+        data_source_rule_id = params_dict["data_source_rule_id"]
+        domain_id = params_dict["domain_id"]
+        workspace_id = params_dict.get("workspace_id")
+        conditions_policy = params_dict.get("conditions_policy")
+        conditions = params_dict.get("conditions", [])
 
         data_source_rule_vo = self.data_source_rule_mgr.get_data_source_rule(
             data_source_rule_id, domain_id, workspace_id
@@ -153,7 +163,7 @@ class DataSourceRuleService(BaseService):
 
         if conditions_policy:
             if conditions_policy == "ALWAYS":
-                params["conditions"] = []
+                params_dict["conditions"] = []
             else:
                 if len(conditions) == 0:
                     raise ERROR_REQUIRED_PARAMETER(key="conditions")
@@ -161,7 +171,7 @@ class DataSourceRuleService(BaseService):
                     self._check_conditions(conditions)
 
         if "actions" in params:
-            self._check_actions(params["actions"], domain_id)
+            self._check_actions(params_dict["actions"], domain_id)
 
         return self.data_source_rule_mgr.update_data_source_rule_by_vo(
             params, data_source_rule_vo
@@ -172,25 +182,27 @@ class DataSourceRuleService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @check_required(["data_source_rule_id", "order", "domain_id"])
-    def change_order(self, params):
+    def change_order(self, params: DataSourceRuleChangeOrderRequest) -> Union[DataSourceRuleResponse, dict]:
         """Change data source rule's order
 
         Args:
             params (dict): {
-                'data_source_rule_id': 'str',
-                'order': 'int',
+                'data_source_rule_id': 'str',    # required
+                'order': 'int',                  # required
                 'workspace_id': 'str',          # injected from auth (optional)
                 'domain_id': 'str'              # injected from auth
             }
 
         Returns:
-            data_source_rule_vo (object)
+            DataSourceRuleResponse:
         """
 
-        data_source_rule_id = params["data_source_rule_id"]
-        order = params["order"]
-        domain_id = params["domain_id"]
-        workspace_id = params.get("workspace_id")
+        params_dict = params.dict(exclude_unset=True)
+
+        data_source_rule_id = params_dict["data_source_rule_id"]
+        order = params_dict["order"]
+        domain_id = params_dict["domain_id"]
+        workspace_id = params_dict.get("workspace_id")
 
         self._check_order(order)
 
@@ -204,7 +216,7 @@ class DataSourceRuleService(BaseService):
             raise ERROR_NOT_ALLOWED_TO_CHANGE_ORDER()
 
         if target_data_source_rule_vo.order == order:
-            return target_data_source_rule_vo
+            return DataSourceRuleResponse(**target_data_source_rule_vo.to_dict())
 
         highest_order = self._get_highest_order(
             target_data_source_rule_vo.data_source_id,
@@ -236,21 +248,22 @@ class DataSourceRuleService(BaseService):
 
             i += 1
 
-        return self.data_source_rule_mgr.update_data_source_rule_by_vo(
+        updated_data_source_rule_vo = self.data_source_rule_mgr.update_data_source_rule_by_vo(
             {"order": order}, target_data_source_rule_vo
         )
+        return DataSourceRuleResponse(**updated_data_source_rule_vo.to_dict())
 
     @transaction(
         permission="cost-analysis:DataSourceRule.write",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @check_required(["data_source_rule_id", "domain_id"])
-    def delete(self, params):
+    def delete(self, params: DataSourceRuleDeleteRequest) -> None:
         """Delete data source rule
 
         Args:
             params (dict): {
-                'data_source_rule_id': 'str',
+                'data_source_rule_id': 'str',    # required
                 'domain_id': 'str'
             }
 
@@ -258,9 +271,11 @@ class DataSourceRuleService(BaseService):
             None
         """
 
-        data_source_rule_id = params["data_source_rule_id"]
-        domain_id = params["domain_id"]
-        workspace_id = params.get("workspace_id")
+        params_dict = params.dict(exclude_unset=True)
+
+        data_source_rule_id = params_dict["data_source_rule_id"]
+        domain_id = params_dict["domain_id"]
+        workspace_id = params_dict.get("workspace_id")
 
         data_source_rule_vo: DataSourceRule = (
             self.data_source_rule_mgr.get_data_source_rule(
@@ -292,27 +307,31 @@ class DataSourceRuleService(BaseService):
     )
     @change_value_by_rule("APPEND", "workspace_id", "*")
     @check_required(["data_source_rule_id", "domain_id"])
-    def get(self, params):
+    def get(self, params: DataSourceRuleGetRequest) -> Union[DataSourceRuleResponse, dict]:
         """Get data source rule
 
         Args:
             params (dict): {
-                'data_source_rule_id': 'str',
+                'data_source_rule_id': 'str',    # required
                 'workspace_id' : 'list',
                 'domain_id': 'str',
             }
 
         Returns:
-            data_source_rule_vo (object)
+            DataSourceRuleResponse:
         """
 
-        data_source_rule_id = params["data_source_rule_id"]
-        domain_id = params["domain_id"]
-        workspace_id = params.get("workspace_id")
+        params_dict = params.dict(exclude_unset=True)
 
-        return self.data_source_rule_mgr.get_data_source_rule(
+        data_source_rule_id = params_dict["data_source_rule_id"]
+        domain_id = params_dict["domain_id"]
+        workspace_id = params_dict.get("workspace_id")
+
+        data_source_rule_vo = self.data_source_rule_mgr.get_data_source_rule(
             data_source_rule_id, domain_id, workspace_id
         )
+
+        return DataSourceRuleResponse(**data_source_rule_vo.to_dict())
 
     @transaction(
         permission="cost-analysis:DataSourceRule.read",
@@ -324,7 +343,7 @@ class DataSourceRuleService(BaseService):
         ["data_source_rule_id", "name", "data_source_id", "workspace_id", "domain_id"]
     )
     @append_keyword_filter(["data_source_rule_id", "name"])
-    def list(self, params):
+    def list(self, params) -> Union[DataSourceRulesResponse, dict]:
         """List data source rule
 
         Args:
@@ -332,18 +351,21 @@ class DataSourceRuleService(BaseService):
                 'query': 'dict (spaceone.api.core.v1.Query)'
                 'data_source_rule_id': 'str',
                 'name': 'str',
+                'rule_type': 'str',
                 'data_source_id': 'str',
                 'workspace_id': 'str',                          # injected from auth (optional)
                 'domain_id': 'str',                             # injected from auth
             }
 
         Returns:
-            data_source_rule_vos (object)
-            total_count
+            DataSourceRulesResponse:
         """
 
         query = params.get("query", {})
-        return self.data_source_rule_mgr.list_data_source_rules(query)
+
+        data_source_rule_vos, total_count = self.data_source_rule_mgr.list_data_source_rules(query)
+
+        return DataSourceRulesResponse(results=data_source_rule_vos, total_count=total_count)
 
     @transaction(
         permission="cost-analysis:DataSourceRule.read",
@@ -353,11 +375,11 @@ class DataSourceRuleService(BaseService):
     @check_required(["query", "domain_id"])
     @append_query_filter(["workspace_id", "domain_id"])
     @append_keyword_filter(["data_source_rule_id", "name"])
-    def stat(self, params):
+    def stat(self, params: DataSourceRuleStatQueryRequest) -> dict:
         """
         Args:
             params (dict): {
-                'query': 'dict (spaceone.api.core.v1.StatisticsQuery)'
+                'query': 'dict (spaceone.api.core.v1.StatisticsQuery)'  # required
                 'workspace_id': 'str',                                  # injected from auth (optional)
                 'domain_id': 'str',                                     # injected from auth
             }
@@ -367,7 +389,9 @@ class DataSourceRuleService(BaseService):
 
         """
 
-        query = params.get("query", {})
+        params_dict = params.dict(exclude_unset=True)
+
+        query = params_dict.get("query", {})
         return self.data_source_rule_mgr.stat_data_source_rules(query)
 
     @staticmethod
@@ -385,19 +409,19 @@ class DataSourceRuleService(BaseService):
 
             if key not in _SUPPORTED_CONDITION_KEYS:
                 if not (
-                    fnmatch.fnmatch(key, "additional_info.*")
-                    or fnmatch.fnmatch(key, "tags.*")
+                        fnmatch.fnmatch(key, "additional_info.*")
+                        or fnmatch.fnmatch(key, "tags.*")
                 ):
                     raise ERROR_INVALID_PARAMETER(
                         key="conditions.key",
                         reason=f"Unsupported key. "
-                        f'({" | ".join(_SUPPORTED_CONDITION_KEYS)})',
+                               f'({" | ".join(_SUPPORTED_CONDITION_KEYS)})',
                     )
             if operator not in _SUPPORTED_CONDITION_OPERATORS:
                 raise ERROR_INVALID_PARAMETER(
                     key="conditions.operator",
                     reason=f"Unsupported operator. "
-                    f'({" | ".join(_SUPPORTED_CONDITION_OPERATORS)})',
+                           f'({" | ".join(_SUPPORTED_CONDITION_OPERATORS)})',
                 )
 
     def _check_actions(self, actions: dict, domain_id: str) -> None:
@@ -434,7 +458,7 @@ class DataSourceRuleService(BaseService):
             )
 
     def _get_all_data_source_rules(
-        self, data_source_id, rule_type, domain_id, exclude_data_source_rule_id=None
+            self, data_source_id, rule_type, domain_id, exclude_data_source_rule_id=None
     ):
         query = {
             "filter": [

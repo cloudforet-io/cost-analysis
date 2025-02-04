@@ -1,7 +1,7 @@
 import factory
 
 from spaceone.core import utils
-from spaceone.cost_analysis.model.data_source_model import DataSource, PluginInfo
+from spaceone.cost_analysis.model.data_source.database import DataSource, PluginInfo
 
 
 class PluginInfoFactory(factory.mongoengine.MongoEngineFactory):

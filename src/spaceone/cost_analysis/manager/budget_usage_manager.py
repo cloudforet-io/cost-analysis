@@ -9,8 +9,8 @@ from spaceone.cost_analysis.manager.notification_manager import NotificationMana
 from spaceone.cost_analysis.manager.cost_manager import CostManager
 from spaceone.cost_analysis.manager.budget_manager import BudgetManager
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
-from spaceone.cost_analysis.model.budget_usage_model import BudgetUsage
-from spaceone.cost_analysis.model.budget_model import Budget
+from spaceone.cost_analysis.model.budget_usage.database import BudgetUsage
+from spaceone.cost_analysis.model.budget.database import Budget
 
 _LOGGER = logging.getLogger(__name__)
 

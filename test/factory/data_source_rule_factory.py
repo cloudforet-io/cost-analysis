@@ -1,7 +1,7 @@
 import factory
 
 from spaceone.core import utils
-from spaceone.cost_analysis.model.data_source_rule_model import DataSourceRule
+from spaceone.cost_analysis.model.data_source_rule.database import DataSourceRule
 
 
 class DataSourceRuleFactory(factory.mongoengine.MongoEngineFactory):

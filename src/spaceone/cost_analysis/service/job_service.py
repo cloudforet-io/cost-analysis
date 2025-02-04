@@ -10,9 +10,9 @@ from spaceone.core.service import *
 from spaceone.core import utils, config
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.model import DataSourceAccount
-from spaceone.cost_analysis.model.job_task_model import JobTask
-from spaceone.cost_analysis.model.job_model import Job
-from spaceone.cost_analysis.model.data_source_model import DataSource
+from spaceone.cost_analysis.model.job_task.database import JobTask
+from spaceone.cost_analysis.model.job.database import Job
+from spaceone.cost_analysis.model.data_source.database import DataSource
 from spaceone.cost_analysis.manager.cost_manager import CostManager
 from spaceone.cost_analysis.manager.data_source_account_manager import (
     DataSourceAccountManager,
@@ -90,9 +90,9 @@ class JobService(BaseService):
             job_vo (object)
         """
 
-        job_id = params["job_id"]
-        workspace_id = params.get("workspace_id")
-        domain_id = params["domain_id"]
+        job_id = params_dict["job_id"]
+        workspace_id = params_dict.get("workspace_id")
+        domain_id = params_dict["domain_id"]
 
         job_vo = self.job_mgr.get_job(job_id, domain_id, workspace_id)
 
@@ -120,9 +120,9 @@ class JobService(BaseService):
             job_vo (object)
         """
 
-        job_id = params["job_id"]
-        workspace_id = params.get("workspace_id")
-        domain_id = params["domain_id"]
+        job_id = params_dict["job_id"]
+        workspace_id = params_dict.get("workspace_id")
+        domain_id = params_dict["domain_id"]
 
         return self.job_mgr.get_job(job_id, domain_id, workspace_id)
 
@@ -154,7 +154,7 @@ class JobService(BaseService):
             total_count
         """
 
-        query = params.get("query", {})
+        query = params_dict.get("query", {})
         return self.job_mgr.list_jobs(query)
 
     @transaction(
@@ -179,7 +179,7 @@ class JobService(BaseService):
 
         """
 
-        query = params.get("query", {})
+        query = params_dict.get("query", {})
         return self.job_mgr.stat_jobs(query)
 
     @transaction(exclude=["authentication", "authorization", "mutation"])
@@ -199,10 +199,10 @@ class JobService(BaseService):
             None
         """
 
-        task_options = params["task_options"]
-        job_task_id = params["job_task_id"]
-        secret_id = params["secret_id"]
-        domain_id = params["domain_id"]
+        task_options = params_dict["task_options"]
+        job_task_id = params_dict["job_task_id"]
+        secret_id = params_dict["secret_id"]
+        domain_id = params_dict["domain_id"]
         cost_data_options = {}
 
         job_task_vo: JobTask = self.job_task_mgr.get_job_task(job_task_id, domain_id)
@@ -237,7 +237,7 @@ class JobService(BaseService):
                         service_account_id,
                         project_id,
                     ) = self._get_service_account_id_and_project_id(
-                        params.get("secret_id"), domain_id
+                        params_dict.get("secret_id"), domain_id
                     )
                     cost_data_options.update(
                         {
@@ -1171,9 +1171,9 @@ class JobService(BaseService):
 
     @staticmethod
     def _get_start_last_synchronized_at(params):
-        start = params.get("start")
+        start = params_dict.get("start")
         last_synchronized_at = utils.datetime_to_iso8601(
-            params.get("last_synchronized_at")
+            params_dict.get("last_synchronized_at")
         )
         return start, last_synchronized_at
 

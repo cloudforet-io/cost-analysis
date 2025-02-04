@@ -1,7 +1,7 @@
 import logging
 
 from spaceone.core.manager import BaseManager
-from spaceone.cost_analysis.model.budget_model import Budget
+from spaceone.cost_analysis.model.budget.database import Budget
 
 _LOGGER = logging.getLogger(__name__)
 

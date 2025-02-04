@@ -2,7 +2,7 @@ import functools
 from spaceone.api.cost_analysis.v1 import data_source_pb2
 from spaceone.core.pygrpc.message_type import *
 from spaceone.core import utils
-from spaceone.cost_analysis.model.data_source_model import DataSource
+from spaceone.cost_analysis.model.data_source.database import DataSource
 
 __all__ = ["DataSourceInfo", "DataSourcesInfo"]
 

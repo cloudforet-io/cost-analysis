@@ -2,7 +2,7 @@ import logging
 from typing import Union
 
 from spaceone.core.service import *
-from spaceone.cost_analysis.manager import DataSourceManager
+from spaceone.cost_analysis.manager import DataSourceManager, IdentityManager
 from spaceone.cost_analysis.manager.data_source_account_manager import (
     DataSourceAccountManager,
 )
@@ -63,7 +63,7 @@ class DataSourceAccountService(BaseService):
 
         # Check workspace
         if workspace_id:
-            identity_mgr = self.locator.get_manager("IdentityManager")
+            identity_mgr = IdentityManager()
             identity_mgr.check_workspace(workspace_id, domain_id)
             params_dict["is_linked"] = True
 

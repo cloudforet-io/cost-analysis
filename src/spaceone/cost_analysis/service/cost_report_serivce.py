@@ -237,9 +237,9 @@ class CostReportService(BaseService):
         return self.cost_report_mgr.stat_cost_reports(query)
 
     def create_cost_report(self, params: dict):
-        cost_report_config_id = params["cost_report_config_id"]
+        cost_report_config_id = params_dict["cost_report_config_id"]
         cost_report_config_vo = self.cost_report_config_mgr.get_cost_report_config(
-            params["domain_id"], cost_report_config_id
+            params_dict["domain_id"], cost_report_config_id
         )
         domain_id = cost_report_config_vo.domain_id
         currency = cost_report_config_vo.currency

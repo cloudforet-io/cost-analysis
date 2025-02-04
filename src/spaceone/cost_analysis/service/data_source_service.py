@@ -6,7 +6,11 @@ from mongoengine import QuerySet
 from spaceone.core.service import *
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.model.data_source.request import *
+from spaceone.cost_analysis.model.data_source.request import DataSourceUpdateRequest, DataSourceUpdateSecretDataRequest, \
+    DataSourceUpdatePluginRequest, DataSourceEnableRequest, DataSourceDisableRequest, \
+    DataSourceDeregisterRequest, DataSourceSyncRequest, DataSourceStatQueryRequest
 from spaceone.cost_analysis.model.data_source.response import *
+from spaceone.cost_analysis.model.job.response import JobResponse
 from spaceone.cost_analysis.service.job_service import JobService
 from spaceone.cost_analysis.manager.repository_manager import RepositoryManager
 from spaceone.cost_analysis.manager.secret_manager import SecretManager
@@ -15,7 +19,7 @@ from spaceone.cost_analysis.manager.data_source_plugin_manager import (
 )
 from spaceone.cost_analysis.manager.budget_usage_manager import BudgetUsageManager
 from spaceone.cost_analysis.manager.cost_manager import CostManager
-from spaceone.cost_analysis.model.data_source_model import DataSource
+from spaceone.cost_analysis.model.data_source.database import DataSource
 from spaceone.cost_analysis.manager.data_source_account_manager import (
     DataSourceAccountManager,
 )
@@ -48,7 +52,7 @@ class DataSourceService(BaseService):
     )
     @convert_model
     def register(
-        self, params: DataSourceRegisterRequest
+            self, params: DataSourceRegisterRequest
     ) -> Union[DataSourceResponse, dict]:
         """Register data source
 
@@ -68,28 +72,28 @@ class DataSourceService(BaseService):
             }
 
         Returns:
-            data_source_vo (object)
+            DataSourceResponse:
         """
-        params = params.dict(exclude_unset=True)
+        params_dict = params.dict(exclude_unset=True)
 
-        domain_id = params["domain_id"]
-        data_source_type = params["data_source_type"]
-        resource_group = params["resource_group"]
+        domain_id = params_dict["domain_id"]
+        data_source_type = params_dict["data_source_type"]
+        resource_group = params_dict["resource_group"]
 
         secret_data = {}
 
         # Check permission by resource group
         if resource_group == "WORKSPACE":
-            identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
-            identity_mgr.check_workspace(params["workspace_id"], domain_id)
+            identity_mgr = IdentityManager()
+            identity_mgr.check_workspace(params_dict["workspace_id"], domain_id)
         else:
-            params["workspace_id"] = "*"
+            params_dict["workspace_id"] = "*"
 
         if data_source_type == "EXTERNAL":
-            params["template"] = None
+            params_dict["template"] = None
 
-            plugin_info = params.get("plugin_info", {})
-            secret_type = params.get("secret_type", "MANUAL")
+            plugin_info = params_dict.get("plugin_info", {})
+            secret_type = params_dict.get("secret_type", "MANUAL")
 
             if secret_type == "USE_SERVICE_ACCOUNT_SECRET" and "provider" not in params:
                 raise ERROR_REQUIRED_PARAMETER(key="provider")
@@ -99,7 +103,7 @@ class DataSourceService(BaseService):
 
             if "secret_filter" in params:
                 self.validate_secret_filter(
-                    params["secret_filter"], params["domain_id"]
+                    params_dict["secret_filter"], params_dict["domain_id"]
                 )
 
             # Update metadata
@@ -110,43 +114,43 @@ class DataSourceService(BaseService):
                 plugin_info, domain_id
             )
             if updated_version:
-                params["plugin_info"]["version"] = updated_version
+                params_dict["plugin_info"]["version"] = updated_version
 
-            options = params["plugin_info"].get("options", {})
+            options = params_dict["plugin_info"].get("options", {})
 
             plugin_metadata = self._init_plugin(endpoint, options, domain_id)
 
-            params["plugin_info"]["metadata"] = plugin_metadata
+            params_dict["plugin_info"]["metadata"] = plugin_metadata
 
             secret_data = plugin_info.get("secret_data")
             if secret_type == "MANUAL" and secret_data:
                 self._verify_plugin(endpoint, plugin_info, domain_id)
 
-                secret_mgr: SecretManager = self.locator.get_manager("SecretManager")
+                secret_mgr = SecretManager()
 
                 create_secret_params = {
                     "data": secret_data,
                     "resource_group": resource_group,
                     "schema_id": plugin_info.get("schema_id"),
-                    "workspace_id": params["workspace_id"],
+                    "workspace_id": params_dict["workspace_id"],
                 }
                 secret_info = secret_mgr.create_secret(create_secret_params, domain_id)
 
-                params["plugin_info"]["secret_id"] = secret_info["secret_id"]
-                del params["plugin_info"]["secret_data"]
+                params_dict["plugin_info"]["secret_id"] = secret_info["secret_id"]
+                del params_dict["plugin_info"]["secret_data"]
 
         else:
-            params["plugin_info"] = None
-            params["secret_type"] = None
-            params["secret_filter"] = None
+            params_dict["plugin_info"] = None
+            params_dict["secret_type"] = None
+            params_dict["secret_filter"] = None
 
-            if template := params.get("template"):
+            if template := params_dict.get("template"):
                 # Check Template
                 pass
             else:
                 raise ERROR_REQUIRED_PARAMETER(key="template")
 
-        data_source_vo: DataSource = self.data_source_mgr.register_data_source(params)
+        data_source_vo = self.data_source_mgr.register_data_source(params)
 
         # Create DataSourceRules
         if data_source_type == "EXTERNAL":
@@ -161,7 +165,7 @@ class DataSourceService(BaseService):
 
         # Create DataSourceAccount
         if data_source_type == "EXTERNAL":
-            plugin_info = params["plugin_info"]
+            plugin_info = params_dict["plugin_info"]
             options = plugin_info.get("options", {})
             metadata = plugin_info.get("metadata", {})
 
@@ -185,7 +189,7 @@ class DataSourceService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @check_required(["data_source_id", "domain_id"])
-    def update(self, params):
+    def update(self, params: DataSourceUpdateRequest) -> Union[DataSourceResponse, dict]:
         """Update data source
 
         Args:
@@ -199,18 +203,20 @@ class DataSourceService(BaseService):
             }
 
         Returns:
-            data_source_vo (object)
+            DataSourceResponse:
         """
-        data_source_id = params["data_source_id"]
-        domain_id = params["domain_id"]
-        data_source_vo: DataSource = self.data_source_mgr.get_data_source(
+        params_dict = params.dict(exclude_unset=True)
+
+        data_source_id = params_dict["data_source_id"]
+        domain_id = params_dict["domain_id"]
+        data_source_vo = self.data_source_mgr.get_data_source(
             data_source_id, domain_id
         )
 
         if "secret_filter" in params:
             if data_source_vo.secret_type == "USE_SERVICE_ACCOUNT_SECRET":
                 self.validate_secret_filter(
-                    params["secret_filter"], params["domain_id"]
+                    params_dict["secret_filter"], params_dict["domain_id"]
                 )
             else:
                 raise ERROR_NOT_ALLOW_SECRET_FILTER(data_source_id=data_source_id)
@@ -222,14 +228,16 @@ class DataSourceService(BaseService):
             else:
                 raise ERROR_NOT_ALLOW_PLUGIN_SETTINGS(data_source_id=data_source_id)
 
-        return self.data_source_mgr.update_data_source_by_vo(params, data_source_vo)
+        updated_data_source_vo = self.data_source_mgr.update_data_source_by_vo(params, data_source_vo)
+
+        return DataSourceResponse(**updated_data_source_vo.to_dict())
 
     @transaction(
         permission="cost-analysis:DataSource.write", role_types=["DOMAIN_ADMIN"]
     )
     @convert_model
     def update_permissions(
-        self, params: DataSourceUpdatePermissionsRequest
+            self, params: DataSourceUpdatePermissionsRequest
     ) -> Union[DataSourceResponse, dict]:
         """Update data source permissions
 
@@ -241,13 +249,13 @@ class DataSourceService(BaseService):
             }
 
         Returns:
-            data_source_vo (object)
+            DataSourceResponse:
         """
 
         data_source_id = params.data_source_id
         domain_id = params.domain_id
 
-        data_source_vo: DataSource = self.data_source_mgr.get_data_source(
+        data_source_vo = self.data_source_mgr.get_data_source(
             data_source_id, domain_id
         )
 
@@ -266,7 +274,7 @@ class DataSourceService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @check_required(["data_source_id", "secret_schema_id", "secret_data", "domain_id"])
-    def update_secret_data(self, params: dict) -> DataSource:
+    def update_secret_data(self, params: DataSourceUpdateSecretDataRequest) -> Union[DataSourceResponse, dict]:
         """Update secret data of data source
         Args:
             params (dict): {
@@ -279,21 +287,22 @@ class DataSourceService(BaseService):
         Returns:
             data_source_vo (object)
         """
+        params_dict = params.dict(exclude_unset=True)
 
-        secret_data = params["secret_data"]
-        secret_schema_id = params["secret_schema_id"]
-        data_source_id = params["data_source_id"]
-        workspace_id = params.get("workspace_id")
-        domain_id = params["domain_id"]
+        secret_data = params_dict["secret_data"]
+        secret_schema_id = params_dict["secret_schema_id"]
+        data_source_id = params_dict["data_source_id"]
+        workspace_id = params_dict.get("workspace_id")
+        domain_id = params_dict["domain_id"]
 
-        data_source_vo: DataSource = self.data_source_mgr.get_data_source(
+        data_source_vo = self.data_source_mgr.get_data_source(
             data_source_id=data_source_id,
             domain_id=domain_id,
             workspace_id=workspace_id,
         )
 
         if data_source_vo.secret_type == "MANUAL" and secret_data:
-            secret_mgr: SecretManager = self.locator.get_manager("SecretManager")
+            secret_mgr = SecretManager()
             # TODO : validate schema
 
             # Delete old secret
@@ -318,14 +327,14 @@ class DataSourceService(BaseService):
                 {"plugin_info": plugin_info}, data_source_vo
             )
 
-        return data_source_vo
+        return DataSourceResponse(**data_source_vo.to_dict())
 
     @transaction(
         permission="cost-analysis:DataSource.write",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @check_required(["data_source_id", "domain_id"])
-    def verify_plugin(self, params):
+    def verify_plugin(self, params: DataSourceVerifyPluginRequest) -> None:
         """Verify data source plugin
 
         Args:
@@ -335,12 +344,13 @@ class DataSourceService(BaseService):
             }
 
         Returns:
-            data_source_vo (object)
+            DataSourceVerifyPluginRequest:
         """
+        params_dict = params.dict(exclude_unset=True)
 
-        data_source_id = params["data_source_id"]
-        domain_id = params["domain_id"]
-        data_source_vo: DataSource = self.data_source_mgr.get_data_source(
+        data_source_id = params_dict["data_source_id"]
+        domain_id = params_dict["domain_id"]
+        data_source_vo = self.data_source_mgr.get_data_source(
             data_source_id, domain_id
         )
 
@@ -359,7 +369,7 @@ class DataSourceService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @check_required(["data_source_id", "domain_id"])
-    def update_plugin(self, params):
+    def update_plugin(self, params: DataSourceUpdatePluginRequest) -> Union[DataSourceResponse, dict]:
         """Update data source plugin
 
         Args:
@@ -373,15 +383,16 @@ class DataSourceService(BaseService):
             }
 
         Returns:
-            data_source_vo (object)
+            DataSourceResponse:
         """
+        params_dict = params.dict(exclude_unset=True)
 
-        data_source_id = params["data_source_id"]
-        domain_id = params["domain_id"]
-        workspace_id = params.get("workspace_id")
-        version = params.get("version")
-        options = params.get("options")
-        upgrade_mode = params.get("upgrade_mode")
+        data_source_id = params_dict["data_source_id"]
+        domain_id = params_dict["domain_id"]
+        workspace_id = params_dict.get("workspace_id")
+        version = params_dict.get("version")
+        options = params_dict.get("options")
+        upgrade_mode = params_dict.get("upgrade_mode")
 
         conditions = {
             "data_source_id": data_source_id,
@@ -429,14 +440,14 @@ class DataSourceService(BaseService):
             plugin_metadata, resource_group, data_source_id, workspace_id, domain_id
         )
 
-        return data_source_vo
+        return DataSourceResponse(**data_source_vo.to_dict())
 
     @transaction(
         permission="cost-analysis:DataSource.write",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @check_required(["data_source_id", "domain_id"])
-    def enable(self, params):
+    def enable(self, params: DataSourceEnableRequest) -> Union[DataSourceResponse, dict]:
         """Enable data source
 
         Args:
@@ -446,25 +457,28 @@ class DataSourceService(BaseService):
             }
 
         Returns:
-            data_source_vo (object)
+            DataSourceResponse:
         """
+        params_dict = params.dict(exclude_unset=True)
 
-        data_source_id = params["data_source_id"]
-        domain_id = params["domain_id"]
-        data_source_vo: DataSource = self.data_source_mgr.get_data_source(
+        data_source_id = params_dict["data_source_id"]
+        domain_id = params_dict["domain_id"]
+        data_source_vo = self.data_source_mgr.get_data_source(
             data_source_id, domain_id
         )
 
-        return self.data_source_mgr.update_data_source_by_vo(
+        updated_data_source_vo = self.data_source_mgr.update_data_source_by_vo(
             {"state": "ENABLED"}, data_source_vo
         )
+
+        return DataSourceResponse(**updated_data_source_vo.to_dict())
 
     @transaction(
         permission="cost-analysis:DataSource.write",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @check_required(["data_source_id", "domain_id"])
-    def disable(self, params):
+    def disable(self, params: DataSourceDisableRequest) -> Union[DataSourceResponse, dict]:
         """Disable data source
 
         Args:
@@ -474,25 +488,28 @@ class DataSourceService(BaseService):
             }
 
         Returns:
-            data_source_vo (object)
+            DataSourceResponse:
         """
+        params_dict = params.dict(exclude_unset=True)
 
-        data_source_id = params["data_source_id"]
-        domain_id = params["domain_id"]
-        data_source_vo: DataSource = self.data_source_mgr.get_data_source(
+        data_source_id = params_dict["data_source_id"]
+        domain_id = params_dict["domain_id"]
+        data_source_vo = self.data_source_mgr.get_data_source(
             data_source_id, domain_id
         )
 
-        return self.data_source_mgr.update_data_source_by_vo(
+        update_data_source_vo = self.data_source_mgr.update_data_source_by_vo(
             {"state": "DISABLED"}, data_source_vo
         )
+
+        return DataSourceResponse(**update_data_source_vo.to_dict())
 
     @transaction(
         permission="cost-analysis:DataSource.write",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @check_required(["data_source_id", "domain_id"])
-    def deregister(self, params):
+    def deregister(self, params: DataSourceDeregisterRequest) -> None:
         """Deregister data source
 
         Args:
@@ -506,13 +523,14 @@ class DataSourceService(BaseService):
         Returns:
             None
         """
+        params_dict = params.dict(exclude_unset=True)
 
-        data_source_id = params["data_source_id"]
-        cascade_delete_cost = params.get("cascade_delete_cost", True)
-        workspace_id = params.get("workspace_id")
-        domain_id = params["domain_id"]
+        data_source_id = params_dict["data_source_id"]
+        cascade_delete_cost = params_dict.get("cascade_delete_cost", True)
+        workspace_id = params_dict.get("workspace_id")
+        domain_id = params_dict["domain_id"]
 
-        data_source_vo: DataSource = self.data_source_mgr.get_data_source(
+        data_source_vo = self.data_source_mgr.get_data_source(
             data_source_id, domain_id, workspace_id
         )
 
@@ -526,7 +544,7 @@ class DataSourceService(BaseService):
             secret_id = data_source_vo.plugin_info.secret_id
 
             if secret_id:
-                secret_mgr: SecretManager = self.locator.get_manager("SecretManager")
+                secret_mgr = SecretManager()
                 secret_mgr.delete_secret(secret_id, domain_id)
 
         self.data_source_account_mgr.delete_ds_account_with_data_source(
@@ -540,7 +558,7 @@ class DataSourceService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @check_required(["data_source_id", "domain_id"])
-    def sync(self, params):
+    def sync(self, params: DataSourceSyncRequest) -> Union[JobResponse, dict]:
         """Sync data with data source
 
         Args:
@@ -553,20 +571,21 @@ class DataSourceService(BaseService):
             }
 
         Returns:
-            None
+            JobResponse:
         """
-        job_service: JobService = self.locator.get_service("JobService")
+        params_dict = params.dict(exclude_unset=True)
+        job_service = JobService()
 
-        data_source_id = params["data_source_id"]
-        workspace_id = params.get("workspace_id")
-        domain_id = params["domain_id"]
+        data_source_id = params_dict["data_source_id"]
+        workspace_id = params_dict.get("workspace_id")
+        domain_id = params_dict["domain_id"]
         job_options = {
-            "no_preload_cache": params.get("no_preload_cache", False),
-            "start": params.get("start"),
+            "no_preload_cache": params_dict.get("no_preload_cache", False),
+            "start": params_dict.get("start"),
             "sync_mode": "MANUAL",
         }
 
-        data_source_vo: DataSource = self.data_source_mgr.get_data_source(
+        data_source_vo = self.data_source_mgr.get_data_source(
             data_source_id, domain_id, workspace_id
         )
 
@@ -576,7 +595,9 @@ class DataSourceService(BaseService):
         if data_source_vo.data_source_type == "LOCAL":
             raise ERROR_NOT_ALLOW_SYNC_COMMAND(data_source_id=data_source_id)
 
-        return job_service.create_cost_job(data_source_vo, job_options)
+        job_vo = job_service.create_cost_job(data_source_vo, job_options)
+
+        return JobResponse(**job_vo.to_dict())
 
     @transaction(
         permission="cost-analysis:DataSource.read",
@@ -595,7 +616,7 @@ class DataSourceService(BaseService):
             }
 
         Returns:
-            data_source_vo (object)
+            DataSourceResponse:
         """
 
         data_source_id = params.data_source_id
@@ -636,7 +657,7 @@ class DataSourceService(BaseService):
     @append_keyword_filter(["data_source_id", "name"])
     @convert_model
     def list(
-        self, params: DataSourceSearchQueryRequest
+            self, params: DataSourceSearchQueryRequest
     ) -> Union[DataSourcesResponse, dict]:
         """List data sources
 
@@ -655,8 +676,7 @@ class DataSourceService(BaseService):
             }
 
         Returns:
-            data_source_vos (object)
-            total_count
+            DataSourcesResponse:
         """
 
         query = params.query or {}
@@ -688,20 +708,20 @@ class DataSourceService(BaseService):
     @append_query_filter(["workspace_id", "domain_id"])
     @change_tag_filter("tags")
     @append_keyword_filter(["data_source_id", "name"])
-    def stat(self, params):
+    def stat(self, params: DataSourceStatQueryRequest) -> dict:
         """
         Args:
             params (dict): {
-                'domain_id': 'str',
-                'query': 'dict (spaceone.api.core.v1.StatisticsQuery)'
+                'query': 'dict (spaceone.api.core.v1.StatisticsQuery)',
+                'domain_id': 'str'
             }
 
         Returns:
-            values (list) : 'list of statistics data'
-
+            DataSourceStatResponse:
         """
+        params_dict = params.dict(exclude_unset=True)
 
-        query = params.get("query", {})
+        query = params_dict.get("query", {})
         return self.data_source_mgr.stat_data_sources(query)
 
     def validate_secret_filter(self, secret_filter, domain_id):
@@ -709,7 +729,7 @@ class DataSourceService(BaseService):
             _query = {
                 "filter": [{"k": "secret_id", "v": secret_filter["secrets"], "o": "in"}]
             }
-            secret_mgr: SecretManager = self.locator.get_manager(SecretManager)
+            secret_mgr = SecretManager()
             response = secret_mgr.list_secrets(_query)
             if response.get("total_count", 0) != len(secret_filter["secrets"]):
                 raise ERROR_INVALID_PARAMETER(
@@ -726,7 +746,7 @@ class DataSourceService(BaseService):
                     }
                 ]
             }
-            identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
+            identity_mgr = IdentityManager()
             response = identity_mgr.list_service_accounts(_query, domain_id)
             if response.get("total_count", 0) != len(secret_filter["service_accounts"]):
                 raise ERROR_INVALID_PARAMETER(
@@ -738,7 +758,7 @@ class DataSourceService(BaseService):
             _query = {
                 "filter": [{"k": "name", "v": secret_filter["schemas"], "o": "in"}]
             }
-            repo_mgr: RepositoryManager = self.locator.get_manager(RepositoryManager)
+            repo_mgr = RepositoryManager()
             response = repo_mgr.list_schemas(_query, domain_id)
             if response.get("total_count", 0) != len(secret_filter["schemas"]):
                 raise ERROR_INVALID_PARAMETER(
@@ -746,7 +766,7 @@ class DataSourceService(BaseService):
                 )
 
     def _check_plugin(self, plugin_id: str) -> None:
-        repo_mgr: RepositoryManager = self.locator.get_manager("RepositoryManager")
+        repo_mgr = RepositoryManager()
         repo_mgr.get_plugin(plugin_id)
 
     def _init_plugin(self, endpoint, options, domain_id):
@@ -766,7 +786,7 @@ class DataSourceService(BaseService):
         self.ds_plugin_mgr.verify_plugin(options, secret_data, schema, domain_id)
 
     def _get_secret_data(self, secret_id, domain_id):
-        secret_mgr: SecretManager = self.locator.get_manager("SecretManager")
+        secret_mgr = SecretManager()
         if secret_id:
             secret_data = secret_mgr.get_secret_data(secret_id, domain_id)
         else:
@@ -780,8 +800,8 @@ class DataSourceService(BaseService):
             raise ERROR_REQUIRED_PARAMETER(key="plugin_info.plugin_id")
 
         if (
-            plugin_info.get("upgrade_mode", "AUTO") == "MANUAL"
-            and "version" not in plugin_info
+                plugin_info.get("upgrade_mode", "AUTO") == "MANUAL"
+                and "version" not in plugin_info
         ):
             raise ERROR_REQUIRED_PARAMETER(key="plugin_info.version")
 
@@ -789,7 +809,7 @@ class DataSourceService(BaseService):
             raise ERROR_REQUIRED_PARAMETER(key="plugin_info.secret_data")
 
     def create_data_source_account_with_data_source_vo(
-        self, accounts_info: dict, data_source_vo: DataSource
+            self, accounts_info: dict, data_source_vo: DataSource
     ) -> None:
         data_source_id = data_source_vo.data_source_id
         workspace_id = data_source_vo.workspace_id
@@ -847,7 +867,7 @@ class DataSourceService(BaseService):
         #     )
 
     def _get_data_source_account_vo_map(
-        self, data_source_id: str, domain_id: str
+            self, data_source_id: str, domain_id: str
     ) -> dict:
         data_source_account_vo_map = {}
         data_source_account_vos = (
@@ -862,7 +882,7 @@ class DataSourceService(BaseService):
         return data_source_account_vo_map
 
     def _change_filter_connected_workspace_data_source(
-        self, query: dict, connected_workspace_id: str
+            self, query: dict, connected_workspace_id: str
     ) -> Tuple[Union[QuerySet, list], int]:
         connected_data_source_ids = []
         domain_id = self._get_domain_id_from_filter(query)
@@ -956,7 +976,7 @@ class DataSourceService(BaseService):
 
     @staticmethod
     def _filter_cost_data_keys_with_permissions_by_data_source_vo(
-        data_source_vo: DataSource,
+            data_source_vo: DataSource,
     ) -> DataSource:
         if data_source_vo.permissions:
             deny = data_source_vo.permissions.get("deny", [])

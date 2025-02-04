@@ -1,7 +1,7 @@
 import logging
 
 from spaceone.core.manager import BaseManager
-from spaceone.cost_analysis.model.data_source_model import DataSource
+from spaceone.cost_analysis.model.data_source.database import DataSource
 from spaceone.cost_analysis.model.data_source_account.database import DataSourceAccount
 
 _LOGGER = logging.getLogger(__name__)

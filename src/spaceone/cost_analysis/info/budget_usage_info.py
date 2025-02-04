@@ -2,7 +2,7 @@ import functools
 from spaceone.api.cost_analysis.v1 import budget_usage_pb2
 from spaceone.core.pygrpc.message_type import *
 from spaceone.core import utils
-from spaceone.cost_analysis.model.budget_usage_model import BudgetUsage, ProviderFilter
+from spaceone.cost_analysis.model.budget_usage.database import BudgetUsage, ProviderFilter
 
 __all__ = ["BudgetUsageInfo", "BudgetUsagesInfo"]
 

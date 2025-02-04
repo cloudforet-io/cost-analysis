@@ -1,8 +1,13 @@
 import logging
+from typing import Union
 
 from spaceone.core.service import *
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.manager.budget_usage_manager import BudgetUsageManager
+from spaceone.cost_analysis.model.budget.request import BudgetStatQueryRequest
+from spaceone.cost_analysis.model.budget_usage.request import BudgetUsageSearchQueryRequest, \
+    BudgetUsageStatQueryRequest, BudgetUsageAnalyzeQueryRequest
+from spaceone.cost_analysis.model.budget_usage.response import BudgetUsagesResponse
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -39,7 +44,7 @@ class BudgetUsageService(BaseService):
     )
     @append_keyword_filter(["budget_id", "name"])
     @set_query_page_limit(1000)
-    def list(self, params):
+    def list(self, params: BudgetUsageSearchQueryRequest) -> Union[BudgetUsagesResponse, dict]:
         """List budget_usages
 
         Args:
@@ -59,8 +64,9 @@ class BudgetUsageService(BaseService):
             budget_usage_vos (object)
             total_count
         """
+        params_dict = params.dict(exclude_unset=True)
 
-        query = params.get("query", {})
+        query = params_dict.get("query", {})
         return self.budget_usage_mgr.list_budget_usages(query)
 
     @transaction(
@@ -71,7 +77,7 @@ class BudgetUsageService(BaseService):
     @append_query_filter(["budget_id", "data_source_id", "workspace_id", "domain_id"])
     @append_keyword_filter(["budget_id", "name"])
     @set_query_page_limit(1000)
-    def stat(self, params):
+    def stat(self, params: BudgetUsageStatQueryRequest) -> dict:
         """
         Args:
             params (dict): {
@@ -86,8 +92,9 @@ class BudgetUsageService(BaseService):
             values (list) : 'list of statistics data'
 
         """
+        params_dict = params.dict(exclude_unset=True)
 
-        query = self._set_user_project_or_project_group_filter(params)
+        query = self._set_user_project_or_project_group_filter(params_dict)
         return self.budget_usage_mgr.stat_budget_usages(query)
 
     @transaction(
@@ -100,7 +107,7 @@ class BudgetUsageService(BaseService):
     )
     @append_keyword_filter(["budget_id", "name"])
     @set_query_page_limit(1000)
-    def analyze(self, params):
+    def analyze(self, params: BudgetUsageAnalyzeQueryRequest) -> dict:
         """
         Args:
             params (dict): {
@@ -116,8 +123,9 @@ class BudgetUsageService(BaseService):
             values (list) : 'list of statistics data'
 
         """
+        params_dict = params.dict(exclude_unset=True)
 
-        query = self._set_user_project_or_project_group_filter(params)
+        query = self._set_user_project_or_project_group_filter(params_dict)
         self._check_granularity(query.get("granularity"))
 
         return self.budget_usage_mgr.analyze_budget_usages(query)

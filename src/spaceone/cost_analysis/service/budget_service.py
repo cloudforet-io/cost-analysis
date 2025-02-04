@@ -1,5 +1,7 @@
 import logging
 from datetime import datetime
+from typing import Union
+
 from dateutil.rrule import rrule, MONTHLY, YEARLY
 
 from spaceone.core.service import *
@@ -8,7 +10,10 @@ from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.budget_manager import BudgetManager
 from spaceone.cost_analysis.manager.budget_usage_manager import BudgetUsageManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
-from spaceone.cost_analysis.model.budget_model import Budget
+from spaceone.cost_analysis.model.budget.database import Budget
+from spaceone.cost_analysis.model.budget.request import BudgetCreateRequest, BudgetUpdateRequest, BudgetDeleteRequest, \
+    BudgetGetRequest, BudgetSearchQueryRequest, BudgetStatQueryRequest
+from spaceone.cost_analysis.model.budget.response import BudgetResponse, BudgetsResponse
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,7 +43,7 @@ class BudgetService(BaseService):
             "domain_id",
         ]
     )
-    def create(self, params):
+    def create(self, params: BudgetCreateRequest) -> Union[BudgetResponse, dict]:
         """Register budget
 
         Args:
@@ -62,26 +67,27 @@ class BudgetService(BaseService):
         Returns:
             budget_vo (object)
         """
+        params_dict = params.dict(exclude_unset=True)
 
-        domain_id = params["domain_id"]
-        workspace_id = params["workspace_id"]
-        data_source_id = params["data_source_id"]
-        project_id = params.get("project_id")
-        limit = params.get("limit")
-        planned_limits = params.get("planned_limits", [])
-        time_unit = params["time_unit"]
-        start = params["start"]
-        end = params["end"]
-        provider_filter = params.get("provider_filter", {})
+        domain_id = params_dict["domain_id"]
+        workspace_id = params_dict["workspace_id"]
+        data_source_id = params_dict["data_source_id"]
+        project_id = params_dict.get("project_id")
+        limit = params_dict.get("limit")
+        planned_limits = params_dict.get("planned_limits", [])
+        time_unit = params_dict["time_unit"]
+        start = params_dict["start"]
+        end = params_dict["end"]
+        provider_filter = params_dict.get("provider_filter", {})
         provider_filter_state = provider_filter.get("state", "DISABLED")
-        notifications = params.get("notifications", [])
-        resource_group = params["resource_group"]
+        notifications = params_dict.get("notifications", [])
+        resource_group = params_dict["resource_group"]
         self._check_time_period(start, end)
 
         identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
         if resource_group == "WORKSPACE":
             identity_mgr.check_workspace(workspace_id, domain_id)
-            params["project_id"] = "*"
+            params_dict["project_id"] = "*"
             project_id = "*"
         else:
             identity_mgr.get_project(project_id, domain_id)
@@ -91,7 +97,7 @@ class BudgetService(BaseService):
             if len(provider_filter.get("providers", [])) == 0:
                 raise ERROR_PROVIDER_FILTER_IS_EMPTY()
         else:
-            params["provider_filter"] = {"state": "DISABLED", "providers": []}
+            params_dict["provider_filter"] = {"state": "DISABLED", "providers": []}
 
         data_source_mgr = DataSourceManager()
 
@@ -104,21 +110,21 @@ class BudgetService(BaseService):
         data_source_vo = data_source_vos.first()
 
         data_source_metadata = data_source_vo.plugin_info.metadata
-        params["currency"] = data_source_metadata.get("currency", "USD")
+        params_dict["currency"] = data_source_metadata.get("currency", "USD")
 
         if time_unit == "TOTAL":
             if limit is None:
                 raise ERROR_REQUIRED_PARAMETER(key="limit")
 
-            params["planned_limits"] = None
+            params_dict["planned_limits"] = None
 
         else:
             # Check Planned Limits
             self._check_planned_limits(start, end, time_unit, planned_limits)
 
-            params["limit"] = 0
+            params_dict["limit"] = 0
             for planned_limit in planned_limits:
-                params["limit"] += planned_limit.get("limit", 0)
+                params_dict["limit"] += planned_limit.get("limit", 0)
 
         # Check Notifications
         self._check_notifications(notifications, project_id)
@@ -137,7 +143,7 @@ class BudgetService(BaseService):
                 target=project_id,
             )
 
-        budget_vo = self.budget_mgr.create_budget(params)
+        budget_vo = self.budget_mgr.create_budget(params_dict)
 
         # Create budget usages
         budget_usage_mgr: BudgetUsageManager = self.locator.get_manager(
@@ -147,7 +153,7 @@ class BudgetService(BaseService):
         budget_usage_mgr.update_cost_usage(budget_vo)
         budget_usage_mgr.notify_budget_usage(budget_vo)
 
-        return budget_vo
+        return BudgetResponse(**budget_vo.to_dict())
 
     @transaction(
         permission="cost-analysis:Budget.write",
@@ -155,7 +161,7 @@ class BudgetService(BaseService):
     )
     @check_required(["budget_id", "domain_id"])
     # @change_date_value(['end'])
-    def update(self, params):
+    def update(self, params: BudgetUpdateRequest) -> Union[BudgetResponse, dict]:
         """Update budget
 
         Args:
@@ -172,11 +178,12 @@ class BudgetService(BaseService):
         Returns:
             budget_vo (object)
         """
+        params_dict = params.dict(exclude_unset=True)
 
-        budget_id = params["budget_id"]
-        workspace_id = params.get("workspace_id")
-        domain_id = params["domain_id"]
-        planned_limits = params.get("planned_limits")
+        budget_id = params_dict["budget_id"]
+        workspace_id = params_dict.get("workspace_id")
+        domain_id = params_dict["domain_id"]
+        planned_limits = params_dict.get("planned_limits")
 
         budget_usage_mgr: BudgetUsageManager = self.locator.get_manager(
             "BudgetUsageManager"
@@ -196,7 +203,7 @@ class BudgetService(BaseService):
             )
             for budget_usage_vo in budget_usage_vos:
                 budget_usage_mgr.update_budget_usage_by_vo(
-                    {"name": params["name"]}, budget_usage_vo
+                    {"name": params_dict["name"]}, budget_usage_vo
                 )
         # Check DataSource exists
         data_source_mgr = self.locator.get_manager("DataSourceManager")
@@ -205,14 +212,14 @@ class BudgetService(BaseService):
         budget_usage_mgr.update_cost_usage(budget_vo)
         budget_usage_mgr.notify_budget_usage(budget_vo)
 
-        return budget_vo
+        return BudgetResponse(**budget_vo.to_dict())
 
     @transaction(
         permission="cost-analysis:Budget.write",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @check_required(["budget_id", "workspace_id", "domain_id"])
-    def set_notification(self, params):
+    def set_notification(self, params: dict) -> dict:
         """Set budget notification
 
         Args:
@@ -226,6 +233,7 @@ class BudgetService(BaseService):
         Returns:
             budget_vo (object)
         """
+
         budget_id = params["budget_id"]
         workspace_id = params.get("workspace_id")
         domain_id = params["domain_id"]
@@ -246,7 +254,7 @@ class BudgetService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @check_required(["budget_id", "domain_id"])
-    def delete(self, params):
+    def delete(self, params: BudgetDeleteRequest) -> None:
         """Deregister budget
 
         Args:
@@ -259,9 +267,10 @@ class BudgetService(BaseService):
         Returns:
             None
         """
+        params_dict = params.dict(exclude_unset=True)
 
         budget_vo: Budget = self.budget_mgr.get_budget(
-            params["budget_id"], params["domain_id"], params.get("workspace_id")
+            params_dict["budget_id"], params_dict["domain_id"], params_dict.get("workspace_id")
         )
         self.budget_mgr.delete_budget_by_vo(budget_vo)
 
@@ -270,7 +279,7 @@ class BudgetService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
     @check_required(["budget_id", "domain_id"])
-    def get(self, params):
+    def get(self, params: BudgetGetRequest) -> Union[BudgetResponse, dict]:
         """Get budget
 
         Args:
@@ -284,15 +293,18 @@ class BudgetService(BaseService):
         Returns:
             budget_vo (object)
         """
+        params_dict = params.dict(exclude_unset=True)
 
-        budget_id = params["budget_id"]
-        domain_id = params["domain_id"]
-        workspace_id = params.get("workspace_id")
-        project_id = params.get("user_projects")
+        budget_id = params_dict["budget_id"]
+        domain_id = params_dict["domain_id"]
+        workspace_id = params_dict.get("workspace_id")
+        project_id = params_dict.get("user_projects")
 
-        return self.budget_mgr.get_budget(
+        budget_vo = self.budget_mgr.get_budget(
             budget_id, domain_id, workspace_id, project_id
         )
+
+        return BudgetResponse(**budget_vo.to_dict())
 
     @transaction(
         permission="cost-analysis:Budget.read",
@@ -312,7 +324,7 @@ class BudgetService(BaseService):
         ]
     )
     @append_keyword_filter(["budget_id", "name"])
-    def list(self, params):
+    def list(self, params: BudgetSearchQueryRequest) -> Union[BudgetsResponse, dict]:
         """List budgets
 
         Args:
@@ -332,8 +344,10 @@ class BudgetService(BaseService):
             budget_vos (object)
             total_count
         """
+        params_dict = params.dict(exclude_unset=True)
 
-        query: dict = self._set_user_project_or_project_group_filter(params)
+        query: dict = self._set_user_project_or_project_group_filter(params_dict)
+
         return self.budget_mgr.list_budgets(query)
 
     @transaction(
@@ -343,7 +357,7 @@ class BudgetService(BaseService):
     @check_required(["query", "domain_id"])
     @append_query_filter(["user_projects", "workspace_id", "domain_id"])
     @append_keyword_filter(["budget_id", "name"])
-    def stat(self, params):
+    def stat(self, params: BudgetStatQueryRequest) -> dict:
         """
         Args:
             params (dict): {
@@ -356,8 +370,9 @@ class BudgetService(BaseService):
             values (list) : 'list of statistics data'
 
         """
+        params_dict = params.dict(exclude_unset=True)
 
-        query = params.get("query", {})
+        query = params_dict.get("query", {})
         return self.budget_mgr.stat_budgets(query)
 
     @staticmethod

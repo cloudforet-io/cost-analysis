@@ -4,7 +4,7 @@ from spaceone.api.cost_analysis.v1 import data_source_rule_pb2
 from spaceone.core.pygrpc.message_type import *
 from spaceone.core import utils
 
-from spaceone.cost_analysis.model.data_source_rule_model import (
+from spaceone.cost_analysis.model.data_source_rule.database import (
     DataSourceRule,
     DataSourceRuleCondition,
     DataSourceRuleOptions,

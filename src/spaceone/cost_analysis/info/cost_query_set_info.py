@@ -2,7 +2,7 @@ import functools
 from spaceone.api.cost_analysis.v1 import cost_query_set_pb2
 from spaceone.core.pygrpc.message_type import *
 from spaceone.core import utils
-from spaceone.cost_analysis.model.cost_query_set_model import CostQuerySet
+from spaceone.cost_analysis.model.cost_query_set.database import CostQuerySet
 
 __all__ = ["CostQuerySetInfo", "CostQuerySetsInfo"]
 

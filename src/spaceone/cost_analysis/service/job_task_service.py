@@ -35,9 +35,9 @@ class JobTaskService(BaseService):
             job_task_vo (object)
         """
 
-        job_task_id = params["job_task_id"]
-        workspace_id = params.get("workspace_id")
-        domain_id = params["domain_id"]
+        job_task_id = params_dict["job_task_id"]
+        workspace_id = params_dict.get("workspace_id")
+        domain_id = params_dict["domain_id"]
 
         return self.job_task_mgr.get_job_task(job_task_id, domain_id, workspace_id)
 
@@ -70,7 +70,7 @@ class JobTaskService(BaseService):
             total_count
         """
 
-        query = params.get("query", {})
+        query = params_dict.get("query", {})
         return self.job_task_mgr.list_job_tasks(query)
 
     @transaction(
@@ -94,5 +94,5 @@ class JobTaskService(BaseService):
 
         """
 
-        query = params.get("query", {})
+        query = params_dict.get("query", {})
         return self.job_task_mgr.stat_job_tasks(query)

@@ -2,7 +2,7 @@ import functools
 from spaceone.api.cost_analysis.v1 import cost_pb2
 from spaceone.core.pygrpc.message_type import *
 from spaceone.core import utils
-from spaceone.cost_analysis.model.cost_model import Cost
+from spaceone.cost_analysis.model.cost.database import Cost
 
 __all__ = ["CostInfo", "CostsInfo"]
 

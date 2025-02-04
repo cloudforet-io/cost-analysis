@@ -3,7 +3,7 @@ from typing import List
 from spaceone.api.cost_analysis.v1 import budget_pb2
 from spaceone.core.pygrpc.message_type import *
 from spaceone.core import utils
-from spaceone.cost_analysis.model.budget_model import (
+from spaceone.cost_analysis.model.budget.database import (
     Budget,
     PlannedLimit,
     Notification,

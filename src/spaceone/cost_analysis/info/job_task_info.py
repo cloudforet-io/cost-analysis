@@ -2,7 +2,7 @@ import functools
 from spaceone.api.cost_analysis.v1 import job_task_pb2
 from spaceone.core.pygrpc.message_type import *
 from spaceone.core import utils
-from spaceone.cost_analysis.model.job_task_model import JobTask
+from spaceone.cost_analysis.model.job_task.database import JobTask
 
 __all__ = ["JobTaskInfo", "JobTasksInfo"]
 

@@ -6,7 +6,7 @@ from mongoengine import QuerySet
 from spaceone.core import utils
 from spaceone.core.manager import BaseManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
-from spaceone.cost_analysis.model.data_source_rule_model import (
+from spaceone.cost_analysis.model.data_source_rule.database import (
     DataSourceRule,
     DataSourceRuleCondition,
 )
@@ -278,7 +278,7 @@ class DataSourceRuleManager(BaseManager):
             "only": ["workspace_id"],
         }
 
-        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
+        identity_mgr = IdentityManager()
         response = identity_mgr.list_projects({"query": query}, domain_id)
         results = response.get("results", [])
         total_count = response.get("total_count", 0)
