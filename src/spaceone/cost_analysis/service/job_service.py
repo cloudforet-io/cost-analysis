@@ -1133,7 +1133,7 @@ class JobService(BaseService):
                 return True
             elif job_vo.options.get("sync_mode") == "MANUAL":
                 manual_duplicate_job_time = datetime.utcnow() - timedelta(hours=24)
-                if job_vo.updated_at > manual_duplicate_job_time:
+                if job_vo.updated_at < manual_duplicate_job_time:
                     return True
             else:
                 self.job_mgr.change_canceled_status(job_vo)
