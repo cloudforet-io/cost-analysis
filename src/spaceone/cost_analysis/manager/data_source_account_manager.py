@@ -111,6 +111,8 @@ class DataSourceAccountManager(BaseManager):
                     ds_account_vo = ds_account_vos[0]
                     workspace_id = ds_account_vo.workspace_id
                     v_workspace_id = ds_account_vo.v_workspace_id
+        else:
+            workspace_id = cost_data.get("workspace_id")
 
         return workspace_id, v_workspace_id
 
@@ -165,9 +167,9 @@ class DataSourceAccountManager(BaseManager):
         else:
             workspace_info = results[0]
 
-        self._workspace_info[
-            f"workspace:{domain_id}:references:{reference_id}"
-        ] = workspace_info
+        self._workspace_info[f"workspace:{domain_id}:references:{reference_id}"] = (
+            workspace_info
+        )
 
         return workspace_info
 
@@ -178,8 +180,8 @@ class DataSourceAccountManager(BaseManager):
         data_source_vo = self.data_source_mgr.get_data_source(
             data_source_id=data_source_id, domain_id=domain_id
         )
-        self._data_source_info[
-            f"data-source:{domain_id}:{data_source_id}"
-        ] = data_source_vo
+        self._data_source_info[f"data-source:{domain_id}:{data_source_id}"] = (
+            data_source_vo
+        )
 
         return data_source_vo
