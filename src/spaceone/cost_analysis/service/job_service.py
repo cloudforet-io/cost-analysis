@@ -57,19 +57,25 @@ class JobService(BaseService):
         """Create jobs by domain
 
         Args:
-            params (dict): {}
+            params (dict): {
+                "sync_hour": int
+            }
 
         Returns:
             None
         """
 
         for data_source_vo in self._get_all_data_sources():
-            try:
-                self.create_cost_job(data_source_vo, {"sync_mode": "SCHEDULED"})
-            except Exception as e:
-                _LOGGER.error(
-                    f"[create_jobs_by_data_source] sync error: {e}", exc_info=True
-                )
+            if data_source_vo.schedule.state == "ENABLED":
+                sync_hour = data_source_vo.schedule.hour
+
+                if params.get("sync_hour") == sync_hour:
+                    try:
+                        self.create_cost_job(data_source_vo, {"sync_mode": "SCHEDULED"})
+                    except Exception as e:
+                        _LOGGER.error(
+                            f"[create_jobs_by_data_source] sync error: {e}", exc_info=True
+                        )
 
     @transaction(
         permission="cost-analysis:Job.write",

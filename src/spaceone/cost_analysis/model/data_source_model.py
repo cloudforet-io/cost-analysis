@@ -30,6 +30,16 @@ class SecretFilter(EmbeddedDocument):
         return dict(self.to_mongo())
 
 
+class Schedule(EmbeddedDocument):
+    state = StringField(
+        max_length=20, default="ENABLED", choices=("ENABLED", "DISABLED")
+    )
+    hour = IntField(min_value=0, max_length=23, null=True)
+
+    def to_dict(self):
+        return dict(self.to_mongo())
+
+
 class DataSource(MongoModel):
     data_source_id = StringField(max_length=40, generate_id="ds", unique=True)
     name = StringField(max_length=255, unique_with="domain_id")
@@ -46,6 +56,7 @@ class DataSource(MongoModel):
     permissions = DictField(default=None, null=True)
     provider = StringField(max_length=40, default=None, null=True)
     plugin_info = EmbeddedDocumentField(PluginInfo, default=None, null=True)
+    schedule = EmbeddedDocumentField(Schedule, default=None, null=True)
     template = DictField(default={})
     tags = DictField(default={})
     cost_tag_keys = ListField(StringField())

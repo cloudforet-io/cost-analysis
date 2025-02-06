@@ -27,6 +27,7 @@ class DataSourceResponse(BaseModel):
     secret_type: Union[SecretType, None] = None
     secret_filter: Union[dict, None] = None
     plugin_info: Union[dict, None] = None
+    schedule: Union[dict, None] = None
     template: Union[dict, None] = None
     tags: Union[dict, None] = None
     cost_tag_keys: Union[list, None] = None
