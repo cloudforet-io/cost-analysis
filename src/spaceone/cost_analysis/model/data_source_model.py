@@ -43,9 +43,6 @@ class Schedule(EmbeddedDocument):
 class DataSource(MongoModel):
     data_source_id = StringField(max_length=40, generate_id="ds", unique=True)
     name = StringField(max_length=255, unique_with="domain_id")
-    state = StringField(
-        max_length=20, default="ENABLED", choices=("ENABLED", "DISABLED")
-    )
     data_source_type = StringField(max_length=20, choices=("LOCAL", "EXTERNAL"))
     secret_type = StringField(
         max_length=32,
@@ -76,7 +73,6 @@ class DataSource(MongoModel):
     meta = {
         "updatable_fields": [
             "name",
-            "state",
             "permissions",
             "plugin_info",
             "secret_filter",
@@ -94,14 +90,12 @@ class DataSource(MongoModel):
             "data_source_id",
             "workspace_id",
             "name",
-            "state",
             "data_source_type",
             "secret_type",
             "provider",
         ],
         "ordering": ["name"],
         "indexes": [
-            "state",
             "data_source_type",
             "provider",
             "resource_group",

@@ -62,7 +62,7 @@ class DataSourceService(BaseService):
                 'secret_filter': 'dict',
                 'template': 'dict',
                 'plugin_info': 'dict',
-                'schedule;: 'dict',
+                'schedule;: 'dict',         # required
                 'tags': 'dict',             # required
                 'resource_group': 'str      # required
                 'workspace_id': 'str'

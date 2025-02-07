@@ -1114,7 +1114,7 @@ class JobService(BaseService):
 
     def _get_all_data_sources(self):
         return self.data_source_mgr.filter_data_sources(
-            state="ENABLED", data_source_type="EXTERNAL"
+            data_source_type="EXTERNAL"
         )
 
     def _check_duplicate_job(
