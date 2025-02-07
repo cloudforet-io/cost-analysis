@@ -530,7 +530,7 @@ class DataSourceService(BaseService):
             data_source_id, domain_id, workspace_id
         )
 
-        if data_source_vo.state == "DISABLED":
+        if data_source_vo.schedule.state == "DISABLED":
             raise ERROR_DATA_SOURCE_STATE(data_source_id=data_source_id)
 
         if data_source_vo.data_source_type == "LOCAL":
