@@ -26,7 +26,7 @@ class Plugin(BaseModel):
 
 
 class Schedule(BaseModel):
-    state: str
+    state: State
     hour: Union[int, None] = None
 
 
@@ -61,7 +61,6 @@ class DataSourceSearchQueryRequest(BaseModel):
     query: Union[dict, None] = None
     data_source_id: Union[str, None] = None
     name: Union[str, None] = None
-    state: Union[State, None] = None
     data_source_type: Union[DataSourceType, None] = None
     provider: Union[str, None] = None
     connected_workspace_id: Union[str, None] = None

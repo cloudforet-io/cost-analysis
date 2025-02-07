@@ -53,7 +53,7 @@ class DataSource(MongoModel):
     permissions = DictField(default=None, null=True)
     provider = StringField(max_length=40, default=None, null=True)
     plugin_info = EmbeddedDocumentField(PluginInfo, default=None, null=True)
-    schedule = EmbeddedDocumentField(Schedule, default=None, null=True)
+    schedule = EmbeddedDocumentField(Schedule)
     template = DictField(default={})
     tags = DictField(default={})
     cost_tag_keys = ListField(StringField())

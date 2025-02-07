@@ -5,7 +5,6 @@ from pydantic import BaseModel
 from spaceone.core import utils
 
 from spaceone.cost_analysis.model.data_source.request import (
-    State,
     DataSourceType,
     SecretType,
     ResourceGroup,
@@ -20,7 +19,6 @@ __all__ = [
 class DataSourceResponse(BaseModel):
     data_source_id: Union[str, None] = None
     name: Union[str, None] = None
-    state: Union[State, None] = None
     data_source_type: Union[DataSourceType, None] = None
     permissions: Union[dict, None] = None
     provider: Union[str, None] = None

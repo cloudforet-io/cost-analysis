@@ -931,7 +931,7 @@ class DataSourceService(BaseService):
 
     @staticmethod
     def _check_schedule(schedule: dict) -> None:
-        if schedule.get("state") == "ENABLED":
+        if schedule.get("state", "ENABLED") == "ENABLED":
             if not schedule.get("hour"):
                 raise ERROR_INVALID_PARAMETER(
                     key="schedule.hour", reason="Need to set an hour when the state is ENABLED."
