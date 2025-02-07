@@ -1,10 +1,14 @@
 import logging
+from typing import Union
 
 from spaceone.core.service import *
 
 from spaceone.cost_analysis.manager import DataSourceManager
 from spaceone.cost_analysis.manager.cost_query_set_manager import CostQuerySetManager
 from spaceone.cost_analysis.model.cost_query_set.database import CostQuerySet
+from spaceone.cost_analysis.model.cost_query_set.request import CostQuerySetCreateRequest, CostQuerySetUpdateRequest, \
+    CostQuerySetDeleteRequest, CostQuerySetGetRequest, CostQuerySetSearchQueryRequest, CostQuerySetStatQueryRequest
+from spaceone.cost_analysis.model.cost_query_set.response import CostQuerySetResponse, CostQuerySetsResponse
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -29,7 +33,7 @@ class CostQuerySetService(BaseService):
     )
     @check_required(["data_source_id", "name", "options", "user_id", "domain_id"])
     @change_date_value(["start", "end"])
-    def create(self, params):
+    def create(self, params: CostQuerySetCreateRequest) -> Union[CostQuerySetResponse, dict]:
         """Register cost_query_set
 
         Args:
@@ -46,6 +50,7 @@ class CostQuerySetService(BaseService):
         Returns:
             cost_query_set_vo (object)
         """
+        params_dict = params.dict(exclude_unset=True)
 
         domain_id = params_dict["domain_id"]
         data_source_id = params_dict["data_source_id"]
@@ -55,7 +60,8 @@ class CostQuerySetService(BaseService):
                 domain_id=domain_id, data_source_id=data_source_id
             )
 
-        return self.cost_query_set_mgr.create_cost_query_set(params)
+        cost_query_set_vo = self.cost_query_set_mgr.create_cost_query_set(params_dict)
+        return CostQuerySetResponse(**cost_query_set_vo.to_dict())
 
     @transaction(
         permission="cost-analysis:CostQuerySet.write",
@@ -63,7 +69,7 @@ class CostQuerySetService(BaseService):
     )
     @check_required(["cost_query_set_id", "user_id", "domain_id"])
     @change_date_value(["end"])
-    def update(self, params: dict):
+    def update(self, params: CostQuerySetUpdateRequest) -> Union[CostQuerySetResponse, dict]:
         """Update cost_query_set
 
         Args:
@@ -80,25 +86,29 @@ class CostQuerySetService(BaseService):
         Returns:
             cost_query_set_vo (object)
         """
+        params_dict = params.dict(exclude_unset=True)
+
         cost_query_set_id = params_dict["cost_query_set_id"]
         user_id = params_dict["user_id"]
         domain_id = params_dict["domain_id"]
         workspace_id = params_dict.get("workspace_id")
 
-        cost_query_set_vo: CostQuerySet = self.cost_query_set_mgr.get_cost_query_set(
+        cost_query_set_vo = self.cost_query_set_mgr.get_cost_query_set(
             cost_query_set_id, user_id, domain_id, workspace_id
         )
 
-        return self.cost_query_set_mgr.update_cost_query_set_by_vo(
+        updated_cost_query_set_vo = self.cost_query_set_mgr.update_cost_query_set_by_vo(
             params, cost_query_set_vo
         )
+
+        return CostQuerySetResponse(**updated_cost_query_set_vo.to_dict())
 
     @transaction(
         permission="cost-analysis:CostQuerySet.write",
         role_types=["USER"],
     )
     @check_required(["cost_query_set_id", "user_id", "domain_id"])
-    def delete(self, params: dict):
+    def delete(self, params: CostQuerySetDeleteRequest) -> None:
         """Deregister cost_query_set
 
         Args:
@@ -110,6 +120,7 @@ class CostQuerySetService(BaseService):
         Returns:
             None
         """
+        params_dict = params.dict(exclude_unset=True)
 
         cost_query_set_vo = self.cost_query_set_mgr.get_cost_query_set(
             params_dict["cost_query_set_id"],
@@ -125,7 +136,7 @@ class CostQuerySetService(BaseService):
         role_types=["USER"],
     )
     @check_required(["cost_query_set_id", "user_id", "domain_id"])
-    def get(self, params: dict):
+    def get(self, params: CostQuerySetGetRequest) -> Union[CostQuerySetResponse, dict]:
         """Get cost_query_set
 
         Args:
@@ -138,15 +149,18 @@ class CostQuerySetService(BaseService):
         Returns:
             cost_query_set_vo (object)
         """
+        params_dict = params.dict(exclude_unset=True)
 
         cost_query_set_id = params_dict["cost_query_set_id"]
         user_id = params_dict["user_id"]
         domain_id = params_dict["domain_id"]
         workspace_id = params_dict.get("workspace_id")
 
-        return self.cost_query_set_mgr.get_cost_query_set(
+        cost_query_set_vo = self.cost_query_set_mgr.get_cost_query_set(
             cost_query_set_id, user_id, domain_id, workspace_id
         )
+
+        return CostQuerySetResponse(**cost_query_set_vo.to_dict())
 
     @transaction(
         permission="cost-analysis:CostQuerySet.read",
@@ -164,7 +178,7 @@ class CostQuerySetService(BaseService):
         ]
     )
     @append_keyword_filter(["cost_query_set_id", "name"])
-    def list(self, params: dict):
+    def list(self, params: CostQuerySetSearchQueryRequest) -> Union[CostQuerySetsResponse, dict]:
         """List cost_query_sets
 
         Args:
@@ -183,8 +197,10 @@ class CostQuerySetService(BaseService):
             cost_query_set_vos (object)
             total_count
         """
+        params_dict = params.dict(exclude_unset=True)
 
         query = params_dict.get("query", {})
+        #TODO
         return self.cost_query_set_mgr.list_cost_query_sets(query)
 
     @transaction(
@@ -194,7 +210,7 @@ class CostQuerySetService(BaseService):
     @check_required(["query", "data_source_id", "domain_id"])
     @append_query_filter(["data_source_id", "domain_id"])
     @append_keyword_filter(["cost_query_set_id", "name"])
-    def stat(self, params: dict):
+    def stat(self, params: CostQuerySetStatQueryRequest) -> dict:
         """
         Args:
             params (dict): {
@@ -206,6 +222,7 @@ class CostQuerySetService(BaseService):
             values (list) : 'list of statistics data'
 
         """
+        params_dict = params.dict(exclude_unset=True)
 
         query = params_dict.get("query", {})
         return self.cost_query_set_mgr.stat_cost_query_sets(query)

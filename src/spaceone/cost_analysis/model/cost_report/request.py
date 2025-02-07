@@ -1,4 +1,4 @@
-from typing import Union, Literal, List
+from typing import Union, Literal
 from pydantic import BaseModel
 
 __all__ = [

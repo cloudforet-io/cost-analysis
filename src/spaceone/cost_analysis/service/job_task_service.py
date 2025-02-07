@@ -1,7 +1,11 @@
 import logging
+from typing import Union
 
 from spaceone.core.service import *
 from spaceone.cost_analysis.manager.job_task_manager import JobTaskManager
+from spaceone.cost_analysis.model.job_task.request import JobTaskGetRequest, JobTaskSearchQueryRequest, \
+    JobTaskStatQueryRequest
+from spaceone.cost_analysis.model.job_task.response import JobTaskResponse, JobTasksResponse
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -22,7 +26,7 @@ class JobTaskService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
     @check_required(["job_task_id", "domain_id"])
-    def get(self, params):
+    def get(self, params: JobTaskGetRequest) -> Union[JobTaskResponse, dict]:
         """Get job_task
 
         Args:
@@ -34,6 +38,7 @@ class JobTaskService(BaseService):
         Returns:
             job_task_vo (object)
         """
+        params_dict = params.dict(exclude_unset=True)
 
         job_task_id = params_dict["job_task_id"]
         workspace_id = params_dict.get("workspace_id")
@@ -51,7 +56,7 @@ class JobTaskService(BaseService):
         ["job_task_id", "status", "job_id", "data_source_id", "domain_id"]
     )
     @append_keyword_filter(["job_task_id"])
-    def list(self, params):
+    def list(self, params: JobTaskSearchQueryRequest) -> Union[JobTasksResponse, dict]:
         """List job_tasks
 
         Args:
@@ -66,9 +71,10 @@ class JobTaskService(BaseService):
             }
 
         Returns:
-            job_task_vos (object)
+            JobTaskResponses
             total_count
         """
+        params_dict = params.dict(exclude_unset=True)
 
         query = params_dict.get("query", {})
         return self.job_task_mgr.list_job_tasks(query)
@@ -81,7 +87,7 @@ class JobTaskService(BaseService):
     @check_required(["query", "domain_id"])
     @append_query_filter(["workspace_id", "domain_id"])
     @append_keyword_filter(["job_task_id"])
-    def stat(self, params):
+    def stat(self, params: JobTaskStatQueryRequest) -> dict:
         """
         Args:
             params (dict): {
@@ -93,6 +99,7 @@ class JobTaskService(BaseService):
             values (list) : 'list of statistics data'
 
         """
+        params_dict = params.dict(exclude_unset=True)
 
         query = params_dict.get("query", {})
         return self.job_task_mgr.stat_job_tasks(query)

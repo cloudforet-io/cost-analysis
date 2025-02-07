@@ -387,6 +387,7 @@ class BudgetService(BaseService):
                 'budget_id': 'str',
                 'name': 'str',
                 'time_unit': 'str',
+                'data_source_id': 'str',
                 'project_id': 'str',
                 'user_projects': 'list',
                 'workspace_id': 'str',
