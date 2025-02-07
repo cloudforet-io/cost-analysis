@@ -2,7 +2,7 @@ import logging
 from datetime import datetime
 from typing import Union
 
-from dateutil.rrule import rrule, MONTHLY, YEARLY
+from dateutil.rrule import rrule, MONTHLY
 
 from spaceone.core.service import *
 from spaceone.cost_analysis.error import *

@@ -4,7 +4,6 @@ from typing import Union
 from spaceone.core.service import *
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.manager.budget_usage_manager import BudgetUsageManager
-from spaceone.cost_analysis.model.budget.request import BudgetStatQueryRequest
 from spaceone.cost_analysis.model.budget_usage.request import BudgetUsageSearchQueryRequest, \
     BudgetUsageStatQueryRequest, BudgetUsageAnalyzeQueryRequest
 from spaceone.cost_analysis.model.budget_usage.response import BudgetUsagesResponse
