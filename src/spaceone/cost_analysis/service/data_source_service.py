@@ -585,7 +585,6 @@ class DataSourceService(BaseService):
         [
             "data_source_id",
             "name",
-            "state",
             "data_source_type",
             "provider",
             "workspace_id",
@@ -605,7 +604,6 @@ class DataSourceService(BaseService):
                 'query': 'dict (spaceone.api.core.v1.Query)'
                 'data_source_id': 'str',
                 'name': 'str',
-                'state': 'str',
                 'data_source_type': 'str',
                 'provider': 'str',
                 'connected_workspace_id': str,

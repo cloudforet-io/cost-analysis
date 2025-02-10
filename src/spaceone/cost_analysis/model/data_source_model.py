@@ -77,6 +77,7 @@ class DataSource(MongoModel):
             "plugin_info",
             "secret_filter",
             "template",
+            "schedule",
             "tags",
             "updated_at",
             "last_synchronized_at",
@@ -93,6 +94,7 @@ class DataSource(MongoModel):
             "data_source_type",
             "secret_type",
             "provider",
+            "schedule",
         ],
         "ordering": ["name"],
         "indexes": [

@@ -26,7 +26,7 @@ class Plugin(BaseModel):
 
 
 class Schedule(BaseModel):
-    state: State
+    state: str
     hour: Union[int, None] = None
 
 
