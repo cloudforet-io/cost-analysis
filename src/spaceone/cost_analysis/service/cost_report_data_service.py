@@ -59,7 +59,23 @@ class CostReportDataService(BaseService):
     def list(
         self, params: CostReportDataSearchQueryRequest
     ) -> Union[CostReportsDataResponse, dict]:
-        """List cost report data"""
+        """List cost report data
+        Args:
+            params (dict): {
+                'query': 'dict',
+                'cost_report_data_id': 'str',
+                'product': 'str',
+                'provider': 'str',
+                'is_confirmed': 'bool',
+                'data_source_id': 'str',
+                'cost_report_config_id': 'str',
+                'cost_report_id': 'str',
+                'workspace_id': 'str',
+                'domain_id': 'str',         # inject from auth
+            }
+        Returns:
+            CostReportsDataResponse:
+        """
 
         query = params.query or {}
         (
@@ -100,7 +116,21 @@ class CostReportDataService(BaseService):
     @set_query_page_limit(1000)
     @convert_model
     def analyze(self, params: CostReportDataAnalyzeQueryRequest) -> dict:
-        """Analyze cost report data"""
+        """Analyze cost report data
+        Args:
+            params (dict): {
+                'query': 'dict',
+                'product': 'str',
+                'provider': 'str',
+                'is_confirmed': 'bool',
+                'cost_report_config_id': 'str',
+                'project_id': 'str',
+                'workspace_id': 'str',
+                'domain_id': 'str',         # inject from auth
+            }
+        Returns:
+            CostReportDataAnalyzeResponse:
+        """
 
         query = params.query or {}
 
@@ -120,7 +150,18 @@ class CostReportDataService(BaseService):
     )
     @convert_model
     def stat(self, params: CostReportDataStatQueryRequest) -> dict:
-        """Analyze cost report data"""
+        """Analyze cost report data
+        Args:
+            params (dict): {
+                'query': 'dict',
+                'cost_report_config_id': 'str',
+                'cost_report_id': 'str',
+                'workspace_id': 'str',      # inject from auth
+                'domain_id': 'str',         # inject from auth
+            }
+        Returns:
+            CostReportDataStatResponse:
+        """
 
         query = params.query or {}
         return self.cost_report_data_mgr.stat_cost_reports_data(query)
