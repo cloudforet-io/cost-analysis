@@ -57,19 +57,26 @@ class JobService(BaseService):
         """Create jobs by domain
 
         Args:
-            params (dict): {}
+            params (dict): {
+                "sync_hour": int
+            }
 
         Returns:
             None
         """
 
-        for data_source_vo in self._get_all_data_sources():
-            try:
-                self.create_cost_job(data_source_vo, {"sync_mode": "SCHEDULED"})
-            except Exception as e:
-                _LOGGER.error(
-                    f"[create_jobs_by_data_source] sync error: {e}", exc_info=True
-                )
+        data_source_vos, total_count = self._get_all_data_sources()
+
+        for data_source_vo in data_source_vos:
+            sync_hour = data_source_vo.schedule.hour
+
+            if params.get("sync_hour") == sync_hour:
+                try:
+                    self.create_cost_job(data_source_vo, {"sync_mode": "SCHEDULED"})
+                except Exception as e:
+                    _LOGGER.error(
+                        f"[create_jobs_by_data_source] sync error: {e}", exc_info=True
+                    )
 
     @transaction(
         permission="cost-analysis:Job.write",
@@ -1107,9 +1114,14 @@ class JobService(BaseService):
         )
 
     def _get_all_data_sources(self):
-        return self.data_source_mgr.filter_data_sources(
-            state="ENABLED", data_source_type="EXTERNAL"
-        )
+        query = {
+            "filter": [
+                {"k": "data_source_type", "v": "EXTERNAL", "o": "eq"},
+                {"k": "schedule.state", "v": "ENABLED", "o": "eq"},
+            ]
+        }
+
+        return self.data_source_mgr.list_data_sources(query)
 
     def _check_duplicate_job(
         self, data_source_id: str, domain_id: str, this_job_vo: Job

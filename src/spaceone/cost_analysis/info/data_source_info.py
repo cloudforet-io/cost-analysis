@@ -37,16 +37,28 @@ def PluginInfo(vo):
         return None
 
 
+def ScheduleInfo(vo):
+    if vo:
+        info = {
+            "state": vo.state,
+            "hour": vo.hour,
+        }
+
+        return data_source_pb2.Schedule(**info)
+    else:
+        return None
+
+
 def DataSourceInfo(data_source_vo: DataSource, minimal=False):
     info = {
         "data_source_id": data_source_vo.data_source_id,
         "workspace_id": data_source_vo.workspace_id,
         "name": data_source_vo.name,
-        "state": data_source_vo.state,
         "data_source_type": data_source_vo.data_source_type,
         "secret_type": data_source_vo.secret_type,
         "provider": data_source_vo.provider,
         "resource_group": data_source_vo.resource_group,
+        "schedule": ScheduleInfo(data_source_vo.schedule),
     }
 
     if not minimal:
