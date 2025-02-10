@@ -11,6 +11,7 @@ from spaceone.core.service import *
 
 from spaceone.cost_analysis.manager import DataSourceAccountManager
 from spaceone.cost_analysis.model.cost_report.database import CostReport
+from spaceone.cost_analysis.model.cost_report.response import CostReportLinkResponse
 from spaceone.cost_analysis.model.cost_report_config.database import CostReportConfig
 from spaceone.cost_analysis.model.cost_report.request import *
 from spaceone.cost_analysis.model.cost_report.response import *
@@ -90,7 +91,7 @@ class CostReportService(BaseService):
         Args:
             params (dict): {
                 'cost_report_id': 'str',    # required
-                'workspace_id': 'str',
+                'workspace_id': 'str',      # inject from auth
                 'domain_id': 'str',         # inject from auth
             }
         Returns:
@@ -116,16 +117,16 @@ class CostReportService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @convert_model
-    def get_url(self, params: CostReportGetUrlRequest) -> dict:
+    def get_url(self, params: CostReportGetUrlRequest) -> Union[CostReportLinkResponse, dict]:
         """Get cost report url
         Args:
             params (dict): {
                 'cost_report_id': 'str',    # required
-                'workspace_id': 'str',
+                'workspace_id': 'str',      # inject from auth
                 'domain_id': 'str',         # inject from auth
             }
         Returns:
-
+            CostReportLinkResponse:
         """
 
         domain_id = params.domain_id
@@ -155,7 +156,16 @@ class CostReportService(BaseService):
     )
     @convert_model
     def get(self, params: CostReportGetRequest) -> Union[CostReportResponse, dict]:
-        """Get cost report"""
+        """Get cost report
+        Args:
+            params (dict): {
+                'cost_report_id': 'str',    # required
+                'workspace_id': 'str',      # inject from auth
+                'domain_id': 'str',         # inject from auth
+            }
+        Returns:
+            CostReportResponse:
+        """
 
         cost_report_vo = self.cost_report_mgr.get_cost_report(
             params.domain_id, params.cost_report_id, params.workspace_id
@@ -189,7 +199,21 @@ class CostReportService(BaseService):
     def list(
         self, params: CostReportSearchQueryRequest
     ) -> Union[CostReportsResponse, dict]:
-        """List cost reports"""
+        """List cost reports
+        Args:
+            params (dict): {
+                'query': 'dict',
+                'cost_report_id': 'str',
+                'cost_report_config_id': 'str',
+                'status': 'str',
+                'issue_date': 'str',
+                'workspace_name': 'str',
+                'workspace_id': 'str',      # inject from auth
+                'domain_id': 'str',         # inject from auth
+            }
+        Returns:
+            CostReportResponse:
+        """
 
         query = params.query or {}
 
@@ -231,15 +255,25 @@ class CostReportService(BaseService):
     )
     @convert_model
     def stat(self, params: CostReportDataStatQueryRequest) -> dict:
-        """Stat cost reports"""
+        """Stat cost reports
+        Args:
+            params (dict): {
+                'query': 'dict',           # required
+                'cost_report_id': 'str',
+                'workspace_id': 'str',      # inject from auth
+                'domain_id': 'str',         # inject from auth
+            }
+        Returns:
+            CostReportStatResponse:
+        """
 
         query = params.query or {}
         return self.cost_report_mgr.stat_cost_reports(query)
 
     def create_cost_report(self, params: dict):
-        cost_report_config_id = params_dict["cost_report_config_id"]
+        cost_report_config_id = params["cost_report_config_id"]
         cost_report_config_vo = self.cost_report_config_mgr.get_cost_report_config(
-            params_dict["domain_id"], cost_report_config_id
+            params["domain_id"], cost_report_config_id
         )
         domain_id = cost_report_config_vo.domain_id
         currency = cost_report_config_vo.currency

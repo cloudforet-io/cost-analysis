@@ -8,6 +8,15 @@ from spaceone.cost_analysis.model.cost_report.request import Status
 __all__ = ["CostReportResponse", "CostReportsResponse"]
 
 
+class CostReportLinkResponse(BaseModel):
+    cost_report_link: Union[str, None] = None
+    domain_id: Union[str, None] = None
+
+    def dict(self, *args, **kwargs):
+        data = super().dict(*args, **kwargs)
+        return data
+
+
 class CostReportResponse(BaseModel):
     cost_report_id: Union[str, None] = None
     cost: Union[dict, None] = None
