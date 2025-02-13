@@ -687,7 +687,9 @@ class CostReportService(BaseService):
             )
 
         if data_source_state := data_source_filter.get("state", "ENABLED"):
-            query["filter"].append({"k": "state", "v": data_source_state, "o": "eq"})
+            query["filter"].append(
+                {"k": "schedule.state", "v": data_source_state, "o": "eq"}
+            )
 
         _LOGGER.debug(f"[get_data_source_currency_map] query: {query}")
 

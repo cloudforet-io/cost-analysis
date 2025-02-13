@@ -633,7 +633,12 @@ class CostManager(BaseManager):
 
             if key == "workspace_id" and operator in ["eq", "not", "in", "not_in"]:
                 workspace_id_exist = True
-            elif key in ["project_id", "user_projects"] and operator in ["eq", "not", "in", "not_in"]:
+            elif key in ["project_id", "user_projects"] and operator in [
+                "eq",
+                "not",
+                "in",
+                "not_in",
+            ]:
                 project_id_exist = True
 
         if workspace_id_exist and project_id_exist:
