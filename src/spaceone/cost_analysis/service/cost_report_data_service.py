@@ -226,25 +226,25 @@ class CostReportDataService(BaseService):
                 aggregated_cost_report_data.get("data_source_id")
             )
 
-            aggregated_cost_report_data[
-                "cost"
-            ] = CostReportManager.get_exchange_currency(
-                ag_cost, ag_cost_report_currency, self.currency_map
+            aggregated_cost_report_data["cost"] = (
+                CostReportManager.get_exchange_currency(
+                    ag_cost, ag_cost_report_currency, self.currency_map
+                )
             )
             aggregated_cost_report_data["currency"] = currency
             aggregated_cost_report_data["issue_date"] = issue_date
             aggregated_cost_report_data["report_month"] = report_month
-            aggregated_cost_report_data[
-                "report_year"
-            ] = aggregated_cost_report_data.pop("billed_year")
+            aggregated_cost_report_data["report_year"] = (
+                aggregated_cost_report_data.pop("billed_year")
+            )
             aggregated_cost_report_data["workspace_name"] = workspace_name
             aggregated_cost_report_data["project_name"] = project_name_map.get(
                 aggregated_cost_report_data["project_id"], "Unknown"
             )
-            aggregated_cost_report_data[
-                "service_account_name"
-            ] = service_account_name_map.get(
-                aggregated_cost_report_data["service_account_id"], "Unknown"
+            aggregated_cost_report_data["service_account_name"] = (
+                service_account_name_map.get(
+                    aggregated_cost_report_data["service_account_id"], "Unknown"
+                )
             )
 
             aggregated_cost_report_data["cost_report_config_id"] = cost_report_config_id
@@ -298,9 +298,9 @@ class CostReportDataService(BaseService):
             domain_id,
         )
         for service_account in service_accounts.get("results", []):
-            service_account_name_map[
-                service_account["service_account_id"]
-            ] = service_account["name"]
+            service_account_name_map[service_account["service_account_id"]] = (
+                service_account["name"]
+            )
         return service_account_name_map
 
     @staticmethod
@@ -323,16 +323,17 @@ class CostReportDataService(BaseService):
             )
 
         if data_source_state := data_source_filter.get("state", "ENABLED"):
-            query["filter"].append({"k": "state", "v": data_source_state, "o": "eq"})
-
+            query["filter"].append(
+                {"k": "schedule.state", "v": data_source_state, "o": "eq"}
+            )
         _LOGGER.debug(f"[get_data_source_currency_map] query: {query}")
 
         data_source_vos, total_count = data_source_mgr.list_data_sources(query)
         data_source_ids = []
         for data_source_vo in data_source_vos:
-            data_source_currency_map[
-                data_source_vo.data_source_id
-            ] = data_source_vo.plugin_info["metadata"]["currency"]
+            data_source_currency_map[data_source_vo.data_source_id] = (
+                data_source_vo.plugin_info["metadata"]["currency"]
+            )
             data_source_ids.append(data_source_vo.data_source_id)
 
         return data_source_currency_map, data_source_ids
