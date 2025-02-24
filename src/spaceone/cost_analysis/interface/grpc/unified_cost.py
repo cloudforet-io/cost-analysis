@@ -8,6 +8,12 @@ class UnifiedCost(BaseAPI, unified_cost_pb2_grpc.UnifiedCostServicer):
     pb2 = unified_cost_pb2
     pb2_grpc = unified_cost_pb2_grpc
 
+    def run(self, request, context):
+        params, metadata = self.parse_request(request, context)
+        unified_cost_svc = UnifiedCostService(metadata)
+        unified_cost_svc.run_unified_cost_by_manual(params)
+        return self.empty()
+
     def get(self, request, context):
         params, metadata = self.parse_request(request, context)
         unified_cost_svc = UnifiedCostService(metadata)

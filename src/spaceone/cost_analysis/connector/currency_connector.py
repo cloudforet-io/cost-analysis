@@ -1,10 +1,10 @@
-import FinanceDataReader as fdr
 import logging
 import pandas as pd
 import requests
-from datetime import datetime
-from typing import Tuple, Union
+from datetime import datetime, timezone
 from dateutil.relativedelta import relativedelta
+import FinanceDataReader as fdr
+from typing import Tuple, Union
 
 from spaceone.core.connector import BaseConnector
 
@@ -42,6 +42,9 @@ class CurrencyConnector(BaseConnector):
                     f"{from_currency}/{to_currency}"
                 ] = exchange_rate
 
+        _LOGGER.debug(
+            f"[add_currency_map_date] get currency_map successfully for {currency_date}"
+        )
         return currency_map, currency_date
 
     @staticmethod
@@ -71,20 +74,23 @@ class CurrencyConnector(BaseConnector):
         currency_end_date: datetime,
         currency_start_date: Union[datetime, None] = None,
     ):
-        if not currency_start_date:
-            currency_start_date = currency_end_date - relativedelta(days=15)
+        df = None
+
         try:
-            return (
-                fdr.DataReader(
-                    pair,
-                    start=currency_start_date,
-                    end=currency_end_date,
-                )
-                .dropna()
-                .reset_index()[["Date", "Close"]]
+            currency_end_date = currency_end_date.replace(
+                hour=23, minute=59, second=59, microsecond=59
             )
+
+            if not currency_start_date:
+                currency_start_date = currency_end_date - relativedelta(days=15)
+            df = (
+                fdr.DataReader(pair, start=currency_start_date, end=currency_end_date)
+                .dropna()
+                .reset_index(names="Date")[["Date", "Close"]]
+            )
+            return df
         except Exception as e:
-            _LOGGER.error(f"[get_exchange_rate_info] Error {e}")
+            _LOGGER.error(f"[get_exchange_rate_info] Error {e}, {df}")
             response_json = self.http_datareader(
                 pair, currency_end_date, currency_start_date
             )
@@ -94,7 +100,7 @@ class CurrencyConnector(BaseConnector):
 
             # convert bst to utc
             converted_datetime = [
-                datetime.utcfromtimestamp(ts + 3600) for ts in timestamps
+                datetime.fromtimestamp(ts, tz=timezone.utc) for ts in timestamps
             ]
 
             df = pd.DataFrame(

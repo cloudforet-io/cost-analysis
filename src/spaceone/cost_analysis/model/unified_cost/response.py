@@ -10,6 +10,7 @@ __all__ = ["UnifiedCostResponse", "UnifiedCostsResponse"]
 class UnifiedCostResponse(BaseModel):
     unified_cost_id: Union[str, None] = None
     cost: Union[dict, None] = None
+    usage_quantity: Union[float, None] = None
     billed_month: Union[str, None] = None
     billed_year: Union[str, None] = None
     aggregation_date: Union[str, None] = None
