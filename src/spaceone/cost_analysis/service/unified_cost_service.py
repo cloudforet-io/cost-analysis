@@ -1,11 +1,12 @@
 import calendar
 import copy
 import logging
-from typing import Union, Tuple
-from datetime import datetime
-
+from datetime import datetime, timezone
 from dateutil.relativedelta import relativedelta
+from typing import Union, Tuple
+
 from spaceone.core import config
+from spaceone.core.error import ERROR_INVALID_PARAMETER
 from spaceone.core.service import *
 from spaceone.core.service.utils import *
 
@@ -54,7 +55,7 @@ class UnifiedCostService(BaseService):
         config_mgr = ConfigManager()
 
         current_hour = params["current_hour"]
-        current_date = datetime.utcnow()
+        current_date = datetime.now(timezone.utc)
         current_month = current_date.strftime("%Y-%m")
 
         identity_mgr = IdentityManager()
@@ -82,24 +83,32 @@ class UnifiedCostService(BaseService):
                     exc_info=True,
                 )
 
-    @transaction(exclude=["authenticate", "authorization", "mutation"])
+    # @transaction(exclude=["authenticate", "authorization", "mutation"])
     def run_unified_cost(self, params: dict):
         """
         Args:
             params (dict): {
                 'domain_id': 'str',
                 "month": 'str', (optional),
+                "bank": 'str', (optional),
+                "exchange_date": 'str' (optional)
             }
         """
 
+        from spaceone.core import model
+
+        model.init_all(False)
+
         domain_id = params["domain_id"]
-        aggregation_month: Union[str, None] = params.get("month")
+        aggregation_month = params.get("month")
+        exchange_date = params.get("exchange_date")
+        exchange_source = params.get("bank")
 
         config_mgr = ConfigManager()
         unified_cost_config = config_mgr.get_unified_cost_config(domain_id)
 
         if not aggregation_month:
-            aggregation_month = datetime.utcnow().strftime("%Y-%m")
+            aggregation_month = datetime.now(timezone.utc).strftime("%Y-%m")
             is_confirmed = False
         else:
             is_confirmed = self._get_is_confirmed_with_aggregation_month(
@@ -111,9 +120,13 @@ class UnifiedCostService(BaseService):
         aggregation_execution_date = self._get_aggregation_date(
             unified_cost_config, aggregation_month, is_confirmed
         )
-        exchange_date = self._get_exchange_date(
-            unified_cost_config, aggregation_month, is_confirmed
-        )
+
+        if not exchange_date:
+            exchange_date = self._get_exchange_date(
+                unified_cost_config, aggregation_month, is_confirmed
+            )
+        if isinstance(exchange_date, str):
+            exchange_date = datetime.strptime(exchange_date, "%Y-%m-%d")
 
         # exchange_rate_mode = unified_cost_config.get("exchange_rate_mode", "AUTO")
         exchange_rate_mode = "AUTO"
@@ -132,7 +145,7 @@ class UnifiedCostService(BaseService):
         try:
 
             for workspace_id in workspace_ids:
-                unified_cost_created_at = datetime.utcnow()
+                unified_cost_created_at = datetime.now(timezone.utc)
                 self.create_unified_cost_with_workspace(
                     exchange_source,
                     domain_id,
@@ -159,6 +172,56 @@ class UnifiedCostService(BaseService):
             self.unified_cost_job_mgr.update_is_confirmed_unified_cost_job(
                 unified_cost_job_vo, False
             )
+
+    @transaction(
+        permission="cost-analysis:UnifiedCost.read",
+        role_types=["DOMAIN_ADMIN"],
+    )
+    @convert_model
+    def run_unified_cost_by_manual(self, params: UnifiedCostRunRequest) -> None:
+        """Create cost report by manual
+        Args:
+            params (dict): {
+                'unified_month': 'str' # required
+                'exchange_date': 'str',
+                'is_last_exchange_day': 'bool',
+                'domain_id': 'str' # injected from auth
+            }
+        Returns:
+            None
+        """
+
+        params = params.dict(exclude_unset=True)
+
+        domain_id = params["domain_id"]
+        is_last_exchange_day = params.get("is_last_exchange_day", False)
+        unified_month = params["unified_month"]
+        exchange_date = params.get("exchange_date")
+
+        if unified_month:
+            params["month"] = unified_month
+            del params["unified_month"]
+
+        # check unified month is greater than current month
+        current_month = datetime.now(timezone.utc).strftime("%Y-%m")
+        if unified_month > current_month:
+            raise ERROR_INVALID_PARAMETER(
+                reason=f"{unified_month} is can not be greater than current month."
+            )
+
+        if is_last_exchange_day:
+            config_mgr = ConfigManager()
+            unified_cost_config = config_mgr.get_unified_cost_config(domain_id)
+            unified_cost_config["is_exchange_last_day"] = is_last_exchange_day
+            exchange_date = self._get_exchange_date(
+                unified_cost_config, unified_month, True
+            )
+
+        if exchange_date and isinstance(exchange_date, datetime):
+            exchange_date = exchange_date.strftime("%Y-%m-%d")
+            params["exchange_date"] = exchange_date
+
+        self.unified_cost_mgr.push_unified_cost_job_task(params)
 
     @transaction(
         permission="cost-analysis:UnifiedCost.read",
@@ -208,7 +271,7 @@ class UnifiedCostService(BaseService):
     @convert_model
     def list(
         self, params: UnifiedCostSearchQueryRequest
-    ) -> Union[UnifiedCostResponse, dict]:
+    ) -> Union[UnifiedCostsResponse, dict]:
         """List cost report data
         Args:
             params (dict): {
@@ -232,7 +295,7 @@ class UnifiedCostService(BaseService):
             cost_report_data_vo.to_dict()
             for cost_report_data_vo in cost_report_data_vos
         ]
-        return UnifiedCostResponse(
+        return UnifiedCostsResponse(
             results=cost_reports_data_info, total_count=total_count
         )
 
@@ -373,6 +436,7 @@ class UnifiedCostService(BaseService):
             ],
             "fields": {
                 "cost": {"key": "cost", "operator": "sum"},
+                "usage_quantity": {"key": "usage_quantity", "operator": "sum"},
             },
             "start": aggregation_month,
             "end": aggregation_month,
@@ -605,7 +669,7 @@ class UnifiedCostService(BaseService):
             )
             exchange_date = exchange_date.replace(day=exchange_day)
         else:
-            exchange_date = datetime.utcnow()
+            exchange_date = datetime.now(timezone.utc)
 
         return exchange_date
 

@@ -2,11 +2,19 @@ from typing import Union, Literal
 from pydantic import BaseModel
 
 __all__ = [
+    "UnifiedCostRunRequest",
     "UnifiedCostGetRequest",
     "UnifiedCostSearchQueryRequest",
     "UnifiedCostAnalyzeQueryRequest",
     "UnifiedCostStatQueryRequest",
 ]
+
+
+class UnifiedCostRunRequest(BaseModel):
+    unified_month: str
+    exchange_date: Union[str, None] = None
+    is_last_exchange_day: Union[bool, None] = None
+    domain_id: str
 
 
 class UnifiedCostGetRequest(BaseModel):
