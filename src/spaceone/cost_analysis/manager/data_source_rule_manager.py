@@ -275,7 +275,7 @@ class DataSourceRuleManager(BaseManager):
 
         query = {
             "filter": [{"k": target_key, "v": target_value, "o": "eq"}],
-            "only": ["workspace_id"],
+            "only": ["name", "workspace_id", "tags"],
         }
 
         identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
