@@ -83,8 +83,8 @@ class UnifiedCostService(BaseService):
                     exc_info=True,
                 )
 
-    # @transaction(exclude=["authenticate", "authorization", "mutation"])
-    def run_unified_cost(self, params: dict):
+    @transaction(exclude=["authenticate", "authorization", "mutation"])
+    def run_unified_cost(self, params: dict) -> None:
         """
         Args:
             params (dict): {
@@ -94,11 +94,6 @@ class UnifiedCostService(BaseService):
                 "exchange_date": 'str' (optional)
             }
         """
-
-        from spaceone.core import model
-
-        model.init_all(False)
-
         domain_id = params["domain_id"]
         aggregation_month = params.get("month")
         exchange_date = params.get("exchange_date")
@@ -167,6 +162,8 @@ class UnifiedCostService(BaseService):
             self.unified_cost_job_mgr.update_is_confirmed_unified_cost_job(
                 unified_cost_job_vo, is_confirmed
             )
+
+            self.unified_cost_mgr.remove_stat_cache(domain_id)
         except Exception as e:
             _LOGGER.error(f"[run_unified_cost] error: {e}", exc_info=True)
             self.unified_cost_job_mgr.update_is_confirmed_unified_cost_job(
@@ -332,8 +329,11 @@ class UnifiedCostService(BaseService):
         """
 
         query = params.query or {}
+        domain_id = params.domain_id
 
-        return self.unified_cost_mgr.analyze_unified_costs_by_granularity(query)
+        return self.unified_cost_mgr.analyze_unified_costs_by_granularity(
+            query, domain_id
+        )
 
     @transaction(
         permission="cost-analysis:UnifiedCost.read",
