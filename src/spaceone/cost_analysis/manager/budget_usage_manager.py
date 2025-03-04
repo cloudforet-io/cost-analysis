@@ -18,14 +18,10 @@ _LOGGER = logging.getLogger(__name__)
 class BudgetUsageManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.budget_mgr: BudgetManager = self.locator.get_manager("BudgetManager")
-        self.budget_usage_model: BudgetUsage = self.locator.get_model("BudgetUsage")
-        self.notification_mgr: NotificationManager = self.locator.get_manager(
-            "NotificationManager"
-        )
-        self.data_source_mgr: DataSourceManager = self.locator.get_manager(
-            "DataSourceManager"
-        )
+        self.budget_usage_model = BudgetUsage()
+        self.budget_mgr = BudgetManager()
+        self.notification_mgr = NotificationManager()
+        self.data_source_mgr = DataSourceManager()
 
     def create_budget_usages(self, budget_vo: Budget) -> None:
         if budget_vo.time_unit == "TOTAL":
@@ -94,7 +90,7 @@ class BudgetUsageManager(BaseManager):
         budget_vo: Budget,
     ):
         _LOGGER.info(f"[update_cost_usage] Update Budget Usage: {budget_vo.budget_id}")
-        cost_mgr: CostManager = self.locator.get_manager("CostManager")
+        cost_mgr = CostManager()
 
         self._update_monthly_budget_usage(budget_vo, cost_mgr)
 
@@ -228,7 +224,7 @@ class BudgetUsageManager(BaseManager):
         data_source_name = self.data_source_mgr.get_data_source(
             budget_vo.data_source_id, budget_vo.domain_id
         ).name
-        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
+        identity_mgr = IdentityManager()
         project_name = identity_mgr.get_project_name(
             budget_vo.project_id, budget_vo.workspace_id, budget_vo.domain_id
         )

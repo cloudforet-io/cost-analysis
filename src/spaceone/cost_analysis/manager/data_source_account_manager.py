@@ -5,6 +5,7 @@ from mongoengine import QuerySet
 from spaceone.core import utils
 from spaceone.core.manager import BaseManager
 
+from spaceone.cost_analysis.manager import DataSourceManager, IdentityManager
 from spaceone.cost_analysis.model import DataSource
 from spaceone.cost_analysis.model.data_source_account.database import DataSourceAccount
 
@@ -14,8 +15,8 @@ _LOGGER = logging.getLogger(__name__)
 class DataSourceAccountManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.data_source_mgr = self.locator.get_manager("DataSourceManager")
-        self.data_source_account_model = DataSourceAccount
+        self.data_source_mgr = DataSourceManager()
+        self.data_source_account_model = DataSourceAccount()
         self._workspace_info = {}
         self._data_source_info = {}
 

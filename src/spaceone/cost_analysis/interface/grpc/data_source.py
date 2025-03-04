@@ -20,13 +20,9 @@ class DataSource(BaseAPI, data_source_pb2_grpc.DataSourceServicer):
 
     def update(self, request, context):
         params, metadata = self.parse_request(request, context)
-
-        with self.locator.get_service(
-            "DataSourceService", metadata
-        ) as data_source_service:
-            return self.locator.get_info(
-                "DataSourceInfo", data_source_service.update(params)
-            )
+        data_source_svc = DataSourceService(metadata)
+        response: dict = data_source_svc.update(params)
+        return self.dict_to_message(response)
 
     def update_permissions(self, request, context):
         params, metadata = self.parse_request(request, context)
@@ -36,69 +32,33 @@ class DataSource(BaseAPI, data_source_pb2_grpc.DataSourceServicer):
 
     def update_secret_data(self, request, context):
         params, metadata = self.parse_request(request, context)
-
-        with self.locator.get_service(
-            "DataSourceService", metadata
-        ) as data_source_service:
-            return self.locator.get_info(
-                "DataSourceInfo", data_source_service.update_secret_data(params)
-            )
+        data_source_svc = DataSourceService(metadata)
+        response: dict = data_source_svc.update_secret_data(params)
+        return self.dict_to_message(response)
 
     def update_plugin(self, request, context):
         params, metadata = self.parse_request(request, context)
-
-        with self.locator.get_service(
-            "DataSourceService", metadata
-        ) as data_source_service:
-            return self.locator.get_info(
-                "DataSourceInfo", data_source_service.update_plugin(params)
-            )
+        data_source_svc = DataSourceService(metadata)
+        response: dict = data_source_svc.update_plugin(params)
+        return self.dict_to_message(response)
 
     def verify_plugin(self, request, context):
         params, metadata = self.parse_request(request, context)
-
-        with self.locator.get_service(
-            "DataSourceService", metadata
-        ) as data_source_service:
-            data_source_service.verify_plugin(params)
-            return self.locator.get_info("EmptyInfo")
-
-    def enable(self, request, context):
-        params, metadata = self.parse_request(request, context)
-
-        with self.locator.get_service(
-            "DataSourceService", metadata
-        ) as data_source_service:
-            return self.locator.get_info(
-                "DataSourceInfo", data_source_service.enable(params)
-            )
-
-    def disable(self, request, context):
-        params, metadata = self.parse_request(request, context)
-
-        with self.locator.get_service(
-            "DataSourceService", metadata
-        ) as data_source_service:
-            return self.locator.get_info(
-                "DataSourceInfo", data_source_service.disable(params)
-            )
+        data_source_svc = DataSourceService(metadata)
+        data_source_svc.verify_plugin(params)
+        return self.empty()
 
     def deregister(self, request, context):
         params, metadata = self.parse_request(request, context)
-
-        with self.locator.get_service(
-            "DataSourceService", metadata
-        ) as data_source_service:
-            data_source_service.deregister(params)
-            return self.locator.get_info("EmptyInfo")
+        data_source_svc = DataSourceService(metadata)
+        data_source_svc.deregister(params)
+        return self.empty()
 
     def sync(self, request, context):
         params, metadata = self.parse_request(request, context)
-
-        with self.locator.get_service(
-            "DataSourceService", metadata
-        ) as data_source_service:
-            return self.locator.get_info("JobInfo", data_source_service.sync(params))
+        data_source_svc = DataSourceService(metadata)
+        response: dict = data_source_svc.sync(params)
+        return self.dict_to_message(response)
 
     def get(self, request, context):
         params, metadata = self.parse_request(request, context)
@@ -114,10 +74,6 @@ class DataSource(BaseAPI, data_source_pb2_grpc.DataSourceServicer):
 
     def stat(self, request, context):
         params, metadata = self.parse_request(request, context)
-
-        with self.locator.get_service(
-            "DataSourceService", metadata
-        ) as data_source_service:
-            return self.locator.get_info(
-                "StatisticsInfo", data_source_service.stat(params)
-            )
+        data_source_svc = DataSourceService(metadata)
+        response: dict = data_source_svc.stat(params)
+        return self.dict_to_message(response)

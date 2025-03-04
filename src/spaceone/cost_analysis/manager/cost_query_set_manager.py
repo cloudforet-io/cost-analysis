@@ -9,7 +9,7 @@ _LOGGER = logging.getLogger(__name__)
 class CostQuerySetManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.cost_query_set_model: CostQuerySet = self.locator.get_model("CostQuerySet")
+        self.cost_query_set_model = CostQuerySet()
 
     def create_cost_query_set(self, params: dict):
         def _rollback(vo: CostQuerySet):
@@ -20,14 +20,14 @@ class CostQuerySetManager(BaseManager):
             )
             vo.delete()
 
-        cost_query_set_vo: CostQuerySet = self.cost_query_set_model.create(params)
+        cost_query_set_vo = CostQuerySet
         self.transaction.add_rollback(_rollback, cost_query_set_vo)
 
         return cost_query_set_vo
 
     def update_cost_query_set(self, params):
-        cost_query_set_vo: CostQuerySet = self.get_cost_query_set(
-            params_dict["cost_query_set_id"], params_dict["domain_id"]
+        cost_query_set_vo = self.get_cost_query_set(
+            params["cost_query_set_id"], params["domain_id"]
         )
         return self.update_cost_query_set_by_vo(params, cost_query_set_vo)
 

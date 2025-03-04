@@ -9,7 +9,7 @@ _LOGGER = logging.getLogger(__name__)
 class BudgetManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.budget_model = self.locator.get_model("Budget")
+        self.budget_model = Budget()
 
     def create_budget(self, params: dict) -> Budget:
         def _rollback(vo: Budget):

@@ -12,7 +12,7 @@ _LOGGER = logging.getLogger(__name__)
 class CurrencyManager(BaseManager):
     def __init__(self, *args, today: datetime = None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.currency_connector: CurrencyConnector = CurrencyConnector(today=today)
+        self.currency_connector = CurrencyConnector(today=today)
         self.currency_mapper = {}
 
     def get_currency_map_date(

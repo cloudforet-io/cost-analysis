@@ -19,9 +19,7 @@ _LOGGER = logging.getLogger(__name__)
 class DataSourcePluginManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.dsp_connector: DataSourcePluginConnector = self.locator.get_connector(
-            "DataSourcePluginConnector"
-        )
+        self.dsp_connector = DataSourcePluginConnector()
 
     def initialize(self, endpoint):
         _LOGGER.debug(f"[initialize] data source plugin endpoint: {endpoint}")
@@ -94,7 +92,7 @@ class DataSourcePluginManager(BaseManager):
         return endpoint
 
     def get_data_source_plugin_endpoint(self, plugin_info, domain_id):
-        plugin_mgr: PluginManager = self.locator.get_manager("PluginManager")
+        plugin_mgr = PluginManager()
         return plugin_mgr.get_plugin_endpoint(plugin_info, domain_id)
 
     def upgrade_data_source_plugin_version(
@@ -154,9 +152,9 @@ class DataSourcePluginManager(BaseManager):
                 "DataSourceRuleService", metadata
             )
             for data_source_rule_params in data_source_rules:
-                data_source_rule_params_dict["resource_group"] = resource_group
-                data_source_rule_params_dict["data_source_id"] = data_source_id
-                data_source_rule_params_dict["workspace_id"] = workspace_id
-                data_source_rule_params_dict["domain_id"] = domain_id
-                data_source_rule_params_dict["rule_type"] = "MANAGED"
+                data_source_rule_params["resource_group"] = resource_group
+                data_source_rule_params["data_source_id"] = data_source_id
+                data_source_rule_params["workspace_id"] = workspace_id
+                data_source_rule_params["domain_id"] = domain_id
+                data_source_rule_params["rule_type"] = "MANAGED"
                 data_source_rule_svc.create_data_source_rule(data_source_rule_params)

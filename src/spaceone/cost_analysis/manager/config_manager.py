@@ -12,9 +12,7 @@ _AUTH_CONFIG_KEYS = ["settings"]
 class ConfigManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.config_conn: SpaceConnector = self.locator.get_connector(
-            "SpaceConnector", service="config"
-        )
+        self.config_conn = SpaceConnector(service="config")
 
     def get_unified_cost_config(self, domain_id: str) -> dict:
         system_token = config.get_global("TOKEN")
