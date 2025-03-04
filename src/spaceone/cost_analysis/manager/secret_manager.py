@@ -15,9 +15,7 @@ class SecretManager(BaseManager):
         super().__init__(*args, **kwargs)
         token = self.transaction.get_meta("token")
         self.token_type = JWTUtil.get_value_from_token(token, "typ")
-        self.secret_connector: SpaceConnector = self.locator.get_connector(
-            "SpaceConnector", service="secret"
-        )
+        self.secret_connector = SpaceConnector(service="secret")
 
     def create_secret(
         self,

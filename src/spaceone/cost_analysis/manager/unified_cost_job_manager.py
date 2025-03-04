@@ -12,7 +12,7 @@ _LOGGER = logging.getLogger(__name__)
 class UnifiedCostJobManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.unified_cost_job_model = UnifiedCostJob
+        self.unified_cost_job_model = UnifiedCostJob()
 
     def create_unified_cost(self, params: dict):
         def _rollback(vo: UnifiedCostJob):
@@ -21,9 +21,9 @@ class UnifiedCostJobManager(BaseManager):
             )
             vo.delete()
 
-        params_dict["is_confirmed"] = False
+        params["is_confirmed"] = False
 
-        unified_cost_job_vo: UnifiedCostJob = self.unified_cost_job_model.create(params)
+        unified_cost_job_vo = self.unified_cost_job_model.create(params)
         self.transaction.add_rollback(_rollback, unified_cost_job_vo)
 
         return unified_cost_job_vo
@@ -61,7 +61,7 @@ class UnifiedCostJobManager(BaseManager):
         update_params = {"is_confirmed": is_confirmed}
 
         if is_confirmed:
-            update_params_dict["confirmed_at"] = datetime.utcnow()
+            update_params["confirmed_at"] = datetime.utcnow()
         return unified_cost_job_vo.update(update_params)
 
     def filter_unified_cost_jobs(self, **conditions):

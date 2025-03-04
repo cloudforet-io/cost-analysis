@@ -17,9 +17,7 @@ _LOGGER = logging.getLogger(__name__)
 class DataSourceRuleManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.data_source_rule_model: DataSourceRule = self.locator.get_model(
-            "DataSourceRule"
-        )
+        self.data_source_rule_model = DataSourceRule()
 
         self._workspace_info = {}
         self._project_info = {}
@@ -35,13 +33,13 @@ class DataSourceRuleManager(BaseManager):
             )
             data_source_rule_vo.delete()
 
-        data_source_rule_vo: DataSourceRule = self.data_source_rule_model.create(params)
+        data_source_rule_vo = self.data_source_rule_model.create(params)
         self.transaction.add_rollback(_rollback, data_source_rule_vo)
 
         return data_source_rule_vo
 
     def update_data_source_rule(self, params):
-        data_source_rule_vo: DataSourceRule = self.get_data_source_rule(
+        data_source_rule_vo = self.get_data_source_rule(
             params["data_source_rule_id"], params["domain_id"]
         )
         return self.update_data_source_rule_by_vo(params, data_source_rule_vo)
@@ -59,7 +57,7 @@ class DataSourceRuleManager(BaseManager):
         return data_source_rule_vo.update(params)
 
     def delete_data_source_rule(self, data_source_rule_id, domain_id):
-        data_source_rule_vo: DataSourceRule = self.get_data_source_rule(
+        data_source_rule_vo = self.get_data_source_rule(
             data_source_rule_id, domain_id
         )
         self.delete_data_source_rule_by_vo(data_source_rule_vo)
@@ -222,7 +220,7 @@ class DataSourceRuleManager(BaseManager):
         if workspace_id:
             query["filter"].append({"k": "workspace_id", "v": workspace_id, "o": "eq"})
 
-        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
+        identity_mgr = IdentityManager()
         response = identity_mgr.list_service_accounts(query, domain_id)
         results = response.get("results", [])
         total_count = response.get("total_count", 0)
@@ -251,7 +249,7 @@ class DataSourceRuleManager(BaseManager):
         if workspace_id:
             query["filter"].append({"k": "workspace_id", "v": workspace_id, "o": "eq"})
 
-        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
+        identity_mgr = IdentityManager()
         response = identity_mgr.list_projects({"query": query}, domain_id)
         results = response.get("results", [])
         total_count = response.get("total_count", 0)

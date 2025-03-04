@@ -11,7 +11,7 @@ _LOGGER = logging.getLogger(__name__)
 class CostReportDataManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.cost_report_data_model = CostReportData
+        self.cost_report_data_model = CostReportData()
 
     def create_cost_report_data(self, params: dict):
         def _rollback(vo: CostReportData):
@@ -20,7 +20,7 @@ class CostReportDataManager(BaseManager):
             )
             vo.delete()
 
-        cost_report_data_vo: CostReportData = self.cost_report_data_model.create(params)
+        cost_report_data_vo = self.cost_report_data_model.create(params)
         self.transaction.add_rollback(_rollback, cost_report_data_vo)
 
         return cost_report_data_vo

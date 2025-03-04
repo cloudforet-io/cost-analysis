@@ -15,8 +15,8 @@ class JobTaskManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.job_mgr: JobManager = self.locator.get_manager("JobManager")
-        self.job_task_model: JobTask = self.locator.get_model("JobTask")
+        self.job_mgr = JobManager()
+        self.job_task_model = JobTask()
 
     def create_job_task(
         self,

@@ -16,9 +16,9 @@ _LOGGER = logging.getLogger(__name__)
 class JobManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.job_model: Job = self.locator.get_model("Job")
+        self.job_model = Job()
         self.job_timeout = config.get_global("JOB_TIMEOUT", 7200)
-        self.cost_mgr: CostManager = self.locator.get_manager("CostManager")
+        self.cost_mgr = CostManager()
 
     def is_job_running(self, data_source_id, domain_id):
         job_vos: List[Job] = self.job_model.filter(

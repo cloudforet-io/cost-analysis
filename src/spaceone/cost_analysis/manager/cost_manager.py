@@ -22,20 +22,12 @@ _LOGGER = logging.getLogger(__name__)
 class CostManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.cost_model: Cost = self.locator.get_model("Cost")
-        self.monthly_cost_model: MonthlyCost = self.locator.get_model("MonthlyCost")
-        self.cost_query_history_model: CostQueryHistory = self.locator.get_model(
-            "CostQueryHistory"
-        )
-        self.data_source_rule_mgr: DataSourceRuleManager = self.locator.get_manager(
-            "DataSourceRuleManager"
-        )
-        self.data_source_account_mgr: DataSourceAccountManager = (
-            self.locator.get_manager("DataSourceAccountManager")
-        )
-        self.data_source_mgr: DataSourceManager = self.locator.get_manager(
-            "DataSourceManager"
-        )
+        self.cost_model = Cost
+        self.monthly_cost_model = MonthlyCost()
+        self.cost_query_history_model = CostQueryHistory()
+        self.data_source_rule_mgr = DataSourceRuleManager()
+        self.data_source_account_mgr = DataSourceAccountManager()
+        self.data_source_mgr = DataSourceManager()
 
     def create_cost(self, params: dict, execute_rollback=True):
         def _rollback(vo: Cost):
@@ -43,26 +35,26 @@ class CostManager(BaseManager):
             vo.delete()
 
         if "region_code" in params and "provider" in params:
-            params_dict["region_key"] = f'{params_dict["provider"]}.{params_dict["region_code"]}'
+            params["region_key"] = f'{params["provider"]}.{params["region_code"]}'
 
-        billed_at = self._get_billed_at_from_billed_date(params_dict["billed_date"])
+        billed_at = self._get_billed_at_from_billed_date(params["billed_date"])
 
-        params_dict["billed_year"] = billed_at.strftime("%Y")
-        params_dict["billed_month"] = billed_at.strftime("%Y-%m")
+        params["billed_year"] = billed_at.strftime("%Y")
+        params["billed_month"] = billed_at.strftime("%Y-%m")
 
         (
             workspace_id,
             v_workspace_id,
         ) = self.data_source_account_mgr.get_workspace_id_from_account_id(
-            params, params_dict["domain_id"], params_dict["data_source_id"]
+            params, params["domain_id"], params["data_source_id"]
         )
 
         if v_workspace_id:
-            params_dict["workspace_id"] = v_workspace_id
+            params["workspace_id"] = v_workspace_id
 
         params = self.data_source_rule_mgr.change_cost_data(params, workspace_id)
 
-        cost_vo: Cost = self.cost_model.create(params)
+        cost_vo = self.cost_model.create(params)
 
         if execute_rollback:
             self.transaction.add_rollback(_rollback, cost_vo)
@@ -257,7 +249,7 @@ class CostManager(BaseManager):
             )
             history_vo.delete()
 
-        history_model: CostQueryHistory = self.locator.get_model("CostQueryHistory")
+        history_model = CostQueryHistory()
 
         history_vos = history_model.filter(query_hash=query_hash, domain_id=domain_id)
         if history_vos.count() == 0:
@@ -275,7 +267,7 @@ class CostManager(BaseManager):
             history_vos[0].update({})
 
     def list_cost_query_history(self, query: dict):
-        history_model: CostQueryHistory = self.locator.get_model("CostQueryHistory")
+        history_model = CostQueryHistory()
         return history_model.query(**query)
 
     @staticmethod
@@ -411,9 +403,7 @@ class CostManager(BaseManager):
 
             if key == "project_group_id":
                 if self.identity_mgr is None:
-                    self.identity_mgr: IdentityManager = self.locator.get_manager(
-                        "IdentityManager"
-                    )
+                    self.identity_mgr: IdentityManager()
 
                 project_groups_info = self.identity_mgr.list_project_groups(
                     {

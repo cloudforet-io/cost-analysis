@@ -10,7 +10,7 @@ _LOGGER = logging.getLogger(__name__)
 class DataSourceManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.data_source_model: DataSource = self.locator.get_model("DataSource")
+        self.data_source_model = DataSource()
         self.data_source_account_model = DataSourceAccount()
 
     def register_data_source(self, params):
@@ -22,7 +22,7 @@ class DataSourceManager(BaseManager):
             )
             data_source_vo.delete()
 
-        data_source_vo: DataSource = self.data_source_model.create(params)
+        data_source_vo = self.data_source_model.create(params)
         self.transaction.add_rollback(_rollback, data_source_vo)
 
         return data_source_vo
@@ -71,7 +71,7 @@ class DataSourceManager(BaseManager):
         return data_source_vo
 
     def deregister_data_source(self, data_source_id, domain_id):
-        data_source_vo: DataSource = self.get_data_source(data_source_id, domain_id)
+        data_source_vo = self.get_data_source(data_source_id, domain_id)
         data_source_vo.delete()
 
     @staticmethod

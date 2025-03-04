@@ -18,7 +18,7 @@ _LOGGER = logging.getLogger(__name__)
 class UnifiedCostManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.unified_cost_model = UnifiedCost
+        self.unified_cost_model = UnifiedCost()
 
     def create_unified_cost(self, params: dict) -> UnifiedCost:
         def _rollback(vo: UnifiedCost):
@@ -27,7 +27,7 @@ class UnifiedCostManager(BaseManager):
             )
             vo.delete()
 
-        unified_cost_vo: UnifiedCost = self.unified_cost_model.create(params)
+        unified_cost_vo = self.unified_cost_model.create(params)
         self.transaction.add_rollback(_rollback, unified_cost_vo)
 
         return unified_cost_vo

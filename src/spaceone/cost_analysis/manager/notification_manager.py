@@ -10,9 +10,7 @@ _LOGGER = logging.getLogger(__name__)
 class NotificationManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.notification_connector: SpaceConnector = self.locator.get_connector(
-            "SpaceConnector", service="notification", token=config.get_global("TOKEN")
-        )
+        self.notification_connector = SpaceConnector(service="notification", token=config.get_global("TOKEN"))
 
     def create_notification(self, message):
         _LOGGER.debug(f"Notify message: {message}")

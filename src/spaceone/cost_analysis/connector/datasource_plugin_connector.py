@@ -66,7 +66,7 @@ class DataSourcePluginConnector(BaseConnector):
             "domain_id": domain_id,
         }
         if linked_accounts:
-            params_dict["linked_accounts"] = linked_accounts
+            params["linked_accounts"] = linked_accounts
 
         return self.client.dispatch("Job.get_tasks", params)
 
