@@ -314,11 +314,11 @@ class CostManager(BaseManager):
             )
 
         if granularity == "DAILY":
-            if start + relativedelta(months=1) < end:
+            if start + relativedelta(days=31) < end:
                 raise ERROR_INVALID_DATE_RANGE(
                     start=start_str,
                     end=end_str,
-                    reason="Request up to a maximum of 1 month.",
+                    reason="Request up to a maximum of 1 month. or 31 days.",
                 )
 
             if start + relativedelta(months=12) < now.replace(day=1):
