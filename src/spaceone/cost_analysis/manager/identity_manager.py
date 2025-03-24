@@ -135,9 +135,16 @@ class IdentityManager(BaseManager):
     def get_service_account(
         self, service_account_id: str, domain_id: str, workspace_id: str
     ) -> dict:
-        return self.identity_conn.dispatch(
-            "ServiceAccount.get", {"service_account_id": service_account_id}
-        )
+        if self.token_type == "SYSTEM_TOKEN":
+            return self.identity_conn.dispatch(
+                "ServiceAccount.get",
+                {"service_account_id": service_account_id},
+                x_domain_id=domain_id,
+            )
+        else:
+            return self.identity_conn.dispatch(
+                "ServiceAccount.get", {"service_account_id": service_account_id}
+            )
 
     def get_service_account_name_map(self, domain_id: str, workspace_id: str) -> dict:
         service_account_name_map = {}

@@ -328,9 +328,9 @@ class BudgetUsageManager(BaseManager):
 
         user_ids = recipients.get("users", [])
         role_types = recipients.get("role_types", [])
-        service_account_manager = recipients.get("service_account_manager", False)
+        service_account_manager = recipients.get("service_account_manager", "DISABLED")
 
-        if service_account_manager:
+        if service_account_manager == "ENABLED":
             service_account_info = identity_mgr.get_service_account(
                 service_account_id, domain_id, workspace_id
             )
