@@ -10,7 +10,11 @@ from spaceone.core.error import ERROR_INVALID_PARAMETER
 from spaceone.core.service import *
 from spaceone.core.service.utils import *
 
-from spaceone.cost_analysis.manager import DataSourceAccountManager
+from spaceone.cost_analysis.manager import (
+    DataSourceAccountManager,
+    BudgetManager,
+    BudgetUsageManager,
+)
 from spaceone.cost_analysis.manager.config_manager import ConfigManager
 from spaceone.cost_analysis.manager.cost_manager import CostManager
 from spaceone.cost_analysis.manager.currency_manager import CurrencyManager
@@ -36,6 +40,9 @@ class UnifiedCostService(BaseService):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        self.budget_mgr = BudgetManager()
+        self.budget_usage_mgr = BudgetUsageManager()
         self.cost_mgr = CostManager()
         self.data_source_mgr = DataSourceManager()
         self.ds_account_mgr = DataSourceAccountManager()
@@ -158,6 +165,9 @@ class UnifiedCostService(BaseService):
                     unified_cost_created_at,
                     workspace_id,
                 )
+
+                if workspace_id is not None:
+                    self.budget_usage_mgr.update_budget_usage(domain_id, workspace_id)
 
             self.unified_cost_job_mgr.update_is_confirmed_unified_cost_job(
                 unified_cost_job_vo, is_confirmed
