@@ -418,10 +418,10 @@ class BudgetService(BaseService):
         # check recipients
         recipients = notifications.get("recipients", {})
         users = list(set(recipients.get("users", [])))
-        role_types = recipients.get("role_types", [])
+        role_types = list(set(recipients.get("role_types", [])))
 
         if role_types:
-            recipients["role_types"] = list(set(role_types))
+            recipients["role_types"] = role_types
 
         if users:
             identity_mgr = IdentityManager()
@@ -430,8 +430,7 @@ class BudgetService(BaseService):
                     {"k": "domain_id", "v": domain_id, "o": "eq"},
                     {"k": "workspace_id", "v": workspace_id, "o": "eq"},
                     {"k": "user_id", "v": users, "o": "in"},
-                ],
-                "filter_or": [],
+                ]
             }
             response = identity_mgr.list_role_bindings({"query": query}, domain_id)
             rb_infos = response.get("results", [])
