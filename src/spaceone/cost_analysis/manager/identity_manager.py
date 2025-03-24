@@ -21,6 +21,27 @@ class IdentityManager(BaseManager):
             token=token,
         )
 
+    def list_users(self, params: dict, domain_id: str) -> dict:
+        system_token = config.get_global("TOKEN")
+        return self.identity_conn.dispatch(
+            "User.list", params, x_domain_id=domain_id, token=system_token
+        )
+
+    def list_email_verified_users(self, domain_id: str, users: list = None) -> dict:
+        query_filter = {
+            "filter": [
+                {"k": "domain_id", "v": domain_id, "o": "eq"},
+                {"k": "state", "v": "ENABLED", "o": "eq"},
+                {"k": "email_verified", "v": True, "o": "eq"},
+            ]
+        }
+        if users:
+            query_filter["filter"].append({"k": "user_id", "v": users, "o": "in"})
+
+        _LOGGER.debug(f"[list_email_verified_users] query_filter: {query_filter}")
+
+        return self.list_users({"query": query_filter}, domain_id)
+
     def get_user(self, domain_id: str, user_id: str) -> dict:
         system_token = config.get_global("TOKEN")
         response = self.identity_conn.dispatch(
@@ -35,9 +56,9 @@ class IdentityManager(BaseManager):
         else:
             return {}
 
+    @cache.cacheable(key="cost-analysis:domain-name:{domain_id}", expire=300)
     def get_domain_name(self, domain_id: str) -> str:
         system_token = config.get_global("TOKEN")
-
         domain_info = self.identity_conn.dispatch(
             "Domain.get", {"domain_id": domain_id}, token=system_token
         )
@@ -79,10 +100,12 @@ class IdentityManager(BaseManager):
     )
     def get_workspace(self, workspace_id: str, domain_id: str) -> str:
         try:
+            system_token = config.get_global("TOKEN")
             workspace_info = self.identity_conn.dispatch(
                 "Workspace.get",
                 {"workspace_id": workspace_id},
                 x_domain_id=domain_id,
+                token=system_token,
             )
             return workspace_info["name"]
         except Exception as e:
@@ -105,7 +128,13 @@ class IdentityManager(BaseManager):
         else:
             return self.identity_conn.dispatch("WorkspaceUser.list", params)
 
-    def get_service_account(self, service_account_id: str, domain_id: str) -> dict:
+    @cache.cacheable(
+        key="cost-analysis:service-account:{domain_id}:{workspace_id}:{service_account_id}",
+        expire=60,
+    )
+    def get_service_account(
+        self, service_account_id: str, domain_id: str, workspace_id: str
+    ) -> dict:
         return self.identity_conn.dispatch(
             "ServiceAccount.get", {"service_account_id": service_account_id}
         )

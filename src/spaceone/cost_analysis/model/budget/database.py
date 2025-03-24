@@ -11,6 +11,10 @@ class PlannedLimit(EmbeddedDocument):
 class Plan(EmbeddedDocument):
     threshold = FloatField(required=True)
     unit = StringField(max_length=20, required=True, choices=["PERCENT"])
+    notified_months = ListField(StringField(max_length=10))
+
+    def to_dict(self):
+        return dict(self.to_mongo())
 
 
 class Recipients(EmbeddedDocument):
@@ -19,6 +23,9 @@ class Recipients(EmbeddedDocument):
     service_account_manager = StringField(
         max_length=40, choices=["ENABLED", "DISABLED"], null=True, default=None
     )
+
+    def to_dict(self):
+        return dict(self.to_mongo())
 
 
 class Notification(EmbeddedDocument):
@@ -41,7 +48,9 @@ class Budget(MongoModel):
     end = StringField(required=True, max_length=7)
     notifications = EmbeddedDocumentField(Notification)
     tags = DictField(default={})
-    resource_group = StringField(max_length=40, choices=["PROJECT"])
+    resource_group = StringField(
+        max_length=40, choices=["WORKSPACE", "PROJECT"]
+    )  # leave WORKSPACE for previous version
     data_source_id = StringField(max_length=40)
     service_account_id = StringField(max_length=40)
     project_id = StringField(max_length=40, default=None, null=True)

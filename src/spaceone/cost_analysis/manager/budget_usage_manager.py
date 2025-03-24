@@ -1,13 +1,17 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import Union
+
 from dateutil.rrule import rrule, MONTHLY
 
+from spaceone.core import config
 from spaceone.core.manager import BaseManager
 from spaceone.core import utils
+
+from spaceone.cost_analysis.manager.email_manager import EmailManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 from spaceone.cost_analysis.manager.notification_manager import NotificationManager
 from spaceone.cost_analysis.manager.budget_manager import BudgetManager
-from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.unified_cost_manager import UnifiedCostManager
 from spaceone.cost_analysis.model.budget_usage.database import BudgetUsage
 from spaceone.cost_analysis.model.budget.database import Budget
@@ -18,14 +22,12 @@ _LOGGER = logging.getLogger(__name__)
 class BudgetUsageManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.budget_mgr: BudgetManager = self.locator.get_manager("BudgetManager")
+        self.budget_mgr = BudgetManager()
         self.budget_usage_model: BudgetUsage = self.locator.get_model("BudgetUsage")
         self.notification_mgr: NotificationManager = self.locator.get_manager(
             "NotificationManager"
         )
-        self.data_source_mgr: DataSourceManager = self.locator.get_manager(
-            "DataSourceManager"
-        )
+        self.email_mgr = None
 
     def create_budget_usages(self, budget_vo: Budget) -> None:
         if budget_vo.time_unit == "TOTAL":
@@ -96,27 +98,30 @@ class BudgetUsageManager(BaseManager):
 
         self._update_monthly_budget_usage(budget_vo, unified_cost_mgr)
 
-    def update_budget_usage(self, domain_id: str, data_source_id: str):
+    def update_budget_usage(self, domain_id: str, workspace_id: str) -> None:
         budget_vos = self.budget_mgr.filter_budgets(
             domain_id=domain_id,
-            data_source_id=data_source_id,
+            workspace_id=workspace_id,
         )
         for budget_vo in budget_vos:
             self.update_cost_usage(budget_vo)
             self.notify_budget_usage(budget_vo)
 
-    def notify_budget_usage(self, budget_vo: Budget):
+    def notify_budget_usage(self, budget_vo: Budget) -> None:
         budget_id = budget_vo.budget_id
         workspace_id = budget_vo.workspace_id
         domain_id = budget_vo.domain_id
-        current_month = datetime.utcnow().strftime("%Y-%m")
-        updated_notifications = []
+        current_month = datetime.now(timezone.utc).strftime("%Y-%m")
+        updated_plans = []
         is_changed = False
-        notification_type = "WARNING"
-        for notification in budget_vo.notifications:
-            if current_month not in notification.notified_months:
-                unit = notification.unit
-                threshold = notification.threshold
+        notifications = budget_vo.notifications
+
+        plans = notifications.plans or []
+
+        for plan in plans:
+            if current_month not in plan.notified_months:
+                unit = plan.unit
+                threshold = plan.threshold
                 is_notify = False
 
                 if budget_vo.time_unit == "TOTAL":
@@ -158,39 +163,30 @@ class BudgetUsageManager(BaseManager):
                     if budget_percentage > threshold:
                         is_notify = True
                         is_changed = True
-                else:
-                    if total_budget_usage > threshold:
-                        is_notify = True
-                        is_changed = True
-
                 if is_notify:
                     _LOGGER.debug(
-                        f"[notify_budget_usage] notify event: {budget_id} (level: {notification_type})"
+                        f"[notify_budget_usage] notify event: {budget_id}, current month: {current_month} (plan: {plan.to_dict()})"
                     )
                     try:
                         self._notify_message(
                             budget_vo,
-                            current_month,
                             total_budget_usage,
-                            budget_limit,
                             budget_percentage,
                             threshold,
-                            unit,
-                            notification_type,
                         )
 
-                        updated_notifications.append(
+                        updated_plans.append(
                             {
                                 "threshold": threshold,
                                 "unit": unit,
-                                "notification_type": notification_type,
-                                "notified_months": notification.notified_months
+                                "notified_months": plan.notified_months
                                 + [current_month],
                             }
                         )
                     except Exception as e:
                         _LOGGER.error(
-                            f"[notify_budget_usage] Failed to notify message ({budget_id}): {e}"
+                            f"[notify_budget_usage] Failed to notify message ({budget_id}): {e}",
+                            exc_info=True,
                         )
                 else:
                     if unit == "PERCENT":
@@ -204,99 +200,83 @@ class BudgetUsageManager(BaseManager):
                             f"(usage cost: {total_budget_usage}, threshold: {threshold})"
                         )
 
-                    updated_notifications.append(notification.to_dict())
+                    updated_plans.append(plan.to_dict())
 
             else:
-                updated_notifications.append(notification.to_dict())
+                updated_plans.append(plan.to_dict())
 
         if is_changed:
-            budget_vo.update({"notifications": updated_notifications})
+            notifications.plans = updated_plans
+            budget_vo.update({"notifications": notifications.to_dict()})
 
     def _notify_message(
         self,
         budget_vo: Budget,
-        current_month,
-        total_budget_usage,
-        budget_limit,
+        total_budget_usage: float,
         budget_percentage,
         threshold,
-        unit,
-        notification_type,
     ):
-        data_source_name = self.data_source_mgr.get_data_source(
-            budget_vo.data_source_id, budget_vo.domain_id
-        ).name
-        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
-        project_name = identity_mgr.get_project_name(
-            budget_vo.project_id, budget_vo.workspace_id, budget_vo.domain_id
-        )
+
+        if not self.email_mgr:
+            self.email_mgr = EmailManager()
+
+        identity_mgr = IdentityManager()
+        today_date = datetime.now().strftime("%Y-%m-%d")
+
         workspace_name = identity_mgr.get_workspace(
             budget_vo.workspace_id, budget_vo.domain_id
         )
 
-        if unit == "PERCENT":
-            threshold_str = f"{int(threshold)}%"
-        else:
-            threshold_str = format(int(threshold), ",")
+        if budget_vo.service_account_id:
+            service_account_info = identity_mgr.get_service_account(
+                budget_vo.service_account_id,
+                budget_vo.domain_id,
+                budget_vo.workspace_id,
+            )
 
-        description = f"Please check the budget usage and increase the budget limit if necessary.\n\n"
-        description += (
-            f"Budget Usage (Currency: {budget_vo.currency}): \n"
-            f'- Usage Cost: {format(round(total_budget_usage, 2), ",")}\n'
-            f'- Limit: {format(budget_limit, ",")}\n'
-            f"- Percentage: {budget_percentage}%\n"
-            f"- Threshold: > {threshold_str}\n"
+            target_name = service_account_info.get("name")
+        else:
+            project_info = identity_mgr.get_project(
+                budget_vo.project_id, budget_vo.domain_id
+            )
+            target_name = project_info.get("name")
+
+        user_info_map = self._get_user_info_map_from_recipients(
+            identity_mgr,
+            budget_vo.domain_id,
+            budget_vo.workspace_id,
+            budget_vo.notifications.recipients.to_dict(),
+            service_account_id=budget_vo.service_account_id,
         )
 
-        if budget_vo.time_unit == "MONTHLY":
-            period = f"{current_month} ~ {current_month}"
-        else:
-            period = f"{budget_vo.start} ~ {budget_vo.end}"
+        console_link = self._get_console_budget_url(
+            budget_vo.domain_id,
+            budget_vo.workspace_id,
+            budget_vo.budget_id,
+        )
 
-        message = {
-            "resource_type": "identity.Project",
-            "resource_id": budget_vo.project_id,
-            "notification_type": (
-                "WARNING" if notification_type == "WARNING" else "ERROR"
-            ),
-            "topic": "cost_analysis.Budget",
-            "message": {
-                "title": f"Budget usage exceeded - {budget_vo.name}",
-                "description": description,
-                "tags": [
-                    {
-                        "key": "Budget ID",
-                        "value": budget_vo.budget_id,
-                        "options": {"short": True},
-                    },
-                    {
-                        "key": "Budget Name",
-                        "value": budget_vo.name,
-                        "options": {"short": True},
-                    },
-                    {
-                        "key": "Data Source",
-                        "value": data_source_name,
-                        "options": {"short": True},
-                    },
-                    {"key": "Period", "value": period, "options": {"short": True}},
-                    {
-                        "key": "Project",
-                        "value": project_name,
-                    },
-                    {
-                        "key": "Workspace",
-                        "value": workspace_name,
-                    },
-                ],
-                "occurred_at": utils.datetime_to_iso8601(datetime.utcnow()),
-            },
-            "notification_level": "ALL",
-            "workspace_id": budget_vo.workspace_id,
-            "domain_id": budget_vo.domain_id,
-        }
+        for user_id, user_info in user_info_map.items():
+            try:
+                email = user_info["email"]
+                language = user_info.get("language", "en")
 
-        self.notification_mgr.create_notification(message)
+                self.email_mgr.send_budget_usage_alert_email(
+                    email=email,
+                    language=language,
+                    user_id=user_id,
+                    threshold=threshold,
+                    total_budget_usage=total_budget_usage,
+                    budget_percentage=budget_percentage,
+                    today_date=today_date,
+                    workspace_name=workspace_name,
+                    target_name=target_name,
+                    budget_vo=budget_vo,
+                    console_link=console_link,
+                )
+            except Exception as e:
+                _LOGGER.error(
+                    f"[_notify_message] Failed to send email: {user_id}, {user_info}, ({budget_vo.budget_id}): {e}"
+                )
 
     def filter_budget_usages(self, **conditions):
         return self.budget_usage_model.filter(**conditions)
@@ -315,7 +295,7 @@ class BudgetUsageManager(BaseManager):
     def _update_monthly_budget_usage(
         self, budget_vo: Budget, unified_cost_mgr: UnifiedCostManager
     ) -> None:
-        update_data = {}
+        update_budget_usage_map = {}
         query = self._make_unified_cost_analyze_query(budget_vo=budget_vo)
         _LOGGER.debug(f"[_update_monthly_budget_usage]: query: {query}")
 
@@ -324,17 +304,95 @@ class BudgetUsageManager(BaseManager):
         )
 
         for unified_cost_usage_data in result.get("results", []):
-            print(unified_cost_usage_data)
             if date := unified_cost_usage_data.get("date"):
-                update_data[date] = unified_cost_usage_data.get("cost", 0)
+                update_budget_usage_map[date] = unified_cost_usage_data.get("cost", 0)
 
         budget_usage_vos = self.budget_usage_model.filter(budget_id=budget_vo.budget_id)
         for budget_usage_vo in budget_usage_vos:
-            print(budget_usage_vo.date, update_data)
-            if budget_usage_vo.date in update_data:
-                budget_usage_vo.update({"cost": update_data[budget_usage_vo.date]})
+            if budget_usage_vo.date in update_budget_usage_map:
+                budget_usage_vo.update(
+                    {"cost": update_budget_usage_map[budget_usage_vo.date]}
+                )
             else:
                 budget_usage_vo.update({"cost": 0})
+
+    @staticmethod
+    def _get_user_info_map_from_recipients(
+        identity_mgr: IdentityManager,
+        domain_id: str,
+        workspace_id: str,
+        recipients: dict,
+        service_account_id: Union[str, None] = None,
+    ) -> dict:
+        user_info_map = {}
+
+        user_ids = recipients.get("users", [])
+        role_types = recipients.get("role_types", [])
+        service_account_manager = recipients.get("service_account_manager", False)
+
+        if service_account_manager:
+            service_account_info = identity_mgr.get_service_account(
+                service_account_id, domain_id, workspace_id
+            )
+            user_ids.append(service_account_info.get("service_account_mgr_id"))
+
+        query = {
+            "filter": [
+                {"k": "domain_id", "v": domain_id, "o": "eq"},
+                {"k": "workspace_id", "v": workspace_id, "o": "eq"},
+            ],
+            "filter_or": [],
+        }
+
+        if user_ids:
+            user_ids = list(set(user_ids))
+            query["filter_or"].append({"k": "user_id", "v": user_ids, "o": "in"})
+
+        if role_types:
+            query["filter_or"].append({"k": "role_type", "v": role_types, "o": "in"})
+
+        _LOGGER.debug(f"[_get_user_info_map_from_recipients] query: {query}")
+
+        response = identity_mgr.list_role_bindings({"query": query}, domain_id)
+
+        users = [rb_info.get("user_id") for rb_info in response.get("results", [])]
+        rb_total_count = response.get("total_count", 0)
+
+        _LOGGER.debug(
+            f"[_get_user_info_map_from_recipients] total role bindings count: {rb_total_count}"
+        )
+
+        if users:
+            response = identity_mgr.list_email_verified_users(domain_id, users)
+            users_info = response.get("results", [])
+            user_total_count = response.get("total_count", 0)
+
+            for user_info in users_info:
+                user_info_map[user_info["user_id"]] = {
+                    "email": user_info["email"],
+                    "language": user_info.get("language", "en"),
+                }
+
+            _LOGGER.debug(
+                f"[_get_user_info_map_from_recipients] total users: {user_total_count}"
+            )
+
+        return user_info_map
+
+    def _get_console_budget_url(
+        self, domain_id: str, workspace_id: str, budget_id: str
+    ) -> str:
+        domain_name = self._get_domain_name(domain_id)
+
+        console_domain = config.get_global("EMAIL_CONSOLE_DOMAIN")
+        console_domain = console_domain.format(domain_name=domain_name)
+
+        return f"{console_domain}/workspace/{workspace_id}/cost-explorer/budget/{budget_id}"
+
+    def _get_domain_name(self, domain_id: str) -> str:
+        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
+        domain_name = identity_mgr.get_domain_name(domain_id)
+        return domain_name
 
     @staticmethod
     def _make_unified_cost_analyze_query(budget_vo: Budget):
@@ -347,10 +405,18 @@ class BudgetUsageManager(BaseManager):
             },
             "filter": [
                 {"k": "domain_id", "v": budget_vo.domain_id, "o": "eq"},
-                {"k": "workspace_id", "v": budget_vo.workspace_id, "o": "eq"},
-                {"k": "project_id", "v": budget_vo.project_id, "o": "eq"},
             ],
         }
+
+        if budget_vo.workspace_id:
+            query["filter"].append(
+                {"k": "workspace_id", "v": budget_vo.workspace_id, "o": "eq"}
+            )
+
+        if budget_vo.project_id:
+            query["filter"].append(
+                {"k": "project_id", "v": budget_vo.project_id, "o": "eq"}
+            )
 
         if budget_vo.service_account_id:
             query["filter"].append(
@@ -360,30 +426,4 @@ class BudgetUsageManager(BaseManager):
                     "o": "eq",
                 }
             )
-        return query
-
-    @staticmethod
-    def _make_cost_analyze_query(budget_vo: Budget):
-        query = {
-            "granularity": "MONTHLY",
-            "start": budget_vo.start,
-            "end": budget_vo.end,
-            "fields": {"cost": {"key": "cost", "operator": "sum"}},
-            "filter": [
-                {"k": "domain_id", "v": budget_vo.domain_id, "o": "eq"},
-                {"k": "workspace_id", "v": budget_vo.workspace_id, "o": "eq"},
-                {"k": "data_source_id", "v": budget_vo.data_source_id, "o": "eq"},
-            ],
-        }
-
-        if budget_vo.project_id and budget_vo.project_id != "*":
-            query["filter"].append(
-                {"k": "project_id", "v": budget_vo.project_id, "o": "eq"}
-            )
-
-        if budget_vo.provider_filter and budget_vo.provider_filter.state == "ENABLED":
-            query["filter"].append(
-                {"k": "provider", "v": budget_vo.provider_filter.providers, "o": "in"}
-            )
-
         return query
