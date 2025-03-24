@@ -12,6 +12,17 @@ __all__ = [
 ]
 
 
+class Plan(BaseModel):
+    threshold: float
+    unit: str
+
+
+class Notification(BaseModel):
+    state: Union[str, None] = None
+    plans: Union[List[Plan], None] = None
+    recipients: Union[dict, None] = None
+
+
 class BudgetResponse(BaseModel):
     budget_id: Union[str, None] = None
     name: Union[str, None] = None
@@ -21,7 +32,7 @@ class BudgetResponse(BaseModel):
     time_unit: Union[str, None] = None
     start: Union[str, None] = None
     end: Union[str, None] = None
-    notifications: Union[dict, None] = None
+    notifications: Union[Notification, dict] = None
     tags: Union[dict, None] = None
     resource_group: Union[ResourceGroup, None] = None
     service_account_id: Union[str, None] = None

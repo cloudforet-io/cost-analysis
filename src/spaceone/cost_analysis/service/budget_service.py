@@ -78,7 +78,9 @@ class BudgetService(BaseService):
         identity_mgr.get_project(project_id, domain_id)
 
         if service_account_id:
-            identity_mgr.get_service_account(service_account_id, domain_id)
+            identity_mgr.get_service_account(
+                service_account_id, domain_id, workspace_id
+            )
 
         config_mgr = ConfigManager()
         unified_cost_config: dict = config_mgr.get_unified_cost_config(domain_id)
@@ -124,7 +126,9 @@ class BudgetService(BaseService):
         budget_usage_mgr.update_cost_usage(budget_vo)
         budget_usage_mgr.notify_budget_usage(budget_vo)
 
-        return BudgetResponse(**budget_vo.to_dict())
+        return BudgetResponse(
+            **budget_vo.to_dict(),
+        )
 
     @transaction(
         permission="cost-analysis:Budget.write",
@@ -432,10 +436,14 @@ class BudgetService(BaseService):
                     {"k": "user_id", "v": users, "o": "in"},
                 ]
             }
-            response = identity_mgr.list_role_bindings({"query": query}, domain_id)
-            rb_infos = response.get("results", [])
-
+            rb_response = identity_mgr.list_role_bindings({"query": query}, domain_id)
+            rb_infos = rb_response.get("results", [])
             rb_users = [rb_info["user_id"] for rb_info in rb_infos]
+
+            user_response = identity_mgr.list_email_verified_users(domain_id, users)
+            user_infos = user_response.get("results", [])
+            users = [user_info["user_id"] for user_info in user_infos]
+
             for user_id in users:
                 if user_id not in rb_users:
                     raise ERROR_NOT_FOUND(key="user_id", value=user_id)
@@ -445,7 +453,7 @@ class BudgetService(BaseService):
         return notifications
 
     @staticmethod
-    def _set_user_project_or_project_group_filter(params):
+    def _set_user_project_or_project_group_filter(params: dict) -> dict:
         query = params.get("query", {})
         query["filter"] = query.get("filter", [])
 

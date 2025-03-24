@@ -78,19 +78,19 @@ class UnifiedCostManager(BaseManager):
 
         return self.unified_cost_model.analyze(**query)
 
-    # @cache.cacheable(
-    #     key="cost-analysis:analyze-unified-costs:yearly:{domain_id}:{query_hash}",
-    #     expire=3600 * 24,
-    # )
+    @cache.cacheable(
+        key="cost-analysis:analyze-unified-costs:yearly:{domain_id}:{query_hash}",
+        expire=3600 * 24,
+    )
     def analyze_unified_yearly_costs_with_cache(
         self, query: dict, query_hash: str, domain_id: str
     ) -> dict:
         return self.analyze_unified_costs(query)
 
-    # @cache.cacheable(
-    #     key="cost-analysis:analyze-unified-costs:monthly:{domain_id}:{query_hash}",
-    #     expire=3600 * 24,
-    # )
+    @cache.cacheable(
+        key="cost-analysis:analyze-unified-costs:monthly:{domain_id}:{query_hash}",
+        expire=3600 * 24,
+    )
     def analyze_unified_monthly_costs_with_cache(
         self, query: dict, query_hash: str, domain_id: str
     ) -> dict:
