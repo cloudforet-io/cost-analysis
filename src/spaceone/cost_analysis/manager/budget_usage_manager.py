@@ -6,11 +6,11 @@ from spaceone.core.manager import BaseManager
 from spaceone.core import utils
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 from spaceone.cost_analysis.manager.notification_manager import NotificationManager
-from spaceone.cost_analysis.manager.cost_manager import CostManager
 from spaceone.cost_analysis.manager.budget_manager import BudgetManager
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
-from spaceone.cost_analysis.model.budget_usage_model import BudgetUsage
-from spaceone.cost_analysis.model.budget_model import Budget
+from spaceone.cost_analysis.manager.unified_cost_manager import UnifiedCostManager
+from spaceone.cost_analysis.model.budget_usage.database import BudgetUsage
+from spaceone.cost_analysis.model.budget.database import Budget
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -46,10 +46,9 @@ class BudgetUsageManager(BaseManager):
                     "cost": 0,
                     "limit": limit_per_month,
                     "currency": budget_vo.currency,
-                    "provider_filter": budget_vo.provider_filter.to_dict(),
                     "budget": budget_vo,
                     "resource_group": budget_vo.resource_group,
-                    "data_source_id": budget_vo.data_source_id,
+                    "service_account_id": budget_vo.service_account_id,
                     "project_id": budget_vo.project_id,
                     "workspace_id": budget_vo.workspace_id,
                     "domain_id": budget_vo.domain_id,
@@ -67,10 +66,9 @@ class BudgetUsageManager(BaseManager):
                     "cost": 0,
                     "limit": planned_limit.limit,
                     "currency": budget_vo.currency,
-                    "provider_filter": budget_vo.provider_filter.to_dict(),
                     "budget": budget_vo,
                     "resource_group": budget_vo.resource_group,
-                    "data_source_id": budget_vo.data_source_id,
+                    "service_account_id": budget_vo.service_account_id,
                     "project_id": budget_vo.project_id,
                     "workspace_id": budget_vo.workspace_id,
                     "domain_id": budget_vo.domain_id,
@@ -94,9 +92,9 @@ class BudgetUsageManager(BaseManager):
         budget_vo: Budget,
     ):
         _LOGGER.info(f"[update_cost_usage] Update Budget Usage: {budget_vo.budget_id}")
-        cost_mgr: CostManager = self.locator.get_manager("CostManager")
+        unified_cost_mgr = UnifiedCostManager()
 
-        self._update_monthly_budget_usage(budget_vo, cost_mgr)
+        self._update_monthly_budget_usage(budget_vo, unified_cost_mgr)
 
     def update_budget_usage(self, domain_id: str, data_source_id: str):
         budget_vos = self.budget_mgr.filter_budgets(
@@ -114,11 +112,11 @@ class BudgetUsageManager(BaseManager):
         current_month = datetime.utcnow().strftime("%Y-%m")
         updated_notifications = []
         is_changed = False
+        notification_type = "WARNING"
         for notification in budget_vo.notifications:
             if current_month not in notification.notified_months:
                 unit = notification.unit
                 threshold = notification.threshold
-                notification_type = notification.notification_type
                 is_notify = False
 
                 if budget_vo.time_unit == "TOTAL":
@@ -314,25 +312,55 @@ class BudgetUsageManager(BaseManager):
         query["date_field_format"] = "%Y-%m"
         return self.budget_usage_model.analyze(**query)
 
-    def _update_monthly_budget_usage(self, budget_vo: Budget, cost_mgr: CostManager):
+    def _update_monthly_budget_usage(
+        self, budget_vo: Budget, unified_cost_mgr: UnifiedCostManager
+    ) -> None:
         update_data = {}
-        query = self._make_cost_analyze_query(budget_vo=budget_vo)
+        query = self._make_unified_cost_analyze_query(budget_vo=budget_vo)
         _LOGGER.debug(f"[_update_monthly_budget_usage]: query: {query}")
 
-        result = cost_mgr.analyze_costs_by_granularity(
-            query, budget_vo.domain_id, budget_vo.data_source_id
+        result = unified_cost_mgr.analyze_unified_costs_by_granularity(
+            query, budget_vo.domain_id
         )
 
-        for cost_usage_data in result.get("results", []):
-            if date := cost_usage_data.get("date"):
-                update_data[date] = cost_usage_data.get("cost", 0)
+        for unified_cost_usage_data in result.get("results", []):
+            print(unified_cost_usage_data)
+            if date := unified_cost_usage_data.get("date"):
+                update_data[date] = unified_cost_usage_data.get("cost", 0)
 
         budget_usage_vos = self.budget_usage_model.filter(budget_id=budget_vo.budget_id)
         for budget_usage_vo in budget_usage_vos:
+            print(budget_usage_vo.date, update_data)
             if budget_usage_vo.date in update_data:
                 budget_usage_vo.update({"cost": update_data[budget_usage_vo.date]})
             else:
                 budget_usage_vo.update({"cost": 0})
+
+    @staticmethod
+    def _make_unified_cost_analyze_query(budget_vo: Budget):
+        query = {
+            "granularity": "MONTHLY",
+            "start": budget_vo.start,
+            "end": budget_vo.end,
+            "fields": {
+                "cost": {"key": f"cost.{budget_vo.currency}", "operator": "sum"}
+            },
+            "filter": [
+                {"k": "domain_id", "v": budget_vo.domain_id, "o": "eq"},
+                {"k": "workspace_id", "v": budget_vo.workspace_id, "o": "eq"},
+                {"k": "project_id", "v": budget_vo.project_id, "o": "eq"},
+            ],
+        }
+
+        if budget_vo.service_account_id:
+            query["filter"].append(
+                {
+                    "k": "service_account_id",
+                    "v": budget_vo.service_account_id,
+                    "o": "eq",
+                }
+            )
+        return query
 
     @staticmethod
     def _make_cost_analyze_query(budget_vo: Budget):

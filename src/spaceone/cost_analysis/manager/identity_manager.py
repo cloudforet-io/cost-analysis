@@ -105,6 +105,11 @@ class IdentityManager(BaseManager):
         else:
             return self.identity_conn.dispatch("WorkspaceUser.list", params)
 
+    def get_service_account(self, service_account_id: str, domain_id: str) -> dict:
+        return self.identity_conn.dispatch(
+            "ServiceAccount.get", {"service_account_id": service_account_id}
+        )
+
     def get_service_account_name_map(self, domain_id: str, workspace_id: str) -> dict:
         service_account_name_map = {}
         service_accounts = self.list_service_accounts(
@@ -205,12 +210,10 @@ class IdentityManager(BaseManager):
             return self.identity_conn.dispatch("Project.list", params)
 
     def list_role_bindings(self, params: dict, domain_id: str) -> dict:
-        if self.token_type == "SYSTEM_TOKEN":
-            return self.identity_conn.dispatch(
-                "RoleBinding.list", params, x_domain_id=domain_id
-            )
-        else:
-            return self.identity_conn.dispatch("RoleBinding.list", params)
+        system_token = config.get_global("TOKEN")
+        return self.identity_conn.dispatch(
+            "RoleBinding.list", params=params, x_domain_id=domain_id, token=system_token
+        )
 
     def grant_token(
         self,
