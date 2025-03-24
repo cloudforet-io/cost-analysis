@@ -80,6 +80,7 @@ class BudgetUsageService(BaseService):
     @append_query_filter(["budget_id", "user_projects", "workspace_id", "domain_id"])
     @append_keyword_filter(["budget_id", "name"])
     @set_query_page_limit(1000)
+    @convert_model
     def analyze(self, params: BudgetUsageAnalyzeQueryRequest) -> dict:
         """
         Args:
