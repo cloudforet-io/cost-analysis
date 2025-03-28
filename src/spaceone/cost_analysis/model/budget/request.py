@@ -3,7 +3,7 @@ from typing import Union, Literal
 from pydantic import BaseModel, Field
 
 TimeUnit = Literal["MONTHLY", "TOTAL"]
-ResourceGroup = Literal["PROJECT"]
+ResourceGroup = Literal["WORKSPACE", "PROJECT"]
 
 
 class BudgetCreateRequest(BaseModel):
