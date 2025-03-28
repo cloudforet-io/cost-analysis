@@ -82,10 +82,10 @@ class BudgetService(BaseService):
                 service_account_id, domain_id, workspace_id
             )
 
-        config_mgr = ConfigManager()
-        unified_cost_config: dict = config_mgr.get_unified_cost_config(domain_id)
-        currency = unified_cost_config.get("currency", "USD")
-        params.currency = currency
+        if not params.currency:
+            config_mgr = ConfigManager()
+            unified_cost_config: dict = config_mgr.get_unified_cost_config(domain_id)
+            params.currency = unified_cost_config.get("currency", "USD")
 
         if time_unit == "TOTAL":
             if limit is None:
