@@ -10,7 +10,7 @@ class PlannedLimit(EmbeddedDocument):
 
 class Plan(EmbeddedDocument):
     threshold = FloatField(required=True)
-    unit = StringField(max_length=20, required=True, choices=["PERCENT"])
+    unit = StringField(max_length=20, required=True, choices=["PERCENT", "ACTUAL_COST"])
     notified_months = ListField(StringField(max_length=10))
 
     def to_dict(self):
@@ -29,7 +29,7 @@ class Recipients(EmbeddedDocument):
 
 
 class Notification(EmbeddedDocument):
-    state = StringField(max_length=20, required=True, choices=("ENABLED", "DISABLED"))
+    state = StringField(max_length=20, required=True, choices=["ENABLED", "DISABLED"])
     plans = ListField(EmbeddedDocumentField(Plan), default=[])
     recipients = EmbeddedDocumentField(Recipients)
 

@@ -245,6 +245,7 @@ class BudgetUsageManager(BaseManager):
             identity_mgr,
             budget_vo.domain_id,
             budget_vo.workspace_id,
+            budget_vo.project_id,
             budget_vo.notifications.recipients.to_dict(),
             service_account_id=budget_vo.service_account_id,
         )
@@ -321,6 +322,7 @@ class BudgetUsageManager(BaseManager):
         identity_mgr: IdentityManager,
         domain_id: str,
         workspace_id: str,
+        project_id: str,
         recipients: dict,
         service_account_id: Union[str, None] = None,
     ) -> dict:
@@ -331,10 +333,29 @@ class BudgetUsageManager(BaseManager):
         service_account_manager = recipients.get("service_account_manager", "DISABLED")
 
         if service_account_manager == "ENABLED":
-            service_account_info = identity_mgr.get_service_account(
-                service_account_id, domain_id, workspace_id
-            )
-            user_ids.append(service_account_info.get("service_account_mgr_id"))
+            service_accounts_info = []
+            if service_account_id:
+                service_account_info = identity_mgr.get_service_account(
+                    service_account_id, domain_id, workspace_id
+                )
+                service_accounts_info.append(service_account_info)
+
+            else:
+                query_filter = {
+                    "filter": [
+                        {"k": "domain_id", "v": domain_id, "o": "eq"},
+                        {"k": "workspace_id", "v": workspace_id, "o": "eq"},
+                        {"k": "project_id", "v": project_id, "o": "eq"},
+                    ]
+                }
+                response = identity_mgr.list_service_accounts(query_filter, domain_id)
+                service_accounts_info = response.get("results", [])
+
+            for service_account_info in service_accounts_info:
+                if service_account_mgr_id := service_account_info.get(
+                    "service_account_mgr_id"
+                ):
+                    user_ids.append(service_account_mgr_id)
 
         query = {
             "filter": [
@@ -413,11 +434,6 @@ class BudgetUsageManager(BaseManager):
                 {"k": "workspace_id", "v": budget_vo.workspace_id, "o": "eq"}
             )
 
-        if budget_vo.project_id:
-            query["filter"].append(
-                {"k": "project_id", "v": budget_vo.project_id, "o": "eq"}
-            )
-
         if budget_vo.service_account_id:
             query["filter"].append(
                 {
@@ -425,5 +441,9 @@ class BudgetUsageManager(BaseManager):
                     "v": budget_vo.service_account_id,
                     "o": "eq",
                 }
+            )
+        elif budget_vo.project_id:
+            query["filter"].append(
+                {"k": "project_id", "v": budget_vo.project_id, "o": "eq"}
             )
         return query
