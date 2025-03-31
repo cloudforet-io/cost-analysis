@@ -27,14 +27,14 @@ setup(
     license="Apache License 2.0",
     packages=find_packages(),
     install_requires=[
-        "spaceone-core",
-        "spaceone-api",
-        "pandas",
-        "numpy",
-        "jinja2",
-        "finance-datareader",
-        "plotly",
-        "bs4",
+        "spaceone-core==2.0.96",
+        "spaceone-api==2.0.280",
+        "pandas==2.0.3",
+        "numpy==1.24.4",
+        "jinja2==3.1.4",
+        "finance-datareader==0.9.94",
+        "plotly==5.24.1",
+        "bs4==0.0.2",
     ],
     package_data={
         "spaceone": [
