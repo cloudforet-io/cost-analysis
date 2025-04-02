@@ -3,6 +3,7 @@ import logging
 from typing import Tuple, Union
 
 from mongoengine import QuerySet
+from spaceone.core import config
 from spaceone.core.service import *
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.model.data_source.request import *
@@ -65,7 +66,8 @@ class DataSourceService(BaseService):
                 'secret_filter': 'dict',
                 'template': 'dict',
                 'plugin_info': 'dict',
-                'tags': 'dict',
+                'schedule;: 'dict',         # required
+                'tags': 'dict',             # required
                 'resource_group': 'str      # required
                 'workspace_id': 'str'
                 'domain_id': 'str'          # injected from auth
@@ -88,6 +90,16 @@ class DataSourceService(BaseService):
             identity_mgr.check_workspace(params_dict["workspace_id"], domain_id)
         else:
             params_dict["workspace_id"] = "*"
+
+        if not params_dict.get("schedule"):
+            schedule = {
+                "state": "ENABLED",
+                "hour": config.get_global("DATA_SOURCE_SYNC_HOUR", 16),
+            }
+
+            params_dict["schedule"] = schedule
+        else:
+            self._check_schedule(params_dict["schedule"])
 
         if data_source_type == "EXTERNAL":
             params_dict["template"] = None
@@ -198,6 +210,7 @@ class DataSourceService(BaseService):
                 'name': 'str',
                 'secret_filter': 'dict',
                 'template': 'dict',
+                'schedule': 'dict',
                 'tags': 'dict'
                 'domain_id': 'str'          # injected from auth
             }
@@ -212,6 +225,9 @@ class DataSourceService(BaseService):
         data_source_vo = self.data_source_mgr.get_data_source(
             data_source_id, domain_id
         )
+
+        if schedule := params.get("schedule"):
+            self._check_schedule(schedule)
 
         if "secret_filter" in params:
             if data_source_vo.secret_type == "USE_SERVICE_ACCOUNT_SECRET":
@@ -447,68 +463,6 @@ class DataSourceService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @check_required(["data_source_id", "domain_id"])
-    def enable(self, params: DataSourceEnableRequest) -> Union[DataSourceResponse, dict]:
-        """Enable data source
-
-        Args:
-            params (dict): {
-                'data_source_id': 'str',  # required
-                'domain_id': 'str'        # injected from auth
-            }
-
-        Returns:
-            DataSourceResponse:
-        """
-        params_dict = params.dict(exclude_unset=True)
-
-        data_source_id = params_dict["data_source_id"]
-        domain_id = params_dict["domain_id"]
-        data_source_vo = self.data_source_mgr.get_data_source(
-            data_source_id, domain_id
-        )
-
-        updated_data_source_vo = self.data_source_mgr.update_data_source_by_vo(
-            {"state": "ENABLED"}, data_source_vo
-        )
-
-        return DataSourceResponse(**updated_data_source_vo.to_dict())
-
-    @transaction(
-        permission="cost-analysis:DataSource.write",
-        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
-    )
-    @check_required(["data_source_id", "domain_id"])
-    def disable(self, params: DataSourceDisableRequest) -> Union[DataSourceResponse, dict]:
-        """Disable data source
-
-        Args:
-            params (dict): {
-                'data_source_id': 'str',    # required
-                'domain_id': 'str'          # injected from auth
-            }
-
-        Returns:
-            DataSourceResponse:
-        """
-        params_dict = params.dict(exclude_unset=True)
-
-        data_source_id = params_dict["data_source_id"]
-        domain_id = params_dict["domain_id"]
-        data_source_vo = self.data_source_mgr.get_data_source(
-            data_source_id, domain_id
-        )
-
-        update_data_source_vo = self.data_source_mgr.update_data_source_by_vo(
-            {"state": "DISABLED"}, data_source_vo
-        )
-
-        return DataSourceResponse(**update_data_source_vo.to_dict())
-
-    @transaction(
-        permission="cost-analysis:DataSource.write",
-        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
-    )
-    @check_required(["data_source_id", "domain_id"])
     def deregister(self, params: DataSourceDeregisterRequest) -> None:
         """Deregister data source
 
@@ -589,7 +543,7 @@ class DataSourceService(BaseService):
             data_source_id, domain_id, workspace_id
         )
 
-        if data_source_vo.state == "DISABLED":
+        if data_source_vo.schedule.state == "DISABLED":
             raise ERROR_DATA_SOURCE_STATE(data_source_id=data_source_id)
 
         if data_source_vo.data_source_type == "LOCAL":
@@ -646,7 +600,6 @@ class DataSourceService(BaseService):
         [
             "data_source_id",
             "name",
-            "state",
             "data_source_type",
             "provider",
             "workspace_id",
@@ -666,7 +619,6 @@ class DataSourceService(BaseService):
                 'query': 'dict (spaceone.api.core.v1.Query)'
                 'data_source_id': 'str',
                 'name': 'str',
-                'state': 'str',
                 'data_source_type': 'str',
                 'provider': 'str',
                 'connected_workspace_id': str,
@@ -988,6 +940,14 @@ class DataSourceService(BaseService):
                         cost_data_keys.remove(split_denied_key)
             data_source_vo.cost_data_keys = cost_data_keys
         return data_source_vo
+
+    @staticmethod
+    def _check_schedule(schedule: dict) -> None:
+        if schedule.get("state", "ENABLED") == "ENABLED":
+            if not schedule.get("hour"):
+                raise ERROR_INVALID_PARAMETER(
+                    key="schedule.hour", reason="Need to set an hour when the state is ENABLED."
+                )
 
     @staticmethod
     def _check_only_fields_for_permissions(query: dict) -> None:

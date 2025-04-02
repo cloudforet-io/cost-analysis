@@ -5,7 +5,7 @@ from typing import Tuple, Union
 from dateutil.relativedelta import relativedelta
 from mongoengine import QuerySet
 
-from spaceone.core import queue, utils, config
+from spaceone.core import queue, utils, config, cache
 from spaceone.core.error import *
 from spaceone.core.manager import BaseManager
 
@@ -78,23 +78,55 @@ class UnifiedCostManager(BaseManager):
 
         return self.unified_cost_model.analyze(**query)
 
-    def analyze_unified_costs_by_granularity(self, query: dict) -> dict:
-        granularity = query["granularity"]
+    @cache.cacheable(
+        key="cost-analysis:analyze-unified-costs:yearly:{domain_id}:{query_hash}",
+        expire=3600 * 24,
+    )
+    def analyze_unified_yearly_costs_with_cache(
+            self, query: dict, query_hash: str, domain_id: str
+    ) -> dict:
+        return self.analyze_unified_costs(query)
+
+    @cache.cacheable(
+        key="cost-analysis:analyze-unified-costs:monthly:{domain_id}:{query_hash}",
+        expire=3600 * 24,
+    )
+    def analyze_unified_monthly_costs_with_cache(
+            self, query: dict, query_hash: str, domain_id: str
+    ) -> dict:
+        return self.analyze_unified_costs(query)
+
+    def analyze_unified_costs_by_granularity(self, query: dict, domain_id: str) -> dict:
         self._check_unified_cost_data_range(query)
+        granularity = query["granularity"]
+
+        # Save query history to speed up data loading
+        query_hash: str = utils.dict_to_hash(query)
 
         if granularity == "DAILY":
             raise ERROR_INVALID_PARAMETER(
                 key="query.granularity", reason=f"{granularity} is not supported"
             )
         elif granularity == "MONTHLY":
-            response = self.analyze_unified_costs(query)
+            response = self.analyze_unified_monthly_costs_with_cache(
+                query, query_hash, domain_id
+            )
         else:
-            response = self.analyze_yearly_unified_costs(query)
+            response = self.analyze_unified_yearly_costs_with_cache(
+                query, query_hash, domain_id
+            )
 
         return response
 
     def stat_unified_costs(self, query) -> dict:
         return self.unified_cost_model.stat(**query)
+
+    @staticmethod
+    def remove_stat_cache(domain_id: str):
+        cache.delete_pattern(f"cost-analysis:analyze-unified-costs:*:{domain_id}:*")
+        cache.delete_pattern(f"cost-analysis:stat-unified-costs:*:{domain_id}:*")
+
+        _LOGGER.debug(f"[remove_stat_cache] domain_id: {domain_id}")
 
     @staticmethod
     def push_unified_cost_job_task(params: dict) -> None:

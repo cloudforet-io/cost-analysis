@@ -63,19 +63,21 @@ class CostService(BaseService):
         Returns:
             cost_vo (object)
         """
-        params_dict = params.dict(exclude_unset=True)
+        raise ERROR_NOT_SUPPORT_API()
 
-        # validation check (service_account_id / project_id / data_source_id)
-        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
-        identity_mgr.get_project(params_dict["project_id"], params_dict["domain_id"])
-
-        # todo : only local type datasource can create
-
-        cost_vo = self.cost_mgr.create_cost(params_dict)
-
-        self.cost_mgr.remove_stat_cache(params_dict["domain_id"], params_dict["data_source_id"])
-
-        return CostResponse(**cost_vo.to_dict())
+        # params_dict = params.dict(exclude_unset=True)
+        #
+        # # validation check (service_account_id / project_id / data_source_id)
+        # identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
+        # identity_mgr.get_project(params_dict["project_id"], params_dict["domain_id"])
+        #
+        # # todo : only local type datasource can create
+        #
+        # cost_vo = self.cost_mgr.create_cost(params_dict)
+        #
+        # self.cost_mgr.remove_stat_cache(params_dict["domain_id"], params_dict["data_source_id"])
+        #
+        # return CostResponse(**cost_vo.to_dict())
 
     @transaction(permission="cost-analysis:Cost.write", role_types=["WORKSPACE_OWNER"])
     @check_required(["cost_id", "domain_id"])
@@ -93,24 +95,27 @@ class CostService(BaseService):
         Returns:
             None
         """
-        params_dict = params.dict(exclude_unset=True)
 
-        cost_id = params_dict["cost_id"]
-        domain_id = params_dict["domain_id"]
-        workspace_id = params_dict.get("workspace_id")
-
-        if workspace_id:
-            cost_vo: Cost = self.cost_mgr.get_cost(cost_id, domain_id)
-            self._check_workspace_id_with_cost_vo(cost_vo, domain_id, workspace_id)
-        else:
-            cost_vo: Cost = self.cost_mgr.get_cost(cost_id, domain_id)
-
-        self.cost_mgr.remove_stat_cache(
-            domain_id=domain_id,
-            data_source_id=cost_vo.data_source_id,
-        )
-
-        self.cost_mgr.delete_cost_by_vo(cost_vo)
+        raise ERROR_NOT_SUPPORT_API()
+        
+        # params_dict = params.dict(exclude_unset=True)
+        #
+        # cost_id = params_dict["cost_id"]
+        # domain_id = params_dict["domain_id"]
+        # workspace_id = params_dict.get("workspace_id")
+        #
+        # if workspace_id:
+        #     cost_vo: Cost = self.cost_mgr.get_cost(cost_id, domain_id)
+        #     self._check_workspace_id_with_cost_vo(cost_vo, domain_id, workspace_id)
+        # else:
+        #     cost_vo: Cost = self.cost_mgr.get_cost(cost_id, domain_id)
+        #
+        # self.cost_mgr.remove_stat_cache(
+        #     domain_id=domain_id,
+        #     data_source_id=cost_vo.data_source_id,
+        # )
+        #
+        # self.cost_mgr.delete_cost_by_vo(cost_vo)
 
     @transaction(
         permission="cost-analysis:Cost.read",

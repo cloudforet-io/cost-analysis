@@ -55,23 +55,47 @@ class Cost(MongoModel):
                 "name": "COMPOUND_INDEX_FOR_SYNC_JOB_1",
             },
             {
-                "fields": ["domain_id", "data_source_id", "job_id", "-billed_month"],
+                "fields": [
+                    "domain_id",
+                    "data_source_id",
+                    "job_id",
+                    "-billed_month",
+                    "job_task_id",
+                ],
                 "name": "COMPOUND_INDEX_FOR_SYNC_JOB_2",
             },
             {
                 "fields": [
                     "domain_id",
                     "data_source_id",
-                    "-billed_date",
                     "workspace_id",
                     "project_id",
+                    "-billed_date",
+                    "product",
                     "cost",
                 ],
-                "name": "COMPOUND_INDEX_FOR_SEARCH",
+                "name": "COMPOUND_INDEX_FOR_SEARCH_FOR_WORKSPACE_MEMBER",
             },
             {
-                "fields": ["domain_id", "cost_id", "workspace_id", "project_id"],
-                "name": "COMPOUND_INDEX_FOR_DELETE",
+                "fields": [
+                    "domain_id",
+                    "data_source_id",
+                    "workspace_id",
+                    "-billed_date",
+                    "product",
+                    "cost",
+                ],
+                "name": "COMPOUND_INDEX_FOR_SEARCH_FOR_WORKSPACE_OWNER",
+            },
+            {
+                "fields": [
+                    "domain_id",
+                    "data_source_id",
+                    "-billed_date",
+                    "product",
+                    "cost",
+                ],
+                "name": "COMPOUND_INDEX_FOR_SEARCH_FOR_ADMIN",
             },
         ],
     }
@@ -106,19 +130,47 @@ class MonthlyCost(MongoModel):
         "change_query_keys": {"user_projects": "project_id"},
         "indexes": [
             {
-                "fields": ["domain_id", "data_source_id", "job_id", "-billed_month"],
+                "fields": [
+                    "domain_id",
+                    "data_source_id",
+                    "job_id",
+                    "-billed_month",
+                    "job_task_id",
+                ],
                 "name": "COMPOUND_INDEX_FOR_SYNC_JOB",
             },
             {
                 "fields": [
                     "domain_id",
                     "data_source_id",
-                    "-billed_month",
                     "workspace_id",
                     "project_id",
+                    "-billed_month",
+                    "product",
                     "cost",
                 ],
-                "name": "COMPOUND_INDEX_FOR_SEARCH_1",
+                "name": "COMPOUND_INDEX_FOR_SEARCH_FOR_WORKSPACE_MEMBER",
+            },
+            {
+                "fields": [
+                    "domain_id",
+                    "data_source_id",
+                    "workspace_id",
+                    "-billed_month",
+                    "product",
+                    "cost",
+                ],
+                "name": "COMPOUND_INDEX_FOR_SEARCH_FOR_WORKSPACE_OWNER",
+            },
+            {
+                "fields": [
+                    "domain_id",
+                    "data_source_id",
+                    "-billed_month",
+                    "product",
+                    "cost",
+                ],
+                "name": "COMPOUND_INDEX_FOR_SEARCH_FOR_ADMIN",
             },
             {
                 "fields": [
@@ -129,7 +181,7 @@ class MonthlyCost(MongoModel):
                     "project_id",
                     "cost",
                 ],
-                "name": "COMPOUND_INDEX_FOR_SEARCH_2",
+                "name": "COMPOUND_INDEX_FOR_SEARCH_BY_YEARLY",
             },
         ],
     }

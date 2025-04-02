@@ -113,10 +113,12 @@ class CostManager(BaseManager):
     def list_costs(self, query: dict, domain_id: str, data_source_id: str):
         query = self.change_filter_v_workspace_id(query, domain_id, data_source_id)
         query = self._change_filter_project_group_id(query, domain_id)
+        query = self._add_hint_to_query(query)
         return self.cost_model.query(**query)
 
     def stat_costs(self, query: dict, domain_id: str):
         query = self._change_filter_project_group_id(query, domain_id)
+        query = self._add_hint_to_query(query)
         _LOGGER.debug(f"[stat_costs] query: {query}")
         return self.cost_model.stat(**query)
 
@@ -125,10 +127,12 @@ class CostManager(BaseManager):
 
     def list_monthly_costs(self, query: dict, domain_id: str):
         query = self._change_filter_project_group_id(query, domain_id)
+        query = self._add_hint_to_query(query)
         return self.monthly_cost_model.query(**query)
 
     def stat_monthly_costs(self, query: dict, domain_id: str):
         query = self._change_filter_project_group_id(query, domain_id)
+        query = self._add_hint_to_query(query)
         _LOGGER.debug(f"[stat_monthly_costs] query: {query}")
         return self.monthly_cost_model.stat(**query)
 
@@ -210,14 +214,17 @@ class CostManager(BaseManager):
         self.create_cost_query_history(query, query_hash, domain_id, data_source_id)
 
         if granularity == "DAILY":
+            query = self._add_hint_to_query(query)
             response = self.analyze_costs_with_cache(
                 query, query_hash, domain_id, data_source_id
             )
         elif granularity == "MONTHLY":
+            query = self._add_hint_to_query(query)
             response = self.analyze_monthly_costs_with_cache(
                 query, query_hash, domain_id, data_source_id
             )
         else:
+            query["hint"] = "COMPOUND_INDEX_FOR_SEARCH_BY_YEARLY"
             response = self.analyze_yearly_costs_with_cache(
                 query, query_hash, domain_id, data_source_id
             )
@@ -600,3 +607,35 @@ class CostManager(BaseManager):
                     key=key,
                     reason=f"{key} is not allowed to group by.",
                 )
+
+    @staticmethod
+    def _add_hint_to_query(query: dict) -> dict:
+        if "hint" in query:
+            return query
+
+        query_filter = query.get("filter", [])
+        workspace_id_exist = False
+        project_id_exist = False
+
+        for condition in query_filter:
+            key = condition.get("k", condition.get("key"))
+            operator = condition.get("o", condition.get("operator"))
+
+            if key == "workspace_id" and operator in ["eq", "not", "in", "not_in"]:
+                workspace_id_exist = True
+            elif key in ["project_id", "user_projects"] and operator in [
+                "eq",
+                "not",
+                "in",
+                "not_in",
+            ]:
+                project_id_exist = True
+
+        if workspace_id_exist and project_id_exist:
+            query["hint"] = "COMPOUND_INDEX_FOR_SEARCH_FOR_WORKSPACE_MEMBER"
+        elif workspace_id_exist:
+            query["hint"] = "COMPOUND_INDEX_FOR_SEARCH_FOR_WORKSPACE_OWNER"
+        else:
+            query["hint"] = "COMPOUND_INDEX_FOR_SEARCH_FOR_ADMIN"
+
+        return query
