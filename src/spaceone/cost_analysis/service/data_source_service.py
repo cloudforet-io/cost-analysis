@@ -7,16 +7,7 @@ from spaceone.core import config
 from spaceone.core.service import *
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.model.data_source.request import *
-from spaceone.cost_analysis.model.data_source.request import (
-    DataSourceUpdateRequest,
-    DataSourceUpdateSecretDataRequest,
-    DataSourceUpdatePluginRequest,
-    DataSourceEnableRequest,
-    DataSourceDisableRequest,
-    DataSourceDeregisterRequest,
-    DataSourceSyncRequest,
-    DataSourceStatQueryRequest,
-)
+from spaceone.cost_analysis.model.data_source.request import *
 from spaceone.cost_analysis.model.data_source.response import *
 from spaceone.cost_analysis.model.job.response import JobResponse
 from spaceone.cost_analysis.service.job_service import JobService
@@ -60,7 +51,7 @@ class DataSourceService(BaseService):
     )
     @convert_model
     def register(
-        self, params: DataSourceRegisterRequest
+            self, params: DataSourceRegisterRequest
     ) -> Union[DataSourceResponse, dict]:
         """Register data source
 
@@ -208,9 +199,7 @@ class DataSourceService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @check_required(["data_source_id", "domain_id"])
-    def update(
-        self, params: DataSourceUpdateRequest
-    ) -> Union[DataSourceResponse, dict]:
+    def update(self, params: DataSourceUpdateRequest) -> Union[DataSourceResponse, dict]:
         """Update data source
 
         Args:
@@ -225,15 +214,17 @@ class DataSourceService(BaseService):
             }
 
         Returns:
-            data_source_vo (object)
+            DataSourceResponse:
         """
         params_dict = params.dict(exclude_unset=True)
 
         data_source_id = params_dict["data_source_id"]
         domain_id = params_dict["domain_id"]
-        data_source_vo = self.data_source_mgr.get_data_source(data_source_id, domain_id)
+        data_source_vo = self.data_source_mgr.get_data_source(
+            data_source_id, domain_id
+        )
 
-        if schedule := params.params_dict("schedule"):
+        if schedule := params.get("schedule"):
             self._check_schedule(schedule)
 
         if "secret_filter" in params:
@@ -251,9 +242,7 @@ class DataSourceService(BaseService):
             else:
                 raise ERROR_NOT_ALLOW_PLUGIN_SETTINGS(data_source_id=data_source_id)
 
-        updated_data_source_vo = self.data_source_mgr.update_data_source_by_vo(
-            params, data_source_vo
-        )
+        updated_data_source_vo = self.data_source_mgr.update_data_source_by_vo(params, data_source_vo)
 
         return DataSourceResponse(**updated_data_source_vo.to_dict())
 
@@ -262,7 +251,7 @@ class DataSourceService(BaseService):
     )
     @convert_model
     def update_permissions(
-        self, params: DataSourceUpdatePermissionsRequest
+            self, params: DataSourceUpdatePermissionsRequest
     ) -> Union[DataSourceResponse, dict]:
         """Update data source permissions
 
@@ -297,9 +286,7 @@ class DataSourceService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @check_required(["data_source_id", "secret_schema_id", "secret_data", "domain_id"])
-    def update_secret_data(
-        self, params: DataSourceUpdateSecretDataRequest
-    ) -> Union[DataSourceResponse, dict]:
+    def update_secret_data(self, params: DataSourceUpdateSecretDataRequest) -> Union[DataSourceResponse, dict]:
         """Update secret data of data source
         Args:
             params (dict): {
@@ -392,7 +379,7 @@ class DataSourceService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @check_required(["data_source_id", "domain_id"])
-    def update_plugin(self, params):
+    def update_plugin(self, params: DataSourceUpdatePluginRequest) -> Union[DataSourceResponse, dict]:
         """Update data source plugin
 
         Args:
@@ -617,7 +604,7 @@ class DataSourceService(BaseService):
     @append_keyword_filter(["data_source_id", "name"])
     @convert_model
     def list(
-        self, params: DataSourceSearchQueryRequest
+            self, params: DataSourceSearchQueryRequest
     ) -> Union[DataSourcesResponse, dict]:
         """List data sources
 
@@ -759,8 +746,8 @@ class DataSourceService(BaseService):
             raise ERROR_REQUIRED_PARAMETER(key="plugin_info.plugin_id")
 
         if (
-            plugin_info.get("upgrade_mode", "AUTO") == "MANUAL"
-            and "version" not in plugin_info
+                plugin_info.get("upgrade_mode", "AUTO") == "MANUAL"
+                and "version" not in plugin_info
         ):
             raise ERROR_REQUIRED_PARAMETER(key="plugin_info.version")
 
@@ -768,7 +755,7 @@ class DataSourceService(BaseService):
             raise ERROR_REQUIRED_PARAMETER(key="plugin_info.secret_data")
 
     def create_data_source_account_with_data_source_vo(
-        self, accounts_info: dict, data_source_vo: DataSource
+            self, accounts_info: dict, data_source_vo: DataSource
     ) -> None:
         data_source_id = data_source_vo.data_source_id
         workspace_id = data_source_vo.workspace_id
@@ -826,7 +813,7 @@ class DataSourceService(BaseService):
         #     )
 
     def _get_data_source_account_vo_map(
-        self, data_source_id: str, domain_id: str
+            self, data_source_id: str, domain_id: str
     ) -> dict:
         data_source_account_vo_map = {}
         data_source_account_vos = (
@@ -841,7 +828,7 @@ class DataSourceService(BaseService):
         return data_source_account_vo_map
 
     def _change_filter_connected_workspace_data_source(
-        self, query: dict, connected_workspace_id: str
+            self, query: dict, connected_workspace_id: str
     ) -> Tuple[Union[QuerySet, list], int]:
         connected_data_source_ids = []
         domain_id = self._get_domain_id_from_filter(query)
@@ -935,7 +922,7 @@ class DataSourceService(BaseService):
 
     @staticmethod
     def _filter_cost_data_keys_with_permissions_by_data_source_vo(
-        data_source_vo: DataSource,
+            data_source_vo: DataSource,
     ) -> DataSource:
         if data_source_vo.permissions:
             deny = data_source_vo.permissions.get("deny", [])
@@ -953,8 +940,7 @@ class DataSourceService(BaseService):
         if schedule.get("state", "ENABLED") == "ENABLED":
             if not schedule.get("hour"):
                 raise ERROR_INVALID_PARAMETER(
-                    key="schedule.hour",
-                    reason="Need to set an hour when the state is ENABLED.",
+                    key="schedule.hour", reason="Need to set an hour when the state is ENABLED."
                 )
 
     @staticmethod

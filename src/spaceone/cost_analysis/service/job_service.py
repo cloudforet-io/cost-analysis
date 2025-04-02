@@ -102,9 +102,9 @@ class JobService(BaseService):
         """
         params_dict = params.dict(exclude_unset=True)
 
-        job_id = params["job_id"]
-        workspace_id = params.get("workspace_id")
-        domain_id = params["domain_id"]
+        job_id = params_dict["job_id"]
+        workspace_id = params_dict.get("workspace_id")
+        domain_id = params_dict["domain_id"]
 
         job_vo = self.job_mgr.get_job(job_id, domain_id, workspace_id)
 
@@ -136,9 +136,9 @@ class JobService(BaseService):
         """
         params_dict = params.dict(exclude_unset=True)
 
-        job_id = params["job_id"]
-        workspace_id = params.get("workspace_id")
-        domain_id = params["domain_id"]
+        job_id = params_dict["job_id"]
+        workspace_id = params_dict.get("workspace_id")
+        domain_id = params_dict["domain_id"]
 
         job_vo = self.job_mgr.get_job(job_id, domain_id, workspace_id)
 
@@ -215,12 +215,13 @@ class JobService(BaseService):
 
     @transaction(exclude=["authentication", "authorization", "mutation"])
     @check_required(["task_options", "job_task_id", "domain_id"])
-    def get_cost_data(self, params):
+    def get_cost_data(self, params: dict):
         """Execute task to get cost data
 
         Args:
             params (dict): {
                 'task_options': 'dict',
+                'task_changed': 'dict',
                 'job_task_id': 'str',
                 'secret_id': 'str',
                 'domain_id': 'str'
@@ -232,7 +233,7 @@ class JobService(BaseService):
         params_dict = params.dict(exclude_unset=True)
 
         task_options = params_dict["task_options"]
-        task_changed = params_dict.get("task_changed")
+        task_changed = params.get("task_changed")
         job_task_id = params_dict["job_task_id"]
         secret_id = params_dict["secret_id"]
         domain_id = params_dict["domain_id"]
@@ -437,6 +438,7 @@ class JobService(BaseService):
 
         for task in tasks:
             _LOGGER.debug(f'[sync] task options: {task["task_options"]}')
+            _LOGGER.debug(f'[sync] task changed: {task.get("task_changed")}')
         _LOGGER.debug(f"[sync] changed: {changed}")
 
         # Add Job Options
@@ -685,8 +687,7 @@ class JobService(BaseService):
 
                 except Exception as e:
                     _LOGGER.error(
-                        f"[_close_job] delete changed cost data error: {e}",
-                        exc_info=True,
+                        f"[_close_job] delete changed cost data error: {e}", exc_info=True
                     )
                     self._rollback_cost_data(job_vo)
                     self.job_mgr.change_error_status(
@@ -877,6 +878,36 @@ class JobService(BaseService):
 
         return values
 
+    def _distinct_job_task_id(
+            self,
+            job_id: str,
+            data_source_id: str,
+            domain_id: str,
+            start: str,
+            end: str = None,
+    ) -> list:
+        query = {
+            "distinct": "job_task_id",
+            "filter": [
+                {"k": "domain_id", "v": domain_id, "o": "eq"},
+                {"k": "data_source_id", "v": data_source_id, "o": "eq"},
+                {"k": "job_id", "v": job_id, "o": "not"},
+                {"k": "billed_month", "v": start, "o": "gte"},
+            ],
+            "target": "PRIMARY",  # Execute a query to primary DB
+        }
+
+        if end:
+            query["filter"].append({"k": "billed_month", "v": end, "o": "lte"})
+
+        _LOGGER.debug(f"[_distinct_job_id] query: {query}")
+        response = self.cost_mgr.stat_costs(query, domain_id)
+        values = response.get("results", [])
+
+        _LOGGER.debug(f"[_distinct_job_id] job_ids: {values}")
+
+        return values
+
     def _delete_changed_cost_data(
             self, job_vo: Job, start, end, change_filter, domain_id
     ):
@@ -920,6 +951,60 @@ class JobService(BaseService):
             monthly_cost_vos.delete()
             _LOGGER.debug(
                 f"[_delete_changed_cost_data] delete monthly costs (count = {total_count})"
+            )
+
+    def _delete_changed_cost_data_with_job_task(
+            self, job_task_vo: JobTask, domain_id: str
+    ) -> None:
+        changed = job_task_vo.changed
+
+        start = changed.start
+        end = changed.end
+        change_filter = changed.filter
+
+        job_task_ids = self._distinct_job_task_id(
+            job_task_vo.job_id, job_task_vo.data_source_id, domain_id, start, end
+        )
+
+        for job_task_id in job_task_ids:
+            if job_task_vo.job_task_id == job_task_id:
+                continue
+
+            query = {
+                "filter": [
+                    {"k": "domain_id", "v": job_task_vo.domain_id, "o": "eq"},
+                    {"k": "data_source_id", "v": job_task_vo.data_source_id, "o": "eq"},
+                    {"k": "job_id", "v": job_task_vo.job_id, "o": "not"},
+                    {"k": "billed_month", "v": start, "o": "gte"},
+                    {"k": "job_task_id", "v": job_task_id, "o": "eq"},
+                ],
+                "hint": "COMPOUND_INDEX_FOR_SYNC_JOB_2",
+                "include_count": False,
+            }
+
+            if end:
+                query["filter"].append({"k": "billed_month", "v": end, "o": "lte"})
+
+            for key, value in change_filter.items():
+                query["filter"].append({"k": key, "v": value, "o": "eq"})
+
+            _LOGGER.debug(f"[_delete_changed_cost_data_with_job_task] query: {query}")
+
+            cost_vos, total_count = self.cost_mgr.list_costs(
+                copy.deepcopy(query), domain_id, job_task_vo.data_source_id
+            )
+            cost_vos.delete()
+            _LOGGER.debug(
+                f"[_delete_changed_cost_data_with_job_task] delete costs (count = {total_count})"
+            )
+
+            query["hint"] = "COMPOUND_INDEX_FOR_SYNC_JOB"
+            monthly_cost_vos, total_count = self.cost_mgr.list_monthly_costs(
+                copy.deepcopy(query), domain_id
+            )
+            monthly_cost_vos.delete()
+            _LOGGER.debug(
+                f"[_delete_changed_cost_data_with_job_task] delete monthly costs (count = {total_count})"
             )
 
     def _delete_changed_cost_data_with_job_task(
@@ -1206,9 +1291,9 @@ class JobService(BaseService):
         )
 
         for data_source_account_vo in data_source_account_vos:
-            data_source_account_map[data_source_account_vo.account_id] = (
-                data_source_account_vo
-            )
+            data_source_account_map[
+                data_source_account_vo.account_id
+            ] = data_source_account_vo
 
         return data_source_account_map
 

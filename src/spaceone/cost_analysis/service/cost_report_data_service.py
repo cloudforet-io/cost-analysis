@@ -338,9 +338,9 @@ class CostReportDataService(BaseService):
             domain_id,
         )
         for service_account in service_accounts.get("results", []):
-            service_account_name_map[service_account["service_account_id"]] = (
-                service_account["name"]
-            )
+            service_account_name_map[
+                service_account["service_account_id"]
+            ] = service_account["name"]
         return service_account_name_map
 
     @staticmethod
@@ -366,6 +366,7 @@ class CostReportDataService(BaseService):
             query["filter"].append(
                 {"k": "schedule.state", "v": data_source_state, "o": "eq"}
             )
+
         _LOGGER.debug(f"[get_data_source_currency_map] query: {query}")
 
         data_source_vos, total_count = data_source_mgr.list_data_sources(query)

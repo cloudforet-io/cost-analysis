@@ -1,3 +1,4 @@
+import FinanceDataReader as fdr
 import logging
 import pandas as pd
 import requests

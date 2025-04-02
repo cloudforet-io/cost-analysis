@@ -1,7 +1,7 @@
 from mongoengine import *
 
 from spaceone.core.model.mongo_model import MongoModel
-from spaceone.cost_analysis.model.job_model import Changed
+from spaceone.cost_analysis.model.job.database import Changed
 
 
 class JobTask(MongoModel):

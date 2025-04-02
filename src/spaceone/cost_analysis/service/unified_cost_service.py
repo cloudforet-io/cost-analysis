@@ -160,6 +160,7 @@ class UnifiedCostService(BaseService):
                 )
                 self._delete_old_unified_costs(
                     domain_id,
+                    workspace_id,
                     aggregation_month,
                     is_confirmed,
                     unified_cost_created_at,
