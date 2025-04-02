@@ -195,7 +195,7 @@ class CostService(BaseService):
     @append_keyword_filter(["cost_id"])
     @set_query_page_limit(1000)
     @convert_model
-    def list(self, params: Union[CostSearchQueryRequest]) -> Union[CostsResponse, dict]:
+    def list(self, params: dict) -> Union[CostsResponse, dict]:
         """List costs
 
         Args:
@@ -309,7 +309,7 @@ class CostService(BaseService):
     )
     @append_keyword_filter(["cost_id"])
     # @set_query_page_limit(1000)
-    def stat(self, params):
+    def stat(self, params: CostStatQueryRequest) -> dict:
         """
         Args:
             params (dict): {
@@ -327,7 +327,7 @@ class CostService(BaseService):
 
         domain_id = params_dict["domain_id"]
         query = params_dict.get("query", {})
-        data_source_id = self._get_data_source_id_from_query(params, query)
+        data_source_id = self._get_data_source_id_from_query(params_dict, query)
 
         if data_source_id and data_source_id != "global":
             query = self.cost_mgr.change_filter_v_workspace_id(

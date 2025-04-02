@@ -1,5 +1,9 @@
+from http.client import responses
+
 from spaceone.api.cost_analysis.v1 import job_task_pb2, job_task_pb2_grpc
 from spaceone.core.pygrpc import BaseAPI
+
+from spaceone.cost_analysis.service import JobTaskService
 
 
 class JobTask(BaseAPI, job_task_pb2_grpc.JobTaskServicer):
@@ -8,26 +12,18 @@ class JobTask(BaseAPI, job_task_pb2_grpc.JobTaskServicer):
 
     def get(self, request, context):
         params, metadata = self.parse_request(request, context)
-
-        with self.locator.get_service("JobTaskService", metadata) as job_task_service:
-            return self.locator.get_info("JobTaskInfo", job_task_service.get(params))
+        job_task_svc = JobTaskService(metadata)
+        response: dict = job_task_svc.get(params)
+        return self.dict_to_message(response)
 
     def list(self, request, context):
         params, metadata = self.parse_request(request, context)
-
-        with self.locator.get_service("JobTaskService", metadata) as job_task_service:
-            job_task_vos, total_count = job_task_service.list(params)
-            return self.locator.get_info(
-                "JobTasksInfo",
-                job_task_vos,
-                total_count,
-                minimal=self.get_minimal(params),
-            )
+        job_task_svc = JobTaskService(metadata)
+        response: dict = job_task_svc.list(params)
+        return self.dict_to_message(response)
 
     def stat(self, request, context):
         params, metadata = self.parse_request(request, context)
-
-        with self.locator.get_service("JobTaskService", metadata) as job_task_service:
-            return self.locator.get_info(
-                "StatisticsInfo", job_task_service.stat(params)
-            )
+        job_task_svc = JobTaskService(metadata)
+        response: dict = job_task_svc.stat(params)
+        return self.dict_to_message(response)

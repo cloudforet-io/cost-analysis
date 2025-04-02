@@ -172,10 +172,20 @@ class JobService(BaseService):
             JobsResponses
             total_count
         """
-        params_dict = params.dict(exclude_unset=True)
 
-        query = params.get("query", {})
-        return self.job_mgr.list_jobs(query)
+        query = params.query or {}
+        (
+            job_data_vos,
+            total_count,
+        ) = self.job_mgr.list_jobs(query)
+
+        jobs_data_info = [
+            job_data_vo.to_dict()
+            for job_data_vo in job_data_vos
+        ]
+        return JobsResponse(
+            results=jobs_data_info, total_count=total_count
+        )
 
     @transaction(
         permission="cost-analysis:Job.read",
@@ -199,20 +209,18 @@ class JobService(BaseService):
             values (list) : 'list of statistics data'
 
         """
-        params_dict = params.dict(exclude_unset=True)
 
-        query = params.get("query", {})
+        query = params.query or {}
         return self.job_mgr.stat_jobs(query)
 
     @transaction(exclude=["authentication", "authorization", "mutation"])
     @check_required(["task_options", "job_task_id", "domain_id"])
-    def get_cost_data(self, params: dict):
+    def get_cost_data(self, params):
         """Execute task to get cost data
 
         Args:
             params (dict): {
                 'task_options': 'dict',
-                'task_changed': 'dict',
                 'job_task_id': 'str',
                 'secret_id': 'str',
                 'domain_id': 'str'
@@ -223,11 +231,11 @@ class JobService(BaseService):
         """
         params_dict = params.dict(exclude_unset=True)
 
-        task_options = params["task_options"]
-        task_changed = params.get("task_changed")
-        job_task_id = params["job_task_id"]
-        secret_id = params["secret_id"]
-        domain_id = params["domain_id"]
+        task_options = params_dict["task_options"]
+        task_changed = params_dict.get("task_changed")
+        job_task_id = params_dict["job_task_id"]
+        secret_id = params_dict["secret_id"]
+        domain_id = params_dict["domain_id"]
         cost_data_options = {}
 
         job_task_vo: JobTask = self.job_task_mgr.get_job_task(job_task_id, domain_id)
@@ -262,7 +270,7 @@ class JobService(BaseService):
                         service_account_id,
                         project_id,
                     ) = self._get_service_account_id_and_project_id(
-                        params.get("secret_id"), domain_id
+                        params_dict.get("secret_id"), domain_id
                     )
                     cost_data_options.update(
                         {
@@ -429,7 +437,6 @@ class JobService(BaseService):
 
         for task in tasks:
             _LOGGER.debug(f'[sync] task options: {task["task_options"]}')
-            _LOGGER.debug(f'[sync] task changed: {task.get("task_changed")}')
         _LOGGER.debug(f"[sync] changed: {changed}")
 
         # Add Job Options

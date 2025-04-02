@@ -298,12 +298,12 @@ class UnifiedCostService(BaseService):
             total_count,
         ) = self.unified_cost_mgr.list_unified_costs(query)
 
-        cost_reports_data_info = [
+        unified_costs_data_info = [
             cost_report_data_vo.to_dict()
             for cost_report_data_vo in cost_report_data_vos
         ]
         return UnifiedCostsResponse(
-            results=cost_reports_data_info, total_count=total_count
+            results=unified_costs_data_info, total_count=total_count
         )
 
     @transaction(

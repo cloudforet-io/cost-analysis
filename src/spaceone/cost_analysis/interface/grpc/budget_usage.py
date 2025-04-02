@@ -11,26 +11,18 @@ class BudgetUsage(BaseAPI, budget_usage_pb2_grpc.BudgetUsageServicer):
 
     def list(self, request, context):
         params, metadata = self.parse_request(request, context)
-        budget_svc = BudgetUsageService(metadata)
-        response: dict = budget_svc.list(params)
+        budget_usage_svc = BudgetUsageService(metadata)
+        response: dict = budget_usage_svc.list(params)
         return self.dict_to_message(response)
 
     def stat(self, request, context):
         params, metadata = self.parse_request(request, context)
-
-        with self.locator.get_service(
-            "BudgetUsageService", metadata
-        ) as budget_usage_service:
-            return self.locator.get_info(
-                "StatisticsInfo", budget_usage_service.stat(params)
-            )
+        budget_usage_svc = BudgetUsageService(metadata)
+        response: dict = budget_usage_svc.stat(params)
+        return self.dict_to_message(response)
 
     def analyze(self, request, context):
         params, metadata = self.parse_request(request, context)
-
-        with self.locator.get_service(
-            "BudgetUsageService", metadata
-        ) as budget_usage_service:
-            return self.locator.get_info(
-                "AnalyzeInfo", budget_usage_service.analyze(params)
-            )
+        budget_usage_svc = BudgetUsageService(metadata)
+        response: dict = budget_usage_svc.analyze(params)
+        return self.dict_to_message(response)

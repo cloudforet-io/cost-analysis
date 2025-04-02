@@ -10,16 +10,15 @@ class Cost(BaseAPI, cost_pb2_grpc.CostServicer):
 
     def create(self, request, context):
         params, metadata = self.parse_request(request, context)
-
-        with self.locator.get_service("CostService", metadata) as cost_service:
-            return self.locator.get_info("CostInfo", cost_service.create(params))
+        cost_svc = CostService(metadata)
+        response: dict = cost_svc.create(params)
+        return self.dict_to_message(response)
 
     def delete(self, request, context):
         params, metadata = self.parse_request(request, context)
-
-        with self.locator.get_service("CostService", metadata) as cost_service:
-            cost_service.delete(params)
-            return self.locator.get_info("EmptyInfo")
+        cost_svc = CostService(metadata)
+        cost_svc.delete(params)
+        return self.empty()
 
     def get(self, request, context):
         params, metadata = self.parse_request(request, context)
@@ -35,12 +34,12 @@ class Cost(BaseAPI, cost_pb2_grpc.CostServicer):
 
     def analyze(self, request, context):
         params, metadata = self.parse_request(request, context)
-
-        with self.locator.get_service("CostService", metadata) as cost_service:
-            return self.locator.get_info("StatisticsInfo", cost_service.analyze(params))
+        cost_svc = CostService(metadata)
+        response: dict = cost_svc.analyze(params)
+        return self.dict_to_message(response)
 
     def stat(self, request, context):
         params, metadata = self.parse_request(request, context)
-
-        with self.locator.get_service("CostService", metadata) as cost_service:
-            return self.locator.get_info("StatisticsInfo", cost_service.stat(params))
+        cost_svc = CostService(metadata)
+        response: dict = cost_svc.stat(params)
+        return self.dict_to_message(response)

@@ -74,10 +74,20 @@ class JobTaskService(BaseService):
             JobTaskResponses
             total_count
         """
-        params_dict = params.dict(exclude_unset=True)
 
-        query = params_dict.get("query", {})
-        return self.job_task_mgr.list_job_tasks(query)
+        query = params.query or {}
+        (
+            job_task_data_vos,
+            total_count,
+        ) = self.job_task_mgr.list_job_tasks(query)
+
+        job_tasks_data_info = [
+            job_task_data_vo.to_dict()
+            for job_task_data_vo in job_task_data_vos
+        ]
+        return JobTasksResponse(
+            results=job_tasks_data_info, total_count=total_count
+        )
 
     @transaction(
         permission="cost-analysis:JobTask.read",

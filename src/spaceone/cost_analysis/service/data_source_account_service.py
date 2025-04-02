@@ -222,7 +222,6 @@ class DataSourceAccountService(BaseService):
             data_source_accounts_info.to_dict()
             for data_source_accounts_info in data_source_accounts
         ]
-
         return DataSourceAccountsResponse(
             results=data_source_accounts_info, total_count=total_count
         )
