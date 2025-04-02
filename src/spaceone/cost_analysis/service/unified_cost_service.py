@@ -140,9 +140,8 @@ class UnifiedCostService(BaseService):
         workspace_ids = self._get_workspace_ids_with_none(domain_id)
 
         try:
-
+            unified_cost_created_at = datetime.now(timezone.utc)
             for workspace_id in workspace_ids:
-                unified_cost_created_at = datetime.now(timezone.utc)
                 self.create_unified_cost_with_workspace(
                     exchange_source,
                     domain_id,
@@ -155,10 +154,10 @@ class UnifiedCostService(BaseService):
                 )
                 self._delete_old_unified_costs(
                     domain_id,
-                    workspace_id,
                     aggregation_month,
                     is_confirmed,
                     unified_cost_created_at,
+                    workspace_id,
                 )
 
             self.unified_cost_job_mgr.update_is_confirmed_unified_cost_job(
@@ -569,15 +568,19 @@ class UnifiedCostService(BaseService):
     def _delete_old_unified_costs(
         self,
         domain_id: str,
-        workspace_id: str,
         unified_cost_month: str,
         is_confirmed: bool,
         created_at: datetime,
+            workspace_id: Union[str, None],
     ):
+        query_filter = {"filter": []}
 
-        query_filter = {
-            "filter": [
-                {"key": "workspace_id", "value": workspace_id, "operator": "eq"},
+        if workspace_id:
+            query_filter["filter"].append(
+                {"key": "workspace_id", "value": workspace_id, "operator": "eq"}
+            )
+        query_filter["filter"].extend(
+            [
                 {
                     "key": "billed_year",
                     "value": unified_cost_month.split("-")[0],
@@ -586,8 +589,8 @@ class UnifiedCostService(BaseService):
                 {"key": "billed_month", "value": unified_cost_month, "operator": "eq"},
                 {"key": "domain_id", "value": domain_id, "operator": "eq"},
                 {"key": "created_at", "value": created_at, "operator": "lt"},
-            ],
-        }
+            ]
+        )
 
         _LOGGER.debug(
             f"[delete_old_unified_costs] delete query filter conditions: {query_filter}"
