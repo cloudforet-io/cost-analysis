@@ -197,11 +197,20 @@ class CostQuerySetService(BaseService):
             cost_query_set_vos (object)
             total_count
         """
-        params_dict = params.dict(exclude_unset=True)
+        query = params.query or {}
 
-        query = params_dict.get("query", {})
-        #TODO
-        return self.cost_query_set_mgr.list_cost_query_sets(query)
+        (
+            cost_query_set_data_vos,
+            total_count,
+        ) = self.cost_query_set_mgr.list_cost_query_sets(query)
+
+        cost_query_sets_data_info = [
+            cost_query_set_data_vo.to_dict()
+            for cost_query_set_data_vo in cost_query_set_data_vos
+        ]
+        return CostQuerySetsResponse(
+            results=cost_query_sets_data_info, total_count=total_count
+        )
 
     @transaction(
         permission="cost-analysis:CostQuerySet.read",
@@ -222,7 +231,6 @@ class CostQuerySetService(BaseService):
             values (list) : 'list of statistics data'
 
         """
-        params_dict = params.dict(exclude_unset=True)
 
-        query = params_dict.get("query", {})
+        query = params.query or {}
         return self.cost_query_set_mgr.stat_cost_query_sets(query)

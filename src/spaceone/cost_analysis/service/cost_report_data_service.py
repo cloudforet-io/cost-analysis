@@ -133,7 +133,6 @@ class CostReportDataService(BaseService):
         """
 
         query = params.query or {}
-
         return self.cost_report_data_mgr.analyze_cost_reports_data(query)
 
     @transaction(

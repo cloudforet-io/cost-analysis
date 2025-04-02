@@ -63,10 +63,20 @@ class BudgetUsageService(BaseService):
             budget_usage_vos (object)
             total_count
         """
-        params_dict = params.dict(exclude_unset=True)
 
-        query = params_dict.get("query", {})
-        return self.budget_usage_mgr.list_budget_usages(query)
+        query = params.query or {}
+        (
+            budget_usage_data_vos,
+            total_count,
+        ) = self.budget_usage_mgr.list_budget_usages(query)
+
+        budget_usages_data_info = [
+            budget_usage_data_vo.to_dict()
+            for budget_usage_data_vo in budget_usage_data_vos
+        ]
+        return BudgetUsagesResponse(
+            results=budget_usages_data_info, total_count=total_count
+        )
 
     @transaction(
         permission="cost-analysis:BudgetUsage.read",
@@ -91,9 +101,8 @@ class BudgetUsageService(BaseService):
             values (list) : 'list of statistics data'
 
         """
-        params_dict = params.dict(exclude_unset=True)
 
-        query = self._set_user_project_or_project_group_filter(params_dict)
+        query = params.query or {}
         return self.budget_usage_mgr.stat_budget_usages(query)
 
     @transaction(
@@ -122,9 +131,8 @@ class BudgetUsageService(BaseService):
             values (list) : 'list of statistics data'
 
         """
-        params_dict = params.dict(exclude_unset=True)
 
-        query = self._set_user_project_or_project_group_filter(params_dict)
+        query = params.query or {}
         self._check_granularity(query.get("granularity"))
 
         return self.budget_usage_mgr.analyze_budget_usages(query)

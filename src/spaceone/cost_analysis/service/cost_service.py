@@ -15,7 +15,7 @@ from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 from spaceone.cost_analysis.model import DataSource
 from spaceone.cost_analysis.model.cost.database import Cost
 from spaceone.cost_analysis.model.cost.request import CostCreateRequest, CostDeleteRequest, CostGetRequest, \
-    CostAnalyzeQueryRequest
+    CostAnalyzeQueryRequest, CostStatQueryRequest
 from spaceone.cost_analysis.model.cost.response import CostResponse, CostsResponse
 
 _LOGGER = logging.getLogger(__name__)
@@ -301,7 +301,7 @@ class CostService(BaseService):
     )
     @append_keyword_filter(["cost_id"])
     # @set_query_page_limit(1000)
-    def stat(self, params):
+    def stat(self, params: CostStatQueryRequest) -> dict:
         """
         Args:
             params (dict): {
@@ -319,7 +319,7 @@ class CostService(BaseService):
 
         domain_id = params_dict["domain_id"]
         query = params_dict.get("query", {})
-        data_source_id = self._get_data_source_id_from_query(params, query)
+        data_source_id = self._get_data_source_id_from_query(params_dict, query)
 
         if data_source_id and data_source_id != "global":
             query = self.cost_mgr.change_filter_v_workspace_id(

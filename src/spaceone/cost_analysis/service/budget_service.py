@@ -12,7 +12,7 @@ from spaceone.cost_analysis.manager.budget_usage_manager import BudgetUsageManag
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 from spaceone.cost_analysis.model.budget.database import Budget
 from spaceone.cost_analysis.model.budget.request import BudgetCreateRequest, BudgetUpdateRequest, BudgetDeleteRequest, \
-    BudgetGetRequest, BudgetSearchQueryRequest, BudgetStatQueryRequest
+    BudgetGetRequest, BudgetSearchQueryRequest, BudgetStatQueryRequest, BudgetSetNotificationRequest
 from spaceone.cost_analysis.model.budget.response import BudgetResponse, BudgetsResponse
 
 _LOGGER = logging.getLogger(__name__)
@@ -219,7 +219,7 @@ class BudgetService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @check_required(["budget_id", "workspace_id", "domain_id"])
-    def set_notification(self, params: dict) -> dict:
+    def set_notification(self, params: BudgetSetNotificationRequest) -> Union[BudgetResponse, dict]:
         """Set budget notification
 
         Args:
@@ -234,10 +234,10 @@ class BudgetService(BaseService):
             budget_vo (object)
         """
 
-        budget_id = params["budget_id"]
-        workspace_id = params.get("workspace_id")
-        domain_id = params["domain_id"]
-        notifications = params.get("notifications", [])
+        budget_id = params.budget_id
+        workspace_id = params.workspace_id
+        domain_id = params.domain_id
+        notifications = params.notifications or []
 
         budget_vo: Budget = self.budget_mgr.get_budget(
             budget_id, domain_id, workspace_id
@@ -245,9 +245,11 @@ class BudgetService(BaseService):
 
         # Check Notifications
         self._check_notifications(notifications, budget_vo.project_id)
-        params["notifications"] = notifications
+        params.notifications = notifications
 
-        return self.budget_mgr.update_budget_by_vo(params, budget_vo)
+        updated_budget_vo = self.budget_mgr.update_budget_by_vo(params, budget_vo)
+
+        return BudgetResponse(**updated_budget_vo.to_dict())
 
     @transaction(
         permission="cost-analysis:Budget.write",
@@ -348,7 +350,18 @@ class BudgetService(BaseService):
 
         query: dict = self._set_user_project_or_project_group_filter(params_dict)
 
-        return self.budget_mgr.list_budgets(query)
+        (
+            budget_data_vos,
+            total_count,
+        ) = self.budget_mgr.list_budgets(query)
+
+        budgets_data_info = [
+            budget_data_vo.to_dict()
+            for budget_data_vo in budget_data_vos
+        ]
+        return BudgetsResponse(
+            results=budgets_data_info, total_count=total_count
+        )
 
     @transaction(
         permission="cost-analysis:Budget.read",
@@ -370,9 +383,8 @@ class BudgetService(BaseService):
             values (list) : 'list of statistics data'
 
         """
-        params_dict = params.dict(exclude_unset=True)
 
-        query = params_dict.get("query", {})
+        query = params.query or {}
         return self.budget_mgr.stat_budgets(query)
 
     @staticmethod

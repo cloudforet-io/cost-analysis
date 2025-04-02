@@ -1,6 +1,8 @@
 from spaceone.api.cost_analysis.v1 import data_source_rule_pb2, data_source_rule_pb2_grpc
 from spaceone.core.pygrpc import BaseAPI
 
+from spaceone.cost_analysis.service import DataSourceRuleService
+
 
 class DataSourceRule(BaseAPI, data_source_rule_pb2_grpc.DataSourceRuleServicer):
 
@@ -9,47 +11,42 @@ class DataSourceRule(BaseAPI, data_source_rule_pb2_grpc.DataSourceRuleServicer):
 
     def create(self, request, context):
         params, metadata = self.parse_request(request, context)
-
-        with self.locator.get_service('DataSourceRuleService', metadata) as data_source_rule_service:
-            return self.locator.get_info('DataSourceRuleInfo', data_source_rule_service.create(params))
+        data_source_rule_svc = DataSourceRuleService(metadata)
+        response: dict = data_source_rule_svc.create(params)
+        return self.dict_to_message(response)
 
     def update(self, request, context):
         params, metadata = self.parse_request(request, context)
-
-        with self.locator.get_service('DataSourceRuleService', metadata) as data_source_rule_service:
-            return self.locator.get_info('DataSourceRuleInfo', data_source_rule_service.update(params))
+        data_source_rule_svc = DataSourceRuleService(metadata)
+        response: dict = data_source_rule_svc.update(params)
+        return self.dict_to_message(response)
 
     def change_order(self, request, context):
         params, metadata = self.parse_request(request, context)
-
-        with self.locator.get_service('DataSourceRuleService', metadata) as data_source_rule_service:
-            return self.locator.get_info('DataSourceRuleInfo', data_source_rule_service.change_order(params))
+        data_source_rule_svc = DataSourceRuleService(metadata)
+        response: dict = data_source_rule_svc.change_order(params)
+        return self.dict_to_message(response)
 
     def delete(self, request, context):
         params, metadata = self.parse_request(request, context)
-
-        with self.locator.get_service('DataSourceRuleService', metadata) as data_source_rule_service:
-            data_source_rule_service.delete(params)
-            return self.locator.get_info('EmptyInfo')
+        data_source_rule_svc = DataSourceRuleService(metadata)
+        data_source_rule_svc.delete(params)
+        return self.empty()
 
     def get(self, request, context):
         params, metadata = self.parse_request(request, context)
-
-        with self.locator.get_service('DataSourceRuleService', metadata) as data_source_rule_service:
-            return self.locator.get_info('DataSourceRuleInfo', data_source_rule_service.get(params))
+        data_source_rule_svc = DataSourceRuleService(metadata)
+        response: dict = data_source_rule_svc.get(params)
+        return self.dict_to_message(response)
 
     def list(self, request, context):
         params, metadata = self.parse_request(request, context)
-
-        with self.locator.get_service('DataSourceRuleService', metadata) as data_source_rule_service:
-            data_source_rule_vos, total_count = data_source_rule_service.list(params)
-            return self.locator.get_info('DataSourceRulesInfo',
-                                         data_source_rule_vos,
-                                         total_count,
-                                         minimal=self.get_minimal(params))
+        data_source_rule_svc = DataSourceRuleService(metadata)
+        response: dict = data_source_rule_svc.list(params)
+        return self.dict_to_message(response)
 
     def stat(self, request, context):
         params, metadata = self.parse_request(request, context)
-
-        with self.locator.get_service('DataSourceRuleService', metadata) as data_source_rule_service:
-            return self.locator.get_info('StatisticsInfo', data_source_rule_service.stat(params))
+        data_source_rule_svc = DataSourceRuleService(metadata)
+        response: dict = data_source_rule_svc.stat(params)
+        return self.dict_to_message(response)

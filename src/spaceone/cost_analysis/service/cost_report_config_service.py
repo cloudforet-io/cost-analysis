@@ -285,7 +285,6 @@ class CostReportConfigService(BaseService):
             cost_report_config_vo.to_dict()
             for cost_report_config_vo in cost_report_config_vos
         ]
-
         return CostReportConfigsResponse(
             results=cost_report_configs_info, total_count=total_count
         )

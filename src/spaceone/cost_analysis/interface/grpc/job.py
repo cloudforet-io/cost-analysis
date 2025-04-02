@@ -1,6 +1,8 @@
 from spaceone.api.cost_analysis.v1 import job_pb2, job_pb2_grpc
 from spaceone.core.pygrpc import BaseAPI
 
+from spaceone.cost_analysis.service import JobService
+
 
 class Job(BaseAPI, job_pb2_grpc.JobServicer):
 
@@ -9,28 +11,24 @@ class Job(BaseAPI, job_pb2_grpc.JobServicer):
 
     def cancel(self, request, context):
         params, metadata = self.parse_request(request, context)
-
-        with self.locator.get_service('JobService', metadata) as job_service:
-            return self.locator.get_info('JobInfo', job_service.cancel(params))
+        job_svc = JobService(metadata)
+        response: dict = job_svc.cancel(params)
+        return self.dict_to_message(response)
 
     def get(self, request, context):
         params, metadata = self.parse_request(request, context)
-
-        with self.locator.get_service('JobService', metadata) as job_service:
-            return self.locator.get_info('JobInfo', job_service.get(params))
+        job_svc = JobService(metadata)
+        response: dict = job_svc.get(params)
+        return self.dict_to_message(response)
 
     def list(self, request, context):
         params, metadata = self.parse_request(request, context)
-
-        with self.locator.get_service('JobService', metadata) as job_service:
-            job_vos, total_count = job_service.list(params)
-            return self.locator.get_info('JobsInfo',
-                                         job_vos,
-                                         total_count,
-                                         minimal=self.get_minimal(params))
+        job_svc = JobService(metadata)
+        response: dict = job_svc.list(params)
+        return self.dict_to_message(response)
 
     def stat(self, request, context):
         params, metadata = self.parse_request(request, context)
-
-        with self.locator.get_service('JobService', metadata) as job_service:
-            return self.locator.get_info('StatisticsInfo', job_service.stat(params))
+        job_svc = JobService(metadata)
+        response: dict = job_svc.stat(params)
+        return self.dict_to_message(response)

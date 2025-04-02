@@ -12,7 +12,7 @@ from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 from spaceone.cost_analysis.model.data_source_rule.database import DataSourceRule
 from spaceone.cost_analysis.model.data_source_rule.request import DataSourceRuleCreateRequest, \
     DataSourceRuleUpdateRequest, DataSourceRuleChangeOrderRequest, DataSourceRuleDeleteRequest, \
-    DataSourceRuleGetRequest, DataSourceRuleStatQueryRequest
+    DataSourceRuleGetRequest, DataSourceRuleStatQueryRequest, DataSourceRuleSearchQueryRequest
 from spaceone.cost_analysis.model.data_source_rule.response import DataSourceRuleResponse, DataSourceRulesResponse
 
 _LOGGER = logging.getLogger(__name__)
@@ -109,7 +109,7 @@ class DataSourceRuleService(BaseService):
 
         self._check_actions(actions, domain_id)
 
-        data_source_mgr =  DataSourceManager()
+        data_source_mgr = DataSourceManager()
 
         data_source_vo = data_source_mgr.get_data_source(data_source_id, domain_id)
 
@@ -173,9 +173,13 @@ class DataSourceRuleService(BaseService):
         if "actions" in params:
             self._check_actions(params_dict["actions"], domain_id)
 
-        return self.data_source_rule_mgr.update_data_source_rule_by_vo(
-            params, data_source_rule_vo
+        data_source_rule_vo = (
+            self.data_source_rule_mgr.update_data_source_rule_by_vo(
+                params, data_source_rule_vo
+            )
         )
+
+        return DataSourceRuleResponse(**data_source_rule_vo.to_dict())
 
     @transaction(
         permission="cost-analysis:DataSourceRule.write",
@@ -343,7 +347,7 @@ class DataSourceRuleService(BaseService):
         ["data_source_rule_id", "name", "data_source_id", "workspace_id", "domain_id"]
     )
     @append_keyword_filter(["data_source_rule_id", "name"])
-    def list(self, params) -> Union[DataSourceRulesResponse, dict]:
+    def list(self, params: DataSourceRuleSearchQueryRequest) -> Union[DataSourceRulesResponse, dict]:
         """List data source rule
 
         Args:
@@ -361,11 +365,17 @@ class DataSourceRuleService(BaseService):
             DataSourceRulesResponse:
         """
 
-        query = params.get("query", {})
+        query = params.query or {}
+        (
+            data_source_rule_vos,
+            total_count
+        ) = self.data_source_rule_mgr.list_data_source_rules(query)
 
-        data_source_rule_vos, total_count = self.data_source_rule_mgr.list_data_source_rules(query)
-
-        return DataSourceRulesResponse(results=data_source_rule_vos, total_count=total_count)
+        data_source_rules_data_info = [
+            data_source_rule_vo.to_dict()
+            for data_source_rule_vo in data_source_rule_vos
+        ]
+        return DataSourceRulesResponse(results=data_source_rules_data_info, total_count=total_count)
 
     @transaction(
         permission="cost-analysis:DataSourceRule.read",
@@ -388,10 +398,7 @@ class DataSourceRuleService(BaseService):
             values (list) : 'list of statistics data'
 
         """
-
-        params_dict = params.dict(exclude_unset=True)
-
-        query = params_dict.get("query", {})
+        query = params.query or {}
         return self.data_source_rule_mgr.stat_data_source_rules(query)
 
     @staticmethod

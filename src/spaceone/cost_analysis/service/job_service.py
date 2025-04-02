@@ -165,10 +165,20 @@ class JobService(BaseService):
             JobsResponses
             total_count
         """
-        params_dict = params.dict(exclude_unset=True)
 
-        query = params_dict.get("query", {})
-        return self.job_mgr.list_jobs(query)
+        query = params.query or {}
+        (
+            job_data_vos,
+            total_count,
+        ) = self.job_mgr.list_jobs(query)
+
+        jobs_data_info = [
+            job_data_vo.to_dict()
+            for job_data_vo in job_data_vos
+        ]
+        return JobsResponse(
+            results=jobs_data_info, total_count=total_count
+        )
 
     @transaction(
         permission="cost-analysis:Job.read",
@@ -192,9 +202,8 @@ class JobService(BaseService):
             values (list) : 'list of statistics data'
 
         """
-        params_dict = params.dict(exclude_unset=True)
 
-        query = params_dict.get("query", {})
+        query = params.query or {}
         return self.job_mgr.stat_jobs(query)
 
     @transaction(exclude=["authentication", "authorization", "mutation"])
