@@ -68,9 +68,8 @@ class DataSourceRuleService(BaseService):
         Returns:
             DataSourceRuleResponse:
         """
-        params_dict = params.dict(exclude_unset=True)
 
-        data_source_rule_vo = self.create_data_source_rule(params_dict)
+        data_source_rule_vo = self.create_data_source_rule(params.dict(exclude_unset=True))
 
         return DataSourceRuleResponse(**data_source_rule_vo.to_dict())
 
@@ -146,13 +145,11 @@ class DataSourceRuleService(BaseService):
             DataSourceRuleResponse:
         """
 
-        params_dict = params.dict(exclude_unset=True)
-
-        data_source_rule_id = params_dict["data_source_rule_id"]
-        domain_id = params_dict["domain_id"]
-        workspace_id = params_dict.get("workspace_id")
-        conditions_policy = params_dict.get("conditions_policy")
-        conditions = params_dict.get("conditions", [])
+        data_source_rule_id = params.data_source_rule_id
+        domain_id = params.domain_id
+        workspace_id = params.workspace_id
+        conditions_policy = params.conditions_policy
+        conditions = params.conditions or []
 
         data_source_rule_vo = self.data_source_rule_mgr.get_data_source_rule(
             data_source_rule_id, domain_id, workspace_id
@@ -163,7 +160,7 @@ class DataSourceRuleService(BaseService):
 
         if conditions_policy:
             if conditions_policy == "ALWAYS":
-                params_dict["conditions"] = []
+                params.conditions = []
             else:
                 if len(conditions) == 0:
                     raise ERROR_REQUIRED_PARAMETER(key="conditions")
@@ -171,7 +168,7 @@ class DataSourceRuleService(BaseService):
                     self._check_conditions(conditions)
 
         if "actions" in params:
-            self._check_actions(params_dict["actions"], domain_id)
+            self._check_actions(params.actions, domain_id)
 
         data_source_rule_vo = (
             self.data_source_rule_mgr.update_data_source_rule_by_vo(
@@ -201,12 +198,10 @@ class DataSourceRuleService(BaseService):
             DataSourceRuleResponse:
         """
 
-        params_dict = params.dict(exclude_unset=True)
-
-        data_source_rule_id = params_dict["data_source_rule_id"]
-        order = params_dict["order"]
-        domain_id = params_dict["domain_id"]
-        workspace_id = params_dict.get("workspace_id")
+        data_source_rule_id = params.data_source_rule_id
+        order = params.order
+        domain_id = params.domain_id
+        workspace_id = params.workspace_id
 
         self._check_order(order)
 
@@ -275,11 +270,9 @@ class DataSourceRuleService(BaseService):
             None
         """
 
-        params_dict = params.dict(exclude_unset=True)
-
-        data_source_rule_id = params_dict["data_source_rule_id"]
-        domain_id = params_dict["domain_id"]
-        workspace_id = params_dict.get("workspace_id")
+        data_source_rule_id = params.data_source_rule_id
+        domain_id = params.domain_id
+        workspace_id = params.workspace_id
 
         data_source_rule_vo: DataSourceRule = (
             self.data_source_rule_mgr.get_data_source_rule(
@@ -325,11 +318,9 @@ class DataSourceRuleService(BaseService):
             DataSourceRuleResponse:
         """
 
-        params_dict = params.dict(exclude_unset=True)
-
-        data_source_rule_id = params_dict["data_source_rule_id"]
-        domain_id = params_dict["domain_id"]
-        workspace_id = params_dict.get("workspace_id")
+        data_source_rule_id = params.data_source_rule_id
+        domain_id = params.domain_id
+        workspace_id = params.workspace_id
 
         data_source_rule_vo = self.data_source_rule_mgr.get_data_source_rule(
             data_source_rule_id, domain_id, workspace_id
@@ -366,15 +357,9 @@ class DataSourceRuleService(BaseService):
         """
 
         query = params.query or {}
-        (
-            data_source_rule_vos,
-            total_count
-        ) = self.data_source_rule_mgr.list_data_source_rules(query)
 
-        data_source_rules_data_info = [
-            data_source_rule_vo.to_dict()
-            for data_source_rule_vo in data_source_rule_vos
-        ]
+        data_source_rule_vos, total_count = self.data_source_rule_mgr.list_data_source_rules(query)
+        data_source_rules_data_info = [data_source_rule_vo.to_dict() for data_source_rule_vo in data_source_rule_vos]
         return DataSourceRulesResponse(results=data_source_rules_data_info, total_count=total_count)
 
     @transaction(

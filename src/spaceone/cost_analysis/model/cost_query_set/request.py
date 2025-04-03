@@ -33,12 +33,15 @@ class CostQuerySetUpdateRequest(BaseModel):
 
 class CostQuerySetDeleteRequest(BaseModel):
     cost_query_set_id: str
+    user_id: str
+    workspace_id: Union[str, None] = None
     domain_id: str
 
 
 class CostQuerySetGetRequest(BaseModel):
     cost_query_set_id: str
     user_id: str
+    workspace_id: Union[str, None] = None
     domain_id: str
 
 

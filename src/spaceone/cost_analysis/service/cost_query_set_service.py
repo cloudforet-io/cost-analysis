@@ -1,6 +1,7 @@
 import logging
 from typing import Union
 
+from ecdsa.test_pyecdsa import params
 from spaceone.core.service import *
 
 from spaceone.cost_analysis.manager import DataSourceManager
@@ -50,17 +51,16 @@ class CostQuerySetService(BaseService):
         Returns:
             cost_query_set_vo (object)
         """
-        params_dict = params.dict(exclude_unset=True)
 
-        domain_id = params_dict["domain_id"]
-        data_source_id = params_dict["data_source_id"]
+        domain_id = params.domain_id
+        data_source_id = params.data_source_id
 
         if data_source_id != "unified-cost-data-source":
             self.data_source_mgr.get_data_source(
                 domain_id=domain_id, data_source_id=data_source_id
             )
 
-        cost_query_set_vo = self.cost_query_set_mgr.create_cost_query_set(params_dict)
+        cost_query_set_vo = self.cost_query_set_mgr.create_cost_query_set(params.dict(exclude_unset=True))
         return CostQuerySetResponse(**cost_query_set_vo.to_dict())
 
     @transaction(
@@ -86,12 +86,11 @@ class CostQuerySetService(BaseService):
         Returns:
             cost_query_set_vo (object)
         """
-        params_dict = params.dict(exclude_unset=True)
 
-        cost_query_set_id = params_dict["cost_query_set_id"]
-        user_id = params_dict["user_id"]
-        domain_id = params_dict["domain_id"]
-        workspace_id = params_dict.get("workspace_id")
+        cost_query_set_id = params.cost_query_set_id
+        user_id = params.user_id
+        domain_id = params.domain_id
+        workspace_id = params.workspace_id
 
         cost_query_set_vo = self.cost_query_set_mgr.get_cost_query_set(
             cost_query_set_id, user_id, domain_id, workspace_id
@@ -120,13 +119,12 @@ class CostQuerySetService(BaseService):
         Returns:
             None
         """
-        params_dict = params.dict(exclude_unset=True)
 
         cost_query_set_vo = self.cost_query_set_mgr.get_cost_query_set(
-            params_dict["cost_query_set_id"],
-            params_dict["user_id"],
-            params_dict["domain_id"],
-            params_dict.get("workspace_id"),
+            params.cost_query_set_id,
+            params.user_id,
+            params.domain_id,
+            params.workspace_id,
         )
 
         self.cost_query_set_mgr.delete_cost_query_set_by_vo(cost_query_set_vo)
@@ -149,12 +147,11 @@ class CostQuerySetService(BaseService):
         Returns:
             cost_query_set_vo (object)
         """
-        params_dict = params.dict(exclude_unset=True)
 
-        cost_query_set_id = params_dict["cost_query_set_id"]
-        user_id = params_dict["user_id"]
-        domain_id = params_dict["domain_id"]
-        workspace_id = params_dict.get("workspace_id")
+        cost_query_set_id = params.cost_query_set_id
+        user_id = params.user_id
+        domain_id = params.domain_id
+        workspace_id = params.workspace_id
 
         cost_query_set_vo = self.cost_query_set_mgr.get_cost_query_set(
             cost_query_set_id, user_id, domain_id, workspace_id
@@ -199,18 +196,9 @@ class CostQuerySetService(BaseService):
         """
         query = params.query or {}
 
-        (
-            cost_query_set_data_vos,
-            total_count,
-        ) = self.cost_query_set_mgr.list_cost_query_sets(query)
-
-        cost_query_sets_data_info = [
-            cost_query_set_data_vo.to_dict()
-            for cost_query_set_data_vo in cost_query_set_data_vos
-        ]
-        return CostQuerySetsResponse(
-            results=cost_query_sets_data_info, total_count=total_count
-        )
+        cost_query_set_data_vos, total_count= self.cost_query_set_mgr.list_cost_query_sets(query)
+        cost_query_sets_data_info = [cost_query_set_data_vo.to_dict() for cost_query_set_data_vo in cost_query_set_data_vos]
+        return CostQuerySetsResponse(results=cost_query_sets_data_info, total_count=total_count)
 
     @transaction(
         permission="cost-analysis:CostQuerySet.read",

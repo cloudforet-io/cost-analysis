@@ -274,20 +274,10 @@ class CostReportConfigService(BaseService):
         """
 
         query = params.query or {}
-        (
-            cost_report_config_vos,
-            total_count,
-        ) = self.cost_report_config_mgr.list_cost_report_configs(
-            query, params.domain_id
-        )
 
-        cost_report_configs_info = [
-            cost_report_config_vo.to_dict()
-            for cost_report_config_vo in cost_report_config_vos
-        ]
-        return CostReportConfigsResponse(
-            results=cost_report_configs_info, total_count=total_count
-        )
+        cost_report_config_vos, total_count= self.cost_report_config_mgr.list_cost_report_configs(query, params.domain_id)
+        cost_report_configs_info = [cost_report_config_vo.to_dict() for cost_report_config_vo in cost_report_config_vos]
+        return CostReportConfigsResponse(results=cost_report_configs_info, total_count=total_count)
 
     @transaction(
         permission="cost-analysis:CostReportConfig.read",

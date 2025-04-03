@@ -40,6 +40,7 @@ class CostDeleteRequest(BaseModel):
 class CostGetRequest(BaseModel):
     data_source_id: str
     cost_id: str
+    user_projects: Union[str, None] = None
     workspace_id: Union[str, None] = None
     domain_id: str
 

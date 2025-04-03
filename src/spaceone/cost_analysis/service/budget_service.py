@@ -411,6 +411,7 @@ class BudgetService(BaseService):
         query: dict = self._set_user_project_or_project_group_filter(
             params.dict(exclude_unset=True)
         )
+
         budget_vos, total_count = self.budget_mgr.list_budgets(query)
         budgets_info = [budget_vo.to_dict() for budget_vo in budget_vos]
         return BudgetsResponse(total_count=total_count, results=budgets_info)

@@ -51,12 +51,13 @@ class DataSourceRuleChangeOrderRequest(BaseModel):
 
 class DataSourceRuleDeleteRequest(BaseModel):
     data_source_rule_id: str
+    workspace_id: Union[str, None] = None
     domain_id: str
 
 
 class DataSourceRuleGetRequest(BaseModel):
     data_source_rule_id: str
-    workspace_id: list
+    workspace_id: str
     domain_id: str
 
 

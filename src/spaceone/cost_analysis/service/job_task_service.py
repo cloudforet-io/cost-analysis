@@ -38,11 +38,10 @@ class JobTaskService(BaseService):
         Returns:
             job_task_vo (object)
         """
-        params_dict = params.dict(exclude_unset=True)
 
-        job_task_id = params_dict["job_task_id"]
-        workspace_id = params_dict.get("workspace_id")
-        domain_id = params_dict["domain_id"]
+        job_task_id = params.job_task_id
+        workspace_id = params.workspace_id
+        domain_id = params.domain_id
 
         return self.job_task_mgr.get_job_task(job_task_id, domain_id, workspace_id)
 
@@ -76,18 +75,10 @@ class JobTaskService(BaseService):
         """
 
         query = params.query or {}
-        (
-            job_task_data_vos,
-            total_count,
-        ) = self.job_task_mgr.list_job_tasks(query)
 
-        job_tasks_data_info = [
-            job_task_data_vo.to_dict()
-            for job_task_data_vo in job_task_data_vos
-        ]
-        return JobTasksResponse(
-            results=job_tasks_data_info, total_count=total_count
-        )
+        job_task_data_vos, total_count = self.job_task_mgr.list_job_tasks(query)
+        job_tasks_data_info = [job_task_data_vo.to_dict() for job_task_data_vo in job_task_data_vos]
+        return JobTasksResponse(results=job_tasks_data_info, total_count=total_count)
 
     @transaction(
         permission="cost-analysis:JobTask.read",
@@ -109,7 +100,6 @@ class JobTaskService(BaseService):
             values (list) : 'list of statistics data'
 
         """
-        params_dict = params.dict(exclude_unset=True)
 
-        query = params_dict.get("query", {})
+        query = params.query or {}
         return self.job_task_mgr.stat_job_tasks(query)

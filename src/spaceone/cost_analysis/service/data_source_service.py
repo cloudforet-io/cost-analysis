@@ -224,7 +224,7 @@ class DataSourceService(BaseService):
             data_source_id, domain_id
         )
 
-        if schedule := params.get("schedule"):
+        if schedule := params_dict.get("schedule"):
             self._check_schedule(schedule)
 
         if "secret_filter" in params:
@@ -299,13 +299,12 @@ class DataSourceService(BaseService):
         Returns:
             data_source_vo (object)
         """
-        params_dict = params.dict(exclude_unset=True)
 
-        secret_data = params_dict["secret_data"]
-        secret_schema_id = params_dict["secret_schema_id"]
-        data_source_id = params_dict["data_source_id"]
-        workspace_id = params_dict.get("workspace_id")
-        domain_id = params_dict["domain_id"]
+        secret_data = params.secret_data
+        secret_schema_id = params.secret_schema_id
+        data_source_id = params.data_source_id
+        workspace_id = params.workspace_id
+        domain_id = params.domain_id
 
         data_source_vo = self.data_source_mgr.get_data_source(
             data_source_id=data_source_id,
@@ -358,11 +357,12 @@ class DataSourceService(BaseService):
         Returns:
             DataSourceVerifyPluginRequest:
         """
-        params_dict = params.dict(exclude_unset=True)
 
-        data_source_id = params_dict["data_source_id"]
-        domain_id = params_dict["domain_id"]
-        data_source_vo = self.data_source_mgr.get_data_source(data_source_id, domain_id)
+        data_source_id = params.data_source_id
+        domain_id = params.domain_id
+        data_source_vo = self.data_source_mgr.get_data_source(
+            data_source_id, domain_id
+        )
 
         if data_source_vo.data_source_type == "LOCAL":
             raise ERROR_NOT_ALLOW_PLUGIN_SETTINGS(data_source_id=data_source_id)
@@ -395,14 +395,13 @@ class DataSourceService(BaseService):
         Returns:
             DataSourceResponse:
         """
-        params_dict = params.dict(exclude_unset=True)
 
-        data_source_id = params_dict["data_source_id"]
-        domain_id = params_dict["domain_id"]
-        workspace_id = params_dict.get("workspace_id")
-        version = params_dict.get("version")
-        options = params_dict.get("options")
-        upgrade_mode = params_dict.get("upgrade_mode")
+        data_source_id = params.data_source_id
+        domain_id = params.domain_id
+        workspace_id = params.workspace_id
+        version = params.version
+        options = params.options
+        upgrade_mode = params.upgrade_mode
 
         conditions = {
             "data_source_id": data_source_id,
@@ -471,12 +470,11 @@ class DataSourceService(BaseService):
         Returns:
             None
         """
-        params_dict = params.dict(exclude_unset=True)
 
-        data_source_id = params_dict["data_source_id"]
-        cascade_delete_cost = params_dict.get("cascade_delete_cost", True)
-        workspace_id = params_dict.get("workspace_id")
-        domain_id = params_dict["domain_id"]
+        data_source_id = params.data_source_id
+        cascade_delete_cost = params.cascade_delete_cost or True
+        workspace_id = params.workspace_id
+        domain_id = params.domain_id
 
         data_source_vo = self.data_source_mgr.get_data_source(
             data_source_id, domain_id, workspace_id
@@ -521,15 +519,14 @@ class DataSourceService(BaseService):
         Returns:
             JobResponse:
         """
-        params_dict = params.dict(exclude_unset=True)
         job_service = JobService()
 
-        data_source_id = params_dict["data_source_id"]
-        workspace_id = params_dict.get("workspace_id")
-        domain_id = params_dict["domain_id"]
+        data_source_id = params.data_source_id
+        workspace_id = params.workspace_id
+        domain_id = params.domain_id
         job_options = {
-            "no_preload_cache": params_dict.get("no_preload_cache", False),
-            "start": params_dict.get("start"),
+            "no_preload_cache": params.no_preload_cache or False,
+            "start": params.start,
             "sync_mode": "MANUAL",
         }
 
@@ -632,12 +629,7 @@ class DataSourceService(BaseService):
             self._check_only_fields_for_permissions(query)
 
         if connected_workspace_id:
-            (
-                data_source_vos,
-                total_count,
-            ) = self._change_filter_connected_workspace_data_source(
-                query, connected_workspace_id
-            )
+            data_source_vos, total_count = self._change_filter_connected_workspace_data_source(query, connected_workspace_id)
         else:
             data_source_vos, total_count = self.data_source_mgr.list_data_sources(query)
 
@@ -665,9 +657,8 @@ class DataSourceService(BaseService):
         Returns:
             DataSourceStatResponse:
         """
-        params_dict = params.dict(exclude_unset=True)
 
-        query = params_dict.get("query", {})
+        query = params.query or {}
         return self.data_source_mgr.stat_data_sources(query)
 
     def validate_secret_filter(self, secret_filter, domain_id):
