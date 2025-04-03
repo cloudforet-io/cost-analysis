@@ -5,6 +5,7 @@ from typing import Union
 
 from spaceone.core.service import *
 from spaceone.cost_analysis.error import *
+from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.budget_manager import BudgetManager
 from spaceone.cost_analysis.manager.budget_usage_manager import BudgetUsageManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
@@ -76,6 +77,16 @@ class BudgetService(BaseService):
     @transaction(
         permission="cost-analysis:Budget.write",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
+    )
+    @check_required(
+        [
+            "data_source_id",
+            "time_unit",
+            "start",
+            "end",
+            "resource_group",
+            "domain_id",
+        ]
     )
     @convert_model
     def create(self, params: BudgetCreateRequest) -> Union[BudgetResponse, dict]:
@@ -175,9 +186,7 @@ class BudgetService(BaseService):
         self.budget_usage_mgr.update_cost_usage(budget_vo)
         self.budget_usage_mgr.notify_budget_usage(budget_vo)
 
-        return BudgetResponse(
-            **budget_vo.to_dict(),
-        )
+        return BudgetResponse(**budget_vo.to_dict())
 
     @transaction(
         permission="cost-analysis:Budget.write",

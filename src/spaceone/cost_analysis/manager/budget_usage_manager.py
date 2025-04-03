@@ -43,7 +43,6 @@ class BudgetUsageManager(BaseManager):
                     "cost": 0,
                     "limit": 0,
                     "currency": budget_vo.currency,
-                    "provider_filter": budget_vo.provider_filter.to_dict(),
                     "budget": budget_vo,
                     "resource_group": budget_vo.resource_group,
                     "service_account_id": budget_vo.service_account_id,
@@ -304,22 +303,6 @@ class BudgetUsageManager(BaseManager):
                 )
             else:
                 budget_usage_vo.update({"cost": 0})
-
-        if budget_vo.time_unit == "TOTAL":
-            budget_utilization_rate = round(total_usage_cost / budget_vo.limit * 100, 2)
-            self.budget_mgr.update_budget_by_vo(
-                {"utilization_rate": budget_utilization_rate}, budget_vo
-            )
-        else:
-            for budget_usage_vo in budget_usage_vos:
-                if budget_usage_vo.date == current_month:
-                    budget_utilization_rate = round(
-                        budget_usage_vo.cost / budget_usage_vo.limit * 100, 2
-                    )
-                    self.budget_mgr.update_budget_by_vo(
-                        {"utilization_rate": budget_utilization_rate}, budget_vo
-                    )
-                    break
 
     @staticmethod
     def _get_user_info_map_from_recipients(

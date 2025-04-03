@@ -687,7 +687,8 @@ class JobService(BaseService):
 
                 except Exception as e:
                     _LOGGER.error(
-                        f"[_close_job] delete changed cost data error: {e}", exc_info=True
+                        f"[_close_job] delete changed cost data error: {e}",
+                        exc_info=True,
                     )
                     self._rollback_cost_data(job_vo)
                     self.job_mgr.change_error_status(
