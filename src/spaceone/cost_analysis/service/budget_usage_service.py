@@ -66,10 +66,9 @@ class BudgetUsageService(BaseService):
         """
 
         query = params.query or {}
+
         budget_usage_vos, total_count = self.budget_usage_mgr.list_budget_usages(query)
-        budget_usages_info = [
-            budget_usage_vo.to_dict() for budget_usage_vo in budget_usage_vos
-        ]
+        budget_usages_info = [budget_usage_vo.to_dict() for budget_usage_vo in budget_usage_vos]
         return BudgetUsagesResponse(results=budget_usages_info, total_count=total_count)
 
     @transaction(

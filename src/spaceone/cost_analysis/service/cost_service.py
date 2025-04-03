@@ -15,7 +15,7 @@ from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 from spaceone.cost_analysis.model import DataSource
 from spaceone.cost_analysis.model.cost.database import Cost
 from spaceone.cost_analysis.model.cost.request import CostCreateRequest, CostDeleteRequest, CostGetRequest, \
-    CostAnalyzeQueryRequest, CostStatQueryRequest
+    CostAnalyzeQueryRequest, CostStatQueryRequest, CostSearchQueryRequest
 from spaceone.cost_analysis.model.cost.response import CostResponse, CostsResponse
 
 _LOGGER = logging.getLogger(__name__)
@@ -97,7 +97,7 @@ class CostService(BaseService):
         """
 
         raise ERROR_NOT_SUPPORT_API()
-        
+
         # params_dict = params.dict(exclude_unset=True)
         #
         # cost_id = params_dict["cost_id"]
@@ -137,12 +137,10 @@ class CostService(BaseService):
         Returns:
             cost_vo (object)
         """
-        params_dict = params.dict(exclude_unset=True)
-
-        cost_id = params_dict["cost_id"]
-        user_projects = params_dict.get("user_projects", [])
-        workspace_id = params_dict.get("workspace_id")
-        domain_id = params_dict["domain_id"]
+        cost_id = params.cost_id
+        user_projects = params.user_projects or []
+        workspace_id = params.workspace_id
+        domain_id = params.domain_id
 
         if workspace_id:
             cost_vo: Cost = self.cost_mgr.get_cost(cost_id, domain_id, user_projects)
@@ -192,7 +190,7 @@ class CostService(BaseService):
     @append_keyword_filter(["cost_id"])
     @set_query_page_limit(1000)
     @convert_model
-    def list(self, params: dict) -> Union[CostsResponse, dict]:
+    def list(self, params:  CostSearchQueryRequest) -> Union[CostsResponse, dict]:
         """List costs
 
         Args:
@@ -216,11 +214,10 @@ class CostService(BaseService):
             cost_vos (object)
             total_count
         """
-        params_dict = params.dict(exclude_unset=True)
 
-        query = params_dict.get("query", {})
-        domain_id = params_dict["domain_id"]
-        data_source_id = params_dict["data_source_id"]
+        query = params.query or {}
+        domain_id = params.domain_id
+        data_source_id = params.data_source_id
 
         cost_vos, total_count = self.cost_mgr.list_costs(
             query, domain_id, data_source_id
@@ -279,11 +276,10 @@ class CostService(BaseService):
                 "results" : "list",
             }
         """
-        params_dict = params.dict(exclude_unset=True)
 
-        domain_id = params_dict["domain_id"]
-        data_source_id = params_dict["data_source_id"]
-        query = params_dict.get("query", {})
+        domain_id = params.domain_id
+        data_source_id = params.data_source_id
+        query = params.query or {}
         workspace_id = query.get("workspace_id")
 
         if self.transaction.get_meta("authorization.role_type") != "DOMAIN_ADMIN":
@@ -320,11 +316,10 @@ class CostService(BaseService):
             values (list) : 'list of statistics data'
 
         """
-        params_dict = params.dict(exclude_unset=True)
 
-        domain_id = params_dict["domain_id"]
-        query = params_dict.get("query", {})
-        data_source_id = self._get_data_source_id_from_query(params_dict, query)
+        domain_id = params.domain_id
+        query = params.query or {}
+        data_source_id = self._get_data_source_id_from_query(params.dict(exclude_unset=True), query)
 
         if data_source_id and data_source_id != "global":
             query = self.cost_mgr.change_filter_v_workspace_id(

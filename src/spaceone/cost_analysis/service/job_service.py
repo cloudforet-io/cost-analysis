@@ -100,11 +100,10 @@ class JobService(BaseService):
         Returns:
             JobResponse:
         """
-        params_dict = params.dict(exclude_unset=True)
 
-        job_id = params_dict["job_id"]
-        workspace_id = params_dict.get("workspace_id")
-        domain_id = params_dict["domain_id"]
+        job_id = params.job_id
+        workspace_id = params.workspace_id
+        domain_id = params.domain_id
 
         job_vo = self.job_mgr.get_job(job_id, domain_id, workspace_id)
 
@@ -134,11 +133,10 @@ class JobService(BaseService):
         Returns:
             JobResponse:
         """
-        params_dict = params.dict(exclude_unset=True)
 
-        job_id = params_dict["job_id"]
-        workspace_id = params_dict.get("workspace_id")
-        domain_id = params_dict["domain_id"]
+        job_id = params.job_id
+        workspace_id = params.workspace_id
+        domain_id = params.domain_id
 
         job_vo = self.job_mgr.get_job(job_id, domain_id, workspace_id)
 
@@ -174,18 +172,10 @@ class JobService(BaseService):
         """
 
         query = params.query or {}
-        (
-            job_data_vos,
-            total_count,
-        ) = self.job_mgr.list_jobs(query)
 
-        jobs_data_info = [
-            job_data_vo.to_dict()
-            for job_data_vo in job_data_vos
-        ]
-        return JobsResponse(
-            results=jobs_data_info, total_count=total_count
-        )
+        job_data_vos, total_count = self.job_mgr.list_jobs(query)
+        jobs_data_info = [job_data_vo.to_dict() for job_data_vo in job_data_vos]
+        return JobsResponse(results=jobs_data_info, total_count=total_count)
 
     @transaction(
         permission="cost-analysis:Job.read",

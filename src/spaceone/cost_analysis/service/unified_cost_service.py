@@ -199,12 +199,10 @@ class UnifiedCostService(BaseService):
             None
         """
 
-        params = params.dict(exclude_unset=True)
-
-        domain_id = params["domain_id"]
-        is_last_exchange_day = params.get("is_last_exchange_day", False)
-        unified_month = params["unified_month"]
-        exchange_date = params.get("exchange_date")
+        domain_id = params.domain_id
+        is_last_exchange_day = params.is_last_exchange_day or False
+        unified_month = params.unified_month
+        exchange_date = params.exchange_date
 
         if unified_month:
             params["month"] = unified_month
@@ -294,18 +292,10 @@ class UnifiedCostService(BaseService):
         """
 
         query = params.query or {}
-        (
-            cost_report_data_vos,
-            total_count,
-        ) = self.unified_cost_mgr.list_unified_costs(query)
 
-        unified_costs_data_info = [
-            cost_report_data_vo.to_dict()
-            for cost_report_data_vo in cost_report_data_vos
-        ]
-        return UnifiedCostsResponse(
-            results=unified_costs_data_info, total_count=total_count
-        )
+        cost_report_data_vos, total_count = self.unified_cost_mgr.list_unified_costs(query)
+        unified_costs_data_info = [cost_report_data_vo.to_dict() for cost_report_data_vo in cost_report_data_vos]
+        return UnifiedCostsResponse(results=unified_costs_data_info, total_count=total_count)
 
     @transaction(
         permission="cost-analysis:UnifiedCost.read",

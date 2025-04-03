@@ -78,18 +78,10 @@ class CostReportDataService(BaseService):
         """
 
         query = params.query or {}
-        (
-            cost_report_data_vos,
-            total_count,
-        ) = self.cost_report_data_mgr.list_cost_reports_data(query)
 
-        cost_reports_data_info = [
-            cost_report_data_vo.to_dict()
-            for cost_report_data_vo in cost_report_data_vos
-        ]
-        return CostReportsDataResponse(
-            results=cost_reports_data_info, total_count=total_count
-        )
+        cost_report_data_vos, total_count = self.cost_report_data_mgr.list_cost_reports_data(query)
+        cost_reports_data_info = [cost_report_data_vo.to_dict() for cost_report_data_vo in cost_report_data_vos]
+        return CostReportsDataResponse(results=cost_reports_data_info, total_count=total_count)
 
     @transaction(
         permission="cost-analysis:CostReportData.read",

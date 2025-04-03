@@ -60,6 +60,7 @@ class DataSourceUpdateRequest(BaseModel):
     name: Union[dict, None] = None
     secret_filter: Union[dict, None] = None
     template: Union[dict, None] = None
+    schedule: Schedule
     tags: Union[dict, None] = None
     domain_id: str
 
