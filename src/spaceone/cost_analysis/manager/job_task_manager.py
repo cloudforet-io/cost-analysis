@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Union
 
 from spaceone.core import queue, utils
@@ -144,7 +144,7 @@ class JobTaskManager(BaseManager):
                 "status": "FAILURE",
                 "error_code": e.error_code,
                 "error_message": e.message,
-                "finished_at": datetime.utcnow(),
+                "finished_at": datetime.now(timezone.utc),
             }
         )
 

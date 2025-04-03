@@ -1,30 +1,23 @@
-from datetime import datetime
-from typing import Union
-from pydantic import BaseModel
+from typing import Union, Literal
 
-__all__ = [
-    "BudgetCreateRequest",
-    "BudgetUpdateRequest",
-    "BudgetSetNotificationRequest",
-    "BudgetDeleteRequest",
-    "BudgetGetRequest",
-    "BudgetSearchQueryRequest",
-    "BudgetStatQueryRequest",
-]
+from pydantic import BaseModel, Field
+
+TimeUnit = Literal["MONTHLY", "TOTAL"]
+ResourceGroup = Literal["WORKSPACE", "PROJECT"]
 
 
 class BudgetCreateRequest(BaseModel):
-    data_source_id: str
-    name: Union[str, None] = None
+    name: str
     limit: Union[float, None] = None
     planned_limits: Union[list, None] = None
-    provider_filter: Union[dict, None] = None
-    time_unit: Union[float, None] = None
-    start: Union[datetime, str, None] = None
-    end: Union[datetime, str, None] = None
-    notifications: Union[list, None] = None
+    currency: Union[str, None] = None
+    time_unit: TimeUnit
+    start: str
+    end: str
+    notifications: Union[dict, None] = None
     tags: Union[dict, None] = None
-    resource_group: str
+    resource_group: ResourceGroup
+    service_account_id: Union[str, None] = None
     project_id: Union[str, None] = None
     workspace_id: Union[str, None] = None
     domain_id: str
@@ -36,41 +29,42 @@ class BudgetUpdateRequest(BaseModel):
     limit: Union[float, None] = None
     planned_limits: Union[list, None] = None
     tags: Union[dict, None] = None
-    workspace_id: Union[str, None] = None
+    workspace_id: str
     domain_id: str
 
 
 class BudgetSetNotificationRequest(BaseModel):
     budget_id: str
-    notifications: list
-    workspace_id: Union[str, None] = None
-    domain_id: str
-
-
-class BudgetDeleteRequest(BaseModel):
-    budget_id: str
-    workspace_id: Union[str, None] = None
+    notifications: dict
+    project_id: Union[str, None] = None
+    workspace_id: str
     domain_id: str
 
 
 class BudgetGetRequest(BaseModel):
     budget_id: str
-    workspace_id: Union[str, None] = None
+    project_id: Union[str, None] = None
+    workspace_id: str
+    domain_id: str
+    user_projects: Union[list, None] = None
+
+class BudgetDeleteRequest(BaseModel):
+    budget_id: str
+    workspace_id: str
     domain_id: str
 
 
 class BudgetSearchQueryRequest(BaseModel):
-    query: Union[dict, None] = None
-    budget_id: Union[str, None] = None
+    query: dict
     name: Union[str, None] = None
-    time_unit: Union[str, None] = None
-    data_source_id: Union[str, None] = None
-    project_id: Union[str, None] = None
+    budget_id: Union[str, None] = None
     workspace_id: Union[str, None] = None
     domain_id: str
+    user_projects: Union[list, None] = None
 
 
 class BudgetStatQueryRequest(BaseModel):
     query: dict
     workspace_id: Union[str, None] = None
     domain_id: str
+    user_projects: Union[list, None] = None

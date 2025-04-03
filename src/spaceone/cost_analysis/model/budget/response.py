@@ -1,9 +1,26 @@
 from datetime import datetime
-from typing import Union, List
+from typing import Union, Literal, List
 from pydantic import BaseModel
+
 from spaceone.core import utils
 
-__all__ = ["BudgetResponse", "BudgetsResponse"]
+from spaceone.cost_analysis.model.budget.request import ResourceGroup
+
+__all__ = [
+    "BudgetResponse",
+    "BudgetsResponse",
+]
+
+
+class Plan(BaseModel):
+    threshold: float
+    unit: str
+
+
+class Notification(BaseModel):
+    state: Union[str, None] = None
+    plans: Union[List[Plan], None] = None
+    recipients: Union[dict, None] = None
 
 
 class BudgetResponse(BaseModel):
@@ -12,14 +29,13 @@ class BudgetResponse(BaseModel):
     limit: Union[float, None] = None
     planned_limits: Union[list, None] = None
     currency: Union[str, None] = None
-    provider_filter: Union[dict, None] = None
     time_unit: Union[str, None] = None
-    start: Union[datetime, None] = None
-    end: Union[datetime, None] = None
-    notifications: Union[list, None] = None
+    start: Union[str, None] = None
+    end: Union[str, None] = None
+    notifications: Union[Notification, dict] = None
     tags: Union[dict, None] = None
-    data_source_id: Union[str, None] = None
-    resource_group: Union[str, None] = None
+    resource_group: Union[ResourceGroup, None] = None
+    service_account_id: Union[str, None] = None
     project_id: Union[str, None] = None
     workspace_id: Union[str, None] = None
     domain_id: Union[str, None] = None
@@ -28,8 +44,6 @@ class BudgetResponse(BaseModel):
 
     def dict(self, *args, **kwargs):
         data = super().dict(*args, **kwargs)
-        data["start"] = utils.datetime_to_iso8601(data["start"])
-        data["end"] = utils.datetime_to_iso8601(data.get("end"))
         data["created_at"] = utils.datetime_to_iso8601(data["created_at"])
         data["updated_at"] = utils.datetime_to_iso8601(data.get("updated_at"))
         return data

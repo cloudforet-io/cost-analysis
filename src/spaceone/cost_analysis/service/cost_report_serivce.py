@@ -2,7 +2,7 @@ import calendar
 import datetime
 import logging
 from dateutil.relativedelta import relativedelta
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Tuple, Union
 
 from mongoengine import QuerySet
@@ -281,7 +281,7 @@ class CostReportService(BaseService):
         is_last_day = cost_report_config_vo.is_last_day or False
         issue_day = self.get_issue_day(is_last_day, cost_report_config_vo.issue_day)
 
-        current_date = datetime.utcnow()
+        current_date = datetime.now(timezone.utc)
         currency_date = current_date
         current_month = current_date.strftime("%Y-%m")
 
@@ -308,14 +308,16 @@ class CostReportService(BaseService):
 
         if is_create_report:
             issue_month = self._get_issue_month_fom_report_month(report_month)
-            report_issue_day = self.get_issue_day(is_last_day, issue_day)
+            report_issue_day = self.get_issue_day(
+                is_last_day, issue_day, datetime.strptime(report_month, "%Y-%m")
+            )
 
             _LOGGER.debug(
-                f"[create_cost_report] issue_month {issue_month}, report_month {report_month} , issue_day {report_issue_day}"
+                f"[create_cost_report] issue_month {issue_month}, report_month {report_month} , report issue_day {report_issue_day}"
             )
 
             currency_end_date = self._get_currency_date_from_report_month(
-                report_month, issue_day
+                report_month, report_issue_day
             )
 
             (
@@ -330,7 +332,7 @@ class CostReportService(BaseService):
                 f"[create_cost_report] set currency date {self.currency_date} , currency map ({self.currency_map})"
             )
 
-            cost_report_created_at = datetime.utcnow()
+            cost_report_created_at = datetime.now(timezone.utc)
             self._aggregate_monthly_cost_report(
                 domain_id=domain_id,
                 workspace_ids=workspace_ids,
@@ -339,10 +341,11 @@ class CostReportService(BaseService):
                 workspace_name_map=workspace_name_map,
                 data_source_currency_map=data_source_currency_map,
                 report_month=report_month,
+                report_issue_day=report_issue_day,
                 currency=currency,
-                issue_day=report_issue_day,
-                status="SUCCESS",
+                issue_day=issue_day,
                 issue_month=issue_month,
+                status="SUCCESS",
             )
 
             self._delete_old_cost_reports(
@@ -378,10 +381,11 @@ class CostReportService(BaseService):
             workspace_name_map=workspace_name_map,
             data_source_currency_map=data_source_currency_map,
             report_month=current_month,
+            report_issue_day=current_date.day,
             currency=currency,
             issue_day=current_date.day,
-            status="IN_PROGRESS",
             issue_month=current_month,
+            status="IN_PROGRESS",
         )
 
         self._delete_old_cost_reports(
@@ -401,6 +405,7 @@ class CostReportService(BaseService):
         data_source_currency_map: dict,
         data_source_ids: list,
         report_month: str,
+        report_issue_day: int,
         currency: str,
         issue_day: int,
         status: str,
@@ -479,7 +484,7 @@ class CostReportService(BaseService):
             aggregated_cost_report_results, start=start_cost_report_number
         ):
             aggregated_cost_report["report_number"] = self.generate_report_number(
-                report_month, issue_day, cost_report_idx
+                report_month, report_issue_day, cost_report_idx
             )
 
             aggregated_cost_report["currency_date"] = (
@@ -799,8 +804,11 @@ class CostReportService(BaseService):
             return False
 
     @staticmethod
-    def get_issue_day(is_last_day: bool, issue_day: int = None) -> int:
-        current_date = datetime.utcnow()
+    def get_issue_day(
+        is_last_day: bool, issue_day: int = None, current_date: datetime = None
+    ) -> int:
+        if not current_date:
+            current_date = datetime.now(timezone.utc)
         current_year = current_date.year
         current_month = current_date.month
 
@@ -875,7 +883,5 @@ class CostReportService(BaseService):
 
     @staticmethod
     def _get_currency_date_from_report_month(report_month: str, issue_day: int):
-        report_month = datetime.strptime(report_month, "%Y-%m").replace(
-            day=issue_day
-        ) + relativedelta(months=1)
+        report_month = datetime.strptime(report_month, "%Y-%m").replace(day=issue_day)
         return report_month

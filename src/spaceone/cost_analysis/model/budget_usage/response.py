@@ -1,9 +1,15 @@
 from datetime import datetime
-from typing import Union, List
+from typing import Union, Literal, List
 from pydantic import BaseModel
+
 from spaceone.core import utils
 
-__all__ = ["BudgetUsageResponse", "BudgetUsagesResponse"]
+from spaceone.cost_analysis.model.budget.request import ResourceGroup
+
+__all__ = [
+    "BudgetUsageResponse",
+    "BudgetUsagesResponse",
+]
 
 
 class BudgetUsageResponse(BaseModel):
@@ -13,9 +19,8 @@ class BudgetUsageResponse(BaseModel):
     cost: Union[float, None] = None
     limit: Union[float, None] = None
     currency: Union[str, None] = None
-    provider_filter: Union[dict, None] = None
-    data_source_id: Union[str, None] = None
-    resource_group: Union[str, None] = None
+    resource_group: Union[ResourceGroup, None] = None
+    service_account_id: Union[str, None] = None
     project_id: Union[str, None] = None
     workspace_id: Union[str, None] = None
     domain_id: Union[str, None] = None

@@ -4,9 +4,8 @@ from typing import Union
 from spaceone.core.service import *
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.manager.budget_usage_manager import BudgetUsageManager
-from spaceone.cost_analysis.model.budget_usage.request import BudgetUsageSearchQueryRequest, \
-    BudgetUsageStatQueryRequest, BudgetUsageAnalyzeQueryRequest
-from spaceone.cost_analysis.model.budget_usage.response import BudgetUsagesResponse
+from spaceone.cost_analysis.model.budget_usage.request import *
+from spaceone.cost_analysis.model.budget_usage.response import *
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -28,7 +27,6 @@ class BudgetUsageService(BaseService):
         permission="cost-analysis:BudgetUsage.read",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
-    @check_required(["domain_id"])
     @append_query_filter(
         [
             "budget_id",
@@ -43,7 +41,10 @@ class BudgetUsageService(BaseService):
     )
     @append_keyword_filter(["budget_id", "name"])
     @set_query_page_limit(1000)
-    def list(self, params: BudgetUsageSearchQueryRequest) -> Union[BudgetUsagesResponse, dict]:
+    @convert_model
+    def list(
+            self, params: BudgetUsageSearchQueryRequest
+    ) -> Union[BudgetUsagesResponse, dict]:
         """List budget_usages
 
         Args:
@@ -54,9 +55,9 @@ class BudgetUsageService(BaseService):
                 'name': 'str',
                 'date': 'str',
                 'project_id': 'str',
-                'user_projects': 'list',
                 'workspace_id': str,                                # injected from auth (optional)
                 'domain_id': 'str',                                 # injected from auth
+                'user_projects': 'list',                            # injected from auth
             }
 
         Returns:
@@ -65,56 +66,21 @@ class BudgetUsageService(BaseService):
         """
 
         query = params.query or {}
-        (
-            budget_usage_data_vos,
-            total_count,
-        ) = self.budget_usage_mgr.list_budget_usages(query)
-
-        budget_usages_data_info = [
-            budget_usage_data_vo.to_dict()
-            for budget_usage_data_vo in budget_usage_data_vos
+        budget_usage_vos, total_count = self.budget_usage_mgr.list_budget_usages(query)
+        budget_usages_info = [
+            budget_usage_vo.to_dict() for budget_usage_vo in budget_usage_vos
         ]
-        return BudgetUsagesResponse(
-            results=budget_usages_data_info, total_count=total_count
-        )
-
-    @transaction(
-        permission="cost-analysis:BudgetUsage.read",
-        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
-    )
-    @check_required(["query", "domain_id"])
-    @append_query_filter(["budget_id", "data_source_id", "workspace_id", "domain_id"])
-    @append_keyword_filter(["budget_id", "name"])
-    @set_query_page_limit(1000)
-    def stat(self, params: BudgetUsageStatQueryRequest) -> dict:
-        """
-        Args:
-            params (dict): {
-                'query': 'dict (spaceone.api.core.v1.StatisticsQuery)',
-                "budget_id": "str",
-                'data_source_id': 'str',
-                'workspace_id': 'str',                                # injected from auth (optional)
-                'domain_id': 'str'                                    # injected from auth
-            }
-
-        Returns:
-            values (list) : 'list of statistics data'
-
-        """
-
-        query = params.query or {}
-        return self.budget_usage_mgr.stat_budget_usages(query)
+        return BudgetUsagesResponse(results=budget_usages_info, total_count=total_count)
 
     @transaction(
         permission="cost-analysis:BudgetUsage.read",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
     @check_required(["query", "query.fields", "domain_id"])
-    @append_query_filter(
-        ["data_source_id", "budget_id", "user_projects", "workspace_id", "domain_id"]
-    )
+    @append_query_filter(["budget_id", "user_projects", "workspace_id", "domain_id"])
     @append_keyword_filter(["budget_id", "name"])
     @set_query_page_limit(1000)
+    @convert_model
     def analyze(self, params: BudgetUsageAnalyzeQueryRequest) -> dict:
         """
         Args:
@@ -132,10 +98,41 @@ class BudgetUsageService(BaseService):
 
         """
 
-        query = params.query or {}
+        query = self._set_user_project_or_project_group_filter(
+            params.dict(exclude_unset=True)
+        )
         self._check_granularity(query.get("granularity"))
 
         return self.budget_usage_mgr.analyze_budget_usages(query)
+
+    @transaction(
+        permission="cost-analysis:BudgetUsage.read",
+        role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
+    )
+    @append_query_filter(["budget_id", "workspace_id", "domain_id"])
+    @append_keyword_filter(["budget_id", "name"])
+    @set_query_page_limit(1000)
+    @convert_model
+    def stat(self, params: BudgetUsageStatQueryRequest) -> dict:
+        """
+        Args:
+            params (dict): {
+                'query': 'dict (spaceone.api.core.v1.StatisticsQuery)',
+                "budget_id": "str",
+                'data_source_id': 'str',
+                'workspace_id': 'str',                                # injected from auth (optional)
+                'domain_id': 'str'                                    # injected from auth
+            }
+
+        Returns:
+            values (list) : 'list of statistics data'
+
+        """
+
+        query = self._set_user_project_or_project_group_filter(
+            params.dict(exclude_unset=True)
+        )
+        return self.budget_usage_mgr.stat_budget_usages(query)
 
     @staticmethod
     def _check_granularity(granularity):
@@ -145,7 +142,7 @@ class BudgetUsageService(BaseService):
             )
 
     @staticmethod
-    def _set_user_project_or_project_group_filter(params):
+    def _set_user_project_or_project_group_filter(params: dict) -> dict:
         query = params.get("query", {})
         query["filter"] = query.get("filter", [])
 

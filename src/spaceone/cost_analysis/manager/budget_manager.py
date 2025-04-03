@@ -1,5 +1,7 @@
 import logging
+from typing import Union
 
+from spaceone.core.error import ERROR_PERMISSION_DENIED
 from spaceone.core.manager import BaseManager
 from spaceone.cost_analysis.model.budget.database import Budget
 
@@ -20,12 +22,14 @@ class BudgetManager(BaseManager):
             )
             vo.delete()
 
+        params["created_by"] = self.transaction.get_meta("authorization.user_id")
+
         budget_vo = self.budget_model.create(params)
         self.transaction.add_rollback(_rollback, budget_vo)
 
         return budget_vo
 
-    def update_budget_by_vo(self, params, budget_vo):
+    def update_budget_by_vo(self, params: dict, budget_vo: Budget) -> Budget:
         def _rollback(old_data):
             _LOGGER.info(
                 f"[update_budget_by_vo._rollback] Revert Data : "
@@ -41,12 +45,17 @@ class BudgetManager(BaseManager):
         budget_vo.delete()
 
     def get_budget(
-        self, budget_id: str, domain_id: str, workspace_id: str = None, project_id=None
+            self,
+            budget_id: str,
+            domain_id: str,
+            workspace_id: str,
+            project_id: str = None,
     ) -> Budget:
-        conditions = {"budget_id": budget_id, "domain_id": domain_id}
-
-        if workspace_id:
-            conditions["workspace_id"] = workspace_id
+        conditions = {
+            "budget_id": budget_id,
+            "workspace_id": workspace_id,
+            "domain_id": domain_id,
+        }
 
         if project_id:
             conditions["project_id"] = project_id
