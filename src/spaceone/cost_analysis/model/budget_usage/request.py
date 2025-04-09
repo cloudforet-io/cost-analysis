@@ -1,6 +1,6 @@
 from typing import Union, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 TimeUnit = Literal["MONTHLY", "TOTAL"]
 ResourceGroup = Literal["WORKSPACE", "PROJECT"]

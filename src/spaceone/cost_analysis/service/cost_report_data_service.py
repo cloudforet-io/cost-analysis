@@ -6,12 +6,8 @@ from spaceone.core.service.utils import *
 
 from spaceone.cost_analysis.manager.data_source_account_manager import DataSourceAccountManager
 from spaceone.cost_analysis.manager.cost_manager import CostManager
-from spaceone.cost_analysis.manager.cost_report_data_manager import (
-    CostReportDataManager,
-)
-from spaceone.cost_analysis.manager.cost_report_config_manager import (
-    CostReportConfigManager,
-)
+from spaceone.cost_analysis.manager.cost_report_data_manager import CostReportDataManager
+from spaceone.cost_analysis.manager.cost_report_config_manager import CostReportConfigManager
 from spaceone.cost_analysis.manager.cost_report_manager import CostReportManager
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
