@@ -2,15 +2,9 @@ import logging
 
 from spaceone.core.manager import BaseManager
 from spaceone.cost_analysis.manager.plugin_manager import PluginManager
-from spaceone.cost_analysis.manager.data_source_rule_manager import (
-    DataSourceRuleManager,
-)
-from spaceone.cost_analysis.service.data_source_rule_service import (
-    DataSourceRuleService,
-)
-from spaceone.cost_analysis.connector.datasource_plugin_connector import (
-    DataSourcePluginConnector,
-)
+from spaceone.cost_analysis.manager.data_source_rule_manager import DataSourceRuleManager
+from spaceone.cost_analysis.service.data_source_rule_service import DataSourceRuleService
+from spaceone.cost_analysis.connector.datasource_plugin_connector import DataSourcePluginConnector
 from spaceone.cost_analysis.model.data_source.database import DataSource
 
 _LOGGER = logging.getLogger(__name__)

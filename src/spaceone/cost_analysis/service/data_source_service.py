@@ -6,14 +6,13 @@ from mongoengine import QuerySet
 from spaceone.core import config
 from spaceone.core.service import *
 from spaceone.cost_analysis.error import *
+from spaceone.cost_analysis.manager.repository_manager import RepositoryManager
 from spaceone.cost_analysis.model.data_source.request import *
 from spaceone.cost_analysis.model.data_source.request import DataSourceUpdateRequest, DataSourceUpdateSecretDataRequest, \
-    DataSourceUpdatePluginRequest, DataSourceEnableRequest, DataSourceDisableRequest, \
-    DataSourceDeregisterRequest, DataSourceSyncRequest, DataSourceStatQueryRequest
+    DataSourceUpdatePluginRequest, DataSourceDeregisterRequest, DataSourceSyncRequest, DataSourceStatQueryRequest
 from spaceone.cost_analysis.model.data_source.response import *
 from spaceone.cost_analysis.model.job.response import JobResponse
 from spaceone.cost_analysis.service.job_service import JobService
-from spaceone.cost_analysis.manager.repository_manager import RepositoryManager
 from spaceone.cost_analysis.manager.secret_manager import SecretManager
 from spaceone.cost_analysis.manager.data_source_plugin_manager import (
     DataSourcePluginManager,
@@ -633,7 +632,8 @@ class DataSourceService(BaseService):
             self._check_only_fields_for_permissions(query)
 
         if connected_workspace_id:
-            data_source_vos, total_count = self._change_filter_connected_workspace_data_source(query, connected_workspace_id)
+            data_source_vos, total_count = self._change_filter_connected_workspace_data_source(query,
+                                                                                               connected_workspace_id)
         else:
             data_source_vos, total_count = self.data_source_mgr.list_data_sources(query)
 

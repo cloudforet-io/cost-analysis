@@ -6,7 +6,6 @@ from dateutil.rrule import rrule, MONTHLY
 
 from spaceone.core import config
 from spaceone.core.manager import BaseManager
-from spaceone.core import utils
 
 from spaceone.cost_analysis.manager.email_manager import EmailManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
