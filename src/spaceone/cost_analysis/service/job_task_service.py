@@ -55,6 +55,7 @@ class JobTaskService(BaseService):
         ["job_task_id", "status", "job_id", "data_source_id", "domain_id"]
     )
     @append_keyword_filter(["job_task_id"])
+    @convert_model
     def list(self, params: JobTaskSearchQueryRequest) -> Union[JobTasksResponse, dict]:
         """List job_tasks
 

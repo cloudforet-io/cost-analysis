@@ -198,8 +198,8 @@ class UnifiedCostService(BaseService):
         exchange_date = params.exchange_date
 
         if unified_month:
-            params["month"] = unified_month
-            del params["unified_month"]
+            params.month = unified_month
+            del params.unified_month
 
         # check unified month is greater than current month
         current_month = datetime.now(timezone.utc).strftime("%Y-%m")
@@ -218,9 +218,9 @@ class UnifiedCostService(BaseService):
 
         if exchange_date and isinstance(exchange_date, datetime):
             exchange_date = exchange_date.strftime("%Y-%m-%d")
-            params["exchange_date"] = exchange_date
+            params.exchange_date = exchange_date
 
-        self.unified_cost_mgr.push_unified_cost_job_task(params)
+        self.unified_cost_mgr.push_unified_cost_job_task(params.dict())
 
     @transaction(
         permission="cost-analysis:UnifiedCost.read",
@@ -286,8 +286,8 @@ class UnifiedCostService(BaseService):
 
         query = params.query or {}
 
-        cost_report_data_vos, total_count = self.unified_cost_mgr.list_unified_costs(query)
-        unified_costs_data_info = [cost_report_data_vo.to_dict() for cost_report_data_vo in cost_report_data_vos]
+        unified_cost_data_vos, total_count = self.unified_cost_mgr.list_unified_costs(query)
+        unified_costs_data_info = [unified_cost_data_vo.to_dict() for unified_cost_data_vo in unified_cost_data_vos]
         return UnifiedCostsResponse(results=unified_costs_data_info, total_count=total_count)
 
     @transaction(
