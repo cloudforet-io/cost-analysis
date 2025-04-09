@@ -68,7 +68,7 @@ class CostService(BaseService):
         # params_dict = params.dict(exclude_unset=True)
         #
         # # validation check (service_account_id / project_id / data_source_id)
-        # identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
+        # identity_mgr = IdentityManager()
         # identity_mgr.get_project(params_dict["project_id"], params_dict["domain_id"])
         #
         # # todo : only local type datasource can create

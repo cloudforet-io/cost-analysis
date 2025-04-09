@@ -75,7 +75,7 @@ class BudgetService(BaseService):
         if resource_group != "PROJECT":
             raise ERROR_NOT_IMPLEMENTED()
 
-        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
+        identity_mgr = IdentityManager()
         identity_mgr.check_workspace(workspace_id, domain_id)
         identity_mgr.get_project(project_id, domain_id)
 

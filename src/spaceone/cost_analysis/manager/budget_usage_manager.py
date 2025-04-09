@@ -411,8 +411,9 @@ class BudgetUsageManager(BaseManager):
 
         return f"{console_domain}/workspace/{workspace_id}/cost-explorer/budget/{budget_id}"
 
-    def _get_domain_name(self, domain_id: str) -> str:
-        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
+    @staticmethod
+    def _get_domain_name(domain_id: str) -> str:
+        identity_mgr = IdentityManager()
         domain_name = identity_mgr.get_domain_name(domain_id)
         return domain_name
 

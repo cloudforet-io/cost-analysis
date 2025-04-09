@@ -41,18 +41,12 @@ class JobService(BaseService):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.cost_mgr: CostManager = self.locator.get_manager("CostManager")
-        self.job_mgr: JobManager = self.locator.get_manager("JobManager")
-        self.job_task_mgr: JobTaskManager = self.locator.get_manager("JobTaskManager")
-        self.data_source_mgr: DataSourceManager = self.locator.get_manager(
-            "DataSourceManager"
-        )
-        self.ds_plugin_mgr: DataSourcePluginManager = self.locator.get_manager(
-            "DataSourcePluginManager"
-        )
-        self.budget_usage_mgr: BudgetUsageManager = self.locator.get_manager(
-            "BudgetUsageManager"
-        )
+        self.cost_mgr = CostManager()
+        self.job_mgr = JobManager()
+        self.job_task_mgr = JobTaskManager()
+        self.data_source_mgr = DataSourceManager()
+        self.ds_plugin_mgr = DataSourcePluginManager()
+        self.budget_usage_mgr = BudgetUsageManager()
         self.data_source_account_mgr = DataSourceAccountManager()
 
     @transaction(exclude=["authentication", "authorization", "mutation"])
@@ -559,11 +553,12 @@ class JobService(BaseService):
 
         return _filter
 
-    def _get_service_account_id_and_project_id(self, secret_id, domain_id):
+    @staticmethod
+    def _get_service_account_id_and_project_id(secret_id, domain_id):
         service_account_id = None
         project_id = None
 
-        secret_mgr: SecretManager = self.locator.get_manager(SecretManager)
+        secret_mgr = SecretManager()
 
         if secret_id:
             _query = {"filter": [{"k": "secret_id", "v": secret_id, "o": "eq"}]}
@@ -607,7 +602,7 @@ class JobService(BaseService):
 
     def _get_secret_data(self, secret_id: str, domain_id: str) -> dict:
         # todo: this method is internal method
-        secret_mgr: SecretManager = self.locator.get_manager("SecretManager")
+        secret_mgr = SecretManager()
         if secret_id:
             secret_data = secret_mgr.get_secret_data(secret_id, domain_id)
         else:
@@ -768,9 +763,7 @@ class JobService(BaseService):
         monthly_cost_vos.delete()
 
     def _update_last_sync_time(self, job_vo: Job):
-        self.data_source_mgr: DataSourceManager = self.locator.get_manager(
-            "DataSourceManager"
-        )
+        self.data_source_mgr = DataSourceManager()
         data_source_vo = self.data_source_mgr.get_data_source(
             job_vo.data_source_id, job_vo.domain_id
         )
