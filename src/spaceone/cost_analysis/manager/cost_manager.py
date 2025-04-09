@@ -403,7 +403,7 @@ class CostManager(BaseManager):
 
             if key == "project_group_id":
                 if self.identity_mgr is None:
-                    self.identity_mgr: IdentityManager()
+                    self.identity_mgr = IdentityManager()
 
                 project_groups_info = self.identity_mgr.list_project_groups(
                     {

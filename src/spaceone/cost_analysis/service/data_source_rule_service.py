@@ -40,9 +40,7 @@ class DataSourceRuleService(BaseService):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.data_source_rule_mgr: DataSourceRuleManager = self.locator.get_manager(
-            "DataSourceRuleManager"
-        )
+        self.data_source_rule_mgr = DataSourceRuleManager
 
     @transaction(
         permission="cost-analysis:DataSourceRule.write",
@@ -422,7 +420,7 @@ class DataSourceRuleService(BaseService):
                 raise ERROR_REQUIRED_PARAMETER(key="actions.match_workspace.source")
 
         if project_id := actions.get("change_project"):
-            identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
+            identity_mgr = IdentityManager()
             identity_mgr.get_project(project_id, domain_id)
 
         if match_project := actions.get("match_project"):

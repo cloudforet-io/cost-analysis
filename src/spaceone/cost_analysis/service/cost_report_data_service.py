@@ -293,14 +293,15 @@ class CostReportDataService(BaseService):
             f"[aggregate_monthly_cost_report] create cost report data({report_month}) (count = {len(results)})"
         )
 
-    def _get_workspace_name(self, domain_id: str, workspace_id: str) -> str:
-        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
+    @staticmethod
+    def _get_workspace_name(domain_id: str, workspace_id: str) -> str:
+        identity_mgr = IdentityManager()
         return identity_mgr.get_workspace(
             domain_id=domain_id, workspace_id=workspace_id
         )
-
-    def _get_project_name_map(self, workspace_id: str, domain_id: str) -> dict:
-        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
+    @staticmethod
+    def _get_project_name_map(workspace_id: str, domain_id: str) -> dict:
+        identity_mgr = IdentityManager()
         project_name_map = {}
         response = identity_mgr.list_projects(
             {
@@ -317,8 +318,9 @@ class CostReportDataService(BaseService):
             project_name_map[project["project_id"]] = project["name"]
         return project_name_map
 
-    def _get_service_account_name_map(self, workspace_id: str, domain_id: str) -> dict:
-        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
+    @staticmethod
+    def _get_service_account_name_map(workspace_id: str, domain_id: str) -> dict:
+        identity_mgr = IdentityManager()
         service_account_name_map = {}
         service_accounts = identity_mgr.list_service_accounts(
             {

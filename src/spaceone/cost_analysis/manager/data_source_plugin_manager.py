@@ -123,9 +123,7 @@ class DataSourcePluginManager(BaseManager):
         _LOGGER.debug(
             f"[_delete_data_source_rules] delete all data source rules: {data_source_id}"
         )
-        data_source_rule_mgr: DataSourceRuleManager = self.locator.get_manager(
-            "DataSourceRuleManager"
-        )
+        data_source_rule_mgr = DataSourceRuleManager()
         old_data_source_rule_vos = data_source_rule_mgr.filter_data_source_rules(
             data_source_id=data_source_id, rule_type="MANAGED", domain_id=domain_id
         )

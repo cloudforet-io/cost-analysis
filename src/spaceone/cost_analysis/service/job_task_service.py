@@ -19,7 +19,7 @@ class JobTaskService(BaseService):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.job_task_mgr: JobTaskManager = self.locator.get_manager("JobTaskManager")
+        self.job_task_mgr = JobTaskManager()
 
     @transaction(
         permission="cost-analysis:JobTask.read",
