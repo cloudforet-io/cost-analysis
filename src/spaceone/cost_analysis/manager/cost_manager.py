@@ -6,13 +6,9 @@ from dateutil.relativedelta import relativedelta
 from spaceone.core import cache, utils
 from spaceone.core.manager import BaseManager
 from spaceone.cost_analysis.error import *
+from spaceone.cost_analysis.manager.data_source_account_manager import DataSourceAccountManager
 from spaceone.cost_analysis.model.cost.database import Cost, MonthlyCost, CostQueryHistory
-from spaceone.cost_analysis.manager.data_source_rule_manager import (
-    DataSourceRuleManager,
-)
-from spaceone.cost_analysis.manager.data_source_account_manager import (
-    DataSourceAccountManager,
-)
+from spaceone.cost_analysis.manager.data_source_rule_manager import DataSourceRuleManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 

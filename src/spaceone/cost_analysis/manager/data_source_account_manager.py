@@ -5,8 +5,9 @@ from mongoengine import QuerySet
 from spaceone.core import utils
 from spaceone.core.manager import BaseManager
 
-from spaceone.cost_analysis.manager import DataSourceManager, IdentityManager
-from spaceone.cost_analysis.model import DataSource
+from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
+from spaceone.cost_analysis.manager.identity_manager import IdentityManager
+from spaceone.cost_analysis.model.data_source.database import DataSource
 from spaceone.cost_analysis.model.data_source_account.database import DataSourceAccount
 
 _LOGGER = logging.getLogger(__name__)

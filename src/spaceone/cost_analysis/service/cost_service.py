@@ -9,9 +9,8 @@ from spaceone.cost_analysis.manager.data_source_account_manager import (
 )
 
 from spaceone.cost_analysis.error import *
-from spaceone.cost_analysis.manager import DataSourceManager
 from spaceone.cost_analysis.manager.cost_manager import CostManager
-from spaceone.cost_analysis.manager.identity_manager import IdentityManager
+from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.model import DataSource
 from spaceone.cost_analysis.model.cost.database import Cost
 from spaceone.cost_analysis.model.cost.request import *

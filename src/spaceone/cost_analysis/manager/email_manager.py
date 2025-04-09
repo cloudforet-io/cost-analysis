@@ -5,10 +5,10 @@ from typing import Union
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from spaceone.core import config, utils
+from spaceone.core import config
 from spaceone.core.manager import BaseManager
 from spaceone.cost_analysis.connector.smtp_connector import SMTPConnector
-from spaceone.cost_analysis.model import Budget
+from spaceone.cost_analysis.model.budget.database import Budget
 
 from spaceone.cost_analysis.model.cost_report.database import CostReport
 

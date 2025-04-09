@@ -2,10 +2,11 @@ import logging
 from typing import Union
 
 from spaceone.core.service import *
-from spaceone.cost_analysis.manager import DataSourceManager, IdentityManager
 from spaceone.cost_analysis.manager.data_source_account_manager import (
     DataSourceAccountManager,
 )
+from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
+from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 from spaceone.cost_analysis.model.data_source_account.request import *
 from spaceone.cost_analysis.model.data_source_account.response import *
 

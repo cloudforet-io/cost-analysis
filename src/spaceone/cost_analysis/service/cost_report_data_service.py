@@ -4,7 +4,7 @@ from typing import Union, Tuple
 from spaceone.core.service import *
 from spaceone.core.service.utils import *
 
-from spaceone.cost_analysis.manager import DataSourceAccountManager
+from spaceone.cost_analysis.manager.data_source_account_manager import DataSourceAccountManager
 from spaceone.cost_analysis.manager.cost_manager import CostManager
 from spaceone.cost_analysis.manager.cost_report_data_manager import (
     CostReportDataManager,
