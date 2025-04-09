@@ -18,9 +18,7 @@ from spaceone.cost_analysis.manager.cost_manager import CostManager
 from spaceone.cost_analysis.manager.currency_manager import CurrencyManager
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
-from spaceone.cost_analysis.manager.unified_cost_job_manager import (
-    UnifiedCostJobManager,
-)
+from spaceone.cost_analysis.manager.unified_cost_job_manager import UnifiedCostJobManager
 from spaceone.cost_analysis.manager.unified_cost_manager import UnifiedCostManager
 from spaceone.cost_analysis.model.unified_cost.database import UnifiedCostJob
 from spaceone.cost_analysis.model.unified_cost.request import *

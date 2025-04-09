@@ -4,9 +4,7 @@ from typing import Union
 
 from spaceone.core.service import *
 from spaceone.cost_analysis.error import *
-from spaceone.cost_analysis.manager.data_source_rule_manager import (
-    DataSourceRuleManager,
-)
+from spaceone.cost_analysis.manager.data_source_rule_manager import DataSourceRuleManager
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 from spaceone.cost_analysis.model.data_source_rule.database import DataSourceRule
