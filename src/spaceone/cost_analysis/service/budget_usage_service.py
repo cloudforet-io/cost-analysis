@@ -41,7 +41,7 @@ class BudgetUsageService(BaseService):
     @set_query_page_limit(1000)
     @convert_model
     def list(
-            self, params: BudgetUsageSearchQueryRequest
+        self, params: BudgetUsageSearchQueryRequest
     ) -> Union[BudgetUsagesResponse, dict]:
         """List budget_usages
 

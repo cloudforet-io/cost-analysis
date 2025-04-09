@@ -99,7 +99,7 @@ class BudgetService(BaseService):
             # Check Planned Limits
             self._check_planned_limits(start, end, time_unit, planned_limits)
 
-            params.planned_limits = None
+            params.limit = 0
             for planned_limit in planned_limits:
                 params.limit += planned_limit.get("limit", 0)
 
@@ -189,7 +189,7 @@ class BudgetService(BaseService):
     )
     @convert_model
     def set_notification(
-            self, params: BudgetSetNotificationRequest
+        self, params: BudgetSetNotificationRequest
     ) -> Union[BudgetResponse, dict]:
         """Set budget notification
 
@@ -205,7 +205,6 @@ class BudgetService(BaseService):
         Returns:
             budget_vo (object)
         """
-
         budget_id = params.budget_id
         project_id = params.project_id
         workspace_id = params.workspace_id
@@ -419,39 +418,38 @@ class BudgetService(BaseService):
                 if threshold > 100:
                     raise ERROR_THRESHOLD_IS_WRONG_IN_PERCENT_TYPE(value=plan)
 
-                    # check recipients
-                    recipients = notifications.get("recipients", {})
-                    users = list(set(recipients.get("users", [])))
-                    role_types = list(set(recipients.get("role_types", [])))
+        # check recipients
+        recipients = notifications.get("recipients", {})
+        users = list(set(recipients.get("users", [])))
+        role_types = list(set(recipients.get("role_types", [])))
 
-                    if role_types:
-                        recipients["role_types"] = role_types
+        if role_types:
+            recipients["role_types"] = role_types
 
-                    if users:
-                        identity_mgr = IdentityManager()
-                        query = {
-                            "filter": [
-                                {"k": "domain_id", "v": domain_id, "o": "eq"},
-                                {"k": "workspace_id", "v": workspace_id, "o": "eq"},
-                                {"k": "user_id", "v": users, "o": "in"},
-                            ]
-                        }
-                        rb_response = identity_mgr.list_role_bindings({"query": query}, domain_id)
-                        rb_infos = rb_response.get("results", [])
+        if users:
+            identity_mgr = IdentityManager()
+            query = {
+                "filter": [
+                    {"k": "domain_id", "v": domain_id, "o": "eq"},
+                    {"k": "workspace_id", "v": workspace_id, "o": "eq"},
+                    {"k": "user_id", "v": users, "o": "in"},
+                ]
+            }
+            rb_response = identity_mgr.list_role_bindings({"query": query}, domain_id)
+            rb_infos = rb_response.get("results", [])
+            rb_users = [rb_info["user_id"] for rb_info in rb_infos]
 
-                        rb_users = [rb_info["user_id"] for rb_info in rb_infos]
+            user_response = identity_mgr.list_email_verified_users(domain_id, users)
+            user_infos = user_response.get("results", [])
+            users = [user_info["user_id"] for user_info in user_infos]
 
-                        user_response = identity_mgr.list_email_verified_users(domain_id, users)
-                        user_infos = user_response.get("results", [])
-                        users = [user_info["user_id"] for user_info in user_infos]
+            for user_id in users:
+                if user_id not in rb_users:
+                    raise ERROR_NOT_FOUND(key="user_id", value=user_id)
+            recipients["users"] = users
 
-                        for user_id in users:
-                            if user_id not in rb_users:
-                                raise ERROR_NOT_FOUND(key="user_id", value=user_id)
-                        recipients["users"] = users
-
-                    notifications["recipients"] = recipients
-                    return notifications
+        notifications["recipients"] = recipients
+        return notifications
 
     @staticmethod
     def _set_user_project_or_project_group_filter(params: dict) -> dict:

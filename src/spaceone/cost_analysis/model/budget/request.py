@@ -48,6 +48,7 @@ class BudgetGetRequest(BaseModel):
     domain_id: str
     user_projects: Union[list, None] = None
 
+
 class BudgetDeleteRequest(BaseModel):
     budget_id: str
     workspace_id: str

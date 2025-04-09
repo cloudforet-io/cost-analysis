@@ -65,10 +65,9 @@ class BudgetUsageManager(BaseManager):
                     "cost": 0,
                     "limit": planned_limit.limit,
                     "currency": budget_vo.currency,
-                    "provider_filter": budget_vo.provider_filter.to_dict(),
                     "budget": budget_vo,
                     "resource_group": budget_vo.resource_group,
-                    "data_source_id": budget_vo.data_source_id,
+                    "service_account_id": budget_vo.service_account_id,
                     "project_id": budget_vo.project_id,
                     "workspace_id": budget_vo.workspace_id,
                     "domain_id": budget_vo.domain_id,
@@ -105,7 +104,7 @@ class BudgetUsageManager(BaseManager):
             self.update_cost_usage(budget_vo)
             self.notify_budget_usage(budget_vo)
 
-    def notify_budget_usage(self, budget_vo: Budget):
+    def notify_budget_usage(self, budget_vo: Budget) -> None:
         budget_id = budget_vo.budget_id
         workspace_id = budget_vo.workspace_id
         domain_id = budget_vo.domain_id
@@ -161,11 +160,6 @@ class BudgetUsageManager(BaseManager):
                     if budget_percentage > threshold:
                         is_notify = True
                         is_changed = True
-                else:
-                    if total_budget_usage > threshold:
-                        is_notify = True
-                        is_changed = True
-
                 if is_notify:
                     _LOGGER.debug(
                         f"[notify_budget_usage] notify event: {budget_id}, current month: {current_month} (plan: {plan.to_dict()})"
@@ -223,6 +217,7 @@ class BudgetUsageManager(BaseManager):
 
         identity_mgr = IdentityManager()
         today_date = datetime.now().strftime("%Y-%m-%d")
+
         workspace_name = identity_mgr.get_workspace(
             budget_vo.workspace_id, budget_vo.domain_id
         )
@@ -423,9 +418,7 @@ class BudgetUsageManager(BaseManager):
             "start": budget_vo.start,
             "end": budget_vo.end,
             "fields": {
-                "fields": {
                 "cost": {"key": f"cost.{budget_vo.currency}", "operator": "sum"}
-            },
             },
             "filter": [
                 {"k": "domain_id", "v": budget_vo.domain_id, "o": "eq"},

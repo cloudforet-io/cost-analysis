@@ -69,18 +69,18 @@ class EmailManager(BaseManager):
         self.smtp_connector.send_email(email, subject, email_contents)
 
     def send_budget_usage_alert_email(
-            self,
-            email: str,
-            language: str,
-            user_id: str,
-            threshold: float,
-            total_budget_usage: float,
-            budget_percentage: float,
-            today_date: str,
-            workspace_name: str,
-            console_link: str,
-            budget_vo: Budget,
-            target_name: Union[str, None] = None,
+        self,
+        email: str,
+        language: str,
+        user_id: str,
+        threshold: float,
+        total_budget_usage: float,
+        budget_percentage: float,
+        today_date: str,
+        workspace_name: str,
+        console_link: str,
+        budget_vo: Budget,
+        target_name: Union[str, None] = None,
     ):
         service_name = self._get_service_name()
         language_map_info = LANGUAGE_MAPPER.get(language, "default")

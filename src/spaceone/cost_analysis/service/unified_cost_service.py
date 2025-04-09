@@ -102,7 +102,6 @@ class UnifiedCostService(BaseService):
         aggregation_month = params.get("month")
         exchange_date = params.get("exchange_date")
         exchange_source = params.get("bank")
-        aggregation_month: Union[str, None] = params.get("month")
 
         config_mgr = ConfigManager()
         unified_cost_config = config_mgr.get_unified_cost_config(domain_id)

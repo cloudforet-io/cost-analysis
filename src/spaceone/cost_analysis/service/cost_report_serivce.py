@@ -391,19 +391,19 @@ class CostReportService(BaseService):
         )
 
     def _aggregate_monthly_cost_report(
-            self,
-            domain_id: str,
-            cost_report_config_id: str,
-            workspace_name_map: dict,
-            workspace_ids: list,
-            data_source_currency_map: dict,
-            data_source_ids: list,
-            report_month: str,
-            report_issue_day: int,
-            currency: str,
-            issue_day: int,
-            status: str,
-            issue_month: str = None,
+        self,
+        domain_id: str,
+        cost_report_config_id: str,
+        workspace_name_map: dict,
+        workspace_ids: list,
+        data_source_currency_map: dict,
+        data_source_ids: list,
+        report_month: str,
+        report_issue_day: int,
+        currency: str,
+        issue_day: int,
+        status: str,
+        issue_month: str = None,
     ) -> None:
         report_year = report_month.split("-")[0]
         issue_date = f"{issue_month}-{str(issue_day).zfill(2)}"
@@ -802,7 +802,7 @@ class CostReportService(BaseService):
 
     @staticmethod
     def get_issue_day(
-            is_last_day: bool, issue_day: int = None, current_date: datetime = None
+        is_last_day: bool, issue_day: int = None, current_date: datetime = None
     ) -> int:
         if not current_date:
             current_date = datetime.now(timezone.utc)

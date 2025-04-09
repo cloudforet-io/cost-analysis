@@ -43,12 +43,13 @@ class BudgetManager(BaseManager):
         budget_vo.delete()
 
     def get_budget(
-            self,
-            budget_id: str,
-            domain_id: str,
-            workspace_id: str,
-            project_id: str = None,
+        self,
+        budget_id: str,
+        domain_id: str,
+        workspace_id: str,
+        project_id: str = None,
     ) -> Budget:
+
         conditions = {
             "budget_id": budget_id,
             "workspace_id": workspace_id,
