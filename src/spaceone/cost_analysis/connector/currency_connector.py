@@ -43,9 +43,6 @@ class CurrencyConnector(BaseConnector):
                     f"{from_currency}/{to_currency}"
                 ] = exchange_rate
 
-        _LOGGER.debug(
-            f"[add_currency_map_date] get currency_map successfully for {currency_date}"
-        )
         return currency_map, currency_date
 
     @staticmethod

@@ -62,6 +62,7 @@ class CostService(BaseService):
         Returns:
             cost_vo (object)
         """
+
         raise ERROR_NOT_SUPPORT_API()
 
         # params_dict = params.dict(exclude_unset=True)
@@ -86,7 +87,7 @@ class CostService(BaseService):
         Args:
             params (dict): {
                 'data_source_id': 'str',
-                'cost_id': 'str',           
+                'cost_id': 'str',
                 'workspace_id' : str',      # injected from auth
                 'domain_id': 'str'          # injected from auth
             }

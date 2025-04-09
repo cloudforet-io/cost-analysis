@@ -38,7 +38,6 @@ class UnifiedCostService(BaseService):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
         self.budget_mgr = BudgetManager()
         self.budget_usage_mgr = BudgetUsageManager()
         self.cost_mgr = CostManager()
@@ -99,7 +98,6 @@ class UnifiedCostService(BaseService):
                 "exchange_date": 'str' (optional)
             }
         """
-
         domain_id = params["domain_id"]
         aggregation_month = params.get("month")
         exchange_date = params.get("exchange_date")
@@ -569,7 +567,7 @@ class UnifiedCostService(BaseService):
         unified_cost_month: str,
         is_confirmed: bool,
         created_at: datetime,
-            workspace_id: Union[str, None],
+        workspace_id: Union[str, None],
     ):
         query_filter = {"filter": []}
 

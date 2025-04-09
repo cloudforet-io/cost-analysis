@@ -477,11 +477,11 @@ class JobService(BaseService):
         return job_vo
 
     def _list_secret_ids_from_secret_type(
-            self,
-            data_source_vo: DataSource,
-            secret_type: str,
-            workspace_id: str,
-            domain_id: str,
+        self,
+        data_source_vo: DataSource,
+        secret_type: str,
+        workspace_id: str,
+        domain_id: str,
     ):
         secret_ids = []
 
@@ -645,11 +645,11 @@ class JobService(BaseService):
             return False
 
     def _close_job(
-            self,
-            job_id: str,
-            data_source_id: str,
-            domain_id: str,
-            workspace_id: str = None,
+        self,
+        job_id: str,
+        data_source_id: str,
+        domain_id: str,
+        workspace_id: str = None,
     ) -> None:
         job_vo: Job = self.job_mgr.get_job(job_id, domain_id, workspace_id)
         no_preload_cache = job_vo.options.get("no_preload_cache", False)
@@ -720,11 +720,11 @@ class JobService(BaseService):
                 self._rollback_cost_data(job_vo)
 
     def _update_keys(
-            self,
-            data_source_vo: DataSource,
-            tag_keys: list,
-            additional_info_keys: list,
-            data_keys: list,
+        self,
+        data_source_vo: DataSource,
+        tag_keys: list,
+        additional_info_keys: list,
+        data_keys: list,
     ) -> None:
         self.data_source_mgr.update_data_source_by_vo(
             {
@@ -829,12 +829,12 @@ class JobService(BaseService):
         return values
 
     def _distinct_job_task_id(
-            self,
-            job_id: str,
-            data_source_id: str,
-            domain_id: str,
-            start: str,
-            end: str = None,
+        self,
+        job_id: str,
+        data_source_id: str,
+        domain_id: str,
+        start: str,
+        end: str = None,
     ) -> list:
         query = {
             "distinct": "job_task_id",
@@ -859,7 +859,7 @@ class JobService(BaseService):
         return values
 
     def _delete_changed_cost_data(
-            self, job_vo: Job, start, end, change_filter, domain_id
+        self, job_vo: Job, start, end, change_filter, domain_id
     ):
         job_ids = self._distinct_job_id(job_vo.data_source_id, domain_id, start, end)
 
@@ -875,6 +875,7 @@ class JobService(BaseService):
                     {"k": "job_id", "v": job_id, "o": "eq"},
                 ],
                 "hint": "COMPOUND_INDEX_FOR_SYNC_JOB_2",
+                "include_count": False,
             }
 
             if end:
@@ -903,7 +904,7 @@ class JobService(BaseService):
             )
 
     def _delete_changed_cost_data_with_job_task(
-            self, job_task_vo: JobTask, domain_id: str
+        self, job_task_vo: JobTask, domain_id: str
     ) -> None:
         changed = job_task_vo.changed
 
@@ -928,7 +929,6 @@ class JobService(BaseService):
                     {"k": "job_task_id", "v": job_task_id, "o": "eq"},
                 ],
                 "hint": "COMPOUND_INDEX_FOR_SYNC_JOB_2",
-                "include_count": False,
             }
 
             if end:
@@ -957,7 +957,7 @@ class JobService(BaseService):
             )
 
     def _aggregate_cost_data(
-            self, job_vo: Job, data_keys: list, additional_info_keys: list, tag_keys: list
+        self, job_vo: Job, data_keys: list, additional_info_keys: list, tag_keys: list
     ):
         data_source_id = job_vo.data_source_id
         domain_id = job_vo.domain_id
@@ -986,7 +986,7 @@ class JobService(BaseService):
             tag_keys: list,
     ) -> None:
         for billed_month in self._distinct_billed_month(
-                domain_id, data_source_id, job_id, job_task_id
+            domain_id, data_source_id, job_id, job_task_id
         ):
             self._aggregate_monthly_cost_data(
                 data_source_id,
@@ -1000,7 +1000,7 @@ class JobService(BaseService):
             )
 
     def _distinct_billed_month(
-            self, domain_id: str, data_source_id: str, job_id: str, job_task_id: str
+        self, domain_id: str, data_source_id: str, job_id: str, job_task_id: str
     ) -> list:
         query = {
             "distinct": "billed_month",
@@ -1021,15 +1021,15 @@ class JobService(BaseService):
         return values
 
     def _aggregate_monthly_cost_data(
-            self,
-            data_source_id: str,
-            domain_id: str,
-            job_id: str,
-            job_task_id: str,
-            billed_month: str,
-            data_keys: list,
-            additional_info_keys: list,
-            tag_keys: list,
+        self,
+        data_source_id: str,
+        domain_id: str,
+        job_id: str,
+        job_task_id: str,
+        billed_month: str,
+        data_keys: list,
+        additional_info_keys: list,
+        tag_keys: list,
     ) -> None:
         query = {
             "group_by": [
@@ -1128,7 +1128,7 @@ class JobService(BaseService):
         return self.data_source_mgr.list_data_sources(query)
 
     def _check_duplicate_job(
-            self, data_source_id: str, domain_id: str, this_job_vo: Job
+        self, data_source_id: str, domain_id: str, this_job_vo: Job
     ):
         query = {
             "filter": [
@@ -1168,11 +1168,11 @@ class JobService(BaseService):
         return job_task_ids
 
     def _get_data_source_account_map(
-            self,
-            data_source_id: str,
-            domain_id: str,
-            workspace_id: str,
-            resource_group: str,
+        self,
+        data_source_id: str,
+        domain_id: str,
+        workspace_id: str,
+        resource_group: str,
     ) -> Dict[str, DataSourceAccount]:
         data_source_account_map = {}
         conditions = {
@@ -1194,11 +1194,11 @@ class JobService(BaseService):
         return data_source_account_map
 
     def _get_linked_accounts_from_data_source_vo(
-            self,
-            data_source_vo: DataSource,
-            options: dict,
-            secret_data: dict,
-            schema: dict = None,
+        self,
+        data_source_vo: DataSource,
+        options: dict,
+        secret_data: dict,
+        schema: dict = None,
     ) -> list:
         linked_accounts = []
 
