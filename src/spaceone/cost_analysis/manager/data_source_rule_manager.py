@@ -82,7 +82,7 @@ class DataSourceRuleManager(BaseManager):
     def filter_data_source_rules(self, **conditions):
         return self.data_source_rule_model.filter(**conditions)
 
-    def list_data_source_rules(self, query: dict):
+    def list_data_source_rules(self, query={}):
         return self.data_source_rule_model.query(**query)
 
     def stat_data_source_rules(self, query):

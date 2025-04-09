@@ -334,6 +334,7 @@ class DataSourceRuleService(BaseService):
         ["data_source_rule_id", "name", "data_source_id", "workspace_id", "domain_id"]
     )
     @append_keyword_filter(["data_source_rule_id", "name"])
+    @convert_model
     def list(self, params: DataSourceRuleSearchQueryRequest) -> Union[DataSourceRulesResponse, dict]:
         """List data source rule
 
