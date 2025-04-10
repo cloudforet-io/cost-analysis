@@ -24,7 +24,6 @@ class DataSourceRuleResponse(BaseModel):
     options: Union[dict, None] = None
     tags: Union[dict, None] = None
     data_source_id: Union[str, None] = None
-    data_source: Union[dict, None] = None
     resource_group: Union[ResourceGroup, None] = None
     workspace_id: Union[str, None] = None
     domain_id: Union[str, None] = None

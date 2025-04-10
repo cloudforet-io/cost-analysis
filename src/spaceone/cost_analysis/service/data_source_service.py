@@ -196,6 +196,7 @@ class DataSourceService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @check_required(["data_source_id", "domain_id"])
+    @convert_model
     def update(self, params: DataSourceUpdateRequest) -> Union[DataSourceResponse, dict]:
         """Update data source
 
@@ -285,6 +286,7 @@ class DataSourceService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @check_required(["data_source_id", "secret_schema_id", "secret_data", "domain_id"])
+    @convert_model
     def update_secret_data(self, params: DataSourceUpdateSecretDataRequest) -> Union[DataSourceResponse, dict]:
         """Update secret data of data source
         Args:
@@ -344,6 +346,7 @@ class DataSourceService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @check_required(["data_source_id", "domain_id"])
+    @convert_model
     def verify_plugin(self, params: DataSourceVerifyPluginRequest) -> None:
         """Verify data source plugin
 
@@ -378,6 +381,7 @@ class DataSourceService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @check_required(["data_source_id", "domain_id"])
+    @convert_model
     def update_plugin(self, params: DataSourceUpdatePluginRequest) -> Union[DataSourceResponse, dict]:
         """Update data source plugin
 
@@ -455,6 +459,7 @@ class DataSourceService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @check_required(["data_source_id", "domain_id"])
+    @convert_model
     def deregister(self, params: DataSourceDeregisterRequest) -> None:
         """Deregister data source
 
@@ -503,6 +508,7 @@ class DataSourceService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @check_required(["data_source_id", "domain_id"])
+    @convert_model
     def sync(self, params: DataSourceSyncRequest) -> Union[JobResponse, dict]:
         """Sync data with data source
 
@@ -646,6 +652,7 @@ class DataSourceService(BaseService):
     @append_query_filter(["workspace_id", "domain_id"])
     @change_tag_filter("tags")
     @append_keyword_filter(["data_source_id", "name"])
+    @convert_model
     def stat(self, params: DataSourceStatQueryRequest) -> dict:
         """
         Args:

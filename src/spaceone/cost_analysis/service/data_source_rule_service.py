@@ -38,12 +38,13 @@ class DataSourceRuleService(BaseService):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.data_source_rule_mgr = DataSourceRuleManager
+        self.data_source_rule_mgr = DataSourceRuleManager()
 
     @transaction(
         permission="cost-analysis:DataSourceRule.write",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
+    @convert_model
     def create(self, params: DataSourceRuleCreateRequest) -> Union[DataSourceRuleResponse, dict]:
         """Create data source rule
 
@@ -121,6 +122,7 @@ class DataSourceRuleService(BaseService):
     )
     @check_required(["data_source_rule_id", "domain_id"])
     @change_date_value(["end"])
+    @convert_model
     def update(self, params: DataSourceRuleUpdateRequest) -> Union[DataSourceRuleResponse, dict]:
         """Update data source rule
 
@@ -179,6 +181,7 @@ class DataSourceRuleService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @check_required(["data_source_rule_id", "order", "domain_id"])
+    @convert_model
     def change_order(self, params: DataSourceRuleChangeOrderRequest) -> Union[DataSourceRuleResponse, dict]:
         """Change data source rule's order
 
@@ -253,6 +256,7 @@ class DataSourceRuleService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @check_required(["data_source_rule_id", "domain_id"])
+    @convert_model
     def delete(self, params: DataSourceRuleDeleteRequest) -> None:
         """Delete data source rule
 
@@ -300,6 +304,7 @@ class DataSourceRuleService(BaseService):
     )
     @change_value_by_rule("APPEND", "workspace_id", "*")
     @check_required(["data_source_rule_id", "domain_id"])
+    @convert_model
     def get(self, params: DataSourceRuleGetRequest) -> Union[DataSourceRuleResponse, dict]:
         """Get data source rule
 
@@ -367,6 +372,7 @@ class DataSourceRuleService(BaseService):
     @check_required(["query", "domain_id"])
     @append_query_filter(["workspace_id", "domain_id"])
     @append_keyword_filter(["data_source_rule_id", "name"])
+    @convert_model
     def stat(self, params: DataSourceRuleStatQueryRequest) -> dict:
         """
         Args:

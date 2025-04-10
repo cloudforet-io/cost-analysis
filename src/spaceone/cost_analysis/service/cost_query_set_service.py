@@ -30,6 +30,7 @@ class CostQuerySetService(BaseService):
     )
     @check_required(["data_source_id", "name", "options", "user_id", "domain_id"])
     @change_date_value(["start", "end"])
+    @convert_model
     def create(self, params: CostQuerySetCreateRequest) -> Union[CostQuerySetResponse, dict]:
         """Register cost_query_set
 
@@ -65,6 +66,7 @@ class CostQuerySetService(BaseService):
     )
     @check_required(["cost_query_set_id", "user_id", "domain_id"])
     @change_date_value(["end"])
+    @convert_model
     def update(self, params: CostQuerySetUpdateRequest) -> Union[CostQuerySetResponse, dict]:
         """Update cost_query_set
 
@@ -103,6 +105,7 @@ class CostQuerySetService(BaseService):
         role_types=["USER"],
     )
     @check_required(["cost_query_set_id", "user_id", "domain_id"])
+    @convert_model
     def delete(self, params: CostQuerySetDeleteRequest) -> None:
         """Deregister cost_query_set
 
@@ -130,6 +133,7 @@ class CostQuerySetService(BaseService):
         role_types=["USER"],
     )
     @check_required(["cost_query_set_id", "user_id", "domain_id"])
+    @convert_model
     def get(self, params: CostQuerySetGetRequest) -> Union[CostQuerySetResponse, dict]:
         """Get cost_query_set
 
@@ -171,6 +175,7 @@ class CostQuerySetService(BaseService):
         ]
     )
     @append_keyword_filter(["cost_query_set_id", "name"])
+    @convert_model
     def list(self, params: CostQuerySetSearchQueryRequest) -> Union[CostQuerySetsResponse, dict]:
         """List cost_query_sets
 
@@ -203,6 +208,7 @@ class CostQuerySetService(BaseService):
     @check_required(["query", "data_source_id", "domain_id"])
     @append_query_filter(["data_source_id", "domain_id"])
     @append_keyword_filter(["cost_query_set_id", "name"])
+    @convert_model
     def stat(self, params: CostQuerySetStatQueryRequest) -> dict:
         """
         Args:
