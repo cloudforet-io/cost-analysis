@@ -85,7 +85,8 @@ class DataSourcePluginManager(BaseManager):
 
         return endpoint
 
-    def get_data_source_plugin_endpoint(self, plugin_info, domain_id):
+    @staticmethod
+    def get_data_source_plugin_endpoint(plugin_info, domain_id):
         plugin_mgr = PluginManager()
         return plugin_mgr.get_plugin_endpoint(plugin_info, domain_id)
 
@@ -113,7 +114,8 @@ class DataSourcePluginManager(BaseManager):
             plugin_metadata, resource_group, data_source_id, workspace_id, domain_id
         )
 
-    def delete_data_source_rules(self, data_source_id, domain_id):
+    @staticmethod
+    def delete_data_source_rules(data_source_id, domain_id):
         _LOGGER.debug(
             f"[_delete_data_source_rules] delete all data source rules: {data_source_id}"
         )
@@ -124,8 +126,8 @@ class DataSourcePluginManager(BaseManager):
 
         old_data_source_rule_vos.delete()
 
+    @staticmethod
     def create_data_source_rules_by_metadata(
-        self,
         metadata: dict,
         resource_group: str,
         data_source_id: str,
@@ -140,9 +142,7 @@ class DataSourcePluginManager(BaseManager):
                 f"rule count = {len(data_source_rules)}"
             )
 
-            data_source_rule_svc: DataSourceRuleService = self.locator.get_service(
-                "DataSourceRuleService", metadata
-            )
+            data_source_rule_svc = DataSourceRuleService(metadata)
             for data_source_rule_params in data_source_rules:
                 data_source_rule_params["resource_group"] = resource_group
                 data_source_rule_params["data_source_id"] = data_source_id
