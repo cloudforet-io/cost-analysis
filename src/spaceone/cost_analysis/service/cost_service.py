@@ -135,12 +135,10 @@ class CostService(BaseService):
         Returns:
             cost_vo (object)
         """
-        params_dict = params.dict(exclude_unset=True)
-
-        cost_id = params_dict["cost_id"]
-        user_projects = params_dict.get("user_projects", [])
-        workspace_id = params_dict.get("workspace_id")
-        domain_id = params_dict["domain_id"]
+        cost_id = params.cost_id
+        user_projects = params.user_projects or []
+        workspace_id = params.workspace_id
+        domain_id = params.domain_id
 
         if workspace_id:
             cost_vo: Cost = self.cost_mgr.get_cost(cost_id, domain_id, user_projects)
@@ -261,6 +259,7 @@ class CostService(BaseService):
     )
     @append_keyword_filter(["cost_id"])
     # @set_query_page_limit(1000)
+    @convert_model
     def analyze(self, params: CostAnalyzeQueryRequest) -> dict:
         """
         Args:
@@ -302,6 +301,7 @@ class CostService(BaseService):
     )
     @append_keyword_filter(["cost_id"])
     # @set_query_page_limit(1000)
+    @convert_model
     def stat(self, params: CostStatQueryRequest) -> dict:
         """
         Args:
