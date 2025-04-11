@@ -36,6 +36,7 @@ class BudgetResponse(BaseModel):
     utilization_rate: Union[float, None] = None
     tags: Union[dict, None] = None
     resource_group: Union[ResourceGroup, None] = None
+    budget_manager_id: Union[str, None] = None
     service_account_id: Union[str, None] = None
     project_id: Union[str, None] = None
     workspace_id: Union[str, None] = None

@@ -23,7 +23,7 @@ class BudgetUsageManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.budget_mgr = BudgetManager()
-        self.budget_usage_model: BudgetUsage = self.locator.get_model("BudgetUsage")
+        self.budget_usage_model = BudgetUsage
         self.notification_mgr: NotificationManager = self.locator.get_manager(
             "NotificationManager"
         )
@@ -35,18 +35,14 @@ class BudgetUsageManager(BaseManager):
             end_dt = datetime.strptime(budget_vo.end, "%Y-%m")
 
             dts = [dt for dt in rrule(MONTHLY, dtstart=start_dt, until=end_dt)]
-            limit_per_month = round(budget_vo.limit / len(dts), 3)
-            budget_limit = budget_vo.limit
 
             for dt in dts:
-                if budget_limit - limit_per_month < 0:
-                    limit_per_month = round(budget_limit, 3)
                 budget_usage_data = {
                     "budget_id": budget_vo.budget_id,
                     "name": budget_vo.name,
                     "date": dt.strftime("%Y-%m"),
                     "cost": 0,
-                    "limit": limit_per_month,
+                    "limit": 0,
                     "currency": budget_vo.currency,
                     "budget": budget_vo,
                     "resource_group": budget_vo.resource_group,
@@ -57,7 +53,6 @@ class BudgetUsageManager(BaseManager):
                 }
 
                 budget_usage_vo = self.budget_usage_model.create(budget_usage_data)
-                budget_limit -= limit_per_month
 
         else:
             for planned_limit in budget_vo.planned_limits:
@@ -309,19 +304,44 @@ class BudgetUsageManager(BaseManager):
         result = unified_cost_mgr.analyze_unified_costs_by_granularity(
             query, budget_vo.domain_id
         )
+        current_month = datetime.now(timezone.utc).strftime("%Y-%m")
 
         for unified_cost_usage_data in result.get("results", []):
             if date := unified_cost_usage_data.get("date"):
                 update_budget_usage_map[date] = unified_cost_usage_data.get("cost", 0)
 
         budget_usage_vos = self.budget_usage_model.filter(budget_id=budget_vo.budget_id)
+        total_usage_cost = 0
+
         for budget_usage_vo in budget_usage_vos:
             if budget_usage_vo.date in update_budget_usage_map:
+                total_usage_cost += update_budget_usage_map[budget_usage_vo.date]
+                budget_usage_utilization_rate = (
+                    budget_vo.limit / update_budget_usage_map[budget_usage_vo.date]
+                )
                 budget_usage_vo.update(
-                    {"cost": update_budget_usage_map[budget_usage_vo.date]}
+                    {
+                        "cost": update_budget_usage_map[budget_usage_vo.date],
+                        "utilization": budget_usage_utilization_rate,
+                    }
                 )
             else:
                 budget_usage_vo.update({"cost": 0})
+
+        if budget_vo.time_unit == "TOTAL":
+            budget_utilization_rate = total_usage_cost / budget_vo.limit * 100
+        else:
+            budget_utilization_rate = 0
+            for budget_usage_vo in budget_usage_vos:
+                if budget_usage_vo.date == current_month:
+                    budget_utilization_rate = (
+                        budget_usage_vo.cost / budget_usage_vo.limit * 100
+                    )
+                    break
+
+        self.budget_mgr.update_budget_by_vo(
+            {"utilization_rate": budget_utilization_rate}, budget_vo
+        )
 
     @staticmethod
     def _get_user_info_map_from_recipients(
