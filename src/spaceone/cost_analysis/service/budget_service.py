@@ -5,7 +5,6 @@ from dateutil.rrule import rrule, MONTHLY
 from spaceone.core.service import *
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.manager.config_manager import ConfigManager
-from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.budget_manager import BudgetManager
 from spaceone.cost_analysis.manager.budget_usage_manager import BudgetUsageManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
@@ -59,6 +58,7 @@ class BudgetService(BaseService):
         workspace_id = params.workspace_id
         project_id = params.project_id
         service_account_id = params.service_account_id
+        budget_manager_id = params.budget_manager_id
         limit = params.limit
         planned_limits = params.planned_limits or []
         time_unit = params.time_unit
@@ -73,7 +73,7 @@ class BudgetService(BaseService):
 
         self._check_time_period(start, end)
 
-        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
+        identity_mgr = IdentityManager()
         identity_mgr.check_workspace(workspace_id, domain_id)
         identity_mgr.get_project(project_id, domain_id)
 
@@ -81,6 +81,9 @@ class BudgetService(BaseService):
             identity_mgr.get_service_account(
                 service_account_id, domain_id, workspace_id
             )
+
+        if budget_manager_id:
+            self._check_user_exists(identity_mgr, budget_manager_id, domain_id)
 
         if not params.currency:
             config_mgr = ConfigManager()
@@ -147,6 +150,7 @@ class BudgetService(BaseService):
                 'start': 'str',
                 'end': 'str',
                 'tags': 'dict'
+                'budget_manager_id': 'str',
                 'workspace_id', 'str',      # injected from auth (optional)
                 'domain_id': 'str'          # injected from auth
             }
@@ -159,6 +163,7 @@ class BudgetService(BaseService):
         workspace_id = params.workspace_id
         domain_id = params.domain_id
         planned_limits = params.planned_limits or []
+        budget_manager_id = params.budget_manager_id
 
         budget_usage_mgr = BudgetUsageManager()
 
@@ -178,6 +183,10 @@ class BudgetService(BaseService):
         # Check limit and Planned Limits
         if planned_limits:
             self._check_planned_limits(start, end, budget_vo.time_unit, planned_limits)
+
+        if budget_manager_id:
+            identity_mgr = IdentityManager()
+            self._check_user_exists(identity_mgr, budget_manager_id, domain_id)
 
         budget_vo = self.budget_mgr.update_budget_by_vo(
             params.dict(exclude_unset=True), budget_vo
@@ -489,3 +498,9 @@ class BudgetService(BaseService):
             )
 
         return query
+
+    @staticmethod
+    def _check_user_exists(identity_mgr: IdentityManager, user_id: str, domain_id: str):
+        response = identity_mgr.list_role_bindings({"user_id": user_id}, domain_id)
+        if response.get("total_count", 0) == 0:
+            raise ERROR_NOT_FOUND(key="budget_manager_id", value=user_id)

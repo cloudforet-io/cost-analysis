@@ -48,7 +48,7 @@ class Budget(MongoModel):
     resource_group = StringField(
         max_length=40, choices=["WORKSPACE", "PROJECT"]
     )  # leave WORKSPACE for previous version
-    data_source_id = StringField(max_length=40)
+    budget_manager_id = StringField(max_length=60, default=None, null=True)
     service_account_id = StringField(max_length=40)
     project_id = StringField(max_length=40, default=None, null=True)
     workspace_id = StringField(max_length=40, default=None, null=True)
@@ -65,9 +65,10 @@ class Budget(MongoModel):
             "start",
             "end",
             "notification",
-            "notified_month",
+            "notified_months",
             "utilization_rate",
             "tags",
+            "budget_manager_id",
         ],
         "minimal_fields": [
             "budget_id",
@@ -75,14 +76,13 @@ class Budget(MongoModel):
             "limit",
             "project_id",
             "service_account_id",
-            "data_source_id",
+            "budget_manager_id",
         ],
         "change_query_keys": {"user_projects": "project_id"},
         "ordering": ["name"],
         "indexes": [
             "name",
             "resource_group",
-            "data_source_id",
             "service_account_id",
             "project_id",
             "workspace_id",
