@@ -43,7 +43,7 @@ class BudgetService(BaseService):
                 'time_unit': 'str',         # required
                 'start': 'str',             # required
                 'end': 'str',               # required
-                'notifications': 'dict',
+                'notification': 'dict',
                 'tags': 'dict',
                 'resource_group': 'str',    # required
                 'project_id': 'str',
@@ -65,13 +65,13 @@ class BudgetService(BaseService):
         start = params.start
         end = params.end
 
-        notifications = params.notifications or {}
+        notification = params.notification or {}
         resource_group = params.resource_group
-
-        self._check_time_period(start, end)
 
         if resource_group != "PROJECT":
             raise ERROR_NOT_IMPLEMENTED()
+
+        self._check_time_period(start, end)
 
         identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
         identity_mgr.check_workspace(workspace_id, domain_id)
@@ -101,8 +101,8 @@ class BudgetService(BaseService):
             for planned_limit in planned_limits:
                 params.limit += planned_limit.get("limit", 0)
 
-        # Check Notifications
-        self._check_notifications(notifications, domain_id, workspace_id)
+        # Check Notification
+        self._check_notification(notification, domain_id, workspace_id)
 
         # Check Duplicated Budget
         budget_vos = self.budget_mgr.filter_budgets(
@@ -144,6 +144,8 @@ class BudgetService(BaseService):
                 'name': 'str',
                 'limit': 'float',
                 'planned_limits': 'list',
+                'start': 'str',
+                'end': 'str',
                 'tags': 'dict'
                 'workspace_id', 'str',      # injected from auth (optional)
                 'domain_id': 'str'          # injected from auth
@@ -164,12 +166,28 @@ class BudgetService(BaseService):
             budget_id, domain_id, workspace_id
         )
 
+        start = budget_vo.start
+        end = budget_vo.end
+
+        if params.start or params.end:
+            start = params.start or start
+            end = params.end or end
+            self._check_time_period(start, end)
+            planned_limits = planned_limits or budget_vo.planned_limits
+
         # Check limit and Planned Limits
+        if planned_limits:
+            self._check_planned_limits(start, end, budget_vo.time_unit, planned_limits)
+
         budget_vo = self.budget_mgr.update_budget_by_vo(
             params.dict(exclude_unset=True), budget_vo
         )
 
-        if "name" in params:
+        # Update Budget Usages
+        if planned_limits:
+            budget_usage_mgr.delete_budget_usage_by_budget_vo(budget_vo)
+            budget_usage_mgr.create_budget_usages(budget_vo)
+        elif "name" in params:
             budget_usage_vos = budget_usage_mgr.filter_budget_usages(
                 budget_id=budget_id,
                 domain_id=domain_id,
@@ -197,7 +215,7 @@ class BudgetService(BaseService):
         Args:
             params (dict): {
                 'budget_id': 'str',
-                'notifications': 'dict',
+                'notification': 'dict',
                 'workspace_id': 'str',
                 'domain_id': 'str'
                 'user_projects': 'list'
@@ -210,15 +228,15 @@ class BudgetService(BaseService):
         project_id = params.project_id
         workspace_id = params.workspace_id
         domain_id = params.domain_id
-        notifications = params.notifications or {}
+        notification = params.notification or {}
 
         budget_vo: Budget = self.budget_mgr.get_budget(
             budget_id, domain_id, workspace_id, project_id
         )
 
-        # Check Notifications
-        self._check_notifications(notifications, domain_id, workspace_id)
-        params.notifications = notifications
+        # Check notification
+        self._check_notification(notification, domain_id, workspace_id)
+        params.notification = notification
 
         budget_vo = self.budget_mgr.update_budget_by_vo(
             params.dict(exclude_unset=True), budget_vo
@@ -356,7 +374,14 @@ class BudgetService(BaseService):
         if start >= end:
             raise ERROR_INVALID_TIME_RANGE(start=start, end=end)
 
-    def _check_planned_limits(self, start, end, time_unit, planned_limits):
+    def _check_planned_limits(
+        self, start: str, end: str, time_unit: str, planned_limits: list
+    ):
+        if time_unit == "TOTAL":
+            raise ERROR_INVALID_PARAMETER(
+                key="time_unit", value=f"Only MONTHLY time_unit is allowed"
+            )
+
         planned_limits_dict = self._convert_planned_limits_data_type(planned_limits)
         date_format = "%Y-%m"
 
@@ -381,7 +406,7 @@ class BudgetService(BaseService):
             raise ERROR_DATE_IS_WRONG(date=list(planned_limits_dict.keys()))
 
     @staticmethod
-    def _convert_planned_limits_data_type(planned_limits):
+    def _convert_planned_limits_data_type(planned_limits: list) -> dict:
         planned_limits_dict = {}
 
         for planned_limit in planned_limits:
@@ -398,12 +423,12 @@ class BudgetService(BaseService):
         return planned_limits_dict
 
     @staticmethod
-    def _check_notifications(
-        notifications: dict,
+    def _check_notification(
+        notification: dict,
         domain_id: str,
         workspace_id: str,
     ) -> dict:
-        plans = notifications.get("plans", [])
+        plans = notification.get("plans", [])
 
         for plan in plans:
             unit = plan["unit"]
@@ -420,7 +445,7 @@ class BudgetService(BaseService):
                     raise ERROR_THRESHOLD_IS_WRONG_IN_PERCENT_TYPE(value=plan)
 
         # check recipients
-        recipients = notifications.get("recipients", {})
+        recipients = notification.get("recipients", {})
         users = list(set(recipients.get("users", [])))
         role_types = list(set(recipients.get("role_types", [])))
 
@@ -449,8 +474,8 @@ class BudgetService(BaseService):
                     raise ERROR_NOT_FOUND(key="user_id", value=user_id)
             recipients["users"] = users
 
-        notifications["recipients"] = recipients
-        return notifications
+        notification["recipients"] = recipients
+        return notification
 
     @staticmethod
     def _set_user_project_or_project_group_filter(params: dict) -> dict:

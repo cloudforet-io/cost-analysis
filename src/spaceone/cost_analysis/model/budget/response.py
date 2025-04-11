@@ -32,7 +32,8 @@ class BudgetResponse(BaseModel):
     time_unit: Union[str, None] = None
     start: Union[str, None] = None
     end: Union[str, None] = None
-    notifications: Union[Notification, dict] = None
+    notification: Union[Notification, dict] = None
+    utilization_rate: Union[float, None] = None
     tags: Union[dict, None] = None
     resource_group: Union[ResourceGroup, None] = None
     service_account_id: Union[str, None] = None
