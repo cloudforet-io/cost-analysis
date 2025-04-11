@@ -24,6 +24,7 @@ from spaceone.cost_analysis.manager.data_source_plugin_manager import DataSource
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.secret_manager import SecretManager
 from spaceone.cost_analysis.manager.budget_usage_manager import BudgetUsageManager
+from spaceone.cost_analysis.service import DataSourceService
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -503,7 +504,7 @@ class JobService(BaseService):
     def _list_secret_ids_from_secret_filter(
         self, secret_filter, provider: str, workspace_id: str, domain_id: str
     ):
-        secret_manager: SecretManager = self.locator.get_manager(SecretManager)
+        secret_manager = SecretManager()
 
         _filter = self._set_secret_filter(
             secret_filter, provider, workspace_id, domain_id
@@ -1205,7 +1206,7 @@ class JobService(BaseService):
         if not use_account_routing:
             return linked_accounts
 
-        data_source_svc = self.locator.get_service("DataSourceService")
+        data_source_svc = DataSourceService()
 
         data_source_id = data_source_vo.data_source_id
         domain_id = data_source_vo.domain_id
