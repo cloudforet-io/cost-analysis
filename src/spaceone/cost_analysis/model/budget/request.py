@@ -14,7 +14,7 @@ class BudgetCreateRequest(BaseModel):
     time_unit: TimeUnit
     start: str
     end: str
-    notifications: Union[dict, None] = None
+    notification: Union[dict, None] = None
     tags: Union[dict, None] = None
     resource_group: ResourceGroup
     service_account_id: Union[str, None] = None
@@ -28,6 +28,8 @@ class BudgetUpdateRequest(BaseModel):
     name: Union[str, None] = None
     limit: Union[float, None] = None
     planned_limits: Union[list, None] = None
+    start: Union[str, None] = None
+    end: Union[str, None] = None
     tags: Union[dict, None] = None
     workspace_id: str
     domain_id: str
@@ -35,7 +37,7 @@ class BudgetUpdateRequest(BaseModel):
 
 class BudgetSetNotificationRequest(BaseModel):
     budget_id: str
-    notifications: dict
+    notification: dict
     project_id: Union[str, None] = None
     workspace_id: str
     domain_id: str

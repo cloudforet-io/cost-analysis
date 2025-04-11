@@ -30,23 +30,21 @@ class ERROR_DATE_IS_WRONG(ERROR_INVALID_ARGUMENT):
 
 
 class ERROR_UNIT_IS_REQUIRED(ERROR_INVALID_ARGUMENT):
-    _message = (
-        "Unit is required for notifications (key = notifications, value = {value})"
-    )
+    _message = "Unit is required for notification (key = notification, value = {value})"
 
 
 class ERROR_NOTIFICATION_TYPE_IS_REQUIRED(ERROR_INVALID_ARGUMENT):
-    _message = "Notification type is required for notifications (key = notifications, value = {value})"
+    _message = "Notification type is required for notification (key = notification, value = {value})"
 
 
 class ERROR_THRESHOLD_IS_WRONG(ERROR_INVALID_ARGUMENT):
     _message = (
-        "Threshold must be greater than zero. (key = notifications, value = {value})"
+        "Threshold must be greater than zero. (key = notification, value = {value})"
     )
 
 
 class ERROR_THRESHOLD_IS_WRONG_IN_PERCENT_TYPE(ERROR_INVALID_ARGUMENT):
-    _message = "In percentage type, the threshold must be less than 100. (key = notifications, value = {value})"
+    _message = "In percentage type, the threshold must be less than 100. (key = notification, value = {value})"
 
 
 class ERROR_PROVIDER_FILTER_IS_EMPTY(ERROR_INVALID_ARGUMENT):

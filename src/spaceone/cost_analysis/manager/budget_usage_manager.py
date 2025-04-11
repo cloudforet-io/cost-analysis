@@ -114,12 +114,12 @@ class BudgetUsageManager(BaseManager):
         current_month = datetime.now(timezone.utc).strftime("%Y-%m")
         updated_plans = []
         is_changed = False
-        notifications = budget_vo.notifications
+        notification = budget_vo.notification
 
-        plans = notifications.plans or []
+        plans = notification.plans or []
 
         for plan in plans:
-            if current_month not in plan.notified_months:
+            if current_month not in budget_vo.notified_months:
                 unit = plan.unit
                 threshold = plan.threshold
                 is_notify = False
@@ -206,8 +206,14 @@ class BudgetUsageManager(BaseManager):
                 updated_plans.append(plan.to_dict())
 
         if is_changed:
-            notifications.plans = updated_plans
-            budget_vo.update({"notifications": notifications.to_dict()})
+            notification.plans = updated_plans
+            budget_vo.update({"notifications": notification.to_dict()})
+
+    def delete_budget_usage_by_budget_vo(self, budget_vo: Budget) -> None:
+        budget_usage_vos = self.filter_budget_usages(
+            budget_id=budget_vo.budget_id, domain_id=budget_vo.domain_id
+        )
+        budget_usage_vos.delete()
 
     def _notify_message(
         self,
@@ -246,7 +252,7 @@ class BudgetUsageManager(BaseManager):
             budget_vo.domain_id,
             budget_vo.workspace_id,
             budget_vo.project_id,
-            budget_vo.notifications.recipients.to_dict(),
+            budget_vo.notification.recipients.to_dict(),
             service_account_id=budget_vo.service_account_id,
         )
 

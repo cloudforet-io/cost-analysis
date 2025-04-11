@@ -19,9 +19,7 @@ class BudgetUsageService(BaseService):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.budget_usage_mgr: BudgetUsageManager = self.locator.get_manager(
-            "BudgetUsageManager"
-        )
+        self.budget_usage_mgr = BudgetUsageManager()
 
     @transaction(
         permission="cost-analysis:BudgetUsage.read",
