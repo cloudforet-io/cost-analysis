@@ -137,6 +137,7 @@ class CostService(BaseService):
         Returns:
             cost_vo (object)
         """
+
         cost_id = params.cost_id
         user_projects = params.user_projects or []
         workspace_id = params.workspace_id
