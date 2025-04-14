@@ -1,7 +1,7 @@
 import logging
-from typing import Union
 
-from spaceone.core.error import ERROR_PERMISSION_DENIED
+from spaceone.core import config, queue
+from spaceone.core import utils
 from spaceone.core.manager import BaseManager
 from spaceone.cost_analysis.model.budget.database import Budget
 
@@ -71,3 +71,25 @@ class BudgetManager(BaseManager):
 
     def stat_budgets(self, query):
         return self.budget_model.stat(**query)
+
+    @staticmethod
+    def push_budget_job_task(params: dict) -> None:
+        token = config.get_global("TOKEN")
+        task = {
+            "name": "update_budget",
+            "version": "v1",
+            "executionEngine": "BaseWorker",
+            "stages": [
+                {
+                    "locator": "SERVICE",
+                    "name": "BudgetService",
+                    "metadata": {"token": token},
+                    "method": "update_budget_utilization_rate",
+                    "params": {"params": params},
+                }
+            ],
+        }
+
+        _LOGGER.debug(f"[push_job_task] task param: {params}")
+
+        queue.put("cost_analysis_q", utils.dump_json(task))

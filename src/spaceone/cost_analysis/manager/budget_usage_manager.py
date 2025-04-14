@@ -6,7 +6,6 @@ from dateutil.rrule import rrule, MONTHLY
 
 from spaceone.core import config
 from spaceone.core.manager import BaseManager
-from spaceone.core import utils
 
 from spaceone.cost_analysis.manager.email_manager import EmailManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
@@ -23,11 +22,11 @@ class BudgetUsageManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.budget_mgr = BudgetManager()
-        self.budget_usage_model = BudgetUsage
         self.notification_mgr: NotificationManager = self.locator.get_manager(
             "NotificationManager"
         )
         self.email_mgr = None
+        self.budget_usage_model = BudgetUsage
 
     def create_budget_usages(self, budget_vo: Budget) -> None:
         if budget_vo.time_unit == "TOTAL":
@@ -316,13 +315,9 @@ class BudgetUsageManager(BaseManager):
         for budget_usage_vo in budget_usage_vos:
             if budget_usage_vo.date in update_budget_usage_map:
                 total_usage_cost += update_budget_usage_map[budget_usage_vo.date]
-                budget_usage_utilization_rate = (
-                    budget_vo.limit / update_budget_usage_map[budget_usage_vo.date]
-                )
                 budget_usage_vo.update(
                     {
                         "cost": update_budget_usage_map[budget_usage_vo.date],
-                        "utilization": budget_usage_utilization_rate,
                     }
                 )
             else:
@@ -330,18 +325,19 @@ class BudgetUsageManager(BaseManager):
 
         if budget_vo.time_unit == "TOTAL":
             budget_utilization_rate = total_usage_cost / budget_vo.limit * 100
+            self.budget_mgr.update_budget_by_vo(
+                {"utilization_rate": budget_utilization_rate}, budget_vo
+            )
         else:
-            budget_utilization_rate = 0
             for budget_usage_vo in budget_usage_vos:
                 if budget_usage_vo.date == current_month:
                     budget_utilization_rate = (
                         budget_usage_vo.cost / budget_usage_vo.limit * 100
                     )
+                    self.budget_mgr.update_budget_by_vo(
+                        {"utilization_rate": budget_utilization_rate}, budget_vo
+                    )
                     break
-
-        self.budget_mgr.update_budget_by_vo(
-            {"utilization_rate": budget_utilization_rate}, budget_vo
-        )
 
     @staticmethod
     def _get_user_info_map_from_recipients(
