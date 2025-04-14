@@ -24,7 +24,7 @@ from spaceone.cost_analysis.manager.data_source_plugin_manager import DataSource
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.secret_manager import SecretManager
 from spaceone.cost_analysis.manager.budget_usage_manager import BudgetUsageManager
-from spaceone.cost_analysis.service import DataSourceService
+from spaceone.cost_analysis.service.data_source_service import DataSourceService
 
 _LOGGER = logging.getLogger(__name__)
 
