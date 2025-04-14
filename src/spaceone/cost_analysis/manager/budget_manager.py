@@ -1,5 +1,4 @@
 import logging
-from typing import Union
 
 from spaceone.core import config, queue
 from spaceone.core import utils

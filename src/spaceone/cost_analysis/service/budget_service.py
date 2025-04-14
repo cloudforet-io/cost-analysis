@@ -430,7 +430,7 @@ class BudgetService(BaseService):
                 {"notified_months": [], "utilization_rate": 0}, budget_vo
             )
             _LOGGER.debug(
-                f"'[update_budget_utilization_rate] budget_vo: {budget_vo.budget_id}, {budget_vo.utilization_rate}, {budget_vo.notified_months}')"
+                f"[update_budget_utilization_rate] budget_vo: {budget_vo.budget_id}, {budget_vo.utilization_rate}, {budget_vo.notified_months})"
             )
 
     def create_budget_update_job(self, domain_id: str) -> None:
