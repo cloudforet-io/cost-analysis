@@ -77,7 +77,7 @@ class BudgetManager(BaseManager):
     def push_budget_job_task(params: dict) -> None:
         token = config.get_global("TOKEN")
         task = {
-            "name": "update_budget_",
+            "name": "update_budget",
             "version": "v1",
             "executionEngine": "BaseWorker",
             "stages": [
