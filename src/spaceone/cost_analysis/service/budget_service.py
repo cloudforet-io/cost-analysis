@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from dateutil.rrule import rrule, MONTHLY
 
 from spaceone.core.service import *
@@ -25,6 +25,29 @@ class BudgetService(BaseService):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.budget_mgr = BudgetManager()
+
+    @transaction(exclude=["authentication, authorization", "mutation"])
+    def create_budget_update_job_by_domain(self, params: dict) -> None:
+        """Create budget update job by domain
+
+        Args:
+            params (dict): {}
+
+        Returns:
+            None
+        """
+
+        identity_mgr = IdentityManager()
+        domain_ids = identity_mgr.list_enabled_domain_ids()
+
+        for domain_id in domain_ids:
+            try:
+                self.create_budget_update_job(domain_id)
+            except Exception as e:
+                _LOGGER.error(
+                    f"[create_budget_update_job_by_domain] domain_id :{domain_id}, error: {e}",
+                    exc_info=True,
+                )
 
     @transaction(
         permission="cost-analysis:Budget.write",
@@ -377,6 +400,41 @@ class BudgetService(BaseService):
         query = params.query or {}
 
         return self.budget_mgr.stat_budgets(query)
+
+    @transaction(exclude=["authentication", "authorization", "mutation"])
+    @check_required(["domain_id"])
+    def update_budget_utilization_rate(self, params: dict) -> None:
+        """
+        Args:
+            params (dict): {
+                'domain_id': 'str',
+            }
+        Returns:
+            None
+        """
+        domain_id = params["domain_id"]
+        current_month = datetime.now(timezone.utc).strftime("%Y-%m")
+
+        query_filter = {
+            "filter": [
+                {"k": "domain_id", "v": domain_id, "o": "eq"},
+                {"k": "time_unit", "v": "MONTHLY", "o": "eq"},
+                {"k": "end", "v": current_month, "o": "gte"},
+            ]
+        }
+        _LOGGER.debug(f"[update_budget_utilization_rate] query_filter: {query_filter}")
+        budget_vos, _ = self.budget_mgr.list_budgets(query_filter)
+
+        for budget_vo in budget_vos:
+            budget_vo = self.budget_mgr.update_budget_by_vo(
+                {"notified_months": [], "utilization_rate": 0}, budget_vo
+            )
+            _LOGGER.debug(
+                f"'[update_budget_utilization_rate] budget_vo: {budget_vo.budget_id}, {budget_vo.utilization_rate}, {budget_vo.notified_months}')"
+            )
+
+    def create_budget_update_job(self, domain_id: str) -> None:
+        self.budget_mgr.push_budget_job_task({"domain_id": domain_id})
 
     @staticmethod
     def _check_time_period(start, end):
