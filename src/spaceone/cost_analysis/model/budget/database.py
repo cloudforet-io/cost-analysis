@@ -45,7 +45,7 @@ class Budget(MongoModel):
     budget_year = StringField(max_length=4, required=True)
     notification = EmbeddedDocumentField(Notification)
     utilization_rate = FloatField(null=True, default=0)
-    tags = DictField(default={})
+    tags = DictField(default=None, null=True)
     resource_group = StringField(
         max_length=40, choices=["WORKSPACE", "PROJECT"]
     )  # leave WORKSPACE for previous version
@@ -75,18 +75,20 @@ class Budget(MongoModel):
             "budget_id",
             "name",
             "limit",
-            "project_id",
-            "service_account_id",
+            "utilization_rate",
+            "time_unit",
+            "currency",
             "budget_manager_id",
         ],
         "change_query_keys": {"user_projects": "project_id"},
-        "ordering": ["name"],
+        "ordering": ["utilization_rate", "name"],
         "indexes": [
-            "name",
-            "resource_group",
-            "service_account_id",
-            "project_id",
-            "workspace_id",
             "domain_id",
+            "workspace_id",
+            "project_id",
+            "name",
+            "budget_id",
+            "time_unit",
+            "service_account_id",
         ],
     }
