@@ -19,6 +19,9 @@ class Plan(EmbeddedDocument):
 
 class Recipients(EmbeddedDocument):
     users = ListField(StringField(), default=[])
+    budget_manager_notification = StringField(
+        max_length=20, choices=["ENABLED", "DISABLED"]
+    )
 
     def to_dict(self):
         return dict(self.to_mongo())

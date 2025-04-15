@@ -213,6 +213,7 @@ class BudgetService(BaseService):
         # Check limit and Planned Limits
         if planned_limits:
             self._check_planned_limits(start, end, budget_vo.time_unit, planned_limits)
+            params.limit = self._get_budget_limit_from_planned_limits(planned_limits)
 
         if budget_manager_id:
             identity_mgr = IdentityManager()
