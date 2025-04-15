@@ -10,10 +10,11 @@ class BudgetCreateRequest(BaseModel):
     name: str
     limit: Union[float, None] = None
     planned_limits: Union[list, None] = None
-    currency: Union[str, None] = None
+    currency: str
     time_unit: TimeUnit
     start: str
     end: str
+    budget_year: str
     notification: Union[dict, None] = None
     tags: Union[dict, None] = None
     resource_group: ResourceGroup

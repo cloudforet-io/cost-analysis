@@ -25,6 +25,7 @@ class BudgetService(BaseService):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.budget_mgr = BudgetManager()
+        self.budget_usage_mgr = BudgetUsageManager()
 
     @transaction(exclude=["authentication, authorization", "mutation"])
     def create_budget_update_job_by_domain(self, params: dict) -> None:
@@ -62,9 +63,11 @@ class BudgetService(BaseService):
                 'name': 'str',              # required
                 'limit': 'float',
                 'planned_limits': 'list',
+                'currency': 'str',          # required
                 'time_unit': 'str',         # required
                 'start': 'str',             # required
                 'end': 'str',               # required
+                'budget_year': 'str',       # required
                 'notification': 'dict',
                 'tags': 'dict',
                 'resource_group': 'str',    # required
@@ -94,7 +97,7 @@ class BudgetService(BaseService):
         if resource_group != "PROJECT":
             raise ERROR_NOT_IMPLEMENTED()
 
-        self._check_time_period(start, end)
+        self._check_time_period(start, end, params.budget_year)
 
         identity_mgr = IdentityManager()
         identity_mgr.check_workspace(workspace_id, domain_id)
@@ -108,11 +111,6 @@ class BudgetService(BaseService):
         if budget_manager_id:
             self._check_user_exists(identity_mgr, budget_manager_id, domain_id)
 
-        if not params.currency:
-            config_mgr = ConfigManager()
-            unified_cost_config: dict = config_mgr.get_unified_cost_config(domain_id)
-            params.currency = unified_cost_config.get("currency", "USD")
-
         if time_unit == "TOTAL":
             if limit is None:
                 raise ERROR_REQUIRED_PARAMETER(key="limit")
@@ -124,8 +122,10 @@ class BudgetService(BaseService):
             self._check_planned_limits(start, end, time_unit, planned_limits)
 
             params.limit = 0
+            current_month = datetime.now(timezone.utc).strftime("%Y-%m")
             for planned_limit in planned_limits:
-                params.limit += planned_limit.get("limit", 0)
+                if planned_limit["date"] == current_month:
+                    params.limit = planned_limit["limit"]
 
         # Check Notification
         self._check_notification(notification, domain_id, workspace_id)
@@ -136,12 +136,14 @@ class BudgetService(BaseService):
             project_id=project_id,
             workspace_id=workspace_id,
             domain_id=domain_id,
+            budget_year=params.budget_year,
         )
         if budget_vos.count() > 0:
+            budget_target = params.service_account_id or params.project_id
             raise ERROR_BUDGET_ALREADY_EXIST(
-                service_account_id=service_account_id,
+                budget_year=params.budget_year,
                 workspace_id=workspace_id,
-                target=service_account_id,
+                target=budget_target,
             )
 
         budget_vo = self.budget_mgr.create_budget(params.dict())
@@ -200,7 +202,7 @@ class BudgetService(BaseService):
         if params.start or params.end:
             start = params.start or start
             end = params.end or end
-            self._check_time_period(start, end)
+            self._check_time_period(start, end, budget_vo.budget_year)
             planned_limits = planned_limits or budget_vo.planned_limits
 
         # Check limit and Planned Limits
@@ -427,20 +429,39 @@ class BudgetService(BaseService):
         budget_vos, _ = self.budget_mgr.list_budgets(query_filter)
 
         for budget_vo in budget_vos:
-            budget_vo = self.budget_mgr.update_budget_by_vo(
-                {"notified_months": [], "utilization_rate": 0}, budget_vo
-            )
+            planned_limits = budget_vo.planned_limits or []
+
+            budget_limit = self._get_budget_limit_from_planned_limits(planned_limits)
+            notification = self._reset_plans_from_notification(budget_vo.notification)
+
+            update_params = {
+                "utilization_rate": 0,
+                "limit": budget_limit,
+                "notification": notification,
+            }
+
+            budget_vo = self.budget_mgr.update_budget_by_vo(update_params, budget_vo)
+
             _LOGGER.debug(
-                f"[update_budget_utilization_rate] budget_vo: {budget_vo.budget_id}, {budget_vo.utilization_rate}, {budget_vo.notified_months})"
+                f"[update_budget_utilization_rate] budget_vo: {budget_vo.budget_id}, {budget_vo.utilization_rate})"
             )
 
     def create_budget_update_job(self, domain_id: str) -> None:
         self.budget_mgr.push_budget_job_task({"domain_id": domain_id})
 
     @staticmethod
-    def _check_time_period(start, end):
+    def _check_time_period(start: str, end: str, budget_year: str = None) -> None:
         if start >= end:
             raise ERROR_INVALID_TIME_RANGE(start=start, end=end)
+
+        if budget_year:
+            start_year = start[:4]
+            end_year = end[:4]
+            if start_year != budget_year or end_year != budget_year:
+                raise ERROR_INVALID_PARAMETER(
+                    key="budget_year",
+                    reason=f"budget_year({budget_year}) should be same as start({start}) or end({end}) year",
+                )
 
     def _check_planned_limits(
         self, start: str, end: str, time_unit: str, planned_limits: list
@@ -563,3 +584,24 @@ class BudgetService(BaseService):
         response = identity_mgr.list_role_bindings({"user_id": user_id}, domain_id)
         if response.get("total_count", 0) == 0:
             raise ERROR_NOT_FOUND(key="budget_manager_id", value=user_id)
+
+    @staticmethod
+    def _get_budget_limit_from_planned_limits(planned_limits: list) -> float:
+        budget_limit = 0
+        current_month = datetime.now(timezone.utc).strftime("%Y-%m")
+
+        for planned_limit in planned_limits:
+            if planned_limit["date"] == current_month:
+                budget_limit = planned_limit["limit"]
+                break
+        return budget_limit
+
+    @staticmethod
+    def _reset_plans_from_notification(notification: dict) -> dict:
+        plans = notification.get("plans", [])
+
+        for plan in plans:
+            plan["notified"] = False
+
+        notification["plans"] = plans
+        return notification
