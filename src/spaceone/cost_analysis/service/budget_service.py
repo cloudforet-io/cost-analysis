@@ -104,9 +104,14 @@ class BudgetService(BaseService):
         identity_mgr.get_project(project_id, domain_id)
 
         if service_account_id:
-            identity_mgr.get_service_account(
+            service_account_info = identity_mgr.get_service_account(
                 service_account_id, domain_id, workspace_id
             )
+            if service_account_info["project_id"] != project_id:
+                raise ERROR_INVALID_PARAMETER(
+                    key="service_account_id",
+                    reason=f"{service_account_id} is not in {project_id} project",
+                )
 
         if budget_manager_id:
             self._check_user_exists(identity_mgr, budget_manager_id, domain_id)
