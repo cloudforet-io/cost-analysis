@@ -24,6 +24,9 @@ class BudgetManager(BaseManager):
 
         params["created_by"] = self.transaction.get_meta("authorization.user_id")
 
+        if not params.get("tags"):
+            params["tags"] = {}
+
         budget_vo: Budget = self.budget_model.create(params)
         self.transaction.add_rollback(_rollback, budget_vo)
 

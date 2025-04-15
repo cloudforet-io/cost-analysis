@@ -63,7 +63,10 @@ class BudgetDeleteRequest(BaseModel):
 class BudgetSearchQueryRequest(BaseModel):
     query: dict
     name: Union[str, None] = None
+    time_unit: Union[TimeUnit, None] = None
     budget_id: Union[str, None] = None
+    service_account_id: Union[str, None] = None
+    project_id: Union[str, None] = None
     workspace_id: Union[str, None] = None
     domain_id: str
     user_projects: Union[list, None] = None

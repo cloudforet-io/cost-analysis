@@ -4,7 +4,6 @@ from dateutil.rrule import rrule, MONTHLY
 
 from spaceone.core.service import *
 from spaceone.cost_analysis.error import *
-from spaceone.cost_analysis.manager.config_manager import ConfigManager
 from spaceone.cost_analysis.manager.budget_manager import BudgetManager
 from spaceone.cost_analysis.manager.budget_usage_manager import BudgetUsageManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
@@ -104,9 +103,14 @@ class BudgetService(BaseService):
         identity_mgr.get_project(project_id, domain_id)
 
         if service_account_id:
-            identity_mgr.get_service_account(
+            service_account_info = identity_mgr.get_service_account(
                 service_account_id, domain_id, workspace_id
             )
+            if service_account_info["project_id"] != project_id:
+                raise ERROR_INVALID_PARAMETER(
+                    key="service_account_id",
+                    reason=f"{service_account_id} is not in {project_id} project",
+                )
 
         if budget_manager_id:
             self._check_user_exists(identity_mgr, budget_manager_id, domain_id)
@@ -126,6 +130,7 @@ class BudgetService(BaseService):
             for planned_limit in planned_limits:
                 if planned_limit["date"] == current_month:
                     params.limit = planned_limit["limit"]
+                    break
 
         # Check Notification
         self._check_notification(notification, domain_id, workspace_id)
@@ -208,6 +213,7 @@ class BudgetService(BaseService):
         # Check limit and Planned Limits
         if planned_limits:
             self._check_planned_limits(start, end, budget_vo.time_unit, planned_limits)
+            params.limit = self._get_budget_limit_from_planned_limits(planned_limits)
 
         if budget_manager_id:
             identity_mgr = IdentityManager()
@@ -339,16 +345,18 @@ class BudgetService(BaseService):
     )
     @append_query_filter(
         [
-            "budget_id",
-            "name",
-            "time_unit",
+            "domain_id",
+            "workspace_id",
             "project_id",
             "user_projects",
-            "workspace_id",
-            "domain_id",
+            "name",
+            "budget_id",
+            "time_unit",
+            "service_account_id",
         ]
     )
-    @append_keyword_filter(["budget_id", "name"])
+    @append_keyword_filter(["budget_id", "name", "budget_manager_id"])
+    @set_query_page_limit(1000)
     @convert_model
     def list(self, params: BudgetSearchQueryRequest) -> Union[BudgetsResponse, dict]:
         """List budgets
@@ -359,7 +367,6 @@ class BudgetService(BaseService):
                 'budget_id': 'str',
                 'name': 'str',
                 'time_unit': 'str',
-                'data_source_id': 'str',
                 'project_id': 'str',
                 'user_projects': 'list',
                 'workspace_id': 'str',
@@ -382,9 +389,9 @@ class BudgetService(BaseService):
         permission="cost-analysis:Budget.read",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
-    @check_required(["query", "domain_id"])
-    @append_query_filter(["user_projects", "workspace_id", "domain_id"])
+    @append_query_filter(["domain_id", "workspace_id", "user_projects"])
     @append_keyword_filter(["budget_id", "name"])
+    @set_query_page_limit(1000)
     @convert_model
     def stat(self, params: BudgetStatQueryRequest) -> dict:
         """

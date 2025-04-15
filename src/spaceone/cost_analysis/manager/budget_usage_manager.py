@@ -116,7 +116,7 @@ class BudgetUsageManager(BaseManager):
 
             if plan.notified:
                 _LOGGER.debug(
-                    f"[notify_budget_usage] skip notification: already notified {budget_id} (usage percent: {plan.threshold}%, threshold: {plan.threshold}%)"
+                    f"[notify_budget_usage] skip notification: already notified {budget_id} (usage percent: {budget_vo.utilization_rate}%, threshold: {plan.threshold}%)"
                 )
                 continue
 
@@ -244,14 +244,7 @@ class BudgetUsageManager(BaseManager):
             )
             target_name = project_info.get("name")
 
-        user_info_map = self._get_user_info_map_from_recipients(
-            identity_mgr,
-            budget_vo.domain_id,
-            budget_vo.workspace_id,
-            budget_vo.project_id,
-            budget_vo.notification.recipients.to_dict(),
-            service_account_id=budget_vo.service_account_id,
-        )
+        user_info_map = self._get_user_info_map_from_recipients(identity_mgr, budget_vo)
 
         console_link = self._get_console_budget_url(
             budget_vo.domain_id,
@@ -345,17 +338,27 @@ class BudgetUsageManager(BaseManager):
     @staticmethod
     def _get_user_info_map_from_recipients(
         identity_mgr: IdentityManager,
-        domain_id: str,
-        workspace_id: str,
-        project_id: str,
-        recipients: dict,
-        service_account_id: Union[str, None] = None,
+        budget_vo: Budget,
     ) -> dict:
         user_info_map = {}
+
+        domain_id = budget_vo.domain_id
+        workspace_id = budget_vo.workspace_id
+        project_id = budget_vo.project_id
+        service_account_id = budget_vo.service_account_id
+        recipients = budget_vo.notification.recipients.to_dict()
 
         user_ids = recipients.get("users", [])
         role_types = recipients.get("role_types", [])
         service_account_manager = recipients.get("service_account_manager", "DISABLED")
+        budget_manager_notification = recipients.get(
+            "budget_manager_notification", "ENABLED"
+        )
+
+        if budget_manager_notification == "ENABLED":
+            budget_manager_id = budget_vo.budget_manager_id
+            if budget_manager_id:
+                user_ids.append(budget_manager_id)
 
         if service_account_manager == "ENABLED":
             service_accounts_info = []
