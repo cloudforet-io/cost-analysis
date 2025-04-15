@@ -52,7 +52,7 @@ class ERROR_PROVIDER_FILTER_IS_EMPTY(ERROR_INVALID_ARGUMENT):
 
 
 class ERROR_BUDGET_ALREADY_EXIST(ERROR_INVALID_ARGUMENT):
-    _message = "Budget already exist. (service_account_id = {service_account_id}, workspace_id= {workspace_id}, target = {target})"
+    _message = "Budget already exist. (budget_year = {budget_year}, target ={budget_target}, workspace_id= {workspace_id})"
 
 
 class ERROR_NOTIFICATION_IS_NOT_SUPPORTED_IN_PROJECT(ERROR_INVALID_ARGUMENT):

@@ -23,12 +23,12 @@ class BudgetUsage(MongoModel):
         "change_query_keys": {"user_projects": "project_id"},
         "ordering": ["budget_id", "date"],
         "indexes": [
+            "domain_id",
+            "workspace_id",
+            "project_id",
+            "resource_group",
             "budget_id",
             "name",
             "date",
-            "resource_group",
-            "project_id",
-            "workspace_id",
-            "domain_id",
         ],
     }

@@ -21,11 +21,11 @@ _LOGGER = logging.getLogger(__name__)
 class BudgetUsageManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
         self.budget_mgr = BudgetManager()
-        self.notification_mgr: NotificationManager = self.locator.get_manager(
-            "NotificationManager"
-        )
+        self.notification_mgr = NotificationManager()
         self.email_mgr = None
+
         self.budget_usage_model = BudgetUsage
 
     def create_budget_usages(self, budget_vo: Budget) -> None:
@@ -113,95 +113,98 @@ class BudgetUsageManager(BaseManager):
         plans = notification.plans or []
 
         for plan in plans:
-            if current_month not in budget_vo.notified_months:
-                unit = plan.unit
-                threshold = plan.threshold
-                is_notify = False
 
-                if budget_vo.time_unit == "TOTAL":
-                    budget_usage_vos = self.filter_budget_usages(
-                        budget_id=budget_id,
-                        workspace_id=workspace_id,
-                        domain_id=domain_id,
-                    )
-                    total_budget_usage = sum(
-                        [budget_usage_vo.cost for budget_usage_vo in budget_usage_vos]
-                    )
-                    budget_limit = budget_vo.limit
-                else:
-                    budget_usage_vos = self.filter_budget_usages(
-                        budget_id=budget_id,
-                        workspace_id=workspace_id,
-                        domain_id=domain_id,
-                        date=current_month,
-                    )
+            if plan.notified:
+                _LOGGER.debug(
+                    f"[notify_budget_usage] skip notification: already notified {budget_id} (usage percent: {plan.threshold}%, threshold: {plan.threshold}%)"
+                )
+                continue
 
-                    if budget_usage_vos.count() == 0:
-                        _LOGGER.debug(
-                            f"[notify_budget_usage] budget_usage_vos is empty: {budget_id}"
-                        )
-                        continue
+            unit = plan.unit
+            threshold = plan.threshold
+            is_notify = False
 
-                    total_budget_usage = budget_usage_vos[0].cost
-                    budget_limit = budget_usage_vos[0].limit
+            if budget_vo.time_unit == "TOTAL":
 
-                if budget_limit == 0:
+                budget_usage_vos = self.filter_budget_usages(
+                    budget_id=budget_id,
+                    workspace_id=workspace_id,
+                    domain_id=domain_id,
+                )
+                total_budget_usage = sum(
+                    [budget_usage_vo.cost for budget_usage_vo in budget_usage_vos]
+                )
+                budget_limit = budget_vo.limit
+            else:
+                budget_usage_vos = self.filter_budget_usages(
+                    budget_id=budget_id,
+                    workspace_id=workspace_id,
+                    domain_id=domain_id,
+                    date=current_month,
+                )
+
+                if budget_usage_vos.count() == 0:
                     _LOGGER.debug(
-                        f"[notify_budget_usage] budget_limit is 0: {budget_id}"
+                        f"[notify_budget_usage] budget_usage_vos is empty: {budget_id}"
                     )
                     continue
 
-                budget_percentage = round(total_budget_usage / budget_limit * 100, 2)
+                total_budget_usage = budget_usage_vos[0].cost
+                budget_limit = budget_usage_vos[0].limit
 
-                if unit == "PERCENT":
-                    if budget_percentage > threshold:
-                        is_notify = True
-                        is_changed = True
-                if is_notify:
-                    _LOGGER.debug(
-                        f"[notify_budget_usage] notify event: {budget_id}, current month: {current_month} (plan: {plan.to_dict()})"
+            if budget_limit == 0:
+                _LOGGER.debug(f"[notify_budget_usage] budget_limit is 0: {budget_id}")
+                continue
+
+            budget_percentage = budget_vo.utilization_rate
+
+            if unit == "PERCENT":
+                if budget_percentage > threshold:
+                    is_notify = True
+                    is_changed = True
+            if is_notify:
+                _LOGGER.debug(
+                    f"[notify_budget_usage] notify event: {budget_id}, current month: {current_month} (plan: {plan.to_dict()})"
+                )
+
+                try:
+                    self._notify_message(
+                        budget_vo,
+                        total_budget_usage,
+                        budget_percentage,
+                        threshold,
                     )
-                    try:
-                        self._notify_message(
-                            budget_vo,
-                            total_budget_usage,
-                            budget_percentage,
-                            threshold,
-                        )
 
-                        updated_plans.append(
-                            {
-                                "threshold": threshold,
-                                "unit": unit,
-                                "notified_months": plan.notified_months
-                                + [current_month],
-                            }
-                        )
-                    except Exception as e:
-                        _LOGGER.error(
-                            f"[notify_budget_usage] Failed to notify message ({budget_id}): {e}",
-                            exc_info=True,
-                        )
-                else:
-                    if unit == "PERCENT":
-                        _LOGGER.debug(
-                            f"[notify_budget_usage] skip notification: {budget_id} "
-                            f"(usage percent: {budget_percentage}%, threshold: {threshold}%)"
-                        )
-                    else:
-                        _LOGGER.debug(
-                            f"[notify_budget_usage] skip notification: {budget_id} "
-                            f"(usage cost: {total_budget_usage}, threshold: {threshold})"
-                        )
+                    updated_plans.append(
+                        {
+                            "threshold": threshold,
+                            "unit": unit,
+                            "notified": True,
+                        }
+                    )
 
-                    updated_plans.append(plan.to_dict())
-
+                except Exception as e:
+                    _LOGGER.error(
+                        f"[notify_budget_usage] Failed to notify message ({budget_id}): {e}",
+                        exc_info=True,
+                    )
             else:
+                if unit == "PERCENT":
+                    _LOGGER.debug(
+                        f"[notify_budget_usage] skip notification: {budget_id} "
+                        f"(usage percent: {budget_percentage}%, threshold: {threshold}%)"
+                    )
+                else:
+                    _LOGGER.debug(
+                        f"[notify_budget_usage] skip notification: {budget_id} "
+                        f"(usage cost: {total_budget_usage}, threshold: {threshold})"
+                    )
+
                 updated_plans.append(plan.to_dict())
 
         if is_changed:
             notification.plans = updated_plans
-            budget_vo.update({"notifications": notification.to_dict()})
+            budget_vo.update({"notification": notification.to_dict()})
 
     def delete_budget_usage_by_budget_vo(self, budget_vo: Budget) -> None:
         budget_usage_vos = self.filter_budget_usages(
@@ -324,15 +327,15 @@ class BudgetUsageManager(BaseManager):
                 budget_usage_vo.update({"cost": 0})
 
         if budget_vo.time_unit == "TOTAL":
-            budget_utilization_rate = total_usage_cost / budget_vo.limit * 100
+            budget_utilization_rate = round(total_usage_cost / budget_vo.limit * 100, 2)
             self.budget_mgr.update_budget_by_vo(
                 {"utilization_rate": budget_utilization_rate}, budget_vo
             )
         else:
             for budget_usage_vo in budget_usage_vos:
                 if budget_usage_vo.date == current_month:
-                    budget_utilization_rate = (
-                        budget_usage_vo.cost / budget_usage_vo.limit * 100
+                    budget_utilization_rate = round(
+                        budget_usage_vo.cost / budget_usage_vo.limit * 100, 2
                     )
                     self.budget_mgr.update_budget_by_vo(
                         {"utilization_rate": budget_utilization_rate}, budget_vo

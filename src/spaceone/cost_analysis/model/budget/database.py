@@ -11,6 +11,7 @@ class PlannedLimit(EmbeddedDocument):
 class Plan(EmbeddedDocument):
     threshold = FloatField(required=True)
     unit = StringField(max_length=20, required=True, choices=["PERCENT", "ACTUAL_COST"])
+    notified = BooleanField(default=False)
 
     def to_dict(self):
         return dict(self.to_mongo())
@@ -41,8 +42,8 @@ class Budget(MongoModel):
     time_unit = StringField(max_length=20, choices=["TOTAL", "MONTHLY"])
     start = StringField(required=True, max_length=7)
     end = StringField(required=True, max_length=7)
+    budget_year = StringField(max_length=4, required=True)
     notification = EmbeddedDocumentField(Notification)
-    notified_months = ListField(StringField(max_length=10))
     utilization_rate = FloatField(null=True, default=0)
     tags = DictField(default={})
     resource_group = StringField(
@@ -64,8 +65,8 @@ class Budget(MongoModel):
             "planned_limits",
             "start",
             "end",
+            "budget_year",
             "notification",
-            "notified_months",
             "utilization_rate",
             "tags",
             "budget_manager_id",
