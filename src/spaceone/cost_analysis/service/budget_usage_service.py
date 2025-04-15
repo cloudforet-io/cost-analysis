@@ -76,7 +76,8 @@ class BudgetUsageService(BaseService):
     @append_query_filter(
         [
             "domain_id",
-            "workspace_id" "project_id",
+            "workspace_id",
+            "project_id",
             "user_projects",
             "service_account_id",
             "budget_id",
