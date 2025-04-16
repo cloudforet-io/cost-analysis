@@ -7,7 +7,7 @@ from spaceone.core.service.utils import *
 from spaceone.cost_analysis.manager.cost_report_config_manager import (
     CostReportConfigManager,
 )
-from spaceone.cost_analysis.service.cost_report_serivce import CostReportService
+from spaceone.cost_analysis.service.cost_report_service import CostReportService
 from spaceone.cost_analysis.model.cost_report_config.request import *
 from spaceone.cost_analysis.model.cost_report_config.response import *
 

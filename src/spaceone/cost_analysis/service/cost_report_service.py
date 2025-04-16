@@ -253,7 +253,7 @@ class CostReportService(BaseService):
         )
 
         workspace_name_map, workspace_ids = self._get_workspace_name_map(domain_id)
-        data_source_ids = self._list_data_source_ids_from_data_source(
+        data_source_ids = self._get_data_source_ids(
             domain_id, workspace_ids, data_source_filter
         )
 
@@ -634,7 +634,7 @@ class CostReportService(BaseService):
         return v_workspace_ids, v_workspace_id_map
 
     @staticmethod
-    def _list_data_source_ids_from_data_source(
+    def _get_data_source_ids(
         domain_id: str, workspace_ids: list, data_source_filter: dict
     ) -> list:
         data_source_mgr = DataSourceManager()
