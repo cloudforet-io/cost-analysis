@@ -22,7 +22,7 @@ from spaceone.cost_analysis.manager.cost_report_manager import CostReportManager
 from spaceone.cost_analysis.manager.cost_report_data_manager import (
     CostReportDataManager,
 )
-from spaceone.cost_analysis.manager.currency_manager import CurrencyManager
+from spaceone.cost_analysis.manager.unified_cost_manager import UnifiedCostManager
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.email_manager import EmailManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
@@ -43,12 +43,11 @@ class CostReportService(BaseService):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.cost_mgr = CostManager()
+        self.unified_cost_mgr = UnifiedCostManager()
         self.cost_report_config_mgr = CostReportConfigManager()
         self.cost_report_mgr = CostReportManager()
         self.cost_report_data_mgr = CostReportDataManager()
         self.ds_account_mgr = DataSourceAccountManager()
-        self.currency_map: Union[dict, None] = None
-        self.currency_date: Union[str, None] = None
 
     @transaction(exclude=["authentication", "authorization", "mutation"])
     def create_cost_report_by_cost_report_config(self, params: dict) -> None:
@@ -242,13 +241,11 @@ class CostReportService(BaseService):
             params["domain_id"], cost_report_config_id
         )
         domain_id = cost_report_config_vo.domain_id
-        currency = cost_report_config_vo.currency
         data_source_filter = cost_report_config_vo.data_source_filter or {}
         is_last_day = cost_report_config_vo.is_last_day or False
         issue_day = self.get_issue_day(is_last_day, cost_report_config_vo.issue_day)
 
         current_date = datetime.now(timezone.utc)
-        currency_date = current_date
         current_month = current_date.strftime("%Y-%m")
 
         _LOGGER.debug(
@@ -256,10 +253,7 @@ class CostReportService(BaseService):
         )
 
         workspace_name_map, workspace_ids = self._get_workspace_name_map(domain_id)
-        (
-            data_source_currency_map,
-            data_source_ids,
-        ) = self._get_data_source_currency_map(
+        data_source_ids = self._list_data_source_ids_from_data_source(
             domain_id, workspace_ids, data_source_filter
         )
 
@@ -269,8 +263,6 @@ class CostReportService(BaseService):
         ) = self._get_is_create_report_and_report_month(
             issue_day, is_last_day, current_date, domain_id, cost_report_config_id
         )
-
-        currency_mgr = CurrencyManager()
 
         if is_create_report:
             issue_month = self._get_issue_month_fom_report_month(report_month)
@@ -282,33 +274,17 @@ class CostReportService(BaseService):
                 f"[create_cost_report] issue_month {issue_month}, report_month {report_month} , report issue_day {report_issue_day}"
             )
 
-            currency_end_date = self._get_currency_date_from_report_month(
-                report_month, report_issue_day
-            )
-
-            (
-                currency_map,
-                currency_date,
-            ) = currency_mgr.get_currency_map_date(currency_end_date=currency_end_date)
-
-            self.currency_map = currency_map
-            self.currency_date = currency_date
-
-            _LOGGER.debug(
-                f"[create_cost_report] set currency date {self.currency_date} , currency map ({self.currency_map})"
-            )
+            # # TODO: Change to use currency of Shared Config
 
             cost_report_created_at = datetime.now(timezone.utc)
-            self._aggregate_monthly_cost_report(
+            self._aggregate_unified_cost_report(
                 domain_id=domain_id,
                 workspace_ids=workspace_ids,
                 data_source_ids=data_source_ids,
                 cost_report_config_id=cost_report_config_id,
                 workspace_name_map=workspace_name_map,
-                data_source_currency_map=data_source_currency_map,
                 report_month=report_month,
                 report_issue_day=report_issue_day,
-                currency=currency,
                 issue_day=issue_day,
                 issue_month=issue_month,
                 status="SUCCESS",
@@ -330,25 +306,16 @@ class CostReportService(BaseService):
                 cost_report_created_at,
             )
 
-        (
-            currency_map,
-            currency_date,
-        ) = currency_mgr.get_currency_map_date(currency_end_date=currency_date)
-        self.currency_map = currency_map
-        self.currency_date = currency_date
-
         cost_report_created_at = datetime.utcnow()
 
-        self._aggregate_monthly_cost_report(
+        self._aggregate_unified_cost_report(
             domain_id=domain_id,
             workspace_ids=workspace_ids,
             data_source_ids=data_source_ids,
             cost_report_config_id=cost_report_config_id,
             workspace_name_map=workspace_name_map,
-            data_source_currency_map=data_source_currency_map,
             report_month=current_month,
             report_issue_day=current_date.day,
-            currency=currency,
             issue_day=current_date.day,
             issue_month=current_month,
             status="IN_PROGRESS",
@@ -362,30 +329,26 @@ class CostReportService(BaseService):
             cost_report_created_at,
         )
 
-    def _aggregate_monthly_cost_report(
+    def _aggregate_unified_cost_report(
         self,
         domain_id: str,
         cost_report_config_id: str,
         workspace_name_map: dict,
         workspace_ids: list,
-        data_source_currency_map: dict,
         data_source_ids: list,
         report_month: str,
         report_issue_day: int,
-        currency: str,
         issue_day: int,
         status: str,
         issue_month: str = None,
     ) -> None:
         report_year = report_month.split("-")[0]
         issue_date = f"{issue_month}-{str(issue_day).zfill(2)}"
+        currencies = ["KRW", "USD", "JPY"]
 
         # collect enabled data_sources cost data
         query = {
             "group_by": ["workspace_id", "billed_year", "data_source_id"],
-            "fields": {
-                "cost": {"key": "cost", "operator": "sum"},
-            },
             "start": report_month,
             "end": report_month,
             "filter": [
@@ -396,6 +359,14 @@ class CostReportService(BaseService):
             ],
         }
 
+        fields = {
+            f"cost_{currency.lower()}": {
+                "key": f"cost.{currency}",
+                "operator": "sum"
+            } for currency in currencies
+        }
+        query["fields"] = fields
+
         v_workspace_ids, v_workspace_id_map = self._get_virtual_workspace_ids_and_map(
             domain_id, workspace_ids
         )
@@ -405,7 +376,7 @@ class CostReportService(BaseService):
         query["filter"].append({"k": "workspace_id", "v": workspace_ids, "o": "in"})
 
         _LOGGER.debug(f"[aggregate_monthly_cost_report] query: {query}")
-        response = self.cost_mgr.analyze_monthly_costs(query, domain_id)
+        response = self.unified_cost_mgr.analyze_unified_costs(query, domain_id)
         results = response.get("results", [])
 
         for aggregated_cost_report in results:
@@ -414,16 +385,8 @@ class CostReportService(BaseService):
                 aggregated_cost_report["workspace_id"],
             )
 
-            _ag_cost = aggregated_cost_report.pop("cost", 0.0)
-            ag_cost_report_currency = data_source_currency_map.get(
-                aggregated_cost_report.pop("data_source_id")
-            )
-
-            aggregated_cost_report["cost"] = CostReportManager.get_exchange_currency(
-                _ag_cost, ag_cost_report_currency, self.currency_map
-            )
+            aggregated_cost_report["cost"] = self._extract_cost_by_currency(aggregated_cost_report)
             aggregated_cost_report["status"] = status
-            aggregated_cost_report["currency"] = currency
             aggregated_cost_report["issue_date"] = issue_date
             aggregated_cost_report["report_month"] = report_month
             aggregated_cost_report["report_year"] = aggregated_cost_report.pop(
@@ -432,15 +395,13 @@ class CostReportService(BaseService):
             aggregated_cost_report["workspace_name"] = workspace_name_map.get(
                 aggregated_cost_report["workspace_id"], "Unknown"
             )
-            aggregated_cost_report["bank_name"] = "Yahoo! Finance"  # todo : replace
+            aggregated_cost_report["bank_name"] = aggregated_cost_report.pop("exchange_source","Yahoo! Finance")
             aggregated_cost_report["cost_report_config_id"] = cost_report_config_id
             aggregated_cost_report["domain_id"] = domain_id
 
         aggregated_cost_report_results = self._aggregate_result_by_currency(results)
 
         cost_report_data_svc = CostReportDataService()
-        cost_report_data_svc.currency_map = self.currency_map
-        cost_report_data_svc.currency_date = self.currency_date
 
         start_cost_report_number = self.get_start_cost_report_number(
             domain_id, issue_date
@@ -453,9 +414,7 @@ class CostReportService(BaseService):
                 report_month, report_issue_day, cost_report_idx
             )
 
-            aggregated_cost_report["currency_date"] = (
-                CostReportManager.get_currency_date(self.currency_date)
-            )
+            aggregated_cost_report["currency_date"] = aggregated_cost_report.pop("exchange_date", None)
 
             cost_report_vo = self.cost_report_mgr.create_cost_report(
                 aggregated_cost_report
@@ -674,10 +633,10 @@ class CostReportService(BaseService):
 
         return v_workspace_ids, v_workspace_id_map
 
-    def _get_data_source_currency_map(
-        self, domain_id: str, workspace_ids: list, data_source_filter: dict
-    ) -> Tuple[dict, list]:
-        data_source_currency_map = {}
+    @staticmethod
+    def _list_data_source_ids_from_data_source(
+        domain_id: str, workspace_ids: list, data_source_filter: dict
+    ) -> list:
         data_source_mgr = DataSourceManager()
 
         query = {
@@ -696,16 +655,10 @@ class CostReportService(BaseService):
                 {"k": "schedule.state", "v": data_source_state, "o": "eq"}
             )
 
-        _LOGGER.debug(f"[get_data_source_currency_map] query: {query}")
+        _LOGGER.debug(f"[_list_data_source_ids_from_data_source] query: {query}")
 
         data_source_vos, total_count = data_source_mgr.list_data_sources(query)
-        data_source_ids = []
-        for data_source_vo in data_source_vos:
-            currency = self._get_currency_from_plugin_info(data_source_vo.plugin_info)
-            data_source_currency_map[data_source_vo.data_source_id] = currency
-            data_source_ids.append(data_source_vo.data_source_id)
-
-        return data_source_currency_map, data_source_ids
+        return [data_source_vo.data_source_id for data_source_vo in data_source_vos]
 
     def _get_is_create_report_and_report_month(
         self,
@@ -798,16 +751,6 @@ class CostReportService(BaseService):
         return f"CostReport_{date_object.strftime('%y%m%d')}{str(cost_report_idx).zfill(4)}"
 
     @staticmethod
-    def _get_currency_from_plugin_info(plugin_info: dict) -> str:
-        currency = plugin_info["metadata"].get("currency", "USD")
-
-        metadata_cost_info = plugin_info["metadata"].get("cost_info", {})
-        if metadata_cost_info:
-            currency = metadata_cost_info.get("unit", "USD")
-
-        return currency
-
-    @staticmethod
     def _aggregate_result_by_currency(results: list) -> list:
         workspace_result_map = {}
         for result in results:
@@ -851,6 +794,12 @@ class CostReportService(BaseService):
         return issue_month
 
     @staticmethod
-    def _get_currency_date_from_report_month(report_month: str, issue_day: int):
-        report_month = datetime.strptime(report_month, "%Y-%m").replace(day=issue_day)
-        return report_month
+    def _extract_cost_by_currency(cost_data: dict) -> dict:
+        cost_dict = {}
+
+        for key, value in cost_data.items():
+            if key.startswith("cost_"):
+                currency = key.replace("cost_", "").upper()
+                cost_dict[currency] = value
+
+        return cost_dict
