@@ -41,9 +41,7 @@ class BudgetUpdateScheduler(HourlyScheduler):
         return tasks
 
     def _create_budget_utilization_rate_update_task(self):
-        from spaceone.core import model
 
-        model.init_all(False)
         current_day = datetime.now(timezone.utc).day
         if (
             current_day == self._budget_update_day

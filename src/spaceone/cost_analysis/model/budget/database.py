@@ -90,7 +90,6 @@ class Budget(MongoModel):
             "workspace_id",
             "project_id",
             "name",
-            "budget_id",
             "time_unit",
             "service_account_id",
         ],

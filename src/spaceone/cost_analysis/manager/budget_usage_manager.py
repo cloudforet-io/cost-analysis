@@ -1,7 +1,5 @@
 import logging
 from datetime import datetime, timezone
-from typing import Union
-
 from dateutil.rrule import rrule, MONTHLY
 
 from spaceone.core import config
@@ -105,12 +103,12 @@ class BudgetUsageManager(BaseManager):
         budget_id = budget_vo.budget_id
         workspace_id = budget_vo.workspace_id
         domain_id = budget_vo.domain_id
-        current_month = datetime.now(timezone.utc).strftime("%Y-%m")
-        updated_plans = []
-        is_changed = False
         notification = budget_vo.notification
 
         plans = notification.plans or []
+        current_month = datetime.now(timezone.utc).strftime("%Y-%m")
+        updated_plans = []
+        is_changed = False
 
         for plan in plans:
 
@@ -120,8 +118,10 @@ class BudgetUsageManager(BaseManager):
                 )
                 continue
 
-            unit = plan.unit
-            threshold = plan.threshold
+            plan_info = plan.to_dict()
+
+            unit = plan_info["unit"]
+            threshold = plan_info["threshold"]
             is_notify = False
 
             if budget_vo.time_unit == "TOTAL":
@@ -157,6 +157,7 @@ class BudgetUsageManager(BaseManager):
                 continue
 
             budget_percentage = budget_vo.utilization_rate
+            total_budget_usage = round(total_budget_usage, 2)
 
             if unit == "PERCENT":
                 if budget_percentage > threshold:
@@ -166,7 +167,6 @@ class BudgetUsageManager(BaseManager):
                 _LOGGER.debug(
                     f"[notify_budget_usage] notify event: {budget_id}, current month: {current_month} (plan: {plan.to_dict()})"
                 )
-
                 try:
                     self._notify_message(
                         budget_vo,
@@ -174,20 +174,16 @@ class BudgetUsageManager(BaseManager):
                         budget_percentage,
                         threshold,
                     )
-
-                    updated_plans.append(
-                        {
-                            "threshold": threshold,
-                            "unit": unit,
-                            "notified": True,
-                        }
-                    )
+                    plan_info["notified"] = True
 
                 except Exception as e:
                     _LOGGER.error(
-                        f"[notify_budget_usage] Failed to notify message ({budget_id}): {e}",
+                        f"[notify_budget_usage] Failed to notify message ({budget_id}): plan: {plan_info}, {e}",
                         exc_info=True,
                     )
+                    plan_info["notified"] = False
+                finally:
+                    updated_plans.append(plan_info)
             else:
                 if unit == "PERCENT":
                     _LOGGER.debug(
@@ -200,7 +196,7 @@ class BudgetUsageManager(BaseManager):
                         f"(usage cost: {total_budget_usage}, threshold: {threshold})"
                     )
 
-                updated_plans.append(plan.to_dict())
+                updated_plans.append(plan_info)
 
         if is_changed:
             notification.plans = updated_plans
@@ -216,9 +212,9 @@ class BudgetUsageManager(BaseManager):
         self,
         budget_vo: Budget,
         total_budget_usage: float,
-        budget_percentage,
-        threshold,
-    ):
+        budget_percentage: float,
+        threshold: int,
+    ) -> None:
 
         if not self.email_mgr:
             self.email_mgr = EmailManager()

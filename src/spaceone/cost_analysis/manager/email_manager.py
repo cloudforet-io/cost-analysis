@@ -34,7 +34,6 @@ LANGUAGE_MAPPER = {
     },
     "ja": {
         "cost_report": "費用レポートが確認のために準備されました。",
-        "budget_usage_alert": "",
     },
 }
 
@@ -97,6 +96,7 @@ class EmailManager(BaseManager):
             usage_rate=budget_percentage,
             today_date=today_date,
             budget_detail_link=console_link,
+            currency=budget_vo.currency,
         )
 
         subject = f"[{service_name}] {language_map_info['budget_usage_alert'].format(budget_name=budget_vo.name, threshold=threshold)}"
