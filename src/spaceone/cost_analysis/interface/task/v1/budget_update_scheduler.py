@@ -35,6 +35,10 @@ class BudgetUpdateScheduler(HourlyScheduler):
             )
             self._budget_update_day = 1
 
+        _LOGGER.debug(
+            f"[BudgetUpdateScheduler] _budget_update_hour: {self._budget_update_hour}, _budget_update_day: {self._budget_update_day}"
+        )
+
     def create_task(self) -> list:
         tasks = []
         tasks.extend(self._create_budget_utilization_rate_update_task())
