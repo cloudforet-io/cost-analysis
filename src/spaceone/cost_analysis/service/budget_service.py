@@ -413,7 +413,7 @@ class BudgetService(BaseService):
 
     @transaction(exclude=["authentication", "authorization", "mutation"])
     @check_required(["domain_id"])
-    def update_budget_utilization_rate(self, params: dict) -> None:
+    def init_monthly_budget_info(self, params: dict) -> None:
         """
         Args:
             params (dict): {
@@ -432,7 +432,7 @@ class BudgetService(BaseService):
                 {"k": "end", "v": current_month, "o": "gte"},
             ]
         }
-        _LOGGER.debug(f"[update_budget_utilization_rate] query_filter: {query_filter}")
+        _LOGGER.debug(f"[init_monthly_budget_info] query_filter: {query_filter}")
         budget_vos, _ = self.budget_mgr.list_budgets(query_filter)
 
         for budget_vo in budget_vos:
