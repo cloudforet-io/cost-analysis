@@ -87,7 +87,7 @@ class BudgetManager(BaseManager):
                     "locator": "SERVICE",
                     "name": "BudgetService",
                     "metadata": {"token": token},
-                    "method": "update_budget_utilization_rate",
+                    "method": "init_monthly_budget_info",
                     "params": {"params": params},
                 }
             ],

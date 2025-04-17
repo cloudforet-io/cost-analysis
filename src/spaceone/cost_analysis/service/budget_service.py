@@ -413,7 +413,7 @@ class BudgetService(BaseService):
 
     @transaction(exclude=["authentication", "authorization", "mutation"])
     @check_required(["domain_id"])
-    def update_budget_utilization_rate(self, params: dict) -> None:
+    def init_monthly_budget_info(self, params: dict) -> None:
         """
         Args:
             params (dict): {
@@ -432,17 +432,26 @@ class BudgetService(BaseService):
                 {"k": "end", "v": current_month, "o": "gte"},
             ]
         }
-        _LOGGER.debug(f"[update_budget_utilization_rate] query_filter: {query_filter}")
+        _LOGGER.debug(f"[init_monthly_budget_info] query_filter: {query_filter}")
         budget_vos, _ = self.budget_mgr.list_budgets(query_filter)
 
         for budget_vo in budget_vos:
+            utilization_rate = 0
             planned_limits = budget_vo.planned_limits or []
+            notification = budget_vo.notification.to_dict() or {}
 
             budget_limit = self._get_budget_limit_from_planned_limits(planned_limits)
-            notification = self._reset_plans_from_notification(budget_vo.notification)
+            notification = self._reset_plans_from_notification(notification)
+
+            budget_usage_vos = self.budget_usage_mgr.filter_budget_usages(
+                domain_id=domain_id, budget_id=budget_vo.budget_id, date=current_month
+            )
+
+            if budget_limit > 0 and (budget_usage_vo := budget_usage_vos[0]):
+                utilization_rate = budget_usage_vo.cost / budget_limit * 100
 
             update_params = {
-                "utilization_rate": 0,
+                "utilization_rate": utilization_rate,
                 "limit": budget_limit,
                 "notification": notification,
             }
@@ -462,8 +471,8 @@ class BudgetService(BaseService):
             raise ERROR_INVALID_TIME_RANGE(start=start, end=end)
 
         if budget_year:
-            start_year = start[:4]
-            end_year = end[:4]
+            start_year = start.split("-")[0]
+            end_year = end.split("-")[0]
             if start_year != budget_year or end_year != budget_year:
                 raise ERROR_INVALID_PARAMETER(
                     key="budget_year",
