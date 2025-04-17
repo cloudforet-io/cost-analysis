@@ -10,7 +10,7 @@ from spaceone.core.scheduler import HourlyScheduler
 _LOGGER = logging.getLogger(__name__)
 
 
-class DataSourceSyncScheduler(HourlyScheduler):
+class CostReportRunScheduler(HourlyScheduler):
     def __init__(self, queue, interval, minute=":00"):
         super().__init__(queue, interval, minute)
         self.locator = Locator()
@@ -21,6 +21,9 @@ class DataSourceSyncScheduler(HourlyScheduler):
         if self._token is None:
             raise ERROR_CONFIGURATION(key="TOKEN")
         self._cost_report_sync_hour = config.get_global("COST_REPORT_RUN_HOUR", 0)
+        _LOGGER.debug(
+            f"[CostReportRunScheduler] _cost_report_sync_hour: {self._cost_report_sync_hour}"
+        )
 
     def create_task(self) -> list:
         tasks = []
