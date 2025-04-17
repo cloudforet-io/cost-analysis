@@ -390,7 +390,7 @@ class BudgetService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
     @append_query_filter(["domain_id", "workspace_id", "user_projects"])
-    @append_keyword_filter(["budget_id", "name"])
+    @append_keyword_filter(["budget_id", "name", "budget_manager_id"])
     @set_query_page_limit(1000)
     @convert_model
     def stat(self, params: BudgetStatQueryRequest) -> dict:
