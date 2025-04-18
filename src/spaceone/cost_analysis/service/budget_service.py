@@ -156,10 +156,9 @@ class BudgetService(BaseService):
         budget_vo = self.budget_mgr.create_budget(params.dict())
 
         # Create budget usages
-        budget_usage_mgr = BudgetUsageManager()
-        budget_usage_mgr.create_budget_usages(budget_vo)
-        budget_usage_mgr.update_cost_usage(budget_vo)
-        budget_usage_mgr.notify_budget_usage(budget_vo)
+        self.budget_usage_mgr.create_budget_usages(budget_vo)
+        self.budget_usage_mgr.update_cost_usage(budget_vo)
+        self.budget_usage_mgr.notify_budget_usage(budget_vo)
 
         return BudgetResponse(
             **budget_vo.to_dict(),
@@ -395,7 +394,9 @@ class BudgetService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
     @append_query_filter(["domain_id", "workspace_id", "user_projects"])
-    @append_keyword_filter(["budget_id", "name", "budget_manager_id"])
+    @append_keyword_filter(
+        ["budget_id", "name", "budget_manager_id", "notification.recipients.users"]
+    )
     @set_query_page_limit(1000)
     @convert_model
     def stat(self, params: BudgetStatQueryRequest) -> dict:
@@ -539,21 +540,10 @@ class BudgetService(BaseService):
         workspace_id: str,
         budget_manager_id: str = None,
     ) -> None:
-        plans = notification.get("plans", [])
 
-        for plan in plans:
-            unit = plan["unit"]
-            threshold = plan["threshold"]
-
-            if unit not in ["PERCENT"]:
-                raise ERROR_UNIT_IS_REQUIRED(value=plan)
-
-            if threshold < 0:
-                raise ERROR_THRESHOLD_IS_WRONG(value=plan)
-
-            if unit == "PERCENT":
-                if threshold > 100:
-                    raise ERROR_THRESHOLD_IS_WRONG_IN_PERCENT_TYPE(value=plan)
+        # check plans
+        plans = notification.get("plans", []) or []
+        notification["plans"] = self._check_and_sort_plans(plans)
 
         # check recipients
         recipients = notification.get("recipients", {})
@@ -647,3 +637,21 @@ class BudgetService(BaseService):
 
         notification["plans"] = plans
         return notification
+
+    @staticmethod
+    def _check_and_sort_plans(plans: list) -> list:
+        for plan in plans:
+            unit = plan["unit"]
+            threshold = plan["threshold"]
+
+            if unit not in ["PERCENT"]:
+                raise ERROR_UNIT_IS_REQUIRED(value=plan)
+
+            if threshold < 0:
+                raise ERROR_THRESHOLD_IS_WRONG(value=plan)
+
+            if unit == "PERCENT":
+                if threshold > 100:
+                    raise ERROR_THRESHOLD_IS_WRONG_IN_PERCENT_TYPE(value=plan)
+        plans = sorted(plans, key=lambda x: (x["threshold"]))
+        return plans

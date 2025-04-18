@@ -51,15 +51,17 @@ class BudgetManager(BaseManager):
         self,
         budget_id: str,
         domain_id: str,
-        workspace_id: str,
+        workspace_id: str = None,
         project_id: str = None,
     ) -> Budget:
 
         conditions = {
             "budget_id": budget_id,
-            "workspace_id": workspace_id,
             "domain_id": domain_id,
         }
+
+        if workspace_id:
+            conditions["workspace_id"] = workspace_id
 
         if project_id:
             conditions["project_id"] = project_id
