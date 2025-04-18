@@ -1,5 +1,7 @@
 import logging
 from datetime import datetime, timezone
+from typing import Tuple
+
 from dateutil.rrule import rrule, MONTHLY
 
 from spaceone.core import config
@@ -101,14 +103,18 @@ class BudgetUsageManager(BaseManager):
 
     def notify_budget_usage(self, budget_vo: Budget) -> None:
         budget_id = budget_vo.budget_id
-        workspace_id = budget_vo.workspace_id
-        domain_id = budget_vo.domain_id
         notification = budget_vo.notification
 
         plans = notification.plans or []
-        current_month = datetime.now(timezone.utc).strftime("%Y-%m")
         updated_plans = []
         is_changed = False
+        current_month = datetime.now(timezone.utc).strftime("%Y-%m")
+
+        if current_month > budget_vo.end:
+            _LOGGER.debug(
+                f"[notify_budget_usage] skip notification: budget is expired ({budget_id})"
+            )
+            return
 
         for plan in plans:
 
@@ -119,50 +125,25 @@ class BudgetUsageManager(BaseManager):
                 continue
 
             plan_info = plan.to_dict()
-
             unit = plan_info["unit"]
             threshold = plan_info["threshold"]
-            is_notify = False
 
-            if budget_vo.time_unit == "TOTAL":
-
-                budget_usage_vos = self.filter_budget_usages(
-                    budget_id=budget_id,
-                    workspace_id=workspace_id,
-                    domain_id=domain_id,
-                )
-                total_budget_usage = sum(
-                    [budget_usage_vo.cost for budget_usage_vo in budget_usage_vos]
-                )
-                budget_limit = budget_vo.limit
-            else:
-                budget_usage_vos = self.filter_budget_usages(
-                    budget_id=budget_id,
-                    workspace_id=workspace_id,
-                    domain_id=domain_id,
-                    date=current_month,
-                )
-
-                if budget_usage_vos.count() == 0:
-                    _LOGGER.debug(
-                        f"[notify_budget_usage] budget_usage_vos is empty: {budget_id}"
-                    )
-                    continue
-
-                total_budget_usage = budget_usage_vos[0].cost
-                budget_limit = budget_usage_vos[0].limit
+            total_budget_usage, budget_limit = self._get_budget_usage_and_limit(
+                budget_vo, current_month
+            )
 
             if budget_limit == 0:
                 _LOGGER.debug(f"[notify_budget_usage] budget_limit is 0: {budget_id}")
                 continue
 
+            is_notify = False
             budget_percentage = budget_vo.utilization_rate
-            total_budget_usage = round(total_budget_usage, 2)
 
             if unit == "PERCENT":
-                if budget_percentage > threshold:
+                if budget_vo.utilization_rate > threshold:
                     is_notify = True
                     is_changed = True
+
             if is_notify:
                 _LOGGER.debug(
                     f"[notify_budget_usage] notify event: {budget_id}, current month: {current_month} (plan: {plan.to_dict()})"
@@ -471,3 +452,40 @@ class BudgetUsageManager(BaseManager):
                 {"k": "project_id", "v": budget_vo.project_id, "o": "eq"}
             )
         return query
+
+    def _get_budget_usage_and_limit(
+        self, budget_vo: Budget, current_month: str
+    ) -> Tuple[float, float]:
+        total_budget_usage = 0
+        budget_limit = 0
+
+        budget_id = budget_vo.budget_id
+        domain_id = budget_vo.domain_id
+        workspace_id = budget_vo.workspace_id
+
+        if budget_vo.time_unit == "TOTAL":
+
+            budget_usage_vos = self.filter_budget_usages(
+                budget_id=budget_id,
+                workspace_id=workspace_id,
+                domain_id=domain_id,
+            )
+            total_budget_usage = sum([bs_vo.cost for bs_vo in budget_usage_vos])
+            budget_limit = budget_vo.limit
+        else:
+            budget_usage_vos = self.filter_budget_usages(
+                budget_id=budget_id,
+                workspace_id=workspace_id,
+                domain_id=domain_id,
+                date=current_month,
+            )
+
+            if budget_usage_vos.count() == 0:
+                _LOGGER.debug(
+                    f"[notify_budget_usage] budget_usage_vos is empty: {budget_id}"
+                )
+            else:
+                total_budget_usage = budget_usage_vos[0].cost
+                budget_limit = budget_usage_vos[0].limit
+
+        return round(total_budget_usage, 2), budget_limit
