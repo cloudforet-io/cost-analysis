@@ -42,7 +42,7 @@ class IdentityManager(BaseManager):
 
         return self.list_users({"query": query_filter}, domain_id)
 
-    def get_user(self, domain_id: str, user_id: str) -> dict:
+    def get_user(self, user_id: str, domain_id: str) -> dict:
         system_token = config.get_global("TOKEN")
         response = self.identity_conn.dispatch(
             "User.list",

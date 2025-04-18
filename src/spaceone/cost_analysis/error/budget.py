@@ -57,3 +57,7 @@ class ERROR_BUDGET_ALREADY_EXIST(ERROR_INVALID_ARGUMENT):
 
 class ERROR_NOTIFICATION_IS_NOT_SUPPORTED_IN_PROJECT(ERROR_INVALID_ARGUMENT):
     _message = "Notification is not supported in project. (target = {target})"
+
+
+class ERROR_BUDGET_MANAGER_IS_NOT_VERIFIED(ERROR_INVALID_ARGUMENT):
+    _message = "To assign as a budget manager to a user, email verification is required. (user_id = {user_id})"

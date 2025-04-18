@@ -133,7 +133,9 @@ class BudgetService(BaseService):
                     break
 
         # Check Notification
-        self._check_notification(notification, domain_id, workspace_id)
+        self._check_notification(
+            notification, domain_id, workspace_id, budget_manager_id
+        )
 
         # Check Duplicated Budget
         budget_vos = self.budget_mgr.filter_budgets(
@@ -275,7 +277,10 @@ class BudgetService(BaseService):
         )
 
         # Check notification
-        self._check_notification(notification, domain_id, workspace_id)
+        self._check_notification(
+            notification, domain_id, workspace_id, budget_vo.budget_manager_id
+        )
+
         params.notification = notification
 
         budget_vo = self.budget_mgr.update_budget_by_vo(
@@ -473,7 +478,7 @@ class BudgetService(BaseService):
         if budget_year:
             start_year = start.split("-")[0]
             end_year = end.split("-")[0]
-            if start_year != budget_year or end_year != budget_year:
+            if start_year != budget_year and end_year != budget_year:
                 raise ERROR_INVALID_PARAMETER(
                     key="budget_year",
                     reason=f"budget_year({budget_year}) should be same as start({start}) or end({end}) year",
@@ -527,12 +532,13 @@ class BudgetService(BaseService):
 
         return planned_limits_dict
 
-    @staticmethod
     def _check_notification(
+        self,
         notification: dict,
         domain_id: str,
         workspace_id: str,
-    ) -> dict:
+        budget_manager_id: str = None,
+    ) -> None:
         plans = notification.get("plans", [])
 
         for plan in plans:
@@ -552,35 +558,46 @@ class BudgetService(BaseService):
         # check recipients
         recipients = notification.get("recipients", {})
         users = list(set(recipients.get("users", [])))
-        role_types = list(set(recipients.get("role_types", [])))
+        budget_manager_notification = recipients.get(
+            "budget_manager_notification", "DISABLED"
+        )
 
-        if role_types:
-            recipients["role_types"] = role_types
-
+        if budget_manager_notification == "ENABLED" and budget_manager_id:
+            users.append(budget_manager_id)
         if users:
-            identity_mgr = IdentityManager()
-            query = {
-                "filter": [
-                    {"k": "domain_id", "v": domain_id, "o": "eq"},
-                    {"k": "workspace_id", "v": workspace_id, "o": "eq"},
-                    {"k": "user_id", "v": users, "o": "in"},
-                ]
-            }
-            rb_response = identity_mgr.list_role_bindings({"query": query}, domain_id)
-            rb_infos = rb_response.get("results", [])
-            rb_users = [rb_info["user_id"] for rb_info in rb_infos]
+            self._check_user_roles_and_email_verification(
+                domain_id, workspace_id, users
+            )
 
-            user_response = identity_mgr.list_email_verified_users(domain_id, users)
-            user_infos = user_response.get("results", [])
-            users = [user_info["user_id"] for user_info in user_infos]
+    @staticmethod
+    def _check_user_roles_and_email_verification(
+        domain_id: str, workspace_id: str, users: list
+    ) -> None:
+        if not users:
+            return
+        identity_mgr = IdentityManager()
+        query = {
+            "filter": [
+                {"k": "domain_id", "v": domain_id, "o": "eq"},
+                {"k": "workspace_id", "v": workspace_id, "o": "eq"},
+                {"k": "user_id", "v": users, "o": "in"},
+            ]
+        }
+        rb_response = identity_mgr.list_role_bindings({"query": query}, domain_id)
+        rb_infos = rb_response.get("results", [])
+        rb_users = [rb_info["user_id"] for rb_info in rb_infos]
 
-            for user_id in users:
-                if user_id not in rb_users:
-                    raise ERROR_NOT_FOUND(key="user_id", value=user_id)
-            recipients["users"] = users
+        for rb_user in rb_users:
+            if rb_user not in users:
+                raise ERROR_NOT_FOUND(key="user_id", value=rb_user)
 
-        notification["recipients"] = recipients
-        return notification
+        user_response = identity_mgr.list_email_verified_users(domain_id, users)
+        user_infos = user_response.get("results", [])
+        users = [user_info["user_id"] for user_info in user_infos]
+
+        for user_id in users:
+            if user_id not in rb_users:
+                raise ERROR_BUDGET_MANAGER_IS_NOT_VERIFIED(key="user_id", value=user_id)
 
     @staticmethod
     def _set_user_project_or_project_group_filter(params: dict) -> dict:
@@ -597,6 +614,15 @@ class BudgetService(BaseService):
 
     @staticmethod
     def _check_user_exists(identity_mgr: IdentityManager, user_id: str, domain_id: str):
+
+        user_info = identity_mgr.get_user(user_id, domain_id)
+
+        if not user_info:
+            raise ERROR_NOT_FOUND(key="user_id", value=user_id)
+
+        if not user_info.get("email_verified", False):
+            raise ERROR_BUDGET_MANAGER_IS_NOT_VERIFIED(user_id=user_id)
+
         response = identity_mgr.list_role_bindings({"user_id": user_id}, domain_id)
         if response.get("total_count", 0) == 0:
             raise ERROR_NOT_FOUND(key="budget_manager_id", value=user_id)
