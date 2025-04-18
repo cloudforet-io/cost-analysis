@@ -543,7 +543,7 @@ class BudgetService(BaseService):
 
         # check plans
         plans = notification.get("plans", []) or []
-        self._check_plans(plans)
+        notification["plans"] = self._check_and_sort_plans(plans)
 
         # check recipients
         recipients = notification.get("recipients", {})
@@ -639,7 +639,7 @@ class BudgetService(BaseService):
         return notification
 
     @staticmethod
-    def _check_plans(plans: list) -> None:
+    def _check_and_sort_plans(plans: list) -> list:
         for plan in plans:
             unit = plan["unit"]
             threshold = plan["threshold"]
@@ -653,3 +653,5 @@ class BudgetService(BaseService):
             if unit == "PERCENT":
                 if threshold > 100:
                     raise ERROR_THRESHOLD_IS_WRONG_IN_PERCENT_TYPE(value=plan)
+        plans = sorted(plans, key=lambda x: (x["threshold"]))
+        return plans
