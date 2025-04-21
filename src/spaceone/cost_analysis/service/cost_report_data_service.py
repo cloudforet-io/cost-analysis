@@ -201,7 +201,7 @@ class CostReportDataService(BaseService):
         }
 
         fields = {
-            f"cost_{currency.lower()}": {
+            f"cost_{currency}": {
                 "key": f"cost.{currency}",
                 "operator": "sum"
             } for currency in currencies
@@ -337,7 +337,7 @@ class CostReportDataService(BaseService):
 
         for key, value in cost_data.items():
             if key.startswith("cost_"):
-                currency = key.replace("cost_", "").upper()
+                currency = key.replace("cost_", "")
                 cost_dict[currency] = value
 
         return cost_dict
