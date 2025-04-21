@@ -14,7 +14,6 @@ class BudgetCreateRequest(BaseModel):
     time_unit: TimeUnit
     start: str
     end: str
-    budget_year: str
     notification: Union[dict, None] = None
     tags: Union[dict, None] = None
     resource_group: ResourceGroup

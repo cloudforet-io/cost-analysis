@@ -39,13 +39,15 @@ class Notification(EmbeddedDocument):
 class Budget(MongoModel):
     budget_id = StringField(max_length=40, generate_id="budget", unique=True)
     name = StringField(max_length=255, default="")
+    state = StringField(
+        max_length=20, default="ACTIVE", choices=["SCHEDULED", "ACTIVE", "EXPIRED"]
+    )
     limit = FloatField(required=True)
     planned_limits = ListField(EmbeddedDocumentField(PlannedLimit), default=[])
     currency = StringField()
     time_unit = StringField(max_length=20, choices=["TOTAL", "MONTHLY"])
     start = StringField(required=True, max_length=7)
     end = StringField(required=True, max_length=7)
-    budget_year = StringField(max_length=4, required=True)
     notification = EmbeddedDocumentField(Notification)
     utilization_rate = FloatField(null=True, default=0)
     tags = DictField(default=None, null=True)
@@ -64,11 +66,11 @@ class Budget(MongoModel):
     meta = {
         "updatable_fields": [
             "name",
+            "state",
             "limit",
             "planned_limits",
             "start",
             "end",
-            "budget_year",
             "notification",
             "utilization_rate",
             "tags",
@@ -76,6 +78,7 @@ class Budget(MongoModel):
         ],
         "minimal_fields": [
             "budget_id",
+            "state",
             "name",
             "limit",
             "utilization_rate",
