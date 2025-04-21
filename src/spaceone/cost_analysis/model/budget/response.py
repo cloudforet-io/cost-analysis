@@ -26,13 +26,13 @@ class Notification(BaseModel):
 class BudgetResponse(BaseModel):
     budget_id: Union[str, None] = None
     name: Union[str, None] = None
+    state: Union[str, None] = None
     limit: Union[float, None] = None
     planned_limits: Union[list, None] = None
     currency: Union[str, None] = None
     time_unit: Union[str, None] = None
     start: Union[str, None] = None
     end: Union[str, None] = None
-    budget_year: Union[str, None] = None
     notification: Union[Notification, dict] = None
     utilization_rate: Union[float, None] = None
     tags: Union[dict, None] = None

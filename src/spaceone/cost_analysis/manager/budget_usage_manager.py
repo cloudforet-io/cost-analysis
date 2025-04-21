@@ -83,20 +83,33 @@ class BudgetUsageManager(BaseManager):
         self.transaction.add_rollback(_rollback, budget_usage_vo.to_dict())
         return budget_usage_vo.update(params)
 
-    def update_cost_usage(
-        self,
-        budget_vo: Budget,
-    ):
+    def update_cost_usage(self, budget_vo: Budget):
         _LOGGER.info(f"[update_cost_usage] Update Budget Usage: {budget_vo.budget_id}")
         unified_cost_mgr = UnifiedCostManager()
 
-        self._update_monthly_budget_usage(budget_vo, unified_cost_mgr)
+        self._update_monthly_budget_usage(unified_cost_mgr, budget_vo)
 
-    def update_budget_usage(self, domain_id: str, workspace_id: str) -> None:
-        budget_vos = self.budget_mgr.filter_budgets(
-            domain_id=domain_id,
-            workspace_id=workspace_id,
-        )
+    def update_budget_usage(
+        self, domain_id: str, workspace_id: str, budget_month: str = None
+    ) -> None:
+
+        query_filter = {
+            "filter": [
+                {"k": "domain_id", "v": domain_id, "o": "eq"},
+                {"k": "workspace_id", "v": workspace_id, "o": "eq"},
+            ]
+        }
+
+        if budget_month:
+            query_filter["filter"].extend(
+                [
+                    {"k": "end", "v": budget_month, "o": "gte"},
+                    {"k": "start", "v": budget_month, "o": "gte"},
+                ]
+            )
+
+        budget_vos, _ = self.budget_mgr.list_budgets(query_filter)
+
         for budget_vo in budget_vos:
             self.update_cost_usage(budget_vo)
             self.notify_budget_usage(budget_vo)
@@ -267,30 +280,25 @@ class BudgetUsageManager(BaseManager):
         return self.budget_usage_model.analyze(**query)
 
     def _update_monthly_budget_usage(
-        self, budget_vo: Budget, unified_cost_mgr: UnifiedCostManager
+        self,
+        unified_cost_mgr: UnifiedCostManager,
+        budget_vo: Budget,
     ) -> None:
-        update_budget_usage_map = {}
-        query = self._make_unified_cost_analyze_query(budget_vo=budget_vo)
-        _LOGGER.debug(f"[_update_monthly_budget_usage]: query: {query}")
 
-        result = unified_cost_mgr.analyze_unified_costs_by_granularity(
-            query, budget_vo.domain_id
+        budget_usage_by_month_map = self._get_update_budget_usage_map_from_unified_cost(
+            unified_cost_mgr, budget_vo
         )
-        current_month = datetime.now(timezone.utc).strftime("%Y-%m")
 
-        for unified_cost_usage_data in result.get("results", []):
-            if date := unified_cost_usage_data.get("date"):
-                update_budget_usage_map[date] = unified_cost_usage_data.get("cost", 0)
-
-        budget_usage_vos = self.budget_usage_model.filter(budget_id=budget_vo.budget_id)
         total_usage_cost = 0
+        current_month = datetime.now(timezone.utc).strftime("%Y-%m")
+        budget_usage_vos = self.budget_usage_model.filter(budget_id=budget_vo.budget_id)
 
         for budget_usage_vo in budget_usage_vos:
-            if budget_usage_vo.date in update_budget_usage_map:
-                total_usage_cost += update_budget_usage_map[budget_usage_vo.date]
+            if budget_usage_vo.date in budget_usage_by_month_map:
+                total_usage_cost += budget_usage_by_month_map[budget_usage_vo.date]
                 budget_usage_vo.update(
                     {
-                        "cost": update_budget_usage_map[budget_usage_vo.date],
+                        "cost": budget_usage_by_month_map[budget_usage_vo.date],
                     }
                 )
             else:
@@ -489,3 +497,19 @@ class BudgetUsageManager(BaseManager):
                 budget_limit = budget_usage_vos[0].limit
 
         return round(total_budget_usage, 2), budget_limit
+
+    def _get_update_budget_usage_map_from_unified_cost(
+        self, unified_cost_mgr: UnifiedCostManager, budget_vo: Budget
+    ) -> dict:
+        budget_usage_by_month_map = {}
+        query = self._make_unified_cost_analyze_query(budget_vo=budget_vo)
+        _LOGGER.debug(f"[_update_monthly_budget_usage]: query: {query}")
+
+        result = unified_cost_mgr.analyze_unified_costs_by_granularity(
+            query, budget_vo.domain_id
+        )
+
+        for unified_cost_usage_data in result.get("results", []):
+            if date := unified_cost_usage_data.get("date"):
+                budget_usage_by_month_map[date] = unified_cost_usage_data.get("cost", 0)
+        return budget_usage_by_month_map

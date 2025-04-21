@@ -66,7 +66,6 @@ class BudgetService(BaseService):
                 'time_unit': 'str',         # required
                 'start': 'str',             # required
                 'end': 'str',               # required
-                'budget_year': 'str',       # required
                 'notification': 'dict',
                 'tags': 'dict',
                 'resource_group': 'str',    # required
@@ -96,7 +95,7 @@ class BudgetService(BaseService):
         if resource_group != "PROJECT":
             raise ERROR_NOT_IMPLEMENTED()
 
-        self._check_time_period(start, end, params.budget_year)
+        self._check_time_period(start, end)
 
         identity_mgr = IdentityManager()
         identity_mgr.check_workspace(workspace_id, domain_id)
@@ -138,22 +137,14 @@ class BudgetService(BaseService):
         )
 
         # Check Duplicated Budget
-        budget_vos = self.budget_mgr.filter_budgets(
-            service_account_id=service_account_id,
-            project_id=project_id,
-            workspace_id=workspace_id,
-            domain_id=domain_id,
-            budget_year=params.budget_year,
+        self._check_duplicated_budget(
+            start, end, domain_id, workspace_id, project_id, service_account_id
         )
-        if budget_vos.count() > 0:
-            budget_target = params.service_account_id or params.project_id
-            raise ERROR_BUDGET_ALREADY_EXIST(
-                budget_year=params.budget_year,
-                workspace_id=workspace_id,
-                target=budget_target,
-            )
 
-        budget_vo = self.budget_mgr.create_budget(params.dict())
+        params_dict = params.dict()
+        params_dict["state"] = self._get_budget_state(start, end)
+
+        budget_vo = self.budget_mgr.create_budget(params_dict)
 
         # Create budget usages
         self.budget_usage_mgr.create_budget_usages(budget_vo)
@@ -208,7 +199,7 @@ class BudgetService(BaseService):
         if params.start or params.end:
             start = params.start or start
             end = params.end or end
-            self._check_time_period(start, end, budget_vo.budget_year)
+            self._check_time_period(start, end)
             planned_limits = planned_limits or budget_vo.planned_limits
 
         # Check limit and Planned Limits
@@ -220,9 +211,10 @@ class BudgetService(BaseService):
             identity_mgr = IdentityManager()
             self._check_user_exists(identity_mgr, budget_manager_id, domain_id)
 
-        budget_vo = self.budget_mgr.update_budget_by_vo(
-            params.dict(exclude_unset=True), budget_vo
-        )
+        params_dict = params.dict(exclude_unset=True)
+        params_dict["state"] = self._get_budget_state(start, end)
+
+        budget_vo = self.budget_mgr.update_budget_by_vo(params_dict, budget_vo)
 
         # Update Budget Usages
         if planned_limits:
@@ -456,10 +448,15 @@ class BudgetService(BaseService):
             if budget_limit > 0 and (budget_usage_vo := budget_usage_vos[0]):
                 utilization_rate = budget_usage_vo.cost / budget_limit * 100
 
+            budget_state = self._get_budget_state(
+                start=budget_vo.start, end=budget_vo.end
+            )
+
             update_params = {
                 "utilization_rate": utilization_rate,
                 "limit": budget_limit,
                 "notification": notification,
+                "state": budget_state,
             }
 
             budget_vo = self.budget_mgr.update_budget_by_vo(update_params, budget_vo)
@@ -468,22 +465,44 @@ class BudgetService(BaseService):
                 f"[update_budget_utilization_rate] budget_vo: {budget_vo.budget_id}, {budget_vo.utilization_rate})"
             )
 
+        query_filter = {
+            "filter": [
+                {"k": "domain_id", "v": domain_id, "o": "eq"},
+                {"k": "end", "v": current_month, "o": "lt"},
+            ]
+        }
+        _LOGGER.debug(f"[init_monthly_budget_info] query_filter: {query_filter}")
+        budget_vos, _ = self.budget_mgr.list_budgets(query_filter)
+
+        for budget_vo in budget_vos:
+            budget_state = self._get_budget_state(
+                start=budget_vo.start, end=budget_vo.end
+            )
+            update_params = {
+                "state": budget_state,
+            }
+            budget_vo = self.budget_mgr.update_budget_by_vo(update_params, budget_vo)
+
+            _LOGGER.debug(
+                f"[update_budget_utilization_rate] budget_vo: {budget_vo.budget_id}, {budget_vo.state})"
+            )
+
     def create_budget_update_job(self, domain_id: str) -> None:
         self.budget_mgr.push_budget_job_task({"domain_id": domain_id})
 
     @staticmethod
-    def _check_time_period(start: str, end: str, budget_year: str = None) -> None:
+    def _check_time_period(start: str, end: str) -> None:
         if start >= end:
             raise ERROR_INVALID_TIME_RANGE(start=start, end=end)
 
-        if budget_year:
-            start_year = start.split("-")[0]
-            end_year = end.split("-")[0]
-            if start_year != budget_year and end_year != budget_year:
-                raise ERROR_INVALID_PARAMETER(
-                    key="budget_year",
-                    reason=f"budget_year({budget_year}) should be same as start({start}) or end({end}) year",
-                )
+        start_year = start.split("-")[0]
+        end_year = end.split("-")[0]
+
+        if int(end_year) - int(start_year) > 1:
+            raise ERROR_INVALID_PARAMETER(
+                key="start and end",
+                reason=f"Too long time period. Budget period should be in between 1 and 2 years",
+            )
 
     def _check_planned_limits(
         self, start: str, end: str, time_unit: str, planned_limits: list
@@ -557,6 +576,43 @@ class BudgetService(BaseService):
         if users:
             self._check_user_roles_and_email_verification(
                 domain_id, workspace_id, users
+            )
+
+    def _check_duplicated_budget(
+        self,
+        start: str,
+        end: str,
+        domain_id: str,
+        workspace_id: str,
+        project_id: str,
+        service_account_id: Union[str, None],
+    ) -> None:
+        query_filter = {
+            "filter": [
+                {"k": "domain_id", "v": domain_id, "o": "eq"},
+                {"k": "workspace_id", "v": workspace_id, "o": "eq"},
+                {"k": "project_id", "v": project_id, "o": "eq"},
+            ]
+        }
+
+        if service_account_id:
+            query_filter["filter"].append(
+                {"k": "service_account_id", "v": service_account_id, "o": "eq"}
+            )
+
+        query_filter["filter"].extend(
+            [{"k": "start", "v": start, "o": "lte"}, {"k": "end", "v": end, "o": "gte"}]
+        )
+
+        budget_vos, budgets_total_count = self.budget_mgr.list_budgets(query_filter)
+
+        if budgets_total_count > 0:
+            budget_target = service_account_id, project_id
+            raise ERROR_BUDGET_ALREADY_EXIST(
+                start=start,
+                end=end,
+                workspace_id=workspace_id,
+                target=budget_target,
             )
 
     @staticmethod
@@ -655,3 +711,15 @@ class BudgetService(BaseService):
                     raise ERROR_THRESHOLD_IS_WRONG_IN_PERCENT_TYPE(value=plan)
         plans = sorted(plans, key=lambda x: (x["threshold"]))
         return plans
+
+    @staticmethod
+    def _get_budget_state(start: str, end: str) -> str:
+        current_month = datetime.now(timezone.utc).strftime("%Y-%m")
+        if current_month > end:
+            budget_state = "EXPIRED"
+        elif current_month < start:
+            budget_state = "SCHEDULED"
+        else:
+            budget_state = "ACTIVE"
+
+        return budget_state
