@@ -12,6 +12,7 @@ class BudgetUsage(MongoModel):
     currency = StringField(default=None, null=True)
     budget = ReferenceField("Budget", reverse_delete_rule=CASCADE)
     resource_group = StringField(max_length=40, choices=["WORKSPACE", "PROJECT"])
+    service_account_id = StringField(max_length=40)
     project_id = StringField(max_length=40, default=None, null=True)
     workspace_id = StringField(max_length=40, default=None, null=True)
     domain_id = StringField(max_length=40)
