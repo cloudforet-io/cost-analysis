@@ -42,6 +42,7 @@ class BudgetUpdateScheduler(HourlyScheduler):
     def create_task(self) -> list:
         tasks = []
         tasks.extend(self._create_budget_utilization_rate_update_task())
+        tasks.extend(self._create_budget_state_update_task())
         return tasks
 
     def _create_budget_utilization_rate_update_task(self):
@@ -77,5 +78,35 @@ class BudgetUpdateScheduler(HourlyScheduler):
             )
             print(
                 f"{utils.datetime_to_iso8601(datetime.now(timezone.utc))} [INFO] [create_task] budget_utilization_update_hour: {self._budget_update_hour} hour (UTC)"
+            )
+            return []
+
+    def _create_budget_state_update_task(self):
+        if datetime.now(timezone.utc).hour == self._budget_update_hour:
+            stp = {
+                "name": "budget_state_update_schedule",
+                "version": "v1",
+                "executionEngine": "BaseWorker",
+                "stages": [
+                    {
+                        "locator": "SERVICE",
+                        "name": "BudgetService",
+                        "metadata": {"token": self._token},
+                        "method": "update_budget_state_job_by_domain",
+                        "params": {"params": {}},
+                    }
+                ],
+            }
+
+            print(
+                f"{utils.datetime_to_iso8601(datetime.utcnow())} [INFO] [create_task] update_budget_state_by_domain => START"
+            )
+            return [stp]
+        else:
+            print(
+                f"{utils.datetime_to_iso8601(datetime.now(timezone.utc))} [INFO] [create_task] update_budget_state_by_domain => SKIP"
+            )
+            print(
+                f"{utils.datetime_to_iso8601(datetime.now(timezone.utc))} [INFO] [create_task] budget_state_update_hour: {self._budget_update_hour} hour (UTC)"
             )
             return []

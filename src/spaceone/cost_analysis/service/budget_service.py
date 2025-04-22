@@ -49,6 +49,29 @@ class BudgetService(BaseService):
                     exc_info=True,
                 )
 
+    @transaction(exclude=["authentication, authorization", "mutation"])
+    def update_budget_state_job_by_domain(self, params: dict) -> None:
+        """Create budget state job by domain
+
+        Args:
+            params (dict): {}
+
+        Returns:
+            None
+        """
+
+        identity_mgr = IdentityManager()
+        domain_ids = identity_mgr.list_enabled_domain_ids()
+
+        for domain_id in domain_ids:
+            try:
+                self.create_budget_state_update_job({"domain_id": domain_id})
+            except Exception as e:
+                _LOGGER.error(
+                    f"[create_budget_state_job_by_domain] domain_id :{domain_id}, error: {e}",
+                    exc_info=True,
+                )
+
     @transaction(
         permission="cost-analysis:Budget.write",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
@@ -465,13 +488,26 @@ class BudgetService(BaseService):
                 f"[update_budget_utilization_rate] budget_vo: {budget_vo.budget_id}, {budget_vo.utilization_rate})"
             )
 
+    @transaction(exclude=["authentication", "authorization", "mutation"])
+    def update_expired_budget_state(self, params: dict) -> None:
+        """
+        Args:
+            params (dict): {
+                'domain_id': 'str',
+            }
+        """
+
+        domain_id = params["domain_id"]
+        current_month = datetime.now(timezone.utc).strftime("%Y-%m")
+
         query_filter = {
             "filter": [
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
                 {"k": "end", "v": current_month, "o": "lt"},
+                {"k": "state", "v": "EXPIRED", "o": "not"},
             ]
         }
-        _LOGGER.debug(f"[init_monthly_budget_info] query_filter: {query_filter}")
+        _LOGGER.debug(f"[update_expired_budget_state] query_filter: {query_filter}")
         budget_vos, _ = self.budget_mgr.list_budgets(query_filter)
 
         for budget_vo in budget_vos:
@@ -484,11 +520,14 @@ class BudgetService(BaseService):
             budget_vo = self.budget_mgr.update_budget_by_vo(update_params, budget_vo)
 
             _LOGGER.debug(
-                f"[update_budget_utilization_rate] budget_vo: {budget_vo.budget_id}, {budget_vo.state})"
+                f"[update_expired_budget_state] budget_id:{budget_vo.budget_id}({budget_vo.end}, {budget_vo.state})"
             )
 
     def create_budget_update_job(self, domain_id: str) -> None:
         self.budget_mgr.push_budget_job_task({"domain_id": domain_id})
+
+    def create_budget_state_update_job(self, params: dict) -> None:
+        self.budget_mgr.push_budget_state_update_job_task(params)
 
     @staticmethod
     def _check_time_period(start: str, end: str) -> None:
@@ -601,13 +640,13 @@ class BudgetService(BaseService):
             )
 
         query_filter["filter"].extend(
-            [{"k": "start", "v": start, "o": "lte"}, {"k": "end", "v": end, "o": "gte"}]
+            [{"k": "start", "v": end, "o": "lte"}, {"k": "end", "v": start, "o": "gte"}]
         )
 
         budget_vos, budgets_total_count = self.budget_mgr.list_budgets(query_filter)
 
         if budgets_total_count > 0:
-            budget_target = service_account_id, project_id
+            budget_target = service_account_id or project_id
             raise ERROR_BUDGET_ALREADY_EXIST(
                 start=start,
                 end=end,

@@ -98,3 +98,25 @@ class BudgetManager(BaseManager):
         _LOGGER.debug(f"[push_job_task] task param: {params}")
 
         queue.put("cost_analysis_q", utils.dump_json(task))
+
+    @staticmethod
+    def push_budget_state_update_job_task(params: dict) -> None:
+        token = config.get_global("TOKEN")
+        task = {
+            "name": "budget_update_schedule",
+            "version": "v1",
+            "executionEngine": "BaseWorker",
+            "stages": [
+                {
+                    "locator": "SERVICE",
+                    "name": "BudgetService",
+                    "metadata": {"token": token},
+                    "method": "update_expired_budget_state",
+                    "params": {"params": params},
+                }
+            ],
+        }
+
+        _LOGGER.debug(f"[push_budget_update_job_task] task param: {params}")
+
+        queue.put("cost_analysis_q", utils.dump_json(task))
