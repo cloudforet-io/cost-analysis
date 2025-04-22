@@ -11,6 +11,7 @@ class BudgetUsageSearchQueryRequest(BaseModel):
     name: Union[str, None] = None
     date: Union[str, None] = None
     budget_id: Union[str, None] = None
+    service_account_id: Union[str, None] = None
     project_id: Union[str, None] = None
     workspace_id: Union[str, None] = None
     domain_id: Union[str, None] = None
