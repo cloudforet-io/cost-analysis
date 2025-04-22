@@ -34,6 +34,7 @@ class BudgetUsageService(BaseService):
             "date",
             "user_projects",
             "project_id",
+            "service_account_id",
         ]
     )
     @append_keyword_filter(["budget_id", "name"])
@@ -50,6 +51,7 @@ class BudgetUsageService(BaseService):
                 'budget_id': 'str',
                 'name': 'str',
                 'date': 'str',
+                'service_account_id': 'str',
                 'project_id': 'str',
                 'workspace_id': str,                                # injected from auth (optional)
                 'domain_id': 'str',                                 # injected from auth
