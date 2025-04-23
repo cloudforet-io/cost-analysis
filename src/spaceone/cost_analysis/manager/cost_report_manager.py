@@ -72,3 +72,24 @@ class CostReportManager(BaseManager):
         _LOGGER.debug(f"[push_creating_cost_report_job] task param: {params}")
 
         queue.put("cost_analysis_q", utils.dump_json(task))
+
+    @staticmethod
+    def get_exchange_currency(cost: float, currency: str, currency_map: dict) -> dict:
+        cost_info = {}
+        for convert_currency in currency_map.keys():
+            cost_info.update(
+                {
+                    convert_currency: currency_map[currency][
+                        f"{currency}/{convert_currency}"
+                    ]
+                    * cost
+                }
+            )
+
+        return cost_info
+
+    @staticmethod
+    def get_currency_date(currency_date: str) -> str:
+        currency_date = str(currency_date).split()[0]
+
+        return currency_date

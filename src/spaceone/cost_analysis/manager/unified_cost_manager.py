@@ -10,7 +10,6 @@ from spaceone.core.error import *
 from spaceone.core.manager import BaseManager
 
 from spaceone.cost_analysis.error import ERROR_INVALID_DATE_RANGE
-from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 from spaceone.cost_analysis.model.unified_cost.database import UnifiedCost
 
 _LOGGER = logging.getLogger(__name__)
@@ -63,13 +62,11 @@ class UnifiedCostManager(BaseManager):
     def list_unified_costs(self, query: dict) -> Tuple[QuerySet, int]:
         return self.unified_cost_model.query(**query)
 
-    def analyze_unified_costs(self, query: dict, domain_id: str, target="SECONDARY_PREFERRED") -> dict:
+    def analyze_unified_costs(self, query: dict, target="SECONDARY_PREFERRED") -> dict:
         query["target"] = target
         query["date_field"] = "billed_month"
         query["date_field_format"] = "%Y-%m"
         _LOGGER.debug(f"[analyze_unified_costs] query: {query}")
-
-        query = self._change_filter_project_group_id(query, domain_id)
 
         return self.unified_cost_model.analyze(**query)
 
@@ -88,7 +85,7 @@ class UnifiedCostManager(BaseManager):
     def analyze_unified_yearly_costs_with_cache(
         self, query: dict, query_hash: str, domain_id: str
     ) -> dict:
-        return self.analyze_unified_costs(query, domain_id)
+        return self.analyze_unified_costs(query)
 
     @cache.cacheable(
         key="cost-analysis:analyze-unified-costs:monthly:{domain_id}:{query_hash}",
@@ -97,7 +94,7 @@ class UnifiedCostManager(BaseManager):
     def analyze_unified_monthly_costs_with_cache(
         self, query: dict, query_hash: str, domain_id: str
     ) -> dict:
-        return self.analyze_unified_costs(query, domain_id)
+        return self.analyze_unified_costs(query)
 
     def analyze_unified_costs_by_granularity(self, query: dict, domain_id: str) -> dict:
 
@@ -242,55 +239,3 @@ class UnifiedCostManager(BaseManager):
             return end + relativedelta(years=1)
         else:
             return end + relativedelta(months=1)
-
-    def _change_filter_project_group_id(self, query: dict, domain_id: str) -> dict:
-        change_filter = []
-        self.identity_mgr = None
-
-        for condition in query.get("filter", []):
-            key = condition.get("k", condition.get("key"))
-            value = condition.get("v", condition.get("value"))
-            operator = condition.get("o", condition.get("operator"))
-
-            if key == "project_group_id":
-                if self.identity_mgr is None:
-                    self.identity_mgr: IdentityManager = self.locator.get_manager(
-                        "IdentityManager"
-                    )
-
-                project_groups_info = self.identity_mgr.list_project_groups(
-                    {
-                        "query": {
-                            "only": ["project_group_id"],
-                            "filter": [{"k": key, "v": value, "o": operator}],
-                        }
-                    },
-                    domain_id,
-                )
-
-                project_group_ids = [
-                    project_group_info["project_group_id"]
-                    for project_group_info in project_groups_info.get("results", [])
-                ]
-
-                project_ids = []
-
-                for project_group_id in project_group_ids:
-                    projects_info = self.identity_mgr.get_projects_in_project_group(
-                        project_group_id, domain_id
-                    )
-                    project_ids.extend(
-                        [
-                            project_info["project_id"]
-                            for project_info in projects_info.get("results", [])
-                        ]
-                    )
-
-                project_ids = list(set(project_ids))
-                change_filter.append({"k": "project_id", "v": project_ids, "o": "in"})
-
-            else:
-                change_filter.append(condition)
-
-        query["filter"] = change_filter
-        return query
