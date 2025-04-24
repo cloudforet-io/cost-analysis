@@ -61,3 +61,7 @@ class ERROR_NOTIFICATION_IS_NOT_SUPPORTED_IN_PROJECT(ERROR_INVALID_ARGUMENT):
 
 class ERROR_BUDGET_MANAGER_IS_NOT_VERIFIED(ERROR_INVALID_ARGUMENT):
     _message = "To assign as a budget manager to a user, email verification is required. (user_id = {user_id})"
+
+
+class ERROR_DUPLICATED_THRESHOLD(ERROR_INVALID_ARGUMENT):
+    _message = "Duplicate threshold in notification. (threshold = {threshold})"

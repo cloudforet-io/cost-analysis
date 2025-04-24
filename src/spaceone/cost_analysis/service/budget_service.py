@@ -735,6 +735,8 @@ class BudgetService(BaseService):
 
     @staticmethod
     def _check_and_sort_plans(plans: list) -> list:
+        threshold_set = set()
+
         for plan in plans:
             unit = plan["unit"]
             threshold = plan["threshold"]
@@ -748,6 +750,9 @@ class BudgetService(BaseService):
             if unit == "PERCENT":
                 if threshold > 100:
                     raise ERROR_THRESHOLD_IS_WRONG_IN_PERCENT_TYPE(value=plan)
+            if threshold in threshold_set:
+                raise ERROR_DUPLICATED_THRESHOLD(threshold=threshold)
+            threshold_set.add(threshold)
         plans = sorted(plans, key=lambda x: (x["threshold"]))
         return plans
 
