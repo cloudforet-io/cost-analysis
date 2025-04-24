@@ -48,7 +48,7 @@ class BudgetSetNotificationRequest(BaseModel):
 class BudgetGetRequest(BaseModel):
     budget_id: str
     project_id: Union[str, None] = None
-    workspace_id: str
+    workspace_id: Union[str, None] = None
     domain_id: str
     user_projects: Union[list, None] = None
 
