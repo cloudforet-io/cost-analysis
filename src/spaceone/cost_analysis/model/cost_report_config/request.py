@@ -16,11 +16,14 @@ __all__ = [
 ]
 
 State = Literal["ENABLED", "DISABLED"]
+SCOPE = Literal["WORKSPACE", "PROJECT"]
 
 
 class CostReportConfigCreateRequest(BaseModel):
+    scope: SCOPE
     issue_day: Union[int, None] = None
     is_last_day: Union[bool, None] = None
+    adjustment_options: Union[dict, None] = None
     currency: str = "KRW"
     recipients: dict
     data_source_filter: Union[dict, None] = None
@@ -32,6 +35,7 @@ class CostReportConfigUpdateRequest(BaseModel):
     cost_report_config_id: str
     issue_day: Union[int, None] = None
     is_last_day: Union[bool, None] = None
+    adjustment_options: Union[dict, None] = None
     currency: Union[str, None] = None
     data_source_filter: Union[dict, None] = None
     language: Union[str, None] = None
@@ -73,6 +77,7 @@ class CostReportConfigSearchQueryRequest(BaseModel):
     query: Union[dict, None] = None
     cost_report_config_id: Union[str, None] = None
     state: Union[State, None] = None
+    scope: Union[SCOPE, None] = None
     domain_id: str
 
 

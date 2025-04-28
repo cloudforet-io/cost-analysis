@@ -7,7 +7,6 @@ from spaceone.core.service.utils import *
 from spaceone.cost_analysis.manager.cost_report_config_manager import (
     CostReportConfigManager,
 )
-from spaceone.cost_analysis.manager.currency_manager import CurrencyManager
 from spaceone.cost_analysis.service.cost_report_serivce import CostReportService
 from spaceone.cost_analysis.model.cost_report_config.request import *
 from spaceone.cost_analysis.model.cost_report_config.response import *
@@ -35,8 +34,10 @@ class CostReportConfigService(BaseService):
 
         Args:
             params (CostReportConfigCreateRequest): {
+                'scope': 'str',                # required
                 'issue_day': 'int',
                 'is_last_day': 'bool',
+                'adjustment_options: 'dict',
                 'currency': 'str',             # required
                 'recipients': 'dict',
                 'data_source_filter': 'dict'
@@ -70,6 +71,7 @@ class CostReportConfigService(BaseService):
                 'cost_report_config_id': 'str',     # required
                 'issue_day': 'int',
                 'is_last_day': 'bool',
+                'adjustment_options: 'dict',
                 'currency': 'str',
                 'recipients': 'dict',
                 'data_source_filter': 'dict'
@@ -83,12 +85,31 @@ class CostReportConfigService(BaseService):
             params.cost_report_config_id,
         )
 
-        if params.is_last_day is None:
-            params.is_last_day = False
+        params_dict = params.dict(exclude_unset=True)
+
+        if "adjustment_options" in params_dict:
+            adjustment_options = params_dict.get("adjustment_options", {})
+
+            if adjustment_options is not None:
+                current_adjustment_options = (
+                    cost_report_config_vo.adjustment_options or {}
+                )
+                new_adjustment_options = current_adjustment_options.copy()
+                print(new_adjustment_options)
+                print(adjustment_options)
+
+                if "enabled" in adjustment_options:
+                    new_adjustment_options["enabled"] = True
+                else:
+                    new_adjustment_options["enabled"] = False
+                if "period" in adjustment_options:
+                    new_adjustment_options["period"] = adjustment_options["period"]
+
+                params_dict["adjustment_options"] = new_adjustment_options
 
         cost_report_config_vo = (
             self.cost_report_config_mgr.update_cost_report_config_by_vo(
-                params.dict(exclude_unset=True), cost_report_config_vo
+                params_dict, cost_report_config_vo
             )
         )
 
@@ -253,7 +274,14 @@ class CostReportConfigService(BaseService):
         permission="cost-analysis:CostReportConfig.read",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
-    @append_query_filter(["state", "domain_id", "cost_report_config_id"])
+    @append_query_filter(
+        [
+            "state",
+            "scope",
+            "domain_id",
+            "cost_report_config_id",
+        ]
+    )
     @convert_model
     def list(
         self, params: CostReportConfigSearchQueryRequest
