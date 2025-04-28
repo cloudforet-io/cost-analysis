@@ -4,7 +4,9 @@ from typing import Union
 from spaceone.core.service import *
 from spaceone.core import utils
 
-from spaceone.cost_analysis.manager.data_source_account_manager import DataSourceAccountManager
+from spaceone.cost_analysis.manager.data_source_account_manager import (
+    DataSourceAccountManager,
+)
 
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.manager.cost_manager import CostManager
@@ -188,7 +190,7 @@ class CostService(BaseService):
     @append_keyword_filter(["cost_id"])
     @set_query_page_limit(1000)
     @convert_model
-    def list(self, params:  CostSearchQueryRequest) -> Union[CostsResponse, dict]:
+    def list(self, params: CostSearchQueryRequest) -> Union[CostsResponse, dict]:
         """List costs
 
         Args:
@@ -319,7 +321,9 @@ class CostService(BaseService):
 
         domain_id = params.domain_id
         query = params.query or {}
-        data_source_id = self._get_data_source_id_from_query(params.dict(exclude_unset=True), query)
+        data_source_id = self._get_data_source_id_from_query(
+            params.dict(exclude_unset=True), query
+        )
 
         if data_source_id and data_source_id != "global":
             query = self.cost_mgr.change_filter_v_workspace_id(

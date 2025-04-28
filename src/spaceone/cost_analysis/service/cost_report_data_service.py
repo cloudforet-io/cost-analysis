@@ -4,10 +4,16 @@ from typing import Union, Tuple
 from spaceone.core.service import *
 from spaceone.core.service.utils import *
 
-from spaceone.cost_analysis.manager.data_source_account_manager import DataSourceAccountManager
+from spaceone.cost_analysis.manager.data_source_account_manager import (
+    DataSourceAccountManager,
+)
 from spaceone.cost_analysis.manager.cost_manager import CostManager
-from spaceone.cost_analysis.manager.cost_report_data_manager import CostReportDataManager
-from spaceone.cost_analysis.manager.cost_report_config_manager import CostReportConfigManager
+from spaceone.cost_analysis.manager.cost_report_data_manager import (
+    CostReportDataManager,
+)
+from spaceone.cost_analysis.manager.cost_report_config_manager import (
+    CostReportConfigManager,
+)
 from spaceone.cost_analysis.manager.cost_report_manager import CostReportManager
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
@@ -75,9 +81,16 @@ class CostReportDataService(BaseService):
 
         query = params.query or {}
 
-        cost_report_data_vos, total_count = self.cost_report_data_mgr.list_cost_reports_data(query)
-        cost_reports_data_info = [cost_report_data_vo.to_dict() for cost_report_data_vo in cost_report_data_vos]
-        return CostReportsDataResponse(results=cost_reports_data_info, total_count=total_count)
+        cost_report_data_vos, total_count = (
+            self.cost_report_data_mgr.list_cost_reports_data(query)
+        )
+        cost_reports_data_info = [
+            cost_report_data_vo.to_dict()
+            for cost_report_data_vo in cost_report_data_vos
+        ]
+        return CostReportsDataResponse(
+            results=cost_reports_data_info, total_count=total_count
+        )
 
     @transaction(
         permission="cost-analysis:CostReportData.read",
@@ -295,6 +308,7 @@ class CostReportDataService(BaseService):
         return identity_mgr.get_workspace(
             domain_id=domain_id, workspace_id=workspace_id
         )
+
     @staticmethod
     def _get_project_name_map(workspace_id: str, domain_id: str) -> dict:
         identity_mgr = IdentityManager()
@@ -328,9 +342,9 @@ class CostReportDataService(BaseService):
             domain_id,
         )
         for service_account in service_accounts.get("results", []):
-            service_account_name_map[
-                service_account["service_account_id"]
-            ] = service_account["name"]
+            service_account_name_map[service_account["service_account_id"]] = (
+                service_account["name"]
+            )
         return service_account_name_map
 
     @staticmethod

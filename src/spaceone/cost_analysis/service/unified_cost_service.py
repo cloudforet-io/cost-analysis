@@ -12,13 +12,17 @@ from spaceone.core.service.utils import *
 
 from spaceone.cost_analysis.manager.budget_manager import BudgetManager
 from spaceone.cost_analysis.manager.budget_usage_manager import BudgetUsageManager
-from spaceone.cost_analysis.manager.data_source_account_manager import DataSourceAccountManager
+from spaceone.cost_analysis.manager.data_source_account_manager import (
+    DataSourceAccountManager,
+)
 from spaceone.cost_analysis.manager.config_manager import ConfigManager
 from spaceone.cost_analysis.manager.cost_manager import CostManager
 from spaceone.cost_analysis.manager.currency_manager import CurrencyManager
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
-from spaceone.cost_analysis.manager.unified_cost_job_manager import UnifiedCostJobManager
+from spaceone.cost_analysis.manager.unified_cost_job_manager import (
+    UnifiedCostJobManager,
+)
 from spaceone.cost_analysis.manager.unified_cost_manager import UnifiedCostManager
 from spaceone.cost_analysis.model.unified_cost.database import UnifiedCostJob
 from spaceone.cost_analysis.model.unified_cost.request import *
@@ -291,9 +295,16 @@ class UnifiedCostService(BaseService):
 
         query = params.query or {}
 
-        unified_cost_data_vos, total_count = self.unified_cost_mgr.list_unified_costs(query)
-        unified_costs_data_info = [unified_cost_data_vo.to_dict() for unified_cost_data_vo in unified_cost_data_vos]
-        return UnifiedCostsResponse(results=unified_costs_data_info, total_count=total_count)
+        unified_cost_data_vos, total_count = self.unified_cost_mgr.list_unified_costs(
+            query
+        )
+        unified_costs_data_info = [
+            unified_cost_data_vo.to_dict()
+            for unified_cost_data_vo in unified_cost_data_vos
+        ]
+        return UnifiedCostsResponse(
+            results=unified_costs_data_info, total_count=total_count
+        )
 
     @transaction(
         permission="cost-analysis:UnifiedCost.read",

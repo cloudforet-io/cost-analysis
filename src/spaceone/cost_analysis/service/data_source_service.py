@@ -13,11 +13,15 @@ from spaceone.cost_analysis.model.job.response import JobResponse
 from spaceone.cost_analysis.service.job_service import JobService
 from spaceone.cost_analysis.manager.repository_manager import RepositoryManager
 from spaceone.cost_analysis.manager.secret_manager import SecretManager
-from spaceone.cost_analysis.manager.data_source_plugin_manager import DataSourcePluginManager
+from spaceone.cost_analysis.manager.data_source_plugin_manager import (
+    DataSourcePluginManager,
+)
 from spaceone.cost_analysis.manager.budget_usage_manager import BudgetUsageManager
 from spaceone.cost_analysis.manager.cost_manager import CostManager
 from spaceone.cost_analysis.model.data_source.database import DataSource
-from spaceone.cost_analysis.manager.data_source_account_manager import DataSourceAccountManager
+from spaceone.cost_analysis.manager.data_source_account_manager import (
+    DataSourceAccountManager,
+)
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.job_manager import JobManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
@@ -101,7 +105,10 @@ class DataSourceService(BaseService):
             plugin_info = params_dict.get("plugin_info", {})
             secret_type = params_dict.get("secret_type", "MANUAL")
 
-            if secret_type == "USE_SERVICE_ACCOUNT_SECRET" and "provider" not in params_dict:
+            if (
+                secret_type == "USE_SERVICE_ACCOUNT_SECRET"
+                and "provider" not in params_dict
+            ):
                 raise ERROR_REQUIRED_PARAMETER(key="provider")
 
             self._validate_plugin_info(plugin_info, secret_type)
@@ -156,7 +163,9 @@ class DataSourceService(BaseService):
             else:
                 raise ERROR_REQUIRED_PARAMETER(key="template")
 
-        data_source_vo: DataSource = self.data_source_mgr.register_data_source(params_dict)
+        data_source_vo: DataSource = self.data_source_mgr.register_data_source(
+            params_dict
+        )
 
         # Create DataSourceRules
         if data_source_type == "EXTERNAL":
@@ -225,9 +234,7 @@ class DataSourceService(BaseService):
 
         if "secret_filter" in params:
             if data_source_vo.secret_type == "USE_SERVICE_ACCOUNT_SECRET":
-                self.validate_secret_filter(
-                    params.secret_filter, params.domain_id
-                )
+                self.validate_secret_filter(params.secret_filter, params.domain_id)
             else:
                 raise ERROR_NOT_ALLOW_SECRET_FILTER(data_source_id=data_source_id)
 
@@ -362,9 +369,7 @@ class DataSourceService(BaseService):
 
         data_source_id = params.data_source_id
         domain_id = params.domain_id
-        data_source_vo = self.data_source_mgr.get_data_source(
-            data_source_id, domain_id
-        )
+        data_source_vo = self.data_source_mgr.get_data_source(data_source_id, domain_id)
 
         if data_source_vo.data_source_type == "LOCAL":
             raise ERROR_NOT_ALLOW_PLUGIN_SETTINGS(data_source_id=data_source_id)
@@ -382,7 +387,9 @@ class DataSourceService(BaseService):
     )
     @check_required(["data_source_id", "domain_id"])
     @convert_model
-    def update_plugin(self, params: DataSourceUpdatePluginRequest) -> Union[DataSourceResponse, dict]:
+    def update_plugin(
+        self, params: DataSourceUpdatePluginRequest
+    ) -> Union[DataSourceResponse, dict]:
         """Update data source plugin
 
         Args:
@@ -606,7 +613,7 @@ class DataSourceService(BaseService):
     @append_keyword_filter(["data_source_id", "name"])
     @convert_model
     def list(
-            self, params: DataSourceSearchQueryRequest
+        self, params: DataSourceSearchQueryRequest
     ) -> Union[DataSourcesResponse, dict]:
         """List data sources
 
@@ -634,8 +641,11 @@ class DataSourceService(BaseService):
             self._check_only_fields_for_permissions(query)
 
         if connected_workspace_id:
-            data_source_vos, total_count = self._change_filter_connected_workspace_data_source(query,
-                                                                                               connected_workspace_id)
+            data_source_vos, total_count = (
+                self._change_filter_connected_workspace_data_source(
+                    query, connected_workspace_id
+                )
+            )
         else:
             data_source_vos, total_count = self.data_source_mgr.list_data_sources(query)
 

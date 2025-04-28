@@ -14,8 +14,7 @@ class IdentityManager(BaseManager):
         super().__init__(*args, **kwargs)
         token = self.transaction.get_meta("token") or kwargs.get("token")
         self.token_type = JWTUtil.get_value_from_token(token, "typ")
-        self.identity_conn = SpaceConnector(service="identity",
-                                            token=token)
+        self.identity_conn = SpaceConnector(service="identity", token=token)
 
     def list_users(self, params: dict, domain_id: str) -> dict:
         system_token = config.get_global("TOKEN")
@@ -248,8 +247,8 @@ class IdentityManager(BaseManager):
         )
 
     def grant_token(
-            self,
-            params: dict,
+        self,
+        params: dict,
     ) -> str:
         token_info = self.identity_conn.dispatch("Token.grant", params)
         return token_info["access_token"]

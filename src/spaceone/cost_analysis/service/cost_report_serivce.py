@@ -9,21 +9,29 @@ from mongoengine import QuerySet
 from spaceone.core import config
 from spaceone.core.service import *
 
-from spaceone.cost_analysis.manager.data_source_account_manager import DataSourceAccountManager
+from spaceone.cost_analysis.manager.data_source_account_manager import (
+    DataSourceAccountManager,
+)
 from spaceone.cost_analysis.model.cost_report.database import CostReport
 from spaceone.cost_analysis.model.cost_report.response import CostReportLinkResponse
 from spaceone.cost_analysis.model.cost_report_config.database import CostReportConfig
 from spaceone.cost_analysis.model.cost_report.request import *
 from spaceone.cost_analysis.model.cost_report.response import *
-from spaceone.cost_analysis.manager.cost_report_config_manager import CostReportConfigManager
+from spaceone.cost_analysis.manager.cost_report_config_manager import (
+    CostReportConfigManager,
+)
 from spaceone.cost_analysis.manager.cost_manager import CostManager
 from spaceone.cost_analysis.manager.cost_report_manager import CostReportManager
-from spaceone.cost_analysis.manager.cost_report_data_manager import CostReportDataManager
+from spaceone.cost_analysis.manager.cost_report_data_manager import (
+    CostReportDataManager,
+)
 from spaceone.cost_analysis.manager.currency_manager import CurrencyManager
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.email_manager import EmailManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
-from spaceone.cost_analysis.service.cost_report_data_service import CostReportDataService
+from spaceone.cost_analysis.service.cost_report_data_service import (
+    CostReportDataService,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -111,7 +119,9 @@ class CostReportService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @convert_model
-    def get_url(self, params: CostReportGetUrlRequest) -> Union[CostReportLinkResponse, dict]:
+    def get_url(
+        self, params: CostReportGetUrlRequest
+    ) -> Union[CostReportLinkResponse, dict]:
         """Get cost report url
         Args:
             params (dict): {
@@ -191,7 +201,7 @@ class CostReportService(BaseService):
     @set_query_page_limit(default_limit=100)
     @convert_model
     def list(
-            self, params: CostReportSearchQueryRequest
+        self, params: CostReportSearchQueryRequest
     ) -> Union[CostReportsResponse, dict]:
         """List cost reports
         Args:
@@ -391,19 +401,19 @@ class CostReportService(BaseService):
         )
 
     def _aggregate_monthly_cost_report(
-            self,
-            domain_id: str,
-            cost_report_config_id: str,
-            workspace_name_map: dict,
-            workspace_ids: list,
-            data_source_currency_map: dict,
-            data_source_ids: list,
-            report_month: str,
-            report_issue_day: int,
-            currency: str,
-            issue_day: int,
-            status: str,
-            issue_month: str = None,
+        self,
+        domain_id: str,
+        cost_report_config_id: str,
+        workspace_name_map: dict,
+        workspace_ids: list,
+        data_source_currency_map: dict,
+        data_source_ids: list,
+        report_month: str,
+        report_issue_day: int,
+        currency: str,
+        issue_day: int,
+        status: str,
+        issue_month: str = None,
     ) -> None:
         report_year = report_month.split("-")[0]
         issue_date = f"{issue_month}-{str(issue_day).zfill(2)}"
@@ -475,7 +485,7 @@ class CostReportService(BaseService):
         )
 
         for cost_report_idx, aggregated_cost_report in enumerate(
-                aggregated_cost_report_results, start=start_cost_report_number
+            aggregated_cost_report_results, start=start_cost_report_number
         ):
             aggregated_cost_report["report_number"] = self.generate_report_number(
                 report_month, report_issue_day, cost_report_idx
@@ -620,10 +630,10 @@ class CostReportService(BaseService):
         self, domain_id: str, issue_date: str = None
     ) -> int:
         return (
-                self.cost_report_mgr.filter_cost_reports(
-                    domain_id=domain_id, issue_date=issue_date
-                ).count()
-                + 1
+            self.cost_report_mgr.filter_cost_reports(
+                domain_id=domain_id, issue_date=issue_date
+            ).count()
+            + 1
         )
 
     def _get_workspace_name_map(self, domain_id: str) -> Tuple[dict, list]:
@@ -683,7 +693,7 @@ class CostReportService(BaseService):
         return identity_mgr.grant_token(params)
 
     def _get_virtual_workspace_ids_and_map(
-            self, domain_id: str, workspace_ids: list
+        self, domain_id: str, workspace_ids: list
     ) -> Tuple[list, dict]:
         v_workspace_ids = []
         v_workspace_id_map = {}
@@ -763,15 +773,15 @@ class CostReportService(BaseService):
             report_date = current_date - relativedelta(months=1)
 
         if (
-                current_date > report_date
-                and retry_date <= issue_date.replace(day=issue_day) <= current_date
+            current_date > report_date
+            and retry_date <= issue_date.replace(day=issue_day) <= current_date
         ):
             is_create_report = True
 
         report_month = report_date.strftime("%Y-%m")
 
         if is_create_report and self._check_success_cost_report_exist(
-                domain_id, cost_report_config_id, report_month
+            domain_id, cost_report_config_id, report_month
         ):
             is_create_report = False
 
@@ -804,7 +814,7 @@ class CostReportService(BaseService):
 
     @staticmethod
     def get_issue_day(
-            is_last_day: bool, issue_day: int = None, current_date: datetime = None
+        is_last_day: bool, issue_day: int = None, current_date: datetime = None
     ) -> int:
         if not current_date:
             current_date = datetime.now(timezone.utc)
@@ -821,7 +831,7 @@ class CostReportService(BaseService):
 
     @staticmethod
     def generate_report_number(
-            report_month: str, issue_day: int, cost_report_idx: int
+        report_month: str, issue_day: int, cost_report_idx: int
     ) -> str:
         report_date = f"{report_month}-{issue_day}"
         date_object = datetime.strptime(report_date, "%Y-%m-%d")
