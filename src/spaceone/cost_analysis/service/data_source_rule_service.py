@@ -186,7 +186,7 @@ class DataSourceRuleService(BaseService):
             self._check_actions(params.actions, domain_id)
 
         data_source_rule_vo = self.data_source_rule_mgr.update_data_source_rule_by_vo(
-            params, data_source_rule_vo
+            params.dict(), data_source_rule_vo
         )
 
         return DataSourceRuleResponse(**data_source_rule_vo.to_dict())

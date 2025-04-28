@@ -95,7 +95,7 @@ class CostQuerySetService(BaseService):
         )
 
         updated_cost_query_set_vo = self.cost_query_set_mgr.update_cost_query_set_by_vo(
-            params, cost_query_set_vo
+            params.dict(exclude_unset=True), cost_query_set_vo
         )
 
         return CostQuerySetResponse(**updated_cost_query_set_vo.to_dict())

@@ -245,7 +245,7 @@ class DataSourceService(BaseService):
                 raise ERROR_NOT_ALLOW_PLUGIN_SETTINGS(data_source_id=data_source_id)
 
         updated_data_source_vo = self.data_source_mgr.update_data_source_by_vo(
-            params, data_source_vo
+            params.dict(exclude_unset=True), data_source_vo
         )
 
         return DataSourceResponse(**updated_data_source_vo.to_dict())
