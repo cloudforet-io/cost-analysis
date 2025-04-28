@@ -1,5 +1,7 @@
 import logging
 
+from spaceone.core import config, queue
+from spaceone.core import utils
 from spaceone.core.manager import BaseManager
 from spaceone.cost_analysis.model.budget.database import Budget
 
@@ -9,7 +11,7 @@ _LOGGER = logging.getLogger(__name__)
 class BudgetManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.budget_model = Budget()
+        self.budget_model = Budget
 
     def create_budget(self, params: dict) -> Budget:
         def _rollback(vo: Budget):
@@ -22,7 +24,10 @@ class BudgetManager(BaseManager):
 
         params["created_by"] = self.transaction.get_meta("authorization.user_id")
 
-        budget_vo = self.budget_model.create(params)
+        if not params.get("tags"):
+            params["tags"] = {}
+
+        budget_vo: Budget = self.budget_model.create(params)
         self.transaction.add_rollback(_rollback, budget_vo)
 
         return budget_vo
@@ -46,15 +51,17 @@ class BudgetManager(BaseManager):
         self,
         budget_id: str,
         domain_id: str,
-        workspace_id: str,
+        workspace_id: str = None,
         project_id: str = None,
     ) -> Budget:
 
         conditions = {
             "budget_id": budget_id,
-            "workspace_id": workspace_id,
             "domain_id": domain_id,
         }
+
+        if workspace_id:
+            conditions["workspace_id"] = workspace_id
 
         if project_id:
             conditions["project_id"] = project_id
@@ -69,3 +76,47 @@ class BudgetManager(BaseManager):
 
     def stat_budgets(self, query):
         return self.budget_model.stat(**query)
+
+    @staticmethod
+    def push_budget_job_task(params: dict) -> None:
+        token = config.get_global("TOKEN")
+        task = {
+            "name": "update_budget",
+            "version": "v1",
+            "executionEngine": "BaseWorker",
+            "stages": [
+                {
+                    "locator": "SERVICE",
+                    "name": "BudgetService",
+                    "metadata": {"token": token},
+                    "method": "init_monthly_budget_info",
+                    "params": {"params": params},
+                }
+            ],
+        }
+
+        _LOGGER.debug(f"[push_job_task] task param: {params}")
+
+        queue.put("cost_analysis_q", utils.dump_json(task))
+
+    @staticmethod
+    def push_budget_state_update_job_task(params: dict) -> None:
+        token = config.get_global("TOKEN")
+        task = {
+            "name": "budget_update_schedule",
+            "version": "v1",
+            "executionEngine": "BaseWorker",
+            "stages": [
+                {
+                    "locator": "SERVICE",
+                    "name": "BudgetService",
+                    "metadata": {"token": token},
+                    "method": "update_expired_budget_state",
+                    "params": {"params": params},
+                }
+            ],
+        }
+
+        _LOGGER.debug(f"[push_budget_update_job_task] task param: {params}")
+
+        queue.put("cost_analysis_q", utils.dump_json(task))

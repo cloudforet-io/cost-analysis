@@ -12,6 +12,7 @@ class BudgetUsage(MongoModel):
     currency = StringField(default=None, null=True)
     budget = ReferenceField("Budget", reverse_delete_rule=CASCADE)
     resource_group = StringField(max_length=40, choices=["WORKSPACE", "PROJECT"])
+    service_account_id = StringField(max_length=40)
     project_id = StringField(max_length=40, default=None, null=True)
     workspace_id = StringField(max_length=40, default=None, null=True)
     domain_id = StringField(max_length=40)
@@ -23,12 +24,12 @@ class BudgetUsage(MongoModel):
         "change_query_keys": {"user_projects": "project_id"},
         "ordering": ["budget_id", "date"],
         "indexes": [
+            "domain_id",
+            "workspace_id",
+            "project_id",
+            "resource_group",
             "budget_id",
             "name",
             "date",
-            "resource_group",
-            "project_id",
-            "workspace_id",
-            "domain_id",
         ],
     }
