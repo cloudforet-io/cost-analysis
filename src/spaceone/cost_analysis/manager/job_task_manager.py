@@ -6,7 +6,7 @@ from spaceone.core import queue, utils
 from spaceone.core.manager import BaseManager
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.manager.job_manager import JobManager
-from spaceone.cost_analysis.model.job_task_model import JobTask
+from spaceone.cost_analysis.model.job_task.database import JobTask
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime, timezone
 from dateutil.rrule import rrule, MONTHLY
+from typing import Union
 
 from spaceone.core.service import *
 from spaceone.cost_analysis.error import *

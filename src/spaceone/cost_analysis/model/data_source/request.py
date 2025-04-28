@@ -3,9 +3,19 @@ from pydantic import BaseModel, Field
 
 __all__ = [
     "DataSourceRegisterRequest",
+    "DataSourceUpdateRequest",
     "DataSourceUpdatePermissionsRequest",
+    "DataSourceUpdateSecretDataRequest",
+    "DataSourceUpdatePluginRequest",
+    "DataSourceVerifyPluginRequest",
+    "DataSourceEnableRequest",
+    "DataSourceDisableRequest",
+    "DataSourceDeregisterRequest",
+    "DataSourceSyncRequest",
+    "DataSourceGetRequest",
     "DataSourceGetRequest",
     "DataSourceSearchQueryRequest",
+    "DataSourceStatQueryRequest",
 ]
 
 DataSourceType = Literal["LOCAL", "EXTERNAL"]
@@ -45,9 +55,65 @@ class DataSourceRegisterRequest(BaseModel):
     domain_id: str
 
 
+class DataSourceUpdateRequest(BaseModel):
+    data_source_id: str
+    name: Union[dict, None] = None
+    secret_filter: Union[dict, None] = None
+    template: Union[dict, None] = None
+    tags: Union[dict, None] = None
+    domain_id: str
+
+
 class DataSourceUpdatePermissionsRequest(BaseModel):
     data_source_id: str
     permissions: dict
+    domain_id: str
+
+
+class DataSourceUpdateSecretDataRequest(BaseModel):
+    data_source_id: str
+    secret_data: dict
+    secret_schema_id: str
+    workspace_id: Union[str, None] = None
+    domain_id: str
+
+
+class DataSourceUpdatePluginRequest(BaseModel):
+    data_source_id: str
+    version: Union[str, None] = None
+    options: Union[dict, None] = None
+    upgrade_mode: Union[str, None] = None
+    workspace_id: Union[str, None] = None
+    domain_id: str
+
+
+class DataSourceVerifyPluginRequest(BaseModel):
+    data_source_id: str
+    domain_id: str
+
+
+class DataSourceEnableRequest(BaseModel):
+    data_source_id: str
+    domain_id: str
+
+
+class DataSourceDisableRequest(BaseModel):
+    data_source_id: str
+    domain_id: str
+
+
+class DataSourceDeregisterRequest(BaseModel):
+    data_source_id: str
+    cascade_delete_cost: Union[bool, None] = None
+    workspace_id: Union[str, None] = None
+    domain_id: str
+
+
+class DataSourceSyncRequest(BaseModel):
+    data_source_id: str
+    start: Union[str, None] = None
+    no_preload_cache: Union[bool, None] = None
+    workspace_id: Union[str, None] = None
     domain_id: str
 
 
@@ -65,4 +131,9 @@ class DataSourceSearchQueryRequest(BaseModel):
     provider: Union[str, None] = None
     connected_workspace_id: Union[str, None] = None
     workspace_id: Union[list, str, None] = None
+    domain_id: str
+
+class DataSourceStatQueryRequest(BaseModel):
+    query: dict
+    workspace_id: Union[str, None] = None
     domain_id: str

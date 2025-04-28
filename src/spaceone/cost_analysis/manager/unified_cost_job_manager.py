@@ -21,7 +21,7 @@ class UnifiedCostJobManager(BaseManager):
             )
             vo.delete()
 
-        params["is_confirmed"] = False
+        params_dict["is_confirmed"] = False
 
         unified_cost_job_vo: UnifiedCostJob = self.unified_cost_job_model.create(params)
         self.transaction.add_rollback(_rollback, unified_cost_job_vo)
@@ -61,7 +61,7 @@ class UnifiedCostJobManager(BaseManager):
         update_params = {"is_confirmed": is_confirmed}
 
         if is_confirmed:
-            update_params["confirmed_at"] = datetime.utcnow()
+            update_params_dict["confirmed_at"] = datetime.utcnow()
         return unified_cost_job_vo.update(update_params)
 
     def filter_unified_cost_jobs(self, **conditions):

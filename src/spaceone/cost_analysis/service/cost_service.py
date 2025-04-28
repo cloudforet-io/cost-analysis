@@ -3,7 +3,6 @@ from typing import Union
 
 from spaceone.core.service import *
 from spaceone.core import utils
-from spaceone.cost_analysis.model.cost.response import CostsResponse
 
 from spaceone.cost_analysis.manager.data_source_account_manager import (
     DataSourceAccountManager,
@@ -14,8 +13,15 @@ from spaceone.cost_analysis.manager import DataSourceManager
 from spaceone.cost_analysis.manager.cost_manager import CostManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 from spaceone.cost_analysis.model import DataSource
-from spaceone.cost_analysis.model.cost.response import CostResponse
-from spaceone.cost_analysis.model.cost_model import Cost
+from spaceone.cost_analysis.model.cost.database import Cost
+from spaceone.cost_analysis.model.cost.request import (
+    CostCreateRequest,
+    CostDeleteRequest,
+    CostGetRequest,
+    CostAnalyzeQueryRequest,
+    CostSearchQueryRequest,
+)
+from spaceone.cost_analysis.model.cost.response import CostResponse, CostsResponse
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -29,14 +35,14 @@ class CostService(BaseService):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.cost_mgr: CostManager = self.locator.get_manager("CostManager")
+        self.cost_mgr = CostManager()
         self.data_source_mgr = DataSourceManager()
 
     @transaction(permission="cost-analysis:Cost.write", role_types=["WORKSPACE_OWNER"])
     @check_required(
         ["cost", "data_source_id", "billed_date", "project_id", "domain_id"]
     )
-    def create(self, params: dict):
+    def create(self, params: CostCreateRequest) -> Union[CostResponse, dict]:
         """Register cost
 
         Args:
@@ -79,12 +85,14 @@ class CostService(BaseService):
 
     @transaction(permission="cost-analysis:Cost.write", role_types=["WORKSPACE_OWNER"])
     @check_required(["cost_id", "domain_id"])
-    def delete(self, params: dict):
+    @convert_model
+    def delete(self, params: CostDeleteRequest) -> None:
         """Deregister cost
 
         Args:
             params (dict): {
-                'cost_id': 'str',           # injected from path
+                'data_source_id': 'str',
+                'cost_id': 'str',
                 'workspace_id' : str',      # injected from auth
                 'domain_id': 'str'          # injected from auth
             }
@@ -95,9 +103,9 @@ class CostService(BaseService):
 
         raise ERROR_NOT_SUPPORT_API()
 
-        # cost_id = params["cost_id"]
-        # domain_id = params["domain_id"]
-        # workspace_id = params.get("workspace_id")
+        # cost_id = params.cost_id
+        # domain_id = params.domain_id
+        # workspace_id = params.workspace_id
         #
         # if workspace_id:
         #     cost_vo: Cost = self.cost_mgr.get_cost(cost_id, domain_id)
@@ -118,7 +126,7 @@ class CostService(BaseService):
     )
     @check_required(["cost_id", "domain_id"])
     @convert_model
-    def get(self, params: dict) -> Union[CostResponse, dict]:
+    def get(self, params: CostGetRequest) -> Union[CostResponse, dict]:
         """Get cost
 
         Args:
@@ -132,11 +140,12 @@ class CostService(BaseService):
         Returns:
             cost_vo (object)
         """
+        params_dict = params.dict(exclude_unset=True)
 
-        cost_id = params["cost_id"]
-        user_projects = params.get("user_projects", [])
-        workspace_id = params.get("workspace_id")
-        domain_id = params["domain_id"]
+        cost_id = params_dict["cost_id"]
+        user_projects = params_dict.get("user_projects", [])
+        workspace_id = params_dict.get("workspace_id")
+        domain_id = params_dict["domain_id"]
 
         if workspace_id:
             cost_vo: Cost = self.cost_mgr.get_cost(cost_id, domain_id, user_projects)
@@ -186,7 +195,7 @@ class CostService(BaseService):
     @append_keyword_filter(["cost_id"])
     @set_query_page_limit(1000)
     @convert_model
-    def list(self, params: dict) -> Union[CostsResponse, dict]:
+    def list(self, params: Union[CostSearchQueryRequest]) -> Union[CostsResponse, dict]:
         """List costs
 
         Args:
@@ -210,10 +219,11 @@ class CostService(BaseService):
             cost_vos (object)
             total_count
         """
+        params_dict = params.dict(exclude_unset=True)
 
-        query = params.get("query", {})
-        domain_id = params["domain_id"]
-        data_source_id = params["data_source_id"]
+        query = params_dict.get("query", {})
+        domain_id = params_dict["domain_id"]
+        data_source_id = params_dict["data_source_id"]
 
         cost_vos, total_count = self.cost_mgr.list_costs(
             query, domain_id, data_source_id
@@ -257,7 +267,7 @@ class CostService(BaseService):
     )
     @append_keyword_filter(["cost_id"])
     # @set_query_page_limit(1000)
-    def analyze(self, params: dict) -> dict:
+    def analyze(self, params: CostAnalyzeQueryRequest) -> dict:
         """
         Args:
             params (dict): {
@@ -272,10 +282,11 @@ class CostService(BaseService):
                 "results" : "list",
             }
         """
+        params_dict = params.dict(exclude_unset=True)
 
-        domain_id = params["domain_id"]
-        data_source_id = params["data_source_id"]
-        query = params.get("query", {})
+        domain_id = params_dict["domain_id"]
+        data_source_id = params_dict["data_source_id"]
+        query = params_dict.get("query", {})
         workspace_id = query.get("workspace_id")
 
         if self.transaction.get_meta("authorization.role_type") != "DOMAIN_ADMIN":
@@ -312,9 +323,10 @@ class CostService(BaseService):
             values (list) : 'list of statistics data'
 
         """
+        params_dict = params.dict(exclude_unset=True)
 
-        domain_id = params["domain_id"]
-        query = params.get("query", {})
+        domain_id = params_dict["domain_id"]
+        query = params_dict.get("query", {})
         data_source_id = self._get_data_source_id_from_query(params, query)
 
         if data_source_id and data_source_id != "global":

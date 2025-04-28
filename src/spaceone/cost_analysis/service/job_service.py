@@ -10,9 +10,9 @@ from spaceone.core.service import *
 from spaceone.core import utils, config
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.model import DataSourceAccount
-from spaceone.cost_analysis.model.job_task_model import JobTask
-from spaceone.cost_analysis.model.job_model import Job
-from spaceone.cost_analysis.model.data_source_model import DataSource
+from spaceone.cost_analysis.model.job_task.database import JobTask
+from spaceone.cost_analysis.model.job.database import Job
+from spaceone.cost_analysis.model.data_source.database import DataSource
 from spaceone.cost_analysis.manager.cost_manager import CostManager
 from spaceone.cost_analysis.manager.data_source_account_manager import (
     DataSourceAccountManager,

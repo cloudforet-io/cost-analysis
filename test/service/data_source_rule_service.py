@@ -10,7 +10,7 @@ from spaceone.core.model.mongo_model import MongoModel
 from spaceone.core.transaction import Transaction
 
 from spaceone.cost_analysis.service.data_source_rule_service import DataSourceRuleService
-from spaceone.cost_analysis.model.data_source_rule_model import DataSourceRule
+from spaceone.cost_analysis.model.data_source_rule.database import DataSourceRule
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 from spaceone.cost_analysis.manager.secret_manager import SecretManager
 

@@ -4,7 +4,7 @@ from spaceone.core.service import *
 
 from spaceone.cost_analysis.manager import DataSourceManager
 from spaceone.cost_analysis.manager.cost_query_set_manager import CostQuerySetManager
-from spaceone.cost_analysis.model.cost_query_set_model import CostQuerySet
+from spaceone.cost_analysis.model.cost_query_set.database import CostQuerySet
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -47,8 +47,8 @@ class CostQuerySetService(BaseService):
             cost_query_set_vo (object)
         """
 
-        domain_id = params["domain_id"]
-        data_source_id = params["data_source_id"]
+        domain_id = params_dict["domain_id"]
+        data_source_id = params_dict["data_source_id"]
 
         if data_source_id != "unified-cost-data-source":
             self.data_source_mgr.get_data_source(
@@ -80,10 +80,10 @@ class CostQuerySetService(BaseService):
         Returns:
             cost_query_set_vo (object)
         """
-        cost_query_set_id = params["cost_query_set_id"]
-        user_id = params["user_id"]
-        domain_id = params["domain_id"]
-        workspace_id = params.get("workspace_id")
+        cost_query_set_id = params_dict["cost_query_set_id"]
+        user_id = params_dict["user_id"]
+        domain_id = params_dict["domain_id"]
+        workspace_id = params_dict.get("workspace_id")
 
         cost_query_set_vo: CostQuerySet = self.cost_query_set_mgr.get_cost_query_set(
             cost_query_set_id, user_id, domain_id, workspace_id
@@ -112,10 +112,10 @@ class CostQuerySetService(BaseService):
         """
 
         cost_query_set_vo = self.cost_query_set_mgr.get_cost_query_set(
-            params["cost_query_set_id"],
-            params["user_id"],
-            params["domain_id"],
-            params.get("workspace_id"),
+            params_dict["cost_query_set_id"],
+            params_dict["user_id"],
+            params_dict["domain_id"],
+            params_dict.get("workspace_id"),
         )
 
         self.cost_query_set_mgr.delete_cost_query_set_by_vo(cost_query_set_vo)
@@ -139,10 +139,10 @@ class CostQuerySetService(BaseService):
             cost_query_set_vo (object)
         """
 
-        cost_query_set_id = params["cost_query_set_id"]
-        user_id = params["user_id"]
-        domain_id = params["domain_id"]
-        workspace_id = params.get("workspace_id")
+        cost_query_set_id = params_dict["cost_query_set_id"]
+        user_id = params_dict["user_id"]
+        domain_id = params_dict["domain_id"]
+        workspace_id = params_dict.get("workspace_id")
 
         return self.cost_query_set_mgr.get_cost_query_set(
             cost_query_set_id, user_id, domain_id, workspace_id
@@ -184,7 +184,7 @@ class CostQuerySetService(BaseService):
             total_count
         """
 
-        query = params.get("query", {})
+        query = params_dict.get("query", {})
         return self.cost_query_set_mgr.list_cost_query_sets(query)
 
     @transaction(
@@ -207,5 +207,5 @@ class CostQuerySetService(BaseService):
 
         """
 
-        query = params.get("query", {})
+        query = params_dict.get("query", {})
         return self.cost_query_set_mgr.stat_cost_query_sets(query)

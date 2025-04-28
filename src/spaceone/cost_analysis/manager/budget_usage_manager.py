@@ -43,6 +43,7 @@ class BudgetUsageManager(BaseManager):
                     "cost": 0,
                     "limit": 0,
                     "currency": budget_vo.currency,
+                    "provider_filter": budget_vo.provider_filter.to_dict(),
                     "budget": budget_vo,
                     "resource_group": budget_vo.resource_group,
                     "service_account_id": budget_vo.service_account_id,

@@ -6,7 +6,7 @@ from dateutil.relativedelta import relativedelta
 from spaceone.core import cache, utils
 from spaceone.core.manager import BaseManager
 from spaceone.cost_analysis.error import *
-from spaceone.cost_analysis.model.cost_model import Cost, MonthlyCost, CostQueryHistory
+from spaceone.cost_analysis.model.cost.database import Cost, MonthlyCost, CostQueryHistory
 from spaceone.cost_analysis.manager.data_source_rule_manager import (
     DataSourceRuleManager,
 )
@@ -43,22 +43,22 @@ class CostManager(BaseManager):
             vo.delete()
 
         if "region_code" in params and "provider" in params:
-            params["region_key"] = f'{params["provider"]}.{params["region_code"]}'
+            params_dict["region_key"] = f'{params_dict["provider"]}.{params_dict["region_code"]}'
 
-        billed_at = self._get_billed_at_from_billed_date(params["billed_date"])
+        billed_at = self._get_billed_at_from_billed_date(params_dict["billed_date"])
 
-        params["billed_year"] = billed_at.strftime("%Y")
-        params["billed_month"] = billed_at.strftime("%Y-%m")
+        params_dict["billed_year"] = billed_at.strftime("%Y")
+        params_dict["billed_month"] = billed_at.strftime("%Y-%m")
 
         (
             workspace_id,
             v_workspace_id,
         ) = self.data_source_account_mgr.get_workspace_id_from_account_id(
-            params, params["domain_id"], params["data_source_id"]
+            params, params_dict["domain_id"], params_dict["data_source_id"]
         )
 
         if v_workspace_id:
-            params["workspace_id"] = v_workspace_id
+            params_dict["workspace_id"] = v_workspace_id
 
         params = self.data_source_rule_mgr.change_cost_data(params, workspace_id)
 

@@ -6,8 +6,8 @@ from datetime import datetime, timedelta
 from spaceone.core.error import *
 from spaceone.core import config
 from spaceone.core.manager import BaseManager
-from spaceone.cost_analysis.model.job_model import Job
-from spaceone.cost_analysis.model.cost_model import CostQueryHistory
+from spaceone.cost_analysis.model.job.database import Job
+from spaceone.cost_analysis.model.cost.database import CostQueryHistory
 from spaceone.cost_analysis.manager.cost_manager import CostManager
 
 _LOGGER = logging.getLogger(__name__)

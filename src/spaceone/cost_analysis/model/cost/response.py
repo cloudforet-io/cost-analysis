@@ -18,15 +18,19 @@ class CostResponse(BaseModel):
     tags: Union[dict, None] = None
     additional_info: Union[dict, None] = None
     data: Union[dict, None] = None
+    data_source_id: Union[str, None] = None
     account_id: Union[str, None] = None
     service_account_id: Union[str, None] = None
     project_id: Union[str, None] = None
-    data_source_id: Union[str, None] = None
     workspace_id: Union[str, None] = None
     domain_id: Union[str, None] = None
     billed_year: Union[str, None] = None
     billed_month: Union[str, None] = None
     billed_date: Union[str, None] = None
+
+    def dict(self, *args, **kwargs):
+        data = super().dict(*args, **kwargs)
+        return data
 
 
 class CostsResponse(BaseModel):

@@ -1,7 +1,7 @@
 import logging
 
 from spaceone.core.manager import BaseManager
-from spaceone.cost_analysis.model.cost_query_set_model import CostQuerySet
+from spaceone.cost_analysis.model.cost_query_set.database import CostQuerySet
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ class CostQuerySetManager(BaseManager):
 
     def update_cost_query_set(self, params):
         cost_query_set_vo: CostQuerySet = self.get_cost_query_set(
-            params["cost_query_set_id"], params["domain_id"]
+            params_dict["cost_query_set_id"], params_dict["domain_id"]
         )
         return self.update_cost_query_set_by_vo(params, cost_query_set_vo)
 

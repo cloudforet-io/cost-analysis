@@ -148,7 +148,7 @@ class DataSourceAccountManager(BaseManager):
             ]
         }
 
-        identity_mgr = self.locator.get_manager("IdentityManager")
+        identity_mgr = IdentityManager()
         response = identity_mgr.list_workspaces({"query": query}, domain_id)
         results = response.get("results", [])
         total_count = response.get("total_count", 0)

@@ -11,7 +11,7 @@ from spaceone.cost_analysis.service.data_source_rule_service import (
 from spaceone.cost_analysis.connector.datasource_plugin_connector import (
     DataSourcePluginConnector,
 )
-from spaceone.cost_analysis.model.data_source_model import DataSource
+from spaceone.cost_analysis.model.data_source.database import DataSource
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -154,9 +154,9 @@ class DataSourcePluginManager(BaseManager):
                 "DataSourceRuleService", metadata
             )
             for data_source_rule_params in data_source_rules:
-                data_source_rule_params["resource_group"] = resource_group
-                data_source_rule_params["data_source_id"] = data_source_id
-                data_source_rule_params["workspace_id"] = workspace_id
-                data_source_rule_params["domain_id"] = domain_id
-                data_source_rule_params["rule_type"] = "MANAGED"
+                data_source_rule_params_dict["resource_group"] = resource_group
+                data_source_rule_params_dict["data_source_id"] = data_source_id
+                data_source_rule_params_dict["workspace_id"] = workspace_id
+                data_source_rule_params_dict["domain_id"] = domain_id
+                data_source_rule_params_dict["rule_type"] = "MANAGED"
                 data_source_rule_svc.create_data_source_rule(data_source_rule_params)
