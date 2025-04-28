@@ -192,14 +192,16 @@ class UnifiedCostService(BaseService):
             None
         """
 
-        domain_id = params.domain_id
-        is_last_exchange_day = params.is_last_exchange_day or False
-        unified_month = params.unified_month
-        exchange_date = params.exchange_date
+        params = params.dict(exclude_unset=True)
+
+        domain_id = params["domain_id"]
+        is_last_exchange_day = params.get("is_last_exchange_day", False)
+        unified_month = params["unified_month"]
+        exchange_date = params.get("exchange_date")
 
         if unified_month:
-            params.month = unified_month
-            del params.unified_month
+            params["month"] = unified_month
+            del params["unified_month"]
 
         # check unified month is greater than current month
         current_month = datetime.now(timezone.utc).strftime("%Y-%m")
@@ -218,9 +220,9 @@ class UnifiedCostService(BaseService):
 
         if exchange_date and isinstance(exchange_date, datetime):
             exchange_date = exchange_date.strftime("%Y-%m-%d")
-            params.exchange_date = exchange_date
+            params["exchange_date"] = exchange_date
 
-        self.unified_cost_mgr.push_unified_cost_job_task(params.dict())
+        self.unified_cost_mgr.push_unified_cost_job_task(params)
 
     @transaction(
         permission="cost-analysis:UnifiedCost.read",
