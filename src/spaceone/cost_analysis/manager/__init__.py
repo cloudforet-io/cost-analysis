@@ -23,3 +23,6 @@ from spaceone.cost_analysis.manager.job_manager import JobManager
 from spaceone.cost_analysis.manager.job_task_manager import JobTaskManager
 from spaceone.cost_analysis.manager.notification_manager import NotificationManager
 from spaceone.cost_analysis.manager.unified_cost_manager import UnifiedCostManager
+from spaceone.cost_analysis.manager.report_adjustment_policy_manager import (
+    ReportAdjustmentPolicyManager,
+)
