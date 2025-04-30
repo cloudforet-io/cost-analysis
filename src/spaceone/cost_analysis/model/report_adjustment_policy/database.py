@@ -49,11 +49,10 @@ class ReportAdjustmentPolicy(MongoModel):
         ],
         "ordering": ["-created_at"],
         "indexes": [
+            "domain_id",
             "report_adjustment_policy_id",
-            "cost_report_config_id",
             "scope",
             "state",
-            "domain_id",
             "workspace_id",
             "project_id",
         ],

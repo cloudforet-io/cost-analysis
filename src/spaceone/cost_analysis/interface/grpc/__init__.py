@@ -13,6 +13,7 @@ from .cost_report import CostReport
 from .cost_report_data import CostReportData
 from .unified_cost import UnifiedCost
 from .report_adjustment_policy import ReportAdjustmentPolicy
+from .report_adjustment import ReportAdjustment
 
 _all_ = ["app"]
 
@@ -31,3 +32,4 @@ app.add_service(Job)
 app.add_service(JobTask)
 app.add_service(UnifiedCost)
 app.add_service(ReportAdjustmentPolicy)
+app.add_service(ReportAdjustment)

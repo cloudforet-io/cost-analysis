@@ -10,6 +10,10 @@ from spaceone.cost_analysis.model.job_task_model import JobTask
 from spaceone.cost_analysis.model.cost_report_config.database import CostReportConfig
 from spaceone.cost_analysis.model.cost_report_data.database import CostReportData
 from spaceone.cost_analysis.model.cost_report.database import CostReport
+from spaceone.cost_analysis.model.report_adjustment_policy.database import (
+    ReportAdjustmentPolicy,
+)
+from spaceone.cost_analysis.model.report_adjustment.database import ReportAdjustment
 from spaceone.cost_analysis.model.unified_cost.database import (
     UnifiedCost,
     UnifiedCostJob,
