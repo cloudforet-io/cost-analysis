@@ -40,7 +40,7 @@ class ReportAdjustment(MongoModel):
             "order",
             "value",
         ],
-        "ordering": ["-order", "cost_report_config_id"],
+        "ordering": ["report_adjustment_policy_id", "-order"],
         "indexes": [
             "domain_id",
             "report_adjustment_id",

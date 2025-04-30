@@ -18,7 +18,6 @@ class CreateReportAdjustmentPolicyRequest(BaseModel):
     scope: SCOPE
     cost_report_config_id: str
     order: Union[int, None] = None
-    adjustments: Union[list, None] = None
     tags: Union[dict, None] = None
     project_id: Union[str, None] = None
     workspace_id: Union[str, None] = None

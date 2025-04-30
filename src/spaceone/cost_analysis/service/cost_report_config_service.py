@@ -4,8 +4,10 @@ from spaceone.core.error import *
 from spaceone.core.service import *
 from spaceone.core.service.utils import *
 
-from spaceone.cost_analysis.manager.cost_report_config_manager import (
+from spaceone.cost_analysis.manager import (
     CostReportConfigManager,
+    ReportAdjustmentPolicyManager,
+    ReportAdjustmentManager,
 )
 from spaceone.cost_analysis.service.cost_report_serivce import CostReportService
 from spaceone.cost_analysis.model.cost_report_config.request import *
@@ -22,6 +24,8 @@ class CostReportConfigService(BaseService):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.cost_report_config_mgr = CostReportConfigManager()
+        self.adjustment_mgr = ReportAdjustmentManager()
+        self.adjustment_policy_mgr = ReportAdjustmentPolicyManager()
 
     @transaction(
         permission="cost-analysis:CostReportConfig.write", role_types=["DOMAIN_ADMIN"]
@@ -95,8 +99,6 @@ class CostReportConfigService(BaseService):
                     cost_report_config_vo.adjustment_options or {}
                 )
                 new_adjustment_options = current_adjustment_options.copy()
-                print(new_adjustment_options)
-                print(adjustment_options)
 
                 if "enabled" in adjustment_options:
                     new_adjustment_options["enabled"] = True
@@ -219,6 +221,21 @@ class CostReportConfigService(BaseService):
         cost_report_config_vo = self.cost_report_config_mgr.get_cost_report_config(
             params.domain_id, params.cost_report_config_id
         )
+
+        adjustment_policy_vos = self.adjustment_policy_mgr.filter_policies(
+            cost_report_config_id=cost_report_config_vo.cost_report_config_id,
+            domain_id=params.domain_id,
+        )
+
+        for policy_vo in adjustment_policy_vos:
+            adjustment_vos = self.adjustment_mgr.filter_adjustments(
+                report_adjustment_policy_id=policy_vo.report_adjustment_policy_id,
+                domain_id=params.domain_id,
+            )
+            for adj_vo in adjustment_vos:
+                self.adjustment_mgr.delete_adjustment_by_vo(adj_vo)
+
+            self.adjustment_policy_mgr.delete_policy_by_vo(policy_vo)
 
         self.cost_report_config_mgr.delete_cost_report_config_by_vo(
             cost_report_config_vo

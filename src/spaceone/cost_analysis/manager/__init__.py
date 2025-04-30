@@ -26,3 +26,12 @@ from spaceone.cost_analysis.manager.unified_cost_manager import UnifiedCostManag
 from spaceone.cost_analysis.manager.report_adjustment_policy_manager import (
     ReportAdjustmentPolicyManager,
 )
+from spaceone.cost_analysis.manager.cost_report_config_manager import (
+    CostReportConfigManager,
+)
+from spaceone.cost_analysis.manager.report_adjustment_policy_manager import (
+    ReportAdjustmentPolicyManager,
+)
+from spaceone.cost_analysis.manager.report_adjustment_manager import (
+    ReportAdjustmentManager,
+)

@@ -56,45 +56,35 @@ class ReportAdjustmentService(BaseService):
         Returns:
             ReportAdjustmentResponse:
         """
-        cost_report_config_id = self.get_cost_report_config_id_by_policy_id(
-            params.report_adjustment_policy_id,
-            params.domain_id,
+
+        adjustment_policy_vo = self.adjustment_policy_mgr.get_policy(
+            policy_id=params.report_adjustment_policy_id,
+            domain_id=params.domain_id,
+        )
+        cost_report_config_vo = self.cost_report_config_mgr.get_cost_report_config(
+            domain_id=params.domain_id,
+            cost_report_config_id=adjustment_policy_vo.cost_report_config_id,
         )
 
         existing_adjustments = self.adjustment_mgr.list_sorted_adjustments_by_order(
             params.report_adjustment_policy_id, params.domain_id
         )
 
-        if not params.order:
-            if existing_adjustments:
-                params.order = existing_adjustments[-1]["order"] + 1
-            else:
-                params.order = 1
-        else:
-            if not existing_adjustments:
-                params.order = 1
-            else:
-                max_existing_order = existing_adjustments[-1]["order"]
-
-                if params.order is None:
-                    params.order = max_existing_order + 1
-
-                if params.order > max_existing_order:
-                    params.order = max_existing_order + 1
-                else:
-                    for adjustment in reversed(existing_adjustments):
-                        if adjustment["order"] >= params.order:
-                            adjustment["order"] += 1
-                            self.adjustment_mgr.update_adjustment_order(
-                                adjustment["report_adjustment_id"],
-                                params.domain_id,
-                                {"order": adjustment["order"]},
-                            )
+        params.order = self._assign_order_to_new_adjustment(
+            params, existing_adjustments
+        )
 
         params_dict = params.dict(exclude_unset=True)
-        params_dict["cost_report_config_id"] = cost_report_config_id
+        params_dict["cost_report_config_id"] = (
+            cost_report_config_vo.cost_report_config_id
+        )
 
         adjustment_vo = self.adjustment_mgr.create_adjustment(params_dict)
+
+        self._update_policy_adjustment_order_list(
+            adjustment_policy_vo, params.domain_id
+        )
+
         return ReportAdjustmentResponse(**adjustment_vo.to_dict())
 
     @transaction(
@@ -173,29 +163,26 @@ class ReportAdjustmentService(BaseService):
                 order=params.order, maximum_order=max_order
             )
 
-        if adjustment_vo.order > params.order:
-            for adjustment in existing_adjustments:
-                if params.order <= adjustment["order"] < adjustment_vo.order:
-                    adjustment["order"] += 1
-                    self.adjustment_mgr.update_adjustment_order(
-                        adjustment["report_adjustment_id"],
-                        params.domain_id,
-                        {"order": adjustment["order"]},
-                    )
-        elif adjustment_vo.order < params.order:
-            for adjustment in existing_adjustments:
-                if adjustment_vo.order < adjustment["order"] <= params.order:
-                    adjustment["order"] -= 1
-                    self.adjustment_mgr.update_adjustment_order(
-                        adjustment["report_adjustment_id"],
-                        params.domain_id,
-                        {"order": adjustment["order"]},
-                    )
+        self._reorder_adjustments(
+            adjustments=existing_adjustments,
+            adjustment_vo=adjustment_vo,
+            new_order=params.order,
+            domain_id=params.domain_id,
+        )
 
         updated_adjustment_vo = self.adjustment_mgr.update_adjustment_order(
             adjustment_vo.report_adjustment_id,
             params.domain_id,
             {"order": params.order},
+        )
+
+        adjustment_policy_vo = self.adjustment_policy_mgr.get_policy(
+            policy_id=adjustment_vo.report_adjustment_policy_id,
+            domain_id=params.domain_id,
+        )
+
+        self._update_policy_adjustment_order_list(
+            adjustment_policy_vo, params.domain_id
         )
 
         return ReportAdjustmentResponse(**updated_adjustment_vo.to_dict())
@@ -219,6 +206,24 @@ class ReportAdjustmentService(BaseService):
         adjustment_vo = self.adjustment_mgr.get_adjustment(
             report_adjustment_id=params.report_adjustment_id, domain_id=params.domain_id
         )
+
+        adjustment_policy_vo = self.adjustment_policy_mgr.get_policy(
+            policy_id=adjustment_vo.report_adjustment_policy_id,
+            domain_id=params.domain_id,
+        )
+
+        self._reindex_orders(
+            adjustment_policy_vo,
+            params.domain_id,
+            exclude_adjustment_id=adjustment_vo.report_adjustment_id,
+        )
+
+        self._update_policy_adjustment_order_list(
+            adjustment_policy_vo,
+            params.domain_id,
+            exclude_adjustment_id=adjustment_vo.report_adjustment_id,
+        )
+
         self.adjustment_mgr.delete_adjustment_by_vo(adjustment_vo)
 
     @transaction(
@@ -292,3 +297,85 @@ class ReportAdjustmentService(BaseService):
             cost_report_config_id=adjustment_policy_vo.cost_report_config_id,
         )
         return cost_report_config_vo.cost_report_config_id
+
+    def _assign_order_to_new_adjustment(self, params, existing_adjustments):
+        if not params.order:
+            return existing_adjustments[-1]["order"] + 1 if existing_adjustments else 1
+        else:
+            if not existing_adjustments:
+                return 1
+            max_existing_order = existing_adjustments[-1]["order"]
+
+            if params.order > max_existing_order:
+                return max_existing_order + 1
+
+            for adjustment in reversed(existing_adjustments):
+                if adjustment["order"] >= params.order:
+                    adjustment["order"] += 1
+                    self.adjustment_mgr.update_adjustment_order(
+                        adjustment["report_adjustment_id"],
+                        params.domain_id,
+                        {"order": adjustment["order"]},
+                    )
+            return params.order
+
+    def _reorder_adjustments(self, adjustments, adjustment_vo, new_order, domain_id):
+        if adjustment_vo.order > new_order:
+            for adjustment in adjustments:
+                if new_order <= adjustment["order"] < adjustment_vo.order:
+                    adjustment["order"] += 1
+                    self.adjustment_mgr.update_adjustment_order(
+                        adjustment["report_adjustment_id"],
+                        domain_id,
+                        {"order": adjustment["order"]},
+                    )
+        else:
+            for adjustment in adjustments:
+                if adjustment_vo.order < adjustment["order"] <= new_order:
+                    adjustment["order"] -= 1
+                    self.adjustment_mgr.update_adjustment_order(
+                        adjustment["report_adjustment_id"],
+                        domain_id,
+                        {"order": adjustment["order"]},
+                    )
+
+    def _reindex_orders(self, policy_vo, domain_id, exclude_adjustment_id=None):
+        adjustments = self.adjustment_mgr.filter_adjustments(
+            report_adjustment_policy_id=policy_vo.report_adjustment_policy_id,
+            domain_id=domain_id,
+        )
+
+        sorted_adjustments = sorted(adjustments, key=lambda x: x.order)
+        sorted_adjustments = [
+            adjustment
+            for adjustment in sorted_adjustments
+            if adjustment
+            if adjustment.report_adjustment_id != exclude_adjustment_id
+        ]
+
+        for idx, adj in enumerate(sorted_adjustments, start=1):
+            self.adjustment_mgr.update_adjustment_order(
+                adj.report_adjustment_id, domain_id, {"order": idx}
+            )
+
+    def _update_policy_adjustment_order_list(
+        self, policy_vo, domain_id, exclude_adjustment_id=None
+    ):
+        sorted_adjustments = [
+            adj
+            for adj in self.adjustment_mgr.filter_adjustments(
+                report_adjustment_policy_id=policy_vo.report_adjustment_policy_id,
+                domain_id=domain_id,
+            )
+            if adj.report_adjustment_id != exclude_adjustment_id
+        ]
+
+        sorted_adjustments.sort(key=lambda x: x.order)
+
+        adjustment_ids_by_order = [
+            adj.report_adjustment_id for adj in sorted_adjustments
+        ]
+
+        self.adjustment_policy_mgr.update_policy_by_vo(
+            {"adjustments": adjustment_ids_by_order}, policy_vo
+        )

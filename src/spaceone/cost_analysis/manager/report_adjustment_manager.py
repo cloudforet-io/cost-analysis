@@ -65,6 +65,20 @@ class ReportAdjustmentManager(BaseManager):
         self.transaction.add_rollback(_rollback)
         adjustment_vo.delete()
 
+    def delete_adjustment_by_id(self, adjustment_id: str, domain_id: str) -> None:
+        adjustment_vo = self.get_adjustment(
+            report_adjustment_id=adjustment_id, domain_id=domain_id
+        )
+
+        def _rollback():
+            _LOGGER.info(
+                f"Rollback: Revive adjustment ({adjustment_vo.report_adjustment_id})"
+            )
+            adjustment_vo.update({"deleted_at": None})
+
+        self.transaction.add_rollback(_rollback)
+        adjustment_vo.delete()
+
     def get_adjustment(
         self, report_adjustment_id: str, domain_id: str
     ) -> ReportAdjustment:

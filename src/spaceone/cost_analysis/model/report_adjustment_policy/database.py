@@ -11,7 +11,7 @@ class ReportAdjustmentPolicy(MongoModel):
     state = StringField(
         max_length=20, choices=("ENABLED", "DISABLED", "DELETED"), default="ENABLED"
     )
-    adjustments = ListField(default=[])
+    adjustments = ListField(StringField(), default=[])
     scope = StringField(
         max_length=20, choices=("WORKSPACE", "PROJECT"), default="WORKSPACE"
     )
@@ -47,7 +47,7 @@ class ReportAdjustmentPolicy(MongoModel):
             "state",
             "created_at",
         ],
-        "ordering": ["-created_at"],
+        "ordering": ["cost_report_config_id", "-order"],
         "indexes": [
             "domain_id",
             "report_adjustment_policy_id",
