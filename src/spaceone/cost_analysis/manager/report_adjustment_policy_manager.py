@@ -1,8 +1,6 @@
 import logging
 from spaceone.core.manager import BaseManager
-from spaceone.cost_analysis.model.report_adjustment_policy.database import (
-    ReportAdjustmentPolicy,
-)
+from spaceone.cost_analysis.model import ReportAdjustmentPolicy
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -81,6 +79,7 @@ class ReportAdjustmentPolicyManager(BaseManager):
 
         policies = [policy_vo.to_dict() for policy_vo in policy_vos]
 
+        # TODO: 중복 sort 제거
         sorted_policies = sorted(policies, key=lambda x: x.get("order", 9999))
 
         return sorted_policies

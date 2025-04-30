@@ -3,8 +3,10 @@ from spaceone.core.service import *
 from spaceone.core.service.utils import *
 
 from spaceone.cost_analysis.error.report_adjustment_policy import *
-from spaceone.cost_analysis.manager.report_adjustment_policy_manager import (
+from spaceone.cost_analysis.manager import (
+    CostReportConfigManager,
     ReportAdjustmentPolicyManager,
+    ReportAdjustmentManager,
 )
 from spaceone.cost_analysis.model.report_adjustment_policy.request import *
 from spaceone.cost_analysis.model.report_adjustment_policy.response import *
@@ -21,7 +23,9 @@ class ReportAdjustmentPolicyService(BaseService):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.adjustment_mgr = ReportAdjustmentManager()
         self.policy_mgr = ReportAdjustmentPolicyManager()
+        self.cost_report_config_mgr = CostReportConfigManager()
 
     @transaction(
         permission="cost-analysis:ReportAdjustmentPolicy.write",
@@ -39,7 +43,6 @@ class ReportAdjustmentPolicyService(BaseService):
                 'scope': 'str',                   # required
                 'cost_report_config_id': 'str',   # required
                 'order': 'int',
-                'adjustments': 'list',
                 'tags': 'dict',
                 'project_id': 'str',
                 'workspace_id': 'str',
@@ -49,6 +52,11 @@ class ReportAdjustmentPolicyService(BaseService):
         Returns:
             ReportAdjustmentPolicyResponse:
         """
+
+        self.cost_report_config_mgr.get_cost_report_config(
+            params.domain_id, params.cost_report_config_id
+        )
+
         existing_policies = self.policy_mgr.list_sorted_policies_by_order(
             params.cost_report_config_id, params.domain_id
         )
@@ -204,6 +212,13 @@ class ReportAdjustmentPolicyService(BaseService):
         policy_vo = self.policy_mgr.get_policy(
             policy_id=params.report_adjustment_policy_id, domain_id=params.domain_id
         )
+
+        if policy_vo.adjustments:
+            for adjustment_id in policy_vo.adjustments:
+                self.adjustment_mgr.delete_adjustment_by_id(
+                    adjustment_id, params.domain_id
+                )
+
         self.policy_mgr.delete_policy_by_vo(policy_vo)
 
         existing_policies = self.policy_mgr.list_sorted_policies_by_order(
