@@ -10,6 +10,7 @@ from spaceone.core.error import *
 from spaceone.core.manager import BaseManager
 
 from spaceone.cost_analysis.error import ERROR_INVALID_DATE_RANGE
+from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 from spaceone.cost_analysis.model.unified_cost.database import UnifiedCost
 
 _LOGGER = logging.getLogger(__name__)
@@ -68,7 +69,6 @@ class UnifiedCostManager(BaseManager):
         query["target"] = target
         query["date_field"] = "billed_month"
         query["date_field_format"] = "%Y-%m"
-        _LOGGER.debug(f"[analyze_unified_costs] query: {query}")
 
         query = self._change_filter_project_group_id(query, domain_id)
 
@@ -77,12 +77,11 @@ class UnifiedCostManager(BaseManager):
         return self.unified_cost_model.analyze(**query)
 
     def analyze_yearly_unified_costs(
-        self, query: dict, domain_id: str, target="SECONDARY_PREFERRED"
+        self, query, domain_id, target="SECONDARY_PREFERRED"
     ):
         query["target"] = target
         query["date_field"] = "billed_year"
         query["date_field_format"] = "%Y"
-        _LOGGER.debug(f"[analyze_yearly_unified_costs] query: {query}")
 
         query = self._change_filter_project_group_id(query, domain_id)
 
@@ -263,7 +262,9 @@ class UnifiedCostManager(BaseManager):
 
             if key == "project_group_id":
                 if self.identity_mgr is None:
-                    self.identity_mgr = self.locator.get_manager("IdentityManager")
+                    self.identity_mgr: IdentityManager = self.locator.get_manager(
+                        "IdentityManager"
+                    )
 
                 project_groups_info = self.identity_mgr.list_project_groups(
                     {
