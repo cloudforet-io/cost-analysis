@@ -13,7 +13,7 @@ class CostReportDataManager(BaseManager):
         super().__init__(*args, **kwargs)
         self.cost_report_data_model = CostReportData
 
-    def create_cost_report_data(self, params: dict):
+    def create_cost_report_data(self, params: dict) -> CostReportData:
         def _rollback(vo: CostReportData):
             _LOGGER.info(
                 f"[create_cost_report_data._rollback] Delete cost report data : {vo.cost_report_id}, {vo.cost_report_data_id} "
@@ -59,3 +59,24 @@ class CostReportDataManager(BaseManager):
 
     def stat_cost_reports_data(self, query) -> dict:
         return self.cost_report_data_model.stat(**query)
+
+    def aggregate_cost_by_cost_report_id(self, cost_report_id: str) -> dict:
+
+        query = {
+            "filter": [{"k": "cost_report_id", "v": cost_report_id, "o": "eq"}],
+            "fields": {
+                "KRW": {"key": "cost.KRW", "operator": "sum"},
+                "USD": {"key": "cost.USD", "operator": "sum"},
+                "JPY": {"key": "cost.JPY", "operator": "sum"},
+            },
+        }
+
+        result = self.cost_report_data_model.analyze(**query).get("results", [])
+
+        if result and isinstance(result[0], dict):
+            return {
+                currency: result[0].get(currency, 0)
+                for currency in ["KRW", "USD", "JPY"]
+            }
+        else:
+            return {"KRW": 0, "USD": 0, "JPY": 0}

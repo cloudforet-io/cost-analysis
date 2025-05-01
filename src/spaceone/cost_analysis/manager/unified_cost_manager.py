@@ -10,6 +10,7 @@ from spaceone.core.error import *
 from spaceone.core.manager import BaseManager
 
 from spaceone.cost_analysis.error import ERROR_INVALID_DATE_RANGE
+from spaceone.cost_analysis.manager import DataSourceAccountManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 from spaceone.cost_analysis.model.unified_cost.database import UnifiedCost
 
@@ -20,6 +21,7 @@ class UnifiedCostManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.unified_cost_model = UnifiedCost
+        self.ds_account_mgr = DataSourceAccountManager()
 
     def create_unified_cost(self, params: dict) -> UnifiedCost:
         def _rollback(vo: UnifiedCost):
@@ -129,6 +131,37 @@ class UnifiedCostManager(BaseManager):
             )
 
         return response
+
+    def analyze_unified_cost_for_report(
+        self,
+        report_month: str,
+        data_source_ids: list,
+        domain_id: str,
+    ) -> list:
+        currencies = ["KRW", "USD", "JPY"]
+
+        # collect enabled data_sources cost data
+        query = {
+            "group_by": ["workspace_id", "billed_year", "data_source_id"],
+            "start": report_month,
+            "end": report_month,
+            "filter": [
+                {"k": "domain_id", "v": domain_id, "o": "eq"},
+                {"k": "billed_year", "v": report_month.split("-")[0], "o": "eq"},
+                {"k": "billed_month", "v": report_month, "o": "eq"},
+                {"k": "data_source_id", "v": data_source_ids, "o": "in"},
+            ],
+        }
+
+        fields = {
+            f"cost_{currency}": {"key": f"cost.{currency}", "operator": "sum"}
+            for currency in currencies
+        }
+        query["fields"] = fields
+
+        _LOGGER.debug(f"[aggregate_monthly_cost_report] query: {query}")
+        response = self.analyze_unified_costs(query, domain_id)
+        return response.get("results", [])
 
     def stat_unified_costs(self, query) -> dict:
         return self.unified_cost_model.stat(**query)

@@ -35,3 +35,7 @@ from spaceone.cost_analysis.manager.report_adjustment_policy_manager import (
 from spaceone.cost_analysis.manager.report_adjustment_manager import (
     ReportAdjustmentManager,
 )
+from spaceone.cost_analysis.manager.cost_report_manager import CostReportManager
+from spaceone.cost_analysis.manager.cost_report_data_manager import (
+    CostReportDataManager,
+)
