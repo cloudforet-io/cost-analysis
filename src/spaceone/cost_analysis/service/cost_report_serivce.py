@@ -4,6 +4,7 @@ import logging
 from dateutil.relativedelta import relativedelta
 from datetime import datetime, timezone
 from typing import Tuple, Union
+from datetime import timedelta
 
 from mongoengine import QuerySet
 from spaceone.core import config
@@ -32,6 +33,9 @@ from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 from spaceone.cost_analysis.service.cost_report_data_service import (
     CostReportDataService,
 )
+from spaceone.cost_analysis.manager.cost_report.adjustment_policy_applier import (
+    AdjustmentPolicyApplier,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -52,6 +56,7 @@ class CostReportService(BaseService):
         self.cost_report_data_mgr = CostReportDataManager()
         self.ds_account_mgr = DataSourceAccountManager()
         self.ds_mgr = DataSourceManager()
+        self.is_adjusted = False
 
     @transaction(exclude=["authentication", "authorization", "mutation"])
     def create_cost_report_by_cost_report_config(self, params: dict) -> None:
@@ -258,17 +263,27 @@ class CostReportService(BaseService):
             cost_report_config_id,
         )
 
+        context["report_month"] = report_month
+
         issue_month, report_issue_day, issue_date = self._prepare_report_metadata(
             context, report_month
         )
+        self.check_apply_adjustment_by_config(config_vo, issue_date, current_date)
 
-        unified_costs = self.unified_cost_mgr.analyze_unified_cost_for_report(
-            report_month=report_month,
-            data_source_ids=context["data_source_ids"],
-            domain_id=domain_id,
-        )
-
-        context["report_month"] = report_month
+        if config_vo.scope == "WORKSPACE":
+            unified_costs = self.unified_cost_mgr.analyze_unified_cost_for_report(
+                report_month=report_month,
+                data_source_ids=context["data_source_ids"],
+                domain_id=domain_id,
+                scope="WORKSPACE",
+            )
+        else:
+            unified_costs = self.unified_cost_mgr.analyze_unified_cost_for_report(
+                report_month=report_month,
+                data_source_ids=context["data_source_ids"],
+                domain_id=domain_id,
+                scope="PROJECT",
+            )
 
         # IN_PROGRESS
         in_progress_reports = self._build_cost_reports_from_costs(
@@ -279,6 +294,7 @@ class CostReportService(BaseService):
             in_progress_reports,
             report_month,
             report_issue_day,
+            context["data_source_ids"],
             domain_id,
             issue_date,
         )
@@ -297,6 +313,7 @@ class CostReportService(BaseService):
                 success_reports,
                 report_month,
                 report_issue_day,
+                context["data_source_ids"],
                 domain_id,
                 issue_date,
             )
@@ -609,6 +626,7 @@ class CostReportService(BaseService):
         cost_reports,
         report_month,
         report_issue_day,
+        data_source_ids,
         domain_id,
         issue_date,
     ):
@@ -629,6 +647,33 @@ class CostReportService(BaseService):
             cost_report_data_svc.create_cost_report_data(cost_report_vo)
 
             if cost_report_vo.status == "SUCCESS":
+                if self.is_adjusted:
+                    _LOGGER.info(
+                        f"[_persist_cost_reports_by_status] apply Adjustment Policy (cost_report_id={cost_report_vo.cost_report_id})"
+                    )
+
+                    adjustment_applier = AdjustmentPolicyApplier(
+                        cost_report_vo,
+                        data_source_ids,
+                    )
+
+                    if adjustment_applier.is_applied:
+                        adjustment_applier.apply_policies()
+                        adjusted_cost = self.cost_report_data_mgr.get_monthly_total_cost_for_adjustments(
+                            cost_report_vo.cost_report_id,
+                            report_month,
+                            cost_report_vo.domain_id,
+                            cost_report_vo.workspace_id,
+                            cost_report_vo.project_id,
+                        )
+                        self.cost_report_mgr.update_cost_report_by_vo(
+                            {
+                                "cost": adjusted_cost,
+                                "is_adjusted": True,
+                            },
+                            cost_report_vo,
+                        )
+
                 self.send_cost_report(cost_report_vo)
 
         self._delete_old_cost_reports(
@@ -709,3 +754,15 @@ class CostReportService(BaseService):
         )
         issue_date = f"{issue_month}-{str(context['issue_day']).zfill(2)}"
         return issue_month, report_issue_day, issue_date
+
+    def check_apply_adjustment_by_config(self, config_vo, issue_date, current_date):
+        adjustment_enabled = config_vo.adjustment_options.get("enabled", False)
+        adjustment_period = config_vo.adjustment_options.get("period", 0)
+        if adjustment_enabled and adjustment_period:
+            adjustment_deadline = datetime.strptime(issue_date, "%Y-%m-%d").replace(
+                tzinfo=timezone.utc
+            ) + timedelta(days=adjustment_period)
+            if current_date > adjustment_deadline:
+                self.is_adjusted = False
+            else:
+                self.is_adjusted = True

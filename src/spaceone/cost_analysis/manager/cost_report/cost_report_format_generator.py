@@ -16,6 +16,7 @@ class CostReportFormatGenerator:
         self.report_month = report_month
         self.cost_report_config_id = cost_report_config_id
         self.domain_id = domain_id
+        self.project_id = None
 
     def make_cost_reports(
         self,
@@ -45,6 +46,10 @@ class CostReportFormatGenerator:
             )
             unified_cost["cost_report_config_id"] = self.cost_report_config_id
             unified_cost["domain_id"] = self.domain_id
+
+            if self.project_id:
+                unified_cost["project_id"] = self.project_id
+
             transformed_costs.append(unified_cost)
 
         cost_reports = self._aggregate_result_by_currency(transformed_costs)

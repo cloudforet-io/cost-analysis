@@ -42,8 +42,14 @@ class ReportAdjustment(MongoModel):
         ],
         "ordering": ["report_adjustment_policy_id", "-order"],
         "indexes": [
-            "domain_id",
-            "report_adjustment_id",
+            {
+                "fields": [
+                    "report_adjustment_policy_id",
+                    "report_adjustment_id",
+                    "domain_id",
+                ],
+                "name": "COMPOUND_INDEX_REPORT_ADJUSTMENT",
+            }
         ],
     }
 

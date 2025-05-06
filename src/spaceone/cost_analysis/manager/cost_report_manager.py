@@ -26,6 +26,17 @@ class CostReportManager(BaseManager):
 
         return cost_report_vo
 
+    def update_cost_report_by_vo(self, params: dict, cost_report_vo: CostReport):
+        def _rollback(old_data: CostReport):
+            _LOGGER.info(
+                f"[update_cost_report_by_vo._rollback] Rollback cost_report: {old_data.cost_report_id})"
+            )
+            cost_report_vo.update(old_data)
+
+        self.transaction.add_rollback(_rollback, cost_report_vo.to_dict())
+
+        return cost_report_vo.update(params)
+
     def get_cost_report(
         self, domain_id: str, cost_report_id: str, workspace_id: str = None
     ) -> CostReport:

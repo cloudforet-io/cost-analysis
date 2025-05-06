@@ -24,7 +24,7 @@ class CostReportConfigResponse(BaseModel):
     scope: Union[SCOPE, None] = None
     issue_day: Union[int, None] = None
     is_last_day: Union[bool, None] = None
-    adjustment_options: AdjustmentOptions()
+    adjustment_options: Union[AdjustmentOptions(), None] = None
     currency: Union[str, None] = None
     recipients: Union[dict, None] = None
     data_source_filter: Union[dict, None] = None
