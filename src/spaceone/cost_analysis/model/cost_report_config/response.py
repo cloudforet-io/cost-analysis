@@ -9,14 +9,22 @@ __all__ = [
     "CostReportConfigsResponse",
 ]
 
-State = Literal["ENABLED", "DISABLED", "DELETED"]
+STATE = Literal["ENABLED", "DISABLED", "DELETED"]
+SCOPE = Literal["WORKSPACE", "PROJECT"]
+
+
+class AdjustmentOptions(BaseModel):
+    enabled: bool = False
+    period: int = 0
 
 
 class CostReportConfigResponse(BaseModel):
     cost_report_config_id: Union[str, None] = None
-    state: Union[State, None] = None
+    state: Union[STATE, None] = None
+    scope: Union[SCOPE, None] = None
     issue_day: Union[int, None] = None
     is_last_day: Union[bool, None] = None
+    adjustment_options: Union[AdjustmentOptions(), None] = None
     currency: Union[str, None] = None
     recipients: Union[dict, None] = None
     data_source_filter: Union[dict, None] = None

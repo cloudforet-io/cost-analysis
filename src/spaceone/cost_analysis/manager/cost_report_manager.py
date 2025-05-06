@@ -26,6 +26,17 @@ class CostReportManager(BaseManager):
 
         return cost_report_vo
 
+    def update_cost_report_by_vo(self, params: dict, cost_report_vo: CostReport):
+        def _rollback(old_data: CostReport):
+            _LOGGER.info(
+                f"[update_cost_report_by_vo._rollback] Rollback cost_report: {old_data.cost_report_id})"
+            )
+            cost_report_vo.update(old_data)
+
+        self.transaction.add_rollback(_rollback, cost_report_vo.to_dict())
+
+        return cost_report_vo.update(params)
+
     def get_cost_report(
         self, domain_id: str, cost_report_id: str, workspace_id: str = None
     ) -> CostReport:
@@ -72,24 +83,3 @@ class CostReportManager(BaseManager):
         _LOGGER.debug(f"[push_creating_cost_report_job] task param: {params}")
 
         queue.put("cost_analysis_q", utils.dump_json(task))
-
-    @staticmethod
-    def get_exchange_currency(cost: float, currency: str, currency_map: dict) -> dict:
-        cost_info = {}
-        for convert_currency in currency_map.keys():
-            cost_info.update(
-                {
-                    convert_currency: currency_map[currency][
-                        f"{currency}/{convert_currency}"
-                    ]
-                    * cost
-                }
-            )
-
-        return cost_info
-
-    @staticmethod
-    def get_currency_date(currency_date: str) -> str:
-        currency_date = str(currency_date).split()[0]
-
-        return currency_date

@@ -14,14 +14,18 @@ class CostReport(MongoModel):
     report_month = StringField(max_length=10)
     workspace_name = StringField(max_length=255)
     bank_name = StringField(max_length=255)
+    is_adjusted = BooleanField(default=False)
     cost_report_config_id = StringField(max_length=40)
     workspace_id = StringField(max_length=40)
+    project_id = StringField(max_length=40, default=None, null=True)
     domain_id = StringField(max_length=40)
     created_at = DateTimeField(auto_now_add=True)
 
     meta = {
         "updatable_fields": [
+            "cost",
             "status",
+            "is_adjusted",
         ],
         "minimal_fields": [
             "cost_report_id",
@@ -29,6 +33,7 @@ class CostReport(MongoModel):
             "status",
             "report_number",
             "issue_date",
+            "is_adjusted",
             "workspace_name",
             "workspace_id",
             "domain_id",

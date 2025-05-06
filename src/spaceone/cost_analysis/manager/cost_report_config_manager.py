@@ -112,6 +112,9 @@ class CostReportConfigManager(BaseManager):
                     "currency": config.get_global(
                         "COST_REPORT_CONFIG_DEFAULT_CURRENCY", "KRW"
                     ),
+                    "scope": config.get_global(
+                        "COST_REPORT_CONFIG_DEFAULT_SCOPE", "WORKSPACE"
+                    ),
                     "recipients": {},
                     "domain_id": domain_id,
                 }
