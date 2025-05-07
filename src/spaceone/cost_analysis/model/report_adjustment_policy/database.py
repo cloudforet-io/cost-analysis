@@ -43,6 +43,8 @@ class ReportAdjustmentPolicy(MongoModel):
             "name",
             "scope",
             "order",
+            "workspace_id",
+            "project_id",
             "cost_report_config_id",
             "state",
             "created_at",
