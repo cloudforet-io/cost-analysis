@@ -86,7 +86,7 @@ class DataSourcePluginManager(BaseManager):
         return endpoint
 
     @staticmethod
-    def get_data_source_plugin_endpoint(plugin_info, domain_id):
+    def get_data_source_plugin_endpoint(plugin_info: dict, domain_id: str) -> tuple:
         plugin_mgr = PluginManager()
         return plugin_mgr.get_plugin_endpoint(plugin_info, domain_id)
 
@@ -115,7 +115,7 @@ class DataSourcePluginManager(BaseManager):
         )
 
     @staticmethod
-    def delete_data_source_rules(data_source_id, domain_id):
+    def delete_data_source_rules(data_source_id: str, domain_id: str) -> None:
         _LOGGER.debug(
             f"[_delete_data_source_rules] delete all data source rules: {data_source_id}"
         )

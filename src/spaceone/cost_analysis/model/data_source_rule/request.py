@@ -26,7 +26,7 @@ class DataSourceRuleCreateRequest(BaseModel):
     options: Union[dict, None] = None
     tags: Union[dict, None] = None
     resource_group: ResourceGroup
-    workspace_id: Union[dict, None] = None
+    workspace_id: Union[str, None] = None
     domain_id: str
 
 

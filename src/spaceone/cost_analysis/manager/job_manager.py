@@ -74,7 +74,7 @@ class JobManager(BaseManager):
         return job_vo
 
     @staticmethod
-    def update_job_by_vo(params, job_vo):
+    def update_job_by_vo(params: dict, job_vo: Job) -> Job:
         return job_vo.update(params)
 
     def get_job(
