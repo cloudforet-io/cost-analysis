@@ -30,23 +30,21 @@ class ERROR_DATE_IS_WRONG(ERROR_INVALID_ARGUMENT):
 
 
 class ERROR_UNIT_IS_REQUIRED(ERROR_INVALID_ARGUMENT):
-    _message = (
-        "Unit is required for notifications (key = notifications, value = {value})"
-    )
+    _message = "Unit is required for notification (key = notification, value = {value})"
 
 
 class ERROR_NOTIFICATION_TYPE_IS_REQUIRED(ERROR_INVALID_ARGUMENT):
-    _message = "Notification type is required for notifications (key = notifications, value = {value})"
+    _message = "Notification type is required for notification (key = notification, value = {value})"
 
 
 class ERROR_THRESHOLD_IS_WRONG(ERROR_INVALID_ARGUMENT):
     _message = (
-        "Threshold must be greater than zero. (key = notifications, value = {value})"
+        "Threshold must be greater than zero. (key = notification, value = {value})"
     )
 
 
 class ERROR_THRESHOLD_IS_WRONG_IN_PERCENT_TYPE(ERROR_INVALID_ARGUMENT):
-    _message = "In percentage type, the threshold must be less than 100. (key = notifications, value = {value})"
+    _message = "In percentage type, the threshold must be less than 100. (key = notification, value = {value})"
 
 
 class ERROR_PROVIDER_FILTER_IS_EMPTY(ERROR_INVALID_ARGUMENT):
@@ -54,8 +52,16 @@ class ERROR_PROVIDER_FILTER_IS_EMPTY(ERROR_INVALID_ARGUMENT):
 
 
 class ERROR_BUDGET_ALREADY_EXIST(ERROR_INVALID_ARGUMENT):
-    _message = "Budget already exist. (service_account_id = {service_account_id}, workspace_id= {workspace_id}, target = {target})"
+    _message = "Budget already exist. (start = {start} end = {end}, target = {target}, workspace_id = {workspace_id})"
 
 
 class ERROR_NOTIFICATION_IS_NOT_SUPPORTED_IN_PROJECT(ERROR_INVALID_ARGUMENT):
     _message = "Notification is not supported in project. (target = {target})"
+
+
+class ERROR_BUDGET_MANAGER_IS_NOT_VERIFIED(ERROR_INVALID_ARGUMENT):
+    _message = "To assign as a budget manager to a user, email verification is required. (user_id = {user_id})"
+
+
+class ERROR_DUPLICATED_THRESHOLD(ERROR_INVALID_ARGUMENT):
+    _message = "Duplicate threshold in notification. (threshold = {threshold})"

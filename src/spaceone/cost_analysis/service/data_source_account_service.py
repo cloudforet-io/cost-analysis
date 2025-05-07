@@ -203,8 +203,6 @@ class DataSourceAccountService(BaseService):
                 'query': 'dict',
                 'account_id': 'str',
                 'data_source_id': 'str',
-                'service_account_id': 'str',
-                'project_id': 'str',
                 'workspace_id': 'str',
                 'domain_id': 'str'
             }

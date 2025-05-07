@@ -8,7 +8,7 @@ __all__ = ["CostQuerySetResponse", "CostQuerySetsResponse"]
 
 class CostQuerySetResponse(BaseModel):
     cost_query_set_id: Union[str, None] = None
-    name: Union[float, None] = None
+    name: Union[str, None] = None
     options: Union[dict, None] = None
     tags: Union[dict, None] = None
     data_source_id: Union[str, None] = None

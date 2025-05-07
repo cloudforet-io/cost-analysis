@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Union, Literal, List
+from typing import Union, List
 from pydantic import BaseModel
 
 from spaceone.core import utils
@@ -26,15 +26,18 @@ class Notification(BaseModel):
 class BudgetResponse(BaseModel):
     budget_id: Union[str, None] = None
     name: Union[str, None] = None
+    state: Union[str, None] = None
     limit: Union[float, None] = None
     planned_limits: Union[list, None] = None
     currency: Union[str, None] = None
     time_unit: Union[str, None] = None
     start: Union[str, None] = None
     end: Union[str, None] = None
-    notifications: Union[Notification, dict] = None
+    notification: Union[Notification, dict] = None
+    utilization_rate: Union[float, None] = None
     tags: Union[dict, None] = None
     resource_group: Union[ResourceGroup, None] = None
+    budget_manager_id: Union[str, None] = None
     service_account_id: Union[str, None] = None
     project_id: Union[str, None] = None
     workspace_id: Union[str, None] = None

@@ -26,6 +26,7 @@ class JobTaskService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
     @check_required(["job_task_id", "domain_id"])
+    @convert_model
     def get(self, params: JobTaskGetRequest) -> Union[JobTaskResponse, dict]:
         """Get job_task
 
@@ -43,7 +44,9 @@ class JobTaskService(BaseService):
         workspace_id = params.workspace_id
         domain_id = params.domain_id
 
-        return self.job_task_mgr.get_job_task(job_task_id, domain_id, workspace_id)
+        job_task_vo = self.job_task_mgr.get_job_task(job_task_id, domain_id, workspace_id)
+
+        return JobTaskResponse(**job_task_vo.to_dict())
 
     @transaction(
         permission="cost-analysis:JobTask.read",
@@ -55,6 +58,7 @@ class JobTaskService(BaseService):
         ["job_task_id", "status", "job_id", "data_source_id", "domain_id"]
     )
     @append_keyword_filter(["job_task_id"])
+    @convert_model
     def list(self, params: JobTaskSearchQueryRequest) -> Union[JobTasksResponse, dict]:
         """List job_tasks
 
@@ -88,6 +92,7 @@ class JobTaskService(BaseService):
     @check_required(["query", "domain_id"])
     @append_query_filter(["workspace_id", "domain_id"])
     @append_keyword_filter(["job_task_id"])
+    @convert_model
     def stat(self, params: JobTaskStatQueryRequest) -> dict:
         """
         Args:

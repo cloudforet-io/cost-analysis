@@ -18,9 +18,7 @@ from spaceone.cost_analysis.manager.cost_manager import CostManager
 from spaceone.cost_analysis.manager.currency_manager import CurrencyManager
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
-from spaceone.cost_analysis.manager.unified_cost_job_manager import (
-    UnifiedCostJobManager,
-)
+from spaceone.cost_analysis.manager.unified_cost_job_manager import UnifiedCostJobManager
 from spaceone.cost_analysis.manager.unified_cost_manager import UnifiedCostManager
 from spaceone.cost_analysis.model.unified_cost.database import UnifiedCostJob
 from spaceone.cost_analysis.model.unified_cost.request import *
@@ -102,7 +100,6 @@ class UnifiedCostService(BaseService):
         aggregation_month = params.get("month")
         exchange_date = params.get("exchange_date")
         exchange_source = params.get("bank")
-        aggregation_month: Union[str, None] = params.get("month")
 
         config_mgr = ConfigManager()
         unified_cost_config = config_mgr.get_unified_cost_config(domain_id)
@@ -195,10 +192,12 @@ class UnifiedCostService(BaseService):
             None
         """
 
-        domain_id = params.domain_id
-        is_last_exchange_day = params.is_last_exchange_day or False
-        unified_month = params.unified_month
-        exchange_date = params.exchange_date
+        params = params.dict(exclude_unset=True)
+
+        domain_id = params["domain_id"]
+        is_last_exchange_day = params.get("is_last_exchange_day", False)
+        unified_month = params["unified_month"]
+        exchange_date = params.get("exchange_date")
 
         if unified_month:
             params["month"] = unified_month
@@ -289,8 +288,8 @@ class UnifiedCostService(BaseService):
 
         query = params.query or {}
 
-        cost_report_data_vos, total_count = self.unified_cost_mgr.list_unified_costs(query)
-        unified_costs_data_info = [cost_report_data_vo.to_dict() for cost_report_data_vo in cost_report_data_vos]
+        unified_cost_data_vos, total_count = self.unified_cost_mgr.list_unified_costs(query)
+        unified_costs_data_info = [unified_cost_data_vo.to_dict() for unified_cost_data_vo in unified_cost_data_vos]
         return UnifiedCostsResponse(results=unified_costs_data_info, total_count=total_count)
 
     @transaction(

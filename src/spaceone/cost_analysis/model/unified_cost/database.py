@@ -46,18 +46,18 @@ class UnifiedCost(MongoModel):
         "indexes": [
             {
                 "fields": [
-                    "is_confirmed",
-                    "workspace_id",
                     "domain_id",
+                    "workspace_id",
+                    "is_confirmed",
                     "project_id",
                 ],
                 "name": "COMPOUND_INDEX_FOR_DEFAULT_UNIFIED_COST",
             },
             {
                 "fields": [
-                    "aggregation_date",
                     "domain_id",
                     "workspace_id",
+                    "aggregation_date",
                     "project_id",
                 ],
                 "name": "COMPOUND_INDEX_FOR_WORKSPACE_LANDING",

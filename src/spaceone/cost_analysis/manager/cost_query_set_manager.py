@@ -20,7 +20,7 @@ class CostQuerySetManager(BaseManager):
             )
             vo.delete()
 
-        cost_query_set_vo = CostQuerySet
+        cost_query_set_vo = self.cost_query_set_model.create(params)
         self.transaction.add_rollback(_rollback, cost_query_set_vo)
 
         return cost_query_set_vo

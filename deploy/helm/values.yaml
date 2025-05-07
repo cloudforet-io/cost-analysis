@@ -78,6 +78,18 @@ application_scheduler:
       queue: cost_analysis_q
       interval: 1
       minute: ':00'
+    cost_report_run_scheduler:
+      backend: spaceone.cost_analysis.interface.task.v1.cost_report_run_scheduler.CostReportRunScheduler
+      queue: cost_analysis_q
+      interval: 1
+      minute: ':00'
+    budget_update_scheduler:
+      backend: spaceone.cost_analysis.interface.task.v1.budget_update_scheduler.BudgetUpdateScheduler
+      queue: cost_analysis_q
+      interval: 1
+      minute: ':00'
+
+
 
 # Overwrite worker config
 application_worker:

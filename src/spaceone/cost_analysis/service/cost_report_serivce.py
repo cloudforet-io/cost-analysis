@@ -391,19 +391,19 @@ class CostReportService(BaseService):
         )
 
     def _aggregate_monthly_cost_report(
-            self,
-            domain_id: str,
-            cost_report_config_id: str,
-            workspace_name_map: dict,
-            workspace_ids: list,
-            data_source_currency_map: dict,
-            data_source_ids: list,
-            report_month: str,
-            report_issue_day: int,
-            currency: str,
-            issue_day: int,
-            status: str,
-            issue_month: str = None,
+        self,
+        domain_id: str,
+        cost_report_config_id: str,
+        workspace_name_map: dict,
+        workspace_ids: list,
+        data_source_currency_map: dict,
+        data_source_ids: list,
+        report_month: str,
+        report_issue_day: int,
+        currency: str,
+        issue_day: int,
+        status: str,
+        issue_month: str = None,
     ) -> None:
         report_year = report_month.split("-")[0]
         issue_date = f"{issue_month}-{str(issue_day).zfill(2)}"
@@ -501,12 +501,12 @@ class CostReportService(BaseService):
         return self.cost_report_config_mgr.filter_cost_report_configs(state="ENABLED")
 
     def _delete_old_cost_reports(
-            self,
-            report_month: str,
-            domain_id: str,
-            cost_report_config_id: str,
-            status: str,
-            cost_report_created_at: datetime,
+        self,
+        report_month: str,
+        domain_id: str,
+        cost_report_config_id: str,
+        status: str,
+        cost_report_created_at: datetime,
     ) -> None:
         cost_report_delete_query = {
             "filter": [
@@ -592,7 +592,7 @@ class CostReportService(BaseService):
 
     @staticmethod
     def get_email_verified_workspace_owner_users(
-            domain_id: str, workspace_id: str, role_types: list = None
+        domain_id: str, workspace_id: str, role_types: list = None
     ) -> list:
         identity_mgr = IdentityManager()
 
@@ -617,7 +617,7 @@ class CostReportService(BaseService):
         return users_info
 
     def get_start_cost_report_number(
-            self, domain_id: str, issue_date: str = None
+        self, domain_id: str, issue_date: str = None
     ) -> int:
         return (
                 self.cost_report_mgr.filter_cost_reports(
@@ -640,7 +640,7 @@ class CostReportService(BaseService):
         return workspace_name_map, workspace_ids
 
     def _get_console_cost_report_url(
-            self, domain_id: str, cost_report_id: str, token: str, language: str
+        self, domain_id: str, cost_report_id: str, token: str, language: str
     ) -> str:
         domain_name = self._get_domain_name(domain_id)
 
@@ -649,12 +649,14 @@ class CostReportService(BaseService):
 
         return f"{console_domain}/cost-report-detail?sso_access_token={token}&cost_report_id={cost_report_id}&language={language}"
 
-    def _get_domain_name(self, domain_id: str) -> str:
+    @staticmethod
+    def _get_domain_name(domain_id: str) -> str:
         identity_mgr = IdentityManager()
         domain_name = identity_mgr.get_domain_name(domain_id)
         return domain_name
 
-    def _get_temporary_sso_access_token(self, domain_id: str, workspace_id: str) -> str:
+    @staticmethod
+    def _get_temporary_sso_access_token(domain_id: str, workspace_id: str) -> str:
         identity_mgr = IdentityManager()
         system_token = config.get_global("TOKEN")
         timeout = config.get_global("COST_REPORT_TOKEN_TIMEOUT", 259200)
@@ -704,7 +706,7 @@ class CostReportService(BaseService):
         return v_workspace_ids, v_workspace_id_map
 
     def _get_data_source_currency_map(
-            self, domain_id: str, workspace_ids: list, data_source_filter: dict
+        self, domain_id: str, workspace_ids: list, data_source_filter: dict
     ) -> Tuple[dict, list]:
         data_source_currency_map = {}
         data_source_mgr = DataSourceManager()
@@ -737,12 +739,12 @@ class CostReportService(BaseService):
         return data_source_currency_map, data_source_ids
 
     def _get_is_create_report_and_report_month(
-            self,
-            issue_day: int,
-            is_last_day: bool,
-            current_date: datetime,
-            domain_id: str,
-            cost_report_config_id: str,
+        self,
+        issue_day: int,
+        is_last_day: bool,
+        current_date: datetime,
+        domain_id: str,
+        cost_report_config_id: str,
     ) -> Tuple[bool, str]:
         is_create_report = False
 
@@ -783,10 +785,10 @@ class CostReportService(BaseService):
         return is_create_report, report_month
 
     def _check_success_cost_report_exist(
-            self,
-            domain_id: str,
-            cost_report_config_id: str,
-            report_month: str,
+        self,
+        domain_id: str,
+        cost_report_config_id: str,
+        report_month: str,
     ):
         cost_report_vos = self.cost_report_mgr.filter_cost_reports(
             cost_report_config_id=cost_report_config_id,

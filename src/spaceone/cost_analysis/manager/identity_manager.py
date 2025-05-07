@@ -38,7 +38,7 @@ class IdentityManager(BaseManager):
 
         return self.list_users({"query": query_filter}, domain_id)
 
-    def get_user(self, domain_id: str, user_id: str) -> dict:
+    def get_user(self, user_id: str, domain_id: str) -> dict:
         system_token = config.get_global("TOKEN")
         response = self.identity_conn.dispatch(
             "User.list",
@@ -55,7 +55,6 @@ class IdentityManager(BaseManager):
     @cache.cacheable(key="cost-analysis:domain-name:{domain_id}", expire=300)
     def get_domain_name(self, domain_id: str) -> str:
         system_token = config.get_global("TOKEN")
-
         domain_info = self.identity_conn.dispatch(
             "Domain.get", {"domain_id": domain_id}, token=system_token
         )
