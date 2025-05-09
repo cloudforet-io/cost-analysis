@@ -12,6 +12,9 @@ from spaceone.cost_analysis.manager import (
 from spaceone.cost_analysis.service.cost_report_serivce import CostReportService
 from spaceone.cost_analysis.model.cost_report_config.request import *
 from spaceone.cost_analysis.model.cost_report_config.response import *
+from spaceone.cost_analysis.error.cost_report_config import (
+    ERROR_COST_REPORT_CONFIG_NOT_ENABLED,
+)
 
 
 @authentication_handler
@@ -101,9 +104,8 @@ class CostReportConfigService(BaseService):
                 new_adjustment_options = current_adjustment_options.copy()
 
                 if "enabled" in adjustment_options:
-                    new_adjustment_options["enabled"] = True
-                else:
-                    new_adjustment_options["enabled"] = False
+                    new_adjustment_options["enabled"] = adjustment_options["enabled"]
+
                 if "period" in adjustment_options:
                     new_adjustment_options["period"] = adjustment_options["period"]
 
@@ -259,6 +261,12 @@ class CostReportConfigService(BaseService):
         cost_report_config_vo = self.cost_report_config_mgr.get_cost_report_config(
             params.domain_id, params.cost_report_config_id
         )
+
+        if cost_report_config_vo.state != "ENABLED":
+            raise ERROR_COST_REPORT_CONFIG_NOT_ENABLED(
+                cost_report_config_id=cost_report_config_vo.cost_report_config_id,
+                state=cost_report_config_vo.state,
+            )
 
         cost_report_service = CostReportService()
         cost_report_service.create_cost_report(cost_report_config_vo.to_dict())
