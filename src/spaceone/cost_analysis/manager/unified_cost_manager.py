@@ -137,6 +137,8 @@ class UnifiedCostManager(BaseManager):
         report_month: str,
         data_source_ids: list,
         domain_id: str,
+        workspace_ids: list,
+        project_ids: list,
         scope: str = "WORKSPACE",
     ) -> list:
         currencies = ["KRW", "USD", "JPY"]
@@ -161,6 +163,8 @@ class UnifiedCostManager(BaseManager):
         query["fields"] = fields
 
         if scope == "WORKSPACE":
+            query["filter"].append({"k": "workspace_id", "v": workspace_ids, "o": "in"})
+
             _LOGGER.debug(f"[aggregate_monthly_cost_report] query: {query}")
             response = self.analyze_unified_costs(query, domain_id)
             return response.get("results", [])
@@ -168,10 +172,11 @@ class UnifiedCostManager(BaseManager):
             query["group_by"] = [
                 "workspace_id",
                 "project_id",
-                "service_account_id",
                 "billed_year",
                 "data_source_id",
             ]
+            query["filter"].append({"k": "workspace_id", "v": workspace_ids, "o": "in"})
+            query["filter"].append({"k": "project_id", "v": project_ids, "o": "in"})
 
             _LOGGER.debug(f"[aggregate_monthly_cost_report] query: {query}")
             response = self.analyze_unified_costs(query, domain_id)

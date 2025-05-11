@@ -22,8 +22,8 @@ class ReportAdjustmentPolicyResponse(BaseModel):
 
     cost_report_config_id: Union[str, None] = None
     domain_id: Union[str, None] = None
-    workspace_id: Union[str, None] = None
-    project_id: Union[str, None] = None
+    workspace_ids: Union[list, None] = None
+    project_ids: Union[list, None] = None
 
     created_at: Optional[datetime]
     updated_at: Optional[datetime]

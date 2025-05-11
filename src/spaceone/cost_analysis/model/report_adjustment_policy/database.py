@@ -19,8 +19,8 @@ class ReportAdjustmentPolicy(MongoModel):
     tags = DictField(default={})
     cost_report_config_id = StringField(max_length=40, required=True)
     domain_id = StringField(max_length=40, required=True)
-    workspace_id = StringField(max_length=40, default=None, null=True)
-    project_id = StringField(max_length=40, default=None, null=True)
+    workspace_ids = ListField(StringField(), default=None, null=True)
+    project_ids = ListField(StringField(), default=None, null=True)
     created_at = DateTimeField(auto_now_add=True)
     updated_at = DateTimeField(auto_now=True)
     deleted_at = DateTimeField(default=None, null=True)
@@ -35,16 +35,16 @@ class ReportAdjustmentPolicy(MongoModel):
             "tags",
             "updated_at",
             "deleted_at",
-            "workspace_id",
-            "project_id",
+            "workspace_ids",
+            "project_ids",
         ],
         "minimal_fields": [
             "report_adjustment_policy_id",
             "name",
             "scope",
             "order",
-            "workspace_id",
-            "project_id",
+            "workspace_ids",
+            "project_ids",
             "cost_report_config_id",
             "state",
             "created_at",

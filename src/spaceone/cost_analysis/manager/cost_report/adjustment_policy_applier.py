@@ -50,6 +50,9 @@ class AdjustmentPolicyApplier:
         )
 
         for policy in policies:
+            if not self._is_policy_applicable(policy):
+                continue
+
             _LOGGER.debug(f"Applying policy: {policy['name']}")
             report_adjustment_policy_id = policy["report_adjustment_policy_id"]
             adjustments = self.adjustment_mgr.list_sorted_adjustments_by_order(
@@ -129,11 +132,16 @@ class AdjustmentPolicyApplier:
 
             elif method == "RATE":
                 if unified_cost_list is None:
+                    project_ids = None
+                    if not self.project_id:
+                        project_ids = [self.project_id]
                     unified_cost_list = (
                         self.unified_cost_mgr.analyze_unified_cost_for_report(
                             self.report_month,
                             self.data_source_ids,
                             self.domain_id,
+                            [self.workspace_id],
+                            project_ids,
                             scope="WORKSPACE",
                         )
                     )
@@ -226,3 +234,18 @@ class AdjustmentPolicyApplier:
             for currency, value in unified_cost.items()
             if currency.startswith("cost_")
         }
+
+    def _is_policy_applicable(self, policy):
+        workspace_ids = policy.get("workspace_ids")
+        project_ids = policy.get("project_ids")
+
+        if not workspace_ids and not project_ids:
+            return True
+
+        if workspace_ids and project_ids:
+            return self.workspace_id in workspace_ids and self.project_id in project_ids
+
+        if workspace_ids and not project_ids:
+            return self.workspace_id in workspace_ids
+
+        return False

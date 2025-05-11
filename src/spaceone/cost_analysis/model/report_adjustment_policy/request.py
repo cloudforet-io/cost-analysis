@@ -19,8 +19,8 @@ class CreateReportAdjustmentPolicyRequest(BaseModel):
     cost_report_config_id: str
     order: Union[int, None] = None
     tags: Union[dict, None] = None
-    project_id: Union[str, None] = None
-    workspace_id: Union[str, None] = None
+    project_ids: Union[list, None] = None
+    workspace_ids: Union[list, None] = None
     domain_id: str
 
 
@@ -51,6 +51,6 @@ class ReportAdjustmentPolicySearchQueryRequest(BaseModel):
     query: dict
     name: Union[str, None] = None
     state: Union[str, None] = None
-    workspace_id: Union[str, None] = None
+    workspace_ids: Union[list, None] = None
     domain_id: str
     user_projects: Union[list, None] = None

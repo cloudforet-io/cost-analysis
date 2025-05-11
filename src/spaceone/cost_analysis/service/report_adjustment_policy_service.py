@@ -54,11 +54,11 @@ class ReportAdjustmentPolicyService(BaseService):
         """
 
         if params.scope == "PROJECT":
-            if not params.project_id or not params.workspace_id:
+            if not params.workspace_ids or not params.project_ids:
                 raise ERROR_PROJECT_OR_WORKSPACE_REQUIRED(
                     scope=params.scope,
-                    workspace_id=params.workspace_id,
-                    project_id=params.project_id,
+                    workspace_ids=params.workspace_ids,
+                    project_ids=params.project_ids,
                 )
 
         self.cost_report_config_mgr.get_cost_report_config(

@@ -49,6 +49,21 @@ class CostReportManager(BaseManager):
 
         return self.cost_report_model.get(**conditions)
 
+    def list_success_reports(
+        self,
+        cost_report_id: str,
+        report_month: str,
+        domain_id: str,
+    ):
+        conditions = {
+            "status": "SUCCESS",
+            "cost_report_config_id": cost_report_id,
+            "report_month": report_month,
+            "domain_id": domain_id,
+        }
+
+        return self.cost_report_model.filter(**conditions)
+
     @staticmethod
     def delete_cost_report_by_vo(cost_report_vo: CostReport) -> None:
         cost_report_vo.delete()
