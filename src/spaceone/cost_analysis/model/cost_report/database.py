@@ -13,6 +13,7 @@ class CostReport(MongoModel):
     report_year = StringField(max_length=10)
     report_month = StringField(max_length=10)
     workspace_name = StringField(max_length=255)
+    project_name = StringField(max_length=255, default=None, null=True)
     bank_name = StringField(max_length=255)
     is_adjusted = BooleanField(default=False)
     cost_report_config_id = StringField(max_length=40)
@@ -36,6 +37,7 @@ class CostReport(MongoModel):
             "is_adjusted",
             "workspace_name",
             "workspace_id",
+            "project_name",
             "domain_id",
         ],
         "ordering": [

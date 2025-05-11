@@ -56,7 +56,9 @@ class CostReportService(BaseService):
         self.cost_report_data_mgr = CostReportDataManager()
         self.ds_account_mgr = DataSourceAccountManager()
         self.ds_mgr = DataSourceManager()
-        self.is_adjusted = False
+        self.identity_mgr = IdentityManager()
+        self.is_within_adjustment_period = False
+        self.is_done_report = False
 
     @transaction(exclude=["authentication", "authorization", "mutation"])
     def create_cost_report_by_cost_report_config(self, params: dict) -> None:
@@ -253,48 +255,50 @@ class CostReportService(BaseService):
         )
         current_date = datetime.now(timezone.utc)
 
-        context = self._collect_cost_report_context(config_vo, current_date)
+        metadata = self._collect_cost_report_metadata(config_vo, current_date)
 
         is_create_report, report_month = self._get_is_create_report_and_report_month(
-            context["issue_day"],
-            context["is_last_day"],
+            metadata["issue_day"],
+            metadata["is_last_day"],
             current_date,
-            domain_id,
-            cost_report_config_id,
+            config_vo.adjustment_options,
         )
 
-        context["report_month"] = report_month
+        metadata["report_month"] = report_month
 
         issue_month, report_issue_day, issue_date = self._prepare_report_metadata(
-            context, report_month
+            metadata, report_month
         )
-        self.check_apply_adjustment_by_config(config_vo, issue_date, current_date)
 
         if config_vo.scope == "WORKSPACE":
             unified_costs = self.unified_cost_mgr.analyze_unified_cost_for_report(
                 report_month=report_month,
-                data_source_ids=context["data_source_ids"],
+                data_source_ids=metadata["data_source_ids"],
                 domain_id=domain_id,
+                workspace_ids=metadata["workspace_ids"],
+                project_ids=metadata["project_ids"],
                 scope="WORKSPACE",
             )
         else:
             unified_costs = self.unified_cost_mgr.analyze_unified_cost_for_report(
                 report_month=report_month,
-                data_source_ids=context["data_source_ids"],
+                data_source_ids=metadata["data_source_ids"],
                 domain_id=domain_id,
+                workspace_ids=metadata["workspace_ids"],
+                project_ids=metadata["project_ids"],
                 scope="PROJECT",
             )
 
         # IN_PROGRESS
         in_progress_reports = self._build_cost_reports_from_costs(
-            "IN_PROGRESS", config_vo, unified_costs, context
+            "IN_PROGRESS", config_vo, unified_costs, metadata
         )
         self._persist_cost_reports_by_status(
             "IN_PROGRESS",
             in_progress_reports,
             report_month,
             report_issue_day,
-            context["data_source_ids"],
+            metadata["data_source_ids"],
             domain_id,
             issue_date,
         )
@@ -306,14 +310,33 @@ class CostReportService(BaseService):
             )
 
             success_reports = self._build_cost_reports_from_costs(
-                "SUCCESS", config_vo, unified_costs, context
+                "SUCCESS", config_vo, unified_costs, metadata
             )
             self._persist_cost_reports_by_status(
                 "SUCCESS",
                 success_reports,
                 report_month,
                 report_issue_day,
-                context["data_source_ids"],
+                metadata["data_source_ids"],
+                domain_id,
+                issue_date,
+            )
+        elif self.is_within_adjustment_period:
+            _LOGGER.debug(
+                f"[create_cost_report] adjustment-only mode for {report_month}"
+            )
+            success_reports_vo = self.cost_report_mgr.list_success_reports(
+                cost_report_config_id, report_month, domain_id
+            )
+            self._persist_cost_reports_by_status(
+                "SUCCESS",
+                [
+                    success_report_vo.to_dict()
+                    for success_report_vo in success_reports_vo
+                ],
+                report_month,
+                report_issue_day,
+                metadata["data_source_ids"],
                 domain_id,
                 issue_date,
             )
@@ -414,13 +437,11 @@ class CostReportService(BaseService):
     def get_email_verified_workspace_owner_users(
         self, domain_id: str, workspace_id: str, role_types: list = None
     ) -> list:
-        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
-
         if "WORKSPACE_OWNER" not in role_types:
             return []
 
         # list users in workspace
-        users_info = identity_mgr.list_workspace_users(
+        users_info = self.identity_mgr.list_workspace_users(
             params={
                 "workspace_id": workspace_id,
                 "state": "ENABLED",
@@ -447,9 +468,8 @@ class CostReportService(BaseService):
         )
 
     def _get_workspace_name_map(self, domain_id: str) -> Tuple[dict, list]:
-        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
         workspace_name_map = {}
-        workspaces = identity_mgr.list_workspaces(
+        workspaces = self.identity_mgr.list_workspaces(
             {"query": {"filter": [{"k": "state", "v": "ENABLED", "o": "eq"}]}},
             domain_id,
         )
@@ -470,12 +490,10 @@ class CostReportService(BaseService):
         return f"{console_domain}/cost-report-detail?sso_access_token={token}&cost_report_id={cost_report_id}&language={language}"
 
     def _get_domain_name(self, domain_id: str) -> str:
-        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
-        domain_name = identity_mgr.get_domain_name(domain_id)
+        domain_name = self.identity_mgr.get_domain_name(domain_id)
         return domain_name
 
     def _get_temporary_sso_access_token(self, domain_id: str, workspace_id: str) -> str:
-        identity_mgr: IdentityManager = self.locator.get_manager("IdentityManager")
         system_token = config.get_global("TOKEN")
         timeout = config.get_global("COST_REPORT_TOKEN_TIMEOUT", 259200)
         permissions = config.get_global(
@@ -498,31 +516,32 @@ class CostReportService(BaseService):
             "timeout": timeout,
             "permissions": permissions,
         }
-        return identity_mgr.grant_token(params)
+        return self.identity_mgr.grant_token(params)
 
     def _get_is_create_report_and_report_month(
         self,
         issue_day: int,
         is_last_day: bool,
         current_date: datetime,
-        domain_id: str,
-        cost_report_config_id: str,
+        adjustment_options: dict = None,
     ) -> Tuple[bool, str]:
         is_create_report = False
+        adjustment_state = adjustment_options.get("enabled", False)
+        adjustment_period = adjustment_options.get("period", 0)
 
         retry_days = min(config.get_global("COST_REPORT_RETRY_DAYS", 7), 25)
-
         current_day = current_date.day
         retry_date = current_date - relativedelta(days=retry_days)
 
         if retry_date.month != current_date.month:
             issue_date = (current_date - relativedelta(months=1)).replace(day=issue_day)
-
             report_date = current_date - relativedelta(months=2)
             issue_day = self.get_issue_day(is_last_day, issue_day)
         else:
             issue_date = current_date.replace(day=issue_day)
             report_date = current_date - relativedelta(months=1)
+
+        report_month = report_date.strftime("%Y-%m")
 
         if (
             current_date > report_date
@@ -530,20 +549,17 @@ class CostReportService(BaseService):
         ):
             is_create_report = True
 
-        report_month = report_date.strftime("%Y-%m")
-
-        if is_create_report and self._check_success_cost_report_exist(
-            domain_id, cost_report_config_id, report_month
-        ):
-            is_create_report = False
+        if adjustment_state and adjustment_period > 0:
+            if report_date <= issue_date + timedelta(days=adjustment_period):
+                self.is_within_adjustment_period = True
 
         if issue_day == current_day:
             is_create_report = True
             report_month = (current_date - relativedelta(months=1)).strftime("%Y-%m")
 
-        _LOGGER.debug(
-            f"[get_is_create_report_and_report_month] cost_report_config_id: {cost_report_config_id} is_create_report: {is_create_report}, report_month: {report_month}"
-        )
+        if current_date == issue_date + timedelta(days=adjustment_period):
+            self.is_done_report = True
+
         return is_create_report, report_month
 
     def _check_success_cost_report_exist(
@@ -590,9 +606,7 @@ class CostReportService(BaseService):
 
         return f"CostReport_{date_object.strftime('%y%m%d')}{str(cost_report_idx).zfill(4)}"
 
-    @staticmethod
-    def create_default_cost_report_config_for_all_domains():
-        identity_mgr = IdentityManager()
+    def create_default_cost_report_config_for_all_domains(self):
         cost_report_config_mgr = CostReportConfigManager()
 
         params = {
@@ -602,7 +616,7 @@ class CostReportService(BaseService):
             }
         }
 
-        response = identity_mgr.list_domains(params)
+        response = self.identity_mgr.list_domains(params)
         domain_infos = response.get("results", [])
 
         for domain_info in domain_infos:
@@ -647,7 +661,7 @@ class CostReportService(BaseService):
             cost_report_data_svc.create_cost_report_data(cost_report_vo)
 
             if cost_report_vo.status == "SUCCESS":
-                if self.is_adjusted:
+                if self.is_within_adjustment_period:
                     _LOGGER.info(
                         f"[_persist_cost_reports_by_status] apply Adjustment Policy (cost_report_id={cost_report_vo.cost_report_id})"
                     )
@@ -666,6 +680,7 @@ class CostReportService(BaseService):
                             cost_report_vo.workspace_id,
                             cost_report_vo.project_id,
                         )
+
                         self.cost_report_mgr.update_cost_report_by_vo(
                             {
                                 "cost": adjusted_cost,
@@ -674,7 +689,11 @@ class CostReportService(BaseService):
                             cost_report_vo,
                         )
 
-                self.send_cost_report(cost_report_vo)
+                if self.is_done_report:
+                    self.cost_report_mgr.update_cost_report_by_vo(
+                        {"status": "DONE"}, cost_report_vo
+                    )
+                    self.send_cost_report(cost_report_vo)
 
         self._delete_old_cost_reports(
             report_month,
@@ -693,22 +712,29 @@ class CostReportService(BaseService):
                 datetime.utcnow(),
             )
 
+            if self.is_done_report:
+                self._delete_old_cost_reports(
+                    report_month,
+                    domain_id,
+                    cost_report_config_id,
+                    "SUCCESS",
+                    datetime.utcnow(),
+                )
+
     @staticmethod
     def _build_cost_reports_from_costs(
-        status, config_vo, unified_costs, context
+        status, config_vo, unified_costs, metadata
     ) -> list:
         generator = CostReportFormatGenerator(
-            issue_month=context["current_month"],
-            issue_day=context["issue_day"],
-            v_workspace_id_map=context["v_workspace_id_map"],
-            workspace_name_map=context["workspace_name_map"],
-            report_month=context["report_month"],
+            metadata=metadata,
+            report_month=metadata["report_month"],
+            scope=config_vo.scope,
             cost_report_config_id=config_vo.cost_report_config_id,
             domain_id=config_vo.domain_id,
         )
         return generator.make_cost_reports(unified_costs, status)
 
-    def _collect_cost_report_context(
+    def _collect_cost_report_metadata(
         self,
         config_vo: CostReportConfig,
         current_date: datetime,
@@ -720,6 +746,9 @@ class CostReportService(BaseService):
         current_month = current_date.strftime("%Y-%m")
 
         workspace_name_map, workspace_ids = self._get_workspace_name_map(domain_id)
+        project_name_map, project_ids = self.get_project_name_map(
+            domain_id, workspace_ids
+        )
         data_source_ids = self.ds_mgr.get_data_source_ids(
             domain_id, workspace_ids, data_source_filter
         )
@@ -736,6 +765,8 @@ class CostReportService(BaseService):
             "domain_id": domain_id,
             "workspace_name_map": workspace_name_map,
             "workspace_ids": workspace_ids,
+            "project_name_map": project_name_map,
+            "project_ids": project_ids,
             "v_workspace_id_map": v_workspace_id_map,
             "data_source_ids": data_source_ids,
             "is_last_day": is_last_day,
@@ -755,14 +786,22 @@ class CostReportService(BaseService):
         issue_date = f"{issue_month}-{str(context['issue_day']).zfill(2)}"
         return issue_month, report_issue_day, issue_date
 
-    def check_apply_adjustment_by_config(self, config_vo, issue_date, current_date):
-        adjustment_enabled = config_vo.adjustment_options.get("enabled", False)
-        adjustment_period = config_vo.adjustment_options.get("period", 0)
-        if adjustment_enabled and adjustment_period:
-            adjustment_deadline = datetime.strptime(issue_date, "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ) + timedelta(days=adjustment_period)
-            if current_date > adjustment_deadline:
-                self.is_adjusted = False
-            else:
-                self.is_adjusted = True
+    def get_project_name_map(
+        self, domain_id: str, workspace_ids: list
+    ) -> Tuple[dict, list]:
+        project_name_map = {}
+        project_ids = []
+        projects = self.identity_mgr.list_projects(
+            params={
+                "query": {
+                    "filter": [
+                        {"k": "workspace_id", "v": workspace_ids, "o": "in"},
+                    ]
+                }
+            },
+            domain_id=domain_id,
+        )
+        for project in projects.get("results", []):
+            project_name_map[project["project_id"]] = project["name"]
+            project_ids.append(project["project_id"])
+        return project_name_map, project_ids
