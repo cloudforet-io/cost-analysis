@@ -145,7 +145,7 @@ class UnifiedCostManager(BaseManager):
 
         # collect enabled data_sources cost data
         query = {
-            "group_by": ["workspace_id", "billed_year"],
+            "group_by": ["workspace_id", "billed_year", "data_source_id"],
             "start": report_month,
             "end": report_month,
             "filter": [
@@ -173,6 +173,7 @@ class UnifiedCostManager(BaseManager):
                 "workspace_id",
                 "project_id",
                 "billed_year",
+                "data_source_id",
             ]
             query["filter"].append({"k": "workspace_id", "v": workspace_ids, "o": "in"})
             query["filter"].append({"k": "project_id", "v": project_ids, "o": "in"})
