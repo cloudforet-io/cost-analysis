@@ -77,7 +77,7 @@ class AdjustmentPolicyApplier:
         self, adjustments: list, report_adjustment_policy_id: str
     ) -> None:
         currency_map, _ = self.currency_mgr.get_currency_map_date(
-            currency_end_date=datetime.utcnow()
+            currency_end_date=self.currency_date,
         )
 
         for adjustment in adjustments:
