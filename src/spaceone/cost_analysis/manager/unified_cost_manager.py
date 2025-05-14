@@ -79,7 +79,7 @@ class UnifiedCostManager(BaseManager):
         return self.unified_cost_model.analyze(**query)
 
     def analyze_yearly_unified_costs(
-        self, query, domain_id, target="SECONDARY_PREFERRED"
+        self, query: dict, domain_id: str, target="SECONDARY_PREFERRED"
     ):
         query["target"] = target
         query["date_field"] = "billed_year"
@@ -110,7 +110,6 @@ class UnifiedCostManager(BaseManager):
         return self.analyze_unified_costs(query, domain_id)
 
     def analyze_unified_costs_by_granularity(self, query: dict, domain_id: str) -> dict:
-
         self._check_unified_cost_data_range(query)
         granularity = query["granularity"]
 
@@ -314,9 +313,7 @@ class UnifiedCostManager(BaseManager):
 
             if key == "project_group_id":
                 if self.identity_mgr is None:
-                    self.identity_mgr: IdentityManager = self.locator.get_manager(
-                        "IdentityManager"
-                    )
+                    self.identity_mgr = IdentityManager()
 
                 project_groups_info = self.identity_mgr.list_project_groups(
                     {

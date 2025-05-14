@@ -17,7 +17,7 @@ class DataSourceAccountManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.data_source_mgr = DataSourceManager()
-        self.data_source_account_model = DataSourceAccount()
+        self.data_source_account_model = DataSourceAccount
         self._workspace_info = {}
         self._data_source_info = {}
 

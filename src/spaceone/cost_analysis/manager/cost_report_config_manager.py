@@ -13,7 +13,7 @@ _LOGGER = logging.getLogger(__name__)
 class CostReportConfigManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.cost_report_config_model = CostReportConfig()
+        self.cost_report_config_model = CostReportConfig
 
     def create_cost_report_config(self, params: dict) -> CostReportConfig:
         def _rollback(vo: CostReportConfig):

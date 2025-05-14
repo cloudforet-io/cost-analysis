@@ -10,8 +10,8 @@ _LOGGER = logging.getLogger(__name__)
 class DataSourceManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.data_source_model = DataSource()
-        self.data_source_account_model = DataSourceAccount()
+        self.data_source_model = DataSource
+        self.data_source_account_model = DataSourceAccount
 
     def register_data_source(self, params):
         def _rollback(data_source_vo):
