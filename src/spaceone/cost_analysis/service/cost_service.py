@@ -4,9 +4,7 @@ from typing import Union
 from spaceone.core.service import *
 from spaceone.core import utils
 
-from spaceone.cost_analysis.manager.data_source_account_manager import (
-    DataSourceAccountManager,
-)
+from spaceone.cost_analysis.manager.data_source_account_manager import DataSourceAccountManager
 
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.manager.cost_manager import CostManager
@@ -36,6 +34,7 @@ class CostService(BaseService):
     @check_required(
         ["cost", "data_source_id", "billed_date", "project_id", "domain_id"]
     )
+    @convert_model
     def create(self, params: CostCreateRequest)-> Union[CostResponse, dict]:
         """Register cost
 
@@ -81,6 +80,7 @@ class CostService(BaseService):
 
     @transaction(permission="cost-analysis:Cost.write", role_types=["WORKSPACE_OWNER"])
     @check_required(["cost_id", "domain_id"])
+    @convert_model
     def delete(self, params: CostDeleteRequest)-> None:
         """Deregister cost
 
@@ -137,6 +137,7 @@ class CostService(BaseService):
         Returns:
             cost_vo (object)
         """
+
         cost_id = params.cost_id
         user_projects = params.user_projects or []
         workspace_id = params.workspace_id
@@ -261,6 +262,7 @@ class CostService(BaseService):
     )
     @append_keyword_filter(["cost_id"])
     # @set_query_page_limit(1000)
+    @convert_model
     def analyze(self, params: CostAnalyzeQueryRequest) -> dict:
         """
         Args:
@@ -302,6 +304,7 @@ class CostService(BaseService):
     )
     @append_keyword_filter(["cost_id"])
     # @set_query_page_limit(1000)
+    @convert_model
     def stat(self, params: CostStatQueryRequest) -> dict:
         """
         Args:

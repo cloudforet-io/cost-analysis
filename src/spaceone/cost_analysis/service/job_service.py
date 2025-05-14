@@ -24,6 +24,7 @@ from spaceone.cost_analysis.manager.data_source_plugin_manager import DataSource
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.secret_manager import SecretManager
 from spaceone.cost_analysis.manager.budget_usage_manager import BudgetUsageManager
+from spaceone.cost_analysis.service.data_source_service import DataSourceService
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -210,13 +211,12 @@ class JobService(BaseService):
         Returns:
             None
         """
-        params_dict = params.dict(exclude_unset=True)
 
-        task_options = params_dict["task_options"]
+        task_options = params["task_options"]
         task_changed = params.get("task_changed")
-        job_task_id = params_dict["job_task_id"]
-        secret_id = params_dict["secret_id"]
-        domain_id = params_dict["domain_id"]
+        job_task_id = params["job_task_id"]
+        secret_id = params["secret_id"]
+        domain_id = params["domain_id"]
         cost_data_options = {}
 
         job_task_vo: JobTask = self.job_task_mgr.get_job_task(job_task_id, domain_id)
@@ -251,7 +251,7 @@ class JobService(BaseService):
                         service_account_id,
                         project_id,
                     ) = self._get_service_account_id_and_project_id(
-                        params_dict.get("secret_id"), domain_id
+                        params.get("secret_id"), domain_id
                     )
                     cost_data_options.update(
                         {
@@ -502,9 +502,9 @@ class JobService(BaseService):
         return secret_ids
 
     def _list_secret_ids_from_secret_filter(
-            self, secret_filter, provider: str, workspace_id: str, domain_id: str
+        self, secret_filter, provider: str, workspace_id: str, domain_id: str
     ):
-        secret_manager: SecretManager = self.locator.get_manager(SecretManager)
+        secret_manager = SecretManager()
 
         _filter = self._set_secret_filter(
             secret_filter, provider, workspace_id, domain_id
@@ -517,7 +517,7 @@ class JobService(BaseService):
 
     @staticmethod
     def _set_secret_filter(
-            secret_filter, provider: str, workspace_id: str, domain_id: str
+        secret_filter, provider: str, workspace_id: str, domain_id: str
     ):
         _filter = [{"k": "domain_id", "v": domain_id, "o": "eq"}]
 
@@ -532,8 +532,8 @@ class JobService(BaseService):
                     {"k": "secret_id", "v": secret_filter["secrets"], "o": "in"}
                 )
             if (
-                    "service_accounts" in secret_filter
-                    and secret_filter["service_accounts"]
+                "service_accounts" in secret_filter
+                and secret_filter["service_accounts"]
             ):
                 _filter.append(
                     {
@@ -632,10 +632,10 @@ class JobService(BaseService):
         self.cost_mgr.create_cost(cost_data, execute_rollback=False)
 
     def _is_job_failed(
-            self,
-            job_id: str,
-            domain_id: str,
-            workspace_id: str,
+        self,
+        job_id: str,
+        domain_id: str,
+        workspace_id: str,
     ) -> bool:
         job_vo: Job = self.job_mgr.get_job(job_id, domain_id, workspace_id)
 
@@ -976,14 +976,14 @@ class JobService(BaseService):
             )
 
     def _aggregate_cost_data_with_job_task_id(
-            self,
-            data_source_id: str,
-            domain_id: str,
-            job_id: str,
-            job_task_id,
-            data_keys: list,
-            additional_info_keys: list,
-            tag_keys: list,
+        self,
+        data_source_id: str,
+        domain_id: str,
+        job_id: str,
+        job_task_id,
+        data_keys: list,
+        additional_info_keys: list,
+        tag_keys: list,
     ) -> None:
         for billed_month in self._distinct_billed_month(
             domain_id, data_source_id, job_id, job_task_id
@@ -1206,7 +1206,7 @@ class JobService(BaseService):
         if not use_account_routing:
             return linked_accounts
 
-        data_source_svc = self.locator.get_service("DataSourceService")
+        data_source_svc = DataSourceService()
 
         data_source_id = data_source_vo.data_source_id
         domain_id = data_source_vo.domain_id

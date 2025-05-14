@@ -1,5 +1,4 @@
 import logging
-from typing import Union
 
 from spaceone.core.service import *
 from spaceone.cost_analysis.error import *
@@ -27,21 +26,21 @@ class BudgetUsageService(BaseService):
     )
     @append_query_filter(
         [
+            "domain_id",
+            "workspace_id",
             "budget_id",
-            "data_source_id",
             "name",
             "date",
             "user_projects",
             "project_id",
-            "workspace_id",
-            "domain_id",
+            "service_account_id",
         ]
     )
     @append_keyword_filter(["budget_id", "name"])
     @set_query_page_limit(1000)
     @convert_model
     def list(
-            self, params: BudgetUsageSearchQueryRequest
+        self, params: BudgetUsageSearchQueryRequest
     ) -> Union[BudgetUsagesResponse, dict]:
         """List budget_usages
 
@@ -49,9 +48,9 @@ class BudgetUsageService(BaseService):
             params (dict): {
                 'query': 'dict (spaceone.api.core.v1.Query)',
                 'budget_id': 'str',
-                'data_source_id': 'str',
                 'name': 'str',
                 'date': 'str',
+                'service_account_id': 'str',
                 'project_id': 'str',
                 'workspace_id': str,                                # injected from auth (optional)
                 'domain_id': 'str',                                 # injected from auth
@@ -74,7 +73,16 @@ class BudgetUsageService(BaseService):
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER", "WORKSPACE_MEMBER"],
     )
     @check_required(["query", "query.fields", "domain_id"])
-    @append_query_filter(["budget_id", "user_projects", "workspace_id", "domain_id"])
+    @append_query_filter(
+        [
+            "domain_id",
+            "workspace_id",
+            "project_id",
+            "user_projects",
+            "service_account_id",
+            "budget_id",
+        ]
+    )
     @append_keyword_filter(["budget_id", "name"])
     @set_query_page_limit(1000)
     @convert_model
@@ -84,7 +92,6 @@ class BudgetUsageService(BaseService):
             params (dict): {
                 'query': 'dict (spaceone.api.core.v2.TimeSeriesAnalyzeQuery)',
                 'budget_id': 'str',
-                'data_source_id': 'str',
                 'user_projects': 'list',                                        # injected from auth
                 'workspace_id': 'str',                                          # injected from auth (optional)
                 'domain_id': 'str'                                              # injected from auth
@@ -116,9 +123,10 @@ class BudgetUsageService(BaseService):
             params (dict): {
                 'query': 'dict (spaceone.api.core.v1.StatisticsQuery)',
                 "budget_id": "str",
-                'data_source_id': 'str',
-                'workspace_id': 'str',                                # injected from auth (optional)
+                "project_id": "str",
+                "workspace_id": 'str',                                # injected from auth (optional)
                 'domain_id': 'str'                                    # injected from auth
+                'user_projects': 'list',                                # injected from auth
             }
 
         Returns:

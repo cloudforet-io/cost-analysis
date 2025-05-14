@@ -26,7 +26,7 @@ class DataSourceRuleCreateRequest(BaseModel):
     options: Union[dict, None] = None
     tags: Union[dict, None] = None
     resource_group: ResourceGroup
-    workspace_id: str
+    workspace_id: Union[str, None] = None
     domain_id: str
 
 
@@ -57,7 +57,7 @@ class DataSourceRuleDeleteRequest(BaseModel):
 
 class DataSourceRuleGetRequest(BaseModel):
     data_source_rule_id: str
-    workspace_id: str
+    workspace_id: Union[str, None] = None
     domain_id: str
 
 
@@ -66,7 +66,6 @@ class DataSourceRuleSearchQueryRequest(BaseModel):
     data_source_rule_id: Union[str, None] = None
     name: Union[str, None] = None
     rule_type: Union[str, None] = None
-    data_source_id: Union[str, None] = None
     workspace_id: Union[str, None] = None
     domain_id: str
 

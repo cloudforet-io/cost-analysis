@@ -73,7 +73,8 @@ class JobManager(BaseManager):
         _LOGGER.debug(f"[create_job] create job: {job_vo.job_id}")
         return job_vo
 
-    def update_job_by_vo(self, params, job_vo):
+    @staticmethod
+    def update_job_by_vo(params: dict, job_vo: Job) -> Job:
         return job_vo.update(params)
 
     def get_job(

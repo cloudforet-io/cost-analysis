@@ -11,7 +11,7 @@ class PlannedLimit(EmbeddedDocument):
 class Plan(EmbeddedDocument):
     threshold = FloatField(required=True)
     unit = StringField(max_length=20, required=True, choices=["PERCENT", "ACTUAL_COST"])
-    notified_months = ListField(StringField(max_length=10))
+    notified = BooleanField(default=False)
 
     def to_dict(self):
         return dict(self.to_mongo())
@@ -19,9 +19,8 @@ class Plan(EmbeddedDocument):
 
 class Recipients(EmbeddedDocument):
     users = ListField(StringField(), default=[])
-    role_types = ListField(StringField(), default=[])
-    service_account_manager = StringField(
-        max_length=40, choices=["ENABLED", "DISABLED"], null=True, default=None
+    budget_manager_notification = StringField(
+        max_length=20, choices=["ENABLED", "DISABLED"]
     )
 
     def to_dict(self):
@@ -40,18 +39,22 @@ class Notification(EmbeddedDocument):
 class Budget(MongoModel):
     budget_id = StringField(max_length=40, generate_id="budget", unique=True)
     name = StringField(max_length=255, default="")
+    state = StringField(
+        max_length=20, default="ACTIVE", choices=["SCHEDULED", "ACTIVE", "EXPIRED"]
+    )
     limit = FloatField(required=True)
     planned_limits = ListField(EmbeddedDocumentField(PlannedLimit), default=[])
     currency = StringField()
     time_unit = StringField(max_length=20, choices=["TOTAL", "MONTHLY"])
     start = StringField(required=True, max_length=7)
     end = StringField(required=True, max_length=7)
-    notifications = EmbeddedDocumentField(Notification)
-    tags = DictField(default={})
+    notification = EmbeddedDocumentField(Notification)
+    utilization_rate = FloatField(null=True, default=0)
+    tags = DictField(default=None, null=True)
     resource_group = StringField(
         max_length=40, choices=["WORKSPACE", "PROJECT"]
     )  # leave WORKSPACE for previous version
-    data_source_id = StringField(max_length=40)
+    budget_manager_id = StringField(max_length=60, default=None, null=True)
     service_account_id = StringField(max_length=40)
     project_id = StringField(max_length=40, default=None, null=True)
     workspace_id = StringField(max_length=40, default=None, null=True)
@@ -63,28 +66,34 @@ class Budget(MongoModel):
     meta = {
         "updatable_fields": [
             "name",
+            "state",
             "limit",
             "planned_limits",
-            "notifications",
+            "start",
+            "end",
+            "notification",
+            "utilization_rate",
             "tags",
+            "budget_manager_id",
         ],
         "minimal_fields": [
             "budget_id",
+            "state",
             "name",
             "limit",
-            "project_id",
-            "service_account_id",
-            "data_source_id",
+            "utilization_rate",
+            "time_unit",
+            "currency",
+            "budget_manager_id",
         ],
         "change_query_keys": {"user_projects": "project_id"},
-        "ordering": ["name"],
+        "ordering": ["utilization_rate", "name"],
         "indexes": [
-            "name",
-            "resource_group",
-            "data_source_id",
-            "service_account_id",
-            "project_id",
-            "workspace_id",
             "domain_id",
+            "workspace_id",
+            "project_id",
+            "name",
+            "time_unit",
+            "service_account_id",
         ],
     }

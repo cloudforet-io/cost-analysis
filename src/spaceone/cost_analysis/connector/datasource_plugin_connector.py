@@ -2,6 +2,7 @@ import logging
 
 from spaceone.core.connector import BaseConnector
 from spaceone.core.auth.jwt.jwt_util import JWTUtil
+from spaceone.core.connector.space_connector import SpaceConnector
 
 __all__ = ["DataSourcePluginConnector"]
 
@@ -24,9 +25,7 @@ class DataSourcePluginConnector(BaseConnector):
         if static_endpoint:
             endpoint = static_endpoint
 
-        self.client = self.locator.get_connector(
-            "SpaceConnector", endpoint=endpoint, token="NO_TOKEN"
-        )
+        self.client = SpaceConnector(endpoint=endpoint, token="NO_TOKEN")
 
         self.secret_data = self.config.get("secret_data")
         self.options = self.config.get("options")
