@@ -44,8 +44,7 @@ class ReportAdjustmentPolicyService(BaseService):
                 'cost_report_config_id': 'str',   # required
                 'order': 'int',
                 'tags': 'dict',
-                'project_id': 'str',
-                'workspace_id': 'str',
+                'policy_filter': 'dict',
                 'domain_id': 'str'                 # injected from auth (required)
             }
 
@@ -54,11 +53,14 @@ class ReportAdjustmentPolicyService(BaseService):
         """
 
         if params.scope == "PROJECT":
-            if not params.workspace_ids or not params.project_ids:
+            policy_filter = params.policy_filter or {}
+            workspace_ids = policy_filter.get("workspace_ids", [])
+            project_ids = policy_filter.get("project_ids", [])
+            if not workspace_ids or not project_ids:
                 raise ERROR_PROJECT_OR_WORKSPACE_REQUIRED(
                     scope=params.scope,
-                    workspace_ids=params.workspace_ids,
-                    project_ids=params.project_ids,
+                    workspace_ids=workspace_ids,
+                    project_ids=project_ids,
                 )
 
         self.cost_report_config_mgr.get_cost_report_config(
@@ -114,6 +116,7 @@ class ReportAdjustmentPolicyService(BaseService):
                 'report_adjustment_policy_id': 'str',    # required
                 'name': 'str',
                 'tags': 'dict',
+                'policy_filter': 'dict',
                 'domain_id': 'str'                       # injected from auth (required)
             }
 
@@ -271,10 +274,7 @@ class ReportAdjustmentPolicyService(BaseService):
     @append_query_filter(
         [
             "name",
-            "state",
             "domain_id",
-            "workspace_id",
-            "users_projects",
         ]
     )
     @convert_model
@@ -287,34 +287,17 @@ class ReportAdjustmentPolicyService(BaseService):
             params (ReportAdjustmentPolicySearchQueryRequest): {
                 'query': 'dict',
                 'name': 'str',
-                'state': 'str',
-                'workspace_id': 'str',
                 'domain_id': 'str',
-                'user_projects': 'list'
             }
 
         Returns:
             ReportAdjustmentPoliciesResponse:
         """
-        query: dict = self._set_user_project_or_project_group_filter(
+        policy_vos, total_count = self.policy_mgr.list_policies(
             params.dict(exclude_unset=True)
         )
-        policy_vos, total_count = self.policy_mgr.list_policies(query)
 
         results = [policy_vo.to_dict() for policy_vo in policy_vos]
         return ReportAdjustmentPoliciesResponse(
             results=results, total_count=total_count
         )
-
-    @staticmethod
-    def _set_user_project_or_project_group_filter(params: dict) -> dict:
-        query = params.get("query", {})
-        query["filter"] = query.get("filter", [])
-
-        if "user_projects" in params:
-            user_projects = params["user_projects"] + [None]
-            query["filter"].append(
-                {"k": "user_projects", "v": user_projects, "o": "in"}
-            )
-
-        return query

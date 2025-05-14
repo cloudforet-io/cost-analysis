@@ -116,7 +116,9 @@ class AdjustmentPolicyApplier:
             provider = adjustment.get("provider")
             product = adjustment.get("name")
             currency = adjustment.get("currency")
-            filters = adjustment.get("filters")
+
+            # Not implemented
+            filters = adjustment.get("adjustment_filter")
 
             if method == "FIXED":
                 adjusted_cost = self._convert_fixed_value_to_adjusted_cost(
@@ -130,7 +132,7 @@ class AdjustmentPolicyApplier:
                 )
                 self.cost_report_data_mgr.create_cost_report_data(cost_report_data)
 
-            elif method == "RATE":
+            elif method == "PERCENTAGE":
                 if unified_cost_list is None:
                     project_ids = None
                     if not self.project_id:
@@ -146,7 +148,7 @@ class AdjustmentPolicyApplier:
                         )
                     )
                 for unified_cost in unified_cost_list:
-                    adjusted_cost = self._calculate_rate_adjustment_cost(
+                    adjusted_cost = self._calculate_percentage_adjustment_cost(
                         unified_cost, value, total_adjusted_cost
                     )
                     data_source_id = unified_cost["data_source_id"]
@@ -171,14 +173,16 @@ class AdjustmentPolicyApplier:
             total_adjusted_cost[cur] = total_adjusted_cost.get(cur, 0) + float(val)
         return adjusted_cost
 
-    def _calculate_rate_adjustment_cost(self, unified_cost, rate, total_adjusted_cost):
+    def _calculate_percentage_adjustment_cost(
+        self, unified_cost, percentage, total_adjusted_cost
+    ):
         adjusted_cost = self._extract_cost_by_currency(
             {f"cost_{cur}": unified_cost.get(f"cost_{cur}", 0) for cur in CURRENCIES}
         )
 
         for cur in CURRENCIES:
             adjusted_cost[cur] += total_adjusted_cost.get(cur, 0)
-            adjusted_cost[cur] = adjusted_cost[cur] * (rate / 100)
+            adjusted_cost[cur] = adjusted_cost[cur] * (percentage / 100)
             total_adjusted_cost[cur] = (
                 total_adjusted_cost.get(cur, 0) + adjusted_cost[cur]
             )
@@ -236,8 +240,9 @@ class AdjustmentPolicyApplier:
         }
 
     def _is_policy_applicable(self, policy):
-        workspace_ids = policy.get("workspace_ids")
-        project_ids = policy.get("project_ids")
+        policy_filter = policy.get("policy_filter", {})
+        workspace_ids = policy_filter.get("workspace_ids", [])
+        project_ids = policy_filter.get("project_ids", [])
 
         if not workspace_ids and not project_ids:
             return True
