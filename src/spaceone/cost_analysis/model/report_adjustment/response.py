@@ -18,7 +18,7 @@ class ReportAdjustmentResponse(BaseModel):
     provider: Union[str, None] = None
     currency: Union[str, None] = None
     order: Union[int, None] = None
-    filters: Union[dict, None] = None
+    adjustment_filter: Union[dict, None] = None
     cost_report_config_id: Union[str, None] = None
     report_adjustment_policy_id: Union[str, None] = None
     domain_id: Union[str, None] = None

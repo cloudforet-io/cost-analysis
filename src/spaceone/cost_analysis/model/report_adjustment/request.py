@@ -19,7 +19,7 @@ class CreateReportAdjustmentRequest(BaseModel):
     provider: str
     currency: Union[str, None] = "USD"
     order: Union[int, None] = None
-    filters: Union[dict, None] = None
+    adjustment_filter: Union[dict, None] = None
     report_adjustment_policy_id: str
     domain_id: str
 
@@ -31,7 +31,7 @@ class UpdateReportAdjustmentRequest(BaseModel):
     value: Union[float, None] = None
     description: Union[str, None] = None
     provider: Union[str, None] = None
-    filters: Union[dict, None] = None
+    adjustment_filter: Union[dict, None] = None
     domain_id: str
 
 

@@ -48,7 +48,7 @@ class ReportAdjustmentService(BaseService):
                 'provider': 'str',                       # required
                 'currency': 'str',
                 'order': 'int',
-                'filter': 'dict',
+                'adjustment_filter': 'dict',
                 'report_adjustment_policy_id': 'str',    # required
                 'domain_id': 'str'                       # injected from auth (required)
             }
@@ -102,7 +102,7 @@ class ReportAdjustmentService(BaseService):
                 'value': 'float',
                 'description': 'str',
                 'provider': 'str',
-                'filter': 'dict',
+                'adjustment_filter': 'dict',
                 'domain_id': 'str'                     # injected from auth (required)
             }
 

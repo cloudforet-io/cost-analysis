@@ -6,13 +6,13 @@ from spaceone.core.model.mongo_model import MongoModel
 class ReportAdjustment(MongoModel):
     report_adjustment_id = StringField(max_length=40, generate_id="ra", unique=True)
     name = StringField(max_length=255, required=True)
-    method = StringField(max_length=20, choices=("FIXED", "RATE"), required=True)
+    method = StringField(max_length=20, choices=("FIXED", "PERCENTAGE"), required=True)
     value = FloatField(required=True)
     description = StringField(default="")
     provider = StringField(max_length=20, required=True)
     currency = StringField(max_length=10, default="USD")
     order = IntField(default=1)
-    filters = DictField(default={})
+    adjustment_filter = DictField(default={})
     cost_report_config_id = StringField(max_length=40, required=True)
     report_adjustment_policy_id = StringField(max_length=40, required=True)
     domain_id = StringField(max_length=40, required=True)
@@ -29,7 +29,7 @@ class ReportAdjustment(MongoModel):
             "provider",
             "currency",
             "order",
-            "filters",
+            "adjustment_filter",
             "updated_at",
             "deleted_at",
         ],
@@ -39,6 +39,7 @@ class ReportAdjustment(MongoModel):
             "method",
             "order",
             "value",
+            "adjustment_filter",
         ],
         "ordering": ["report_adjustment_policy_id", "-order"],
         "indexes": [
