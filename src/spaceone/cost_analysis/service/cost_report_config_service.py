@@ -4,10 +4,17 @@ from spaceone.core.error import *
 from spaceone.core.service import *
 from spaceone.core.service.utils import *
 
-from spaceone.cost_analysis.manager.cost_report_config_manager import CostReportConfigManager
+from spaceone.cost_analysis.manager import (
+    CostReportConfigManager,
+    ReportAdjustmentPolicyManager,
+    ReportAdjustmentManager,
+)
 from spaceone.cost_analysis.service.cost_report_serivce import CostReportService
 from spaceone.cost_analysis.model.cost_report_config.request import *
 from spaceone.cost_analysis.model.cost_report_config.response import *
+from spaceone.cost_analysis.error.cost_report_config import (
+    ERROR_COST_REPORT_CONFIG_NOT_ENABLED,
+)
 
 
 @authentication_handler
@@ -20,6 +27,8 @@ class CostReportConfigService(BaseService):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.cost_report_config_mgr = CostReportConfigManager()
+        self.adjustment_mgr = ReportAdjustmentManager()
+        self.adjustment_policy_mgr = ReportAdjustmentPolicyManager()
 
     @transaction(
         permission="cost-analysis:CostReportConfig.write", role_types=["DOMAIN_ADMIN"]
@@ -32,8 +41,10 @@ class CostReportConfigService(BaseService):
 
         Args:
             params (CostReportConfigCreateRequest): {
+                'scope': 'str',                # required
                 'issue_day': 'int',
                 'is_last_day': 'bool',
+                'adjustment_options: 'dict',
                 'currency': 'str',             # required
                 'recipients': 'dict',
                 'data_source_filter': 'dict'
@@ -67,6 +78,7 @@ class CostReportConfigService(BaseService):
                 'cost_report_config_id': 'str',     # required
                 'issue_day': 'int',
                 'is_last_day': 'bool',
+                'adjustment_options: 'dict',
                 'currency': 'str',
                 'recipients': 'dict',
                 'data_source_filter': 'dict'
@@ -80,12 +92,28 @@ class CostReportConfigService(BaseService):
             params.cost_report_config_id,
         )
 
-        if params.is_last_day is None:
-            params.is_last_day = False
+        params_dict = params.dict(exclude_unset=True)
+
+        if "adjustment_options" in params_dict:
+            adjustment_options = params_dict.get("adjustment_options", {})
+
+            if adjustment_options is not None:
+                current_adjustment_options = (
+                    cost_report_config_vo.adjustment_options or {}
+                )
+                new_adjustment_options = current_adjustment_options.copy()
+
+                if "enabled" in adjustment_options:
+                    new_adjustment_options["enabled"] = adjustment_options["enabled"]
+
+                if "period" in adjustment_options:
+                    new_adjustment_options["period"] = adjustment_options["period"]
+
+                params_dict["adjustment_options"] = new_adjustment_options
 
         cost_report_config_vo = (
             self.cost_report_config_mgr.update_cost_report_config_by_vo(
-                params.dict(exclude_unset=True), cost_report_config_vo
+                params_dict, cost_report_config_vo
             )
         )
 
@@ -196,6 +224,21 @@ class CostReportConfigService(BaseService):
             params.domain_id, params.cost_report_config_id
         )
 
+        adjustment_policy_vos = self.adjustment_policy_mgr.filter_policies(
+            cost_report_config_id=cost_report_config_vo.cost_report_config_id,
+            domain_id=params.domain_id,
+        )
+
+        for policy_vo in adjustment_policy_vos:
+            adjustment_vos = self.adjustment_mgr.filter_adjustments(
+                report_adjustment_policy_id=policy_vo.report_adjustment_policy_id,
+                domain_id=params.domain_id,
+            )
+            for adj_vo in adjustment_vos:
+                self.adjustment_mgr.delete_adjustment_by_vo(adj_vo)
+
+            self.adjustment_policy_mgr.delete_policy_by_vo(policy_vo)
+
         self.cost_report_config_mgr.delete_cost_report_config_by_vo(
             cost_report_config_vo
         )
@@ -218,6 +261,12 @@ class CostReportConfigService(BaseService):
         cost_report_config_vo = self.cost_report_config_mgr.get_cost_report_config(
             params.domain_id, params.cost_report_config_id
         )
+
+        if cost_report_config_vo.state != "ENABLED":
+            raise ERROR_COST_REPORT_CONFIG_NOT_ENABLED(
+                cost_report_config_id=cost_report_config_vo.cost_report_config_id,
+                state=cost_report_config_vo.state,
+            )
 
         cost_report_service = CostReportService()
         cost_report_service.create_cost_report(cost_report_config_vo.to_dict())
@@ -250,7 +299,14 @@ class CostReportConfigService(BaseService):
         permission="cost-analysis:CostReportConfig.read",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
-    @append_query_filter(["state", "domain_id", "cost_report_config_id"])
+    @append_query_filter(
+        [
+            "state",
+            "scope",
+            "domain_id",
+            "cost_report_config_id",
+        ]
+    )
     @convert_model
     def list(
         self, params: CostReportConfigSearchQueryRequest

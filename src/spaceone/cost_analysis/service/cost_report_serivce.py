@@ -4,12 +4,16 @@ import logging
 from dateutil.relativedelta import relativedelta
 from datetime import datetime, timezone
 from typing import Tuple, Union
+from datetime import timedelta
 
 from mongoengine import QuerySet
 from spaceone.core import config
 from spaceone.core.service import *
 
-from spaceone.cost_analysis.manager.data_source_account_manager import DataSourceAccountManager
+from spaceone.cost_analysis.manager import DataSourceAccountManager
+from spaceone.cost_analysis.manager.cost_report.cost_report_format_generator import (
+    CostReportFormatGenerator,
+)
 from spaceone.cost_analysis.model.cost_report.database import CostReport
 from spaceone.cost_analysis.model.cost_report.response import CostReportLinkResponse
 from spaceone.cost_analysis.model.cost_report_config.database import CostReportConfig
@@ -18,12 +22,19 @@ from spaceone.cost_analysis.model.cost_report.response import *
 from spaceone.cost_analysis.manager.cost_report_config_manager import CostReportConfigManager
 from spaceone.cost_analysis.manager.cost_manager import CostManager
 from spaceone.cost_analysis.manager.cost_report_manager import CostReportManager
-from spaceone.cost_analysis.manager.cost_report_data_manager import CostReportDataManager
-from spaceone.cost_analysis.manager.currency_manager import CurrencyManager
+from spaceone.cost_analysis.manager.cost_report_data_manager import (
+    CostReportDataManager,
+)
+from spaceone.cost_analysis.manager.unified_cost_manager import UnifiedCostManager
 from spaceone.cost_analysis.manager.data_source_manager import DataSourceManager
 from spaceone.cost_analysis.manager.email_manager import EmailManager
 from spaceone.cost_analysis.manager.identity_manager import IdentityManager
-from spaceone.cost_analysis.service.cost_report_data_service import CostReportDataService
+from spaceone.cost_analysis.service.cost_report_data_service import (
+    CostReportDataService,
+)
+from spaceone.cost_analysis.manager.cost_report.adjustment_policy_applier import (
+    AdjustmentPolicyApplier,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,12 +49,15 @@ class CostReportService(BaseService):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.cost_mgr = CostManager()
+        self.unified_cost_mgr = UnifiedCostManager()
         self.cost_report_config_mgr = CostReportConfigManager()
         self.cost_report_mgr = CostReportManager()
         self.cost_report_data_mgr = CostReportDataManager()
         self.ds_account_mgr = DataSourceAccountManager()
-        self.currency_map: Union[dict, None] = None
-        self.currency_date: Union[str, None] = None
+        self.ds_mgr = DataSourceManager()
+        self.identity_mgr = IdentityManager()
+        self.is_within_adjustment_period = False
+        self.is_done_report = False
 
     @transaction(exclude=["authentication", "authorization", "mutation"])
     def create_cost_report_by_cost_report_config(self, params: dict) -> None:
@@ -265,237 +279,99 @@ class CostReportService(BaseService):
         return self.cost_report_mgr.stat_cost_reports(query)
 
     def create_cost_report(self, params: dict):
+        domain_id = params["domain_id"]
         cost_report_config_id = params["cost_report_config_id"]
-        cost_report_config_vo = self.cost_report_config_mgr.get_cost_report_config(
-            params["domain_id"], cost_report_config_id
-        )
-        domain_id = cost_report_config_vo.domain_id
-        currency = cost_report_config_vo.currency
-        data_source_filter = cost_report_config_vo.data_source_filter or {}
-        is_last_day = cost_report_config_vo.is_last_day or False
-        issue_day = self.get_issue_day(is_last_day, cost_report_config_vo.issue_day)
 
+        config_vo = self.cost_report_config_mgr.get_cost_report_config(
+            domain_id, cost_report_config_id
+        )
         current_date = datetime.now(timezone.utc)
-        currency_date = current_date
-        current_month = current_date.strftime("%Y-%m")
 
-        _LOGGER.debug(
-            f"[create_cost_report] start to create cost report by cost_report_config({cost_report_config_id})"
+        metadata = self._collect_cost_report_metadata(config_vo, current_date)
+
+        is_create_report, report_month = self._get_is_create_report_and_report_month(
+            metadata["issue_day"],
+            metadata["is_last_day"],
+            current_date,
+            config_vo.adjustment_options,
         )
 
-        workspace_name_map, workspace_ids = self._get_workspace_name_map(domain_id)
-        (
-            data_source_currency_map,
-            data_source_ids,
-        ) = self._get_data_source_currency_map(
-            domain_id, workspace_ids, data_source_filter
+        metadata["report_month"] = report_month
+
+        issue_month, report_issue_day, issue_date = self._prepare_report_metadata(
+            metadata, report_month
         )
 
-        (
-            is_create_report,
-            report_month,
-        ) = self._get_is_create_report_and_report_month(
-            issue_day, is_last_day, current_date, domain_id, cost_report_config_id
-        )
-
-        currency_mgr = CurrencyManager()
-
-        if is_create_report:
-            issue_month = self._get_issue_month_fom_report_month(report_month)
-            report_issue_day = self.get_issue_day(
-                is_last_day, issue_day, datetime.strptime(report_month, "%Y-%m")
-            )
-
-            _LOGGER.debug(
-                f"[create_cost_report] issue_month {issue_month}, report_month {report_month} , report issue_day {report_issue_day}"
-            )
-
-            currency_end_date = self._get_currency_date_from_report_month(
-                report_month, report_issue_day
-            )
-
-            (
-                currency_map,
-                currency_date,
-            ) = currency_mgr.get_currency_map_date(currency_end_date=currency_end_date)
-
-            self.currency_map = currency_map
-            self.currency_date = currency_date
-
-            _LOGGER.debug(
-                f"[create_cost_report] set currency date {self.currency_date} , currency map ({self.currency_map})"
-            )
-
-            cost_report_created_at = datetime.now(timezone.utc)
-            self._aggregate_monthly_cost_report(
-                domain_id=domain_id,
-                workspace_ids=workspace_ids,
-                data_source_ids=data_source_ids,
-                cost_report_config_id=cost_report_config_id,
-                workspace_name_map=workspace_name_map,
-                data_source_currency_map=data_source_currency_map,
+        if config_vo.scope == "WORKSPACE":
+            unified_costs = self.unified_cost_mgr.analyze_unified_cost_for_report(
                 report_month=report_month,
-                report_issue_day=report_issue_day,
-                currency=currency,
-                issue_day=issue_day,
-                issue_month=issue_month,
-                status="SUCCESS",
+                data_source_ids=metadata["data_source_ids"],
+                domain_id=domain_id,
+                workspace_ids=metadata["workspace_ids"],
+                project_ids=metadata["project_ids"],
+                scope="WORKSPACE",
+            )
+        else:
+            unified_costs = self.unified_cost_mgr.analyze_unified_cost_for_report(
+                report_month=report_month,
+                data_source_ids=metadata["data_source_ids"],
+                domain_id=domain_id,
+                workspace_ids=metadata["workspace_ids"],
+                project_ids=metadata["project_ids"],
+                scope="PROJECT",
             )
 
-            self._delete_old_cost_reports(
-                report_month,
-                domain_id,
-                cost_report_config_id,
-                "SUCCESS",
-                cost_report_created_at,
-            )
-
-            self._delete_old_cost_reports(
-                report_month,
-                domain_id,
-                cost_report_config_id,
-                "IN_PROGRESS",
-                cost_report_created_at,
-            )
-
-        (
-            currency_map,
-            currency_date,
-        ) = currency_mgr.get_currency_map_date(currency_end_date=currency_date)
-        self.currency_map = currency_map
-        self.currency_date = currency_date
-
-        cost_report_created_at = datetime.utcnow()
-
-        self._aggregate_monthly_cost_report(
-            domain_id=domain_id,
-            workspace_ids=workspace_ids,
-            data_source_ids=data_source_ids,
-            cost_report_config_id=cost_report_config_id,
-            workspace_name_map=workspace_name_map,
-            data_source_currency_map=data_source_currency_map,
-            report_month=current_month,
-            report_issue_day=current_date.day,
-            currency=currency,
-            issue_day=current_date.day,
-            issue_month=current_month,
-            status="IN_PROGRESS",
+        # IN_PROGRESS
+        in_progress_reports = self._build_cost_reports_from_costs(
+            "IN_PROGRESS", config_vo, unified_costs, metadata
         )
-
-        self._delete_old_cost_reports(
-            current_month,
-            domain_id,
-            cost_report_config_id,
+        self._persist_cost_reports_by_status(
             "IN_PROGRESS",
-            cost_report_created_at,
+            in_progress_reports,
+            report_month,
+            report_issue_day,
+            metadata["data_source_ids"],
+            domain_id,
+            issue_date,
         )
 
-    def _aggregate_monthly_cost_report(
-        self,
-        domain_id: str,
-        cost_report_config_id: str,
-        workspace_name_map: dict,
-        workspace_ids: list,
-        data_source_currency_map: dict,
-        data_source_ids: list,
-        report_month: str,
-        report_issue_day: int,
-        currency: str,
-        issue_day: int,
-        status: str,
-        issue_month: str = None,
-    ) -> None:
-        report_year = report_month.split("-")[0]
-        issue_date = f"{issue_month}-{str(issue_day).zfill(2)}"
-
-        # collect enabled data_sources cost data
-        query = {
-            "group_by": ["workspace_id", "billed_year", "data_source_id"],
-            "fields": {
-                "cost": {"key": "cost", "operator": "sum"},
-            },
-            "start": report_month,
-            "end": report_month,
-            "filter": [
-                {"k": "domain_id", "v": domain_id, "o": "eq"},
-                {"k": "billed_year", "v": report_year, "o": "eq"},
-                {"k": "billed_month", "v": report_month, "o": "eq"},
-                {"k": "data_source_id", "v": data_source_ids, "o": "in"},
-            ],
-        }
-
-        v_workspace_ids, v_workspace_id_map = self._get_virtual_workspace_ids_and_map(
-            domain_id, workspace_ids
-        )
-        if v_workspace_ids:
-            workspace_ids.extend(v_workspace_ids)
-
-        query["filter"].append({"k": "workspace_id", "v": workspace_ids, "o": "in"})
-
-        _LOGGER.debug(f"[aggregate_monthly_cost_report] query: {query}")
-        response = self.cost_mgr.analyze_monthly_costs(query, domain_id)
-        results = response.get("results", [])
-
-        for aggregated_cost_report in results:
-            aggregated_cost_report["workspace_id"] = v_workspace_id_map.get(
-                aggregated_cost_report["workspace_id"],
-                aggregated_cost_report["workspace_id"],
+        # SUCCESS
+        if is_create_report:
+            _LOGGER.debug(
+                f"[create_cost_report] issue_month={issue_month}, report_month={report_month}, report_issue_day={report_issue_day}"
             )
 
-            _ag_cost = aggregated_cost_report.pop("cost", 0.0)
-            ag_cost_report_currency = data_source_currency_map.get(
-                aggregated_cost_report.pop("data_source_id")
+            success_reports = self._build_cost_reports_from_costs(
+                "SUCCESS", config_vo, unified_costs, metadata
             )
-
-            aggregated_cost_report["cost"] = CostReportManager.get_exchange_currency(
-                _ag_cost, ag_cost_report_currency, self.currency_map
+            self._persist_cost_reports_by_status(
+                "SUCCESS",
+                success_reports,
+                report_month,
+                report_issue_day,
+                metadata["data_source_ids"],
+                domain_id,
+                issue_date,
             )
-            aggregated_cost_report["status"] = status
-            aggregated_cost_report["currency"] = currency
-            aggregated_cost_report["issue_date"] = issue_date
-            aggregated_cost_report["report_month"] = report_month
-            aggregated_cost_report["report_year"] = aggregated_cost_report.pop(
-                "billed_year"
+        elif self.is_within_adjustment_period:
+            _LOGGER.debug(
+                f"[create_cost_report] adjustment-only mode for {report_month}"
             )
-            aggregated_cost_report["workspace_name"] = workspace_name_map.get(
-                aggregated_cost_report["workspace_id"], "Unknown"
+            success_reports_vo = self.cost_report_mgr.list_success_reports(
+                cost_report_config_id, report_month, domain_id
             )
-            aggregated_cost_report["bank_name"] = "Yahoo! Finance"  # todo : replace
-            aggregated_cost_report["cost_report_config_id"] = cost_report_config_id
-            aggregated_cost_report["domain_id"] = domain_id
-
-        aggregated_cost_report_results = self._aggregate_result_by_currency(results)
-
-        cost_report_data_svc = CostReportDataService()
-        cost_report_data_svc.currency_map = self.currency_map
-        cost_report_data_svc.currency_date = self.currency_date
-
-        start_cost_report_number = self.get_start_cost_report_number(
-            domain_id, issue_date
-        )
-
-        for cost_report_idx, aggregated_cost_report in enumerate(
-                aggregated_cost_report_results, start=start_cost_report_number
-        ):
-            aggregated_cost_report["report_number"] = self.generate_report_number(
-                report_month, report_issue_day, cost_report_idx
+            self._persist_cost_reports_by_status(
+                "SUCCESS",
+                [
+                    success_report_vo.to_dict()
+                    for success_report_vo in success_reports_vo
+                ],
+                report_month,
+                report_issue_day,
+                metadata["data_source_ids"],
+                domain_id,
+                issue_date,
             )
-
-            aggregated_cost_report["currency_date"] = (
-                CostReportManager.get_currency_date(self.currency_date)
-            )
-
-            cost_report_vo = self.cost_report_mgr.create_cost_report(
-                aggregated_cost_report
-            )
-            cost_report_data_svc.create_cost_report_data(cost_report_vo)
-            if cost_report_vo.status == "SUCCESS":
-                self.send_cost_report(cost_report_vo)
-
-        _LOGGER.debug(
-            f"[aggregate_monthly_cost_report] create cost report ({report_month}) \
-            (count = {len(aggregated_cost_report_results)})"
-        )
 
     def _get_all_cost_report_configs(self) -> QuerySet:
         return self.cost_report_config_mgr.filter_cost_report_configs(state="ENABLED")
@@ -594,13 +470,11 @@ class CostReportService(BaseService):
     def get_email_verified_workspace_owner_users(
         domain_id: str, workspace_id: str, role_types: list = None
     ) -> list:
-        identity_mgr = IdentityManager()
-
         if "WORKSPACE_OWNER" not in role_types:
             return []
 
         # list users in workspace
-        users_info = identity_mgr.list_workspace_users(
+        users_info = self.identity_mgr.list_workspace_users(
             params={
                 "workspace_id": workspace_id,
                 "state": "ENABLED",
@@ -620,16 +494,15 @@ class CostReportService(BaseService):
         self, domain_id: str, issue_date: str = None
     ) -> int:
         return (
-                self.cost_report_mgr.filter_cost_reports(
-                    domain_id=domain_id, issue_date=issue_date
-                ).count()
-                + 1
+            self.cost_report_mgr.filter_cost_reports(
+                domain_id=domain_id, issue_date=issue_date
+            ).count()
+            + 1
         )
 
     def _get_workspace_name_map(self, domain_id: str) -> Tuple[dict, list]:
-        identity_mgr = IdentityManager()
         workspace_name_map = {}
-        workspaces = identity_mgr.list_workspaces(
+        workspaces = self.identity_mgr.list_workspaces(
             {"query": {"filter": [{"k": "state", "v": "ENABLED", "o": "eq"}]}},
             domain_id,
         )
@@ -649,15 +522,11 @@ class CostReportService(BaseService):
 
         return f"{console_domain}/cost-report-detail?sso_access_token={token}&cost_report_id={cost_report_id}&language={language}"
 
-    @staticmethod
-    def _get_domain_name(domain_id: str) -> str:
-        identity_mgr = IdentityManager()
-        domain_name = identity_mgr.get_domain_name(domain_id)
+    def _get_domain_name(self, domain_id: str) -> str:
+        domain_name = self.identity_mgr.get_domain_name(domain_id)
         return domain_name
 
-    @staticmethod
-    def _get_temporary_sso_access_token(domain_id: str, workspace_id: str) -> str:
-        identity_mgr = IdentityManager()
+    def _get_temporary_sso_access_token(self, domain_id: str, workspace_id: str) -> str:
         system_token = config.get_global("TOKEN")
         timeout = config.get_global("COST_REPORT_TOKEN_TIMEOUT", 259200)
         permissions = config.get_global(
@@ -680,108 +549,50 @@ class CostReportService(BaseService):
             "timeout": timeout,
             "permissions": permissions,
         }
-        return identity_mgr.grant_token(params)
-
-    def _get_virtual_workspace_ids_and_map(
-            self, domain_id: str, workspace_ids: list
-    ) -> Tuple[list, dict]:
-        v_workspace_ids = []
-        v_workspace_id_map = {}
-
-        query = {
-            "filter": [
-                {"k": "domain_id", "v": domain_id, "o": "eq"},
-                {"k": "workspace_id", "v": workspace_ids, "o": "in"},
-            ]
-        }
-        ds_account_vos, _ = self.ds_account_mgr.list_data_source_accounts(query)
-
-        for ds_account_vo in ds_account_vos:
-            v_workspace_ids.append(ds_account_vo.v_workspace_id)
-            if not v_workspace_id_map.get(ds_account_vo.v_workspace_id):
-                v_workspace_id_map[ds_account_vo.v_workspace_id] = (
-                    ds_account_vo.workspace_id
-                )
-
-        return v_workspace_ids, v_workspace_id_map
-
-    def _get_data_source_currency_map(
-        self, domain_id: str, workspace_ids: list, data_source_filter: dict
-    ) -> Tuple[dict, list]:
-        data_source_currency_map = {}
-        data_source_mgr = DataSourceManager()
-
-        query = {
-            "filter": [
-                {"k": "domain_id", "v": domain_id, "o": "eq"},
-                {"k": "workspace_id", "v": workspace_ids + ["*"], "o": "in"},
-            ]
-        }
-        if data_sources := data_source_filter.get("data_sources"):
-            query["filter"].append(
-                {"k": "data_source_id", "v": data_sources, "o": "in"}
-            )
-
-        if data_source_state := data_source_filter.get("state", "ENABLED"):
-            query["filter"].append(
-                {"k": "schedule.state", "v": data_source_state, "o": "eq"}
-            )
-
-        _LOGGER.debug(f"[get_data_source_currency_map] query: {query}")
-
-        data_source_vos, total_count = data_source_mgr.list_data_sources(query)
-        data_source_ids = []
-        for data_source_vo in data_source_vos:
-            currency = self._get_currency_from_plugin_info(data_source_vo.plugin_info)
-            data_source_currency_map[data_source_vo.data_source_id] = currency
-            data_source_ids.append(data_source_vo.data_source_id)
-
-        return data_source_currency_map, data_source_ids
+        return self.identity_mgr.grant_token(params)
 
     def _get_is_create_report_and_report_month(
         self,
         issue_day: int,
         is_last_day: bool,
         current_date: datetime,
-        domain_id: str,
-        cost_report_config_id: str,
+        adjustment_options: dict = None,
     ) -> Tuple[bool, str]:
         is_create_report = False
+        adjustment_state = adjustment_options.get("enabled", False)
+        adjustment_period = adjustment_options.get("period", 0)
 
         retry_days = min(config.get_global("COST_REPORT_RETRY_DAYS", 7), 25)
-
         current_day = current_date.day
         retry_date = current_date - relativedelta(days=retry_days)
 
         if retry_date.month != current_date.month:
             issue_date = (current_date - relativedelta(months=1)).replace(day=issue_day)
-
             report_date = current_date - relativedelta(months=2)
             issue_day = self.get_issue_day(is_last_day, issue_day)
         else:
             issue_date = current_date.replace(day=issue_day)
             report_date = current_date - relativedelta(months=1)
 
+        report_month = report_date.strftime("%Y-%m")
+
         if (
-                current_date > report_date
-                and retry_date <= issue_date.replace(day=issue_day) <= current_date
+            current_date > report_date
+            and retry_date <= issue_date.replace(day=issue_day) <= current_date
         ):
             is_create_report = True
 
-        report_month = report_date.strftime("%Y-%m")
-
-        if is_create_report and self._check_success_cost_report_exist(
-                domain_id, cost_report_config_id, report_month
-        ):
-            is_create_report = False
+        if adjustment_state and adjustment_period > 0:
+            if report_date <= issue_date + timedelta(days=adjustment_period):
+                self.is_within_adjustment_period = True
 
         if issue_day == current_day:
             is_create_report = True
             report_month = (current_date - relativedelta(months=1)).strftime("%Y-%m")
 
-        _LOGGER.debug(
-            f"[get_is_create_report_and_report_month] cost_report_config_id: {cost_report_config_id} is_create_report: {is_create_report}, report_month: {report_month}"
-        )
+        if current_date == issue_date + timedelta(days=adjustment_period):
+            self.is_done_report = True
+
         return is_create_report, report_month
 
     def _check_success_cost_report_exist(
@@ -804,10 +615,11 @@ class CostReportService(BaseService):
 
     @staticmethod
     def get_issue_day(
-            is_last_day: bool, issue_day: int = None, current_date: datetime = None
+        is_last_day: bool, issue_day: int = None, current_date: datetime = None
     ) -> int:
         if not current_date:
             current_date = datetime.now(timezone.utc)
+
         current_year = current_date.year
         current_month = current_date.month
 
@@ -820,39 +632,14 @@ class CostReportService(BaseService):
 
     @staticmethod
     def generate_report_number(
-            report_month: str, issue_day: int, cost_report_idx: int
+        report_month: str, issue_day: int, cost_report_idx: int
     ) -> str:
         report_date = f"{report_month}-{issue_day}"
         date_object = datetime.strptime(report_date, "%Y-%m-%d")
 
         return f"CostReport_{date_object.strftime('%y%m%d')}{str(cost_report_idx).zfill(4)}"
 
-    @staticmethod
-    def _get_currency_from_plugin_info(plugin_info: dict) -> str:
-        currency = plugin_info["metadata"].get("currency", "USD")
-
-        metadata_cost_info = plugin_info["metadata"].get("cost_info", {})
-        if metadata_cost_info:
-            currency = metadata_cost_info.get("unit", "USD")
-
-        return currency
-
-    @staticmethod
-    def _aggregate_result_by_currency(results: list) -> list:
-        workspace_result_map = {}
-        for result in results:
-            workspace_id = result["workspace_id"]
-            if workspace_id in workspace_result_map:
-                for currency, cost in result["cost"].items():
-                    workspace_result_map[workspace_id]["cost"][currency] += cost
-            else:
-                workspace_result_map[workspace_id] = result.copy()
-
-        return [workspace_result for workspace_result in workspace_result_map.values()]
-
-    @staticmethod
-    def create_default_cost_report_config_for_all_domains():
-        identity_mgr = IdentityManager()
+    def create_default_cost_report_config_for_all_domains(self):
         cost_report_config_mgr = CostReportConfigManager()
 
         params = {
@@ -862,7 +649,7 @@ class CostReportService(BaseService):
             }
         }
 
-        response = identity_mgr.list_domains(params)
+        response = self.identity_mgr.list_domains(params)
         domain_infos = response.get("results", [])
 
         for domain_info in domain_infos:
@@ -880,7 +667,174 @@ class CostReportService(BaseService):
         issue_month = issue_month_datetime.strftime("%Y-%m")
         return issue_month
 
+    def _persist_cost_reports_by_status(
+        self,
+        status,
+        cost_reports,
+        report_month,
+        report_issue_day,
+        data_source_ids,
+        domain_id,
+        issue_date,
+    ):
+        cost_report_data_svc = CostReportDataService()
+        start_cost_report_number = self.get_start_cost_report_number(
+            domain_id, issue_date
+        )
+
+        cost_report_config_id = None
+        for idx, report in enumerate(cost_reports, start=start_cost_report_number):
+            report["report_number"] = self.generate_report_number(
+                report_month, report_issue_day, idx
+            )
+            report["currency_date"] = report.pop("exchange_date", None)
+            cost_report_config_id = report["cost_report_config_id"]
+
+            cost_report_vo = self.cost_report_mgr.create_cost_report(report)
+            cost_report_data_svc.create_cost_report_data(cost_report_vo)
+
+            if cost_report_vo.status == "SUCCESS":
+                if self.is_within_adjustment_period:
+                    _LOGGER.info(
+                        f"[_persist_cost_reports_by_status] apply Adjustment Policy (cost_report_id={cost_report_vo.cost_report_id})"
+                    )
+
+                    adjustment_applier = AdjustmentPolicyApplier(
+                        cost_report_vo,
+                        data_source_ids,
+                    )
+
+                    if adjustment_applier.is_applied:
+                        adjustment_applier.apply_policies()
+                        adjusted_cost = self.cost_report_data_mgr.get_monthly_total_cost_for_adjustments(
+                            cost_report_vo.cost_report_id,
+                            report_month,
+                            cost_report_vo.domain_id,
+                            cost_report_vo.workspace_id,
+                            cost_report_vo.project_id,
+                        )
+
+                        self.cost_report_mgr.update_cost_report_by_vo(
+                            {
+                                "cost": adjusted_cost,
+                                "is_adjusted": True,
+                            },
+                            cost_report_vo,
+                        )
+
+                if self.is_done_report:
+                    self.cost_report_mgr.update_cost_report_by_vo(
+                        {"status": "DONE"}, cost_report_vo
+                    )
+                    self.send_cost_report(cost_report_vo)
+
+        self._delete_old_cost_reports(
+            report_month,
+            domain_id,
+            cost_report_config_id,
+            status,
+            datetime.utcnow(),
+        )
+
+        if status == "SUCCESS":
+            self._delete_old_cost_reports(
+                report_month,
+                domain_id,
+                cost_report_config_id,
+                "IN_PROGRESS",
+                datetime.utcnow(),
+            )
+
+            if self.is_done_report:
+                self._delete_old_cost_reports(
+                    report_month,
+                    domain_id,
+                    cost_report_config_id,
+                    "SUCCESS",
+                    datetime.utcnow(),
+                )
+
     @staticmethod
-    def _get_currency_date_from_report_month(report_month: str, issue_day: int):
-        report_month = datetime.strptime(report_month, "%Y-%m").replace(day=issue_day)
-        return report_month
+    def _build_cost_reports_from_costs(
+        status, config_vo, unified_costs, metadata
+    ) -> list:
+        generator = CostReportFormatGenerator(
+            metadata=metadata,
+            report_month=metadata["report_month"],
+            scope=config_vo.scope,
+            cost_report_config_id=config_vo.cost_report_config_id,
+            domain_id=config_vo.domain_id,
+        )
+        return generator.make_cost_reports(unified_costs, status)
+
+    def _collect_cost_report_metadata(
+        self,
+        config_vo: CostReportConfig,
+        current_date: datetime,
+    ) -> dict:
+        domain_id = config_vo.domain_id
+        data_source_filter = config_vo.data_source_filter or {}
+        is_last_day = config_vo.is_last_day or False
+        issue_day = self.get_issue_day(is_last_day, config_vo.issue_day)
+        current_month = current_date.strftime("%Y-%m")
+
+        workspace_name_map, workspace_ids = self._get_workspace_name_map(domain_id)
+        project_name_map, project_ids = self.get_project_name_map(
+            domain_id, workspace_ids
+        )
+        data_source_ids = self.ds_mgr.get_data_source_ids(
+            domain_id, workspace_ids, data_source_filter
+        )
+
+        v_workspace_ids, v_workspace_id_map = (
+            self.ds_account_mgr.get_virtual_workspace_ids_and_map(
+                domain_id, workspace_ids
+            )
+        )
+        if v_workspace_ids:
+            workspace_ids.extend(v_workspace_ids)
+
+        return {
+            "domain_id": domain_id,
+            "workspace_name_map": workspace_name_map,
+            "workspace_ids": workspace_ids,
+            "project_name_map": project_name_map,
+            "project_ids": project_ids,
+            "v_workspace_id_map": v_workspace_id_map,
+            "data_source_ids": data_source_ids,
+            "is_last_day": is_last_day,
+            "issue_day": issue_day,
+            "current_month": current_month,
+        }
+
+    def _prepare_report_metadata(
+        self, context: dict, report_month: str
+    ) -> tuple[str, int, str]:
+        issue_month = self._get_issue_month_fom_report_month(report_month)
+        report_issue_day = self.get_issue_day(
+            context["is_last_day"],
+            context["issue_day"],
+            datetime.strptime(report_month, "%Y-%m"),
+        )
+        issue_date = f"{issue_month}-{str(context['issue_day']).zfill(2)}"
+        return issue_month, report_issue_day, issue_date
+
+    def get_project_name_map(
+        self, domain_id: str, workspace_ids: list
+    ) -> Tuple[dict, list]:
+        project_name_map = {}
+        project_ids = []
+        projects = self.identity_mgr.list_projects(
+            params={
+                "query": {
+                    "filter": [
+                        {"k": "workspace_id", "v": workspace_ids, "o": "in"},
+                    ]
+                }
+            },
+            domain_id=domain_id,
+        )
+        for project in projects.get("results", []):
+            project_name_map[project["project_id"]] = project["name"]
+            project_ids.append(project["project_id"])
+        return project_name_map, project_ids

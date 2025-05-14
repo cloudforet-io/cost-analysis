@@ -9,8 +9,12 @@ class CostReportConfig(MongoModel):
     state = StringField(
         max_length=20, default="ENABLED", choices=("ENABLED", "DISABLED", "DELETED")
     )
+    scope = StringField(
+        max_length=20, default="WORKSPACE", choices=("WORKSPACE", "PROJECT")
+    )
     issue_day = IntField(default=10, min_value=1, max_value=31)
-    is_last_day = BooleanField(deault=False)
+    is_last_day = BooleanField(default=False)
+    adjustment_options = DictField(default={"enabled": False, "period": 0})
     currency = StringField(max_length=20, default="KRW")
     recipients = DictField(default={})
     data_source_filter = DictField(default={})
@@ -25,6 +29,7 @@ class CostReportConfig(MongoModel):
             "state",
             "issue_day",
             "is_last_day",
+            "adjustment_options",
             "currency",
             "recipients",
             "data_source_filter",
@@ -37,6 +42,7 @@ class CostReportConfig(MongoModel):
             "cost_report_config_id",
             "state",
             "issue_day",
+            "adjustment_options",
             "created_at",
         ],
         "ordering": ["-created_at"],

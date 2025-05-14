@@ -87,6 +87,33 @@ class DataSourceManager(BaseManager):
             conditions["workspace_id"] = workspace_id
         return self.data_source_model.get(**conditions)
 
+    def get_data_source_ids(
+        self,
+        domain_id: str,
+        workspace_ids: list,
+        data_source_filter: dict,
+    ) -> list:
+        query = {
+            "filter": [
+                {"k": "domain_id", "v": domain_id, "o": "eq"},
+                {"k": "workspace_id", "v": workspace_ids + ["*"], "o": "in"},
+            ]
+        }
+        if data_sources := data_source_filter.get("data_sources"):
+            query["filter"].append(
+                {"k": "data_source_id", "v": data_sources, "o": "in"}
+            )
+
+        if data_source_state := data_source_filter.get("state", "ENABLED"):
+            query["filter"].append(
+                {"k": "schedule.state", "v": data_source_state, "o": "eq"}
+            )
+
+        _LOGGER.debug(f"[_list_data_source_ids_from_data_source] query: {query}")
+
+        data_source_vos, total_count = self.list_data_sources(query)
+        return [data_source_vo.data_source_id for data_source_vo in data_source_vos]
+
     def filter_data_sources(self, **conditions):
         return self.data_source_model.filter(**conditions)
 
