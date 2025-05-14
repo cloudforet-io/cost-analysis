@@ -240,8 +240,9 @@ class AdjustmentPolicyApplier:
         }
 
     def _is_policy_applicable(self, policy):
-        workspace_ids = policy.get("workspace_ids")
-        project_ids = policy.get("project_ids")
+        policy_filter = policy.get("policy_filter", {})
+        workspace_ids = policy_filter.get("workspace_ids", [])
+        project_ids = policy_filter.get("project_ids", [])
 
         if not workspace_ids and not project_ids:
             return True

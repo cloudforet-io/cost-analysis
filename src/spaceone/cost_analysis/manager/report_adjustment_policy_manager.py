@@ -71,7 +71,6 @@ class ReportAdjustmentPolicyManager(BaseManager):
             "filter": [
                 {"k": "cost_report_config_id", "v": cost_report_config_id, "o": "eq"},
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
-                {"k": "state", "v": "ENABLED", "o": "eq"},
             ],
             "order_by": ["order"],
         }
