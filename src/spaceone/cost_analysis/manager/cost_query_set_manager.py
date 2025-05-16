@@ -9,7 +9,7 @@ _LOGGER = logging.getLogger(__name__)
 class CostQuerySetManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.cost_query_set_model = CostQuerySet()
+        self.cost_query_set_model = CostQuerySet
 
     def create_cost_query_set(self, params: dict):
         def _rollback(vo: CostQuerySet):

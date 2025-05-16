@@ -16,7 +16,7 @@ class JobTaskManager(BaseManager):
         super().__init__(*args, **kwargs)
 
         self.job_mgr = JobManager()
-        self.job_task_model = JobTask()
+        self.job_task_model = JobTask
 
     def create_job_task(
         self,

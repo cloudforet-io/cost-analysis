@@ -12,7 +12,7 @@ _LOGGER = logging.getLogger(__name__)
 class UnifiedCostJobManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.unified_cost_job_model = UnifiedCostJob()
+        self.unified_cost_job_model = UnifiedCostJob
 
     def create_unified_cost(self, params: dict):
         def _rollback(vo: UnifiedCostJob):

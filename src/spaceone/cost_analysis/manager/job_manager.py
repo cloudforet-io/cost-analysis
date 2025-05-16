@@ -16,7 +16,7 @@ _LOGGER = logging.getLogger(__name__)
 class JobManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.job_model = Job()
+        self.job_model = Job
         self.job_timeout = config.get_global("JOB_TIMEOUT", 7200)
         self.cost_mgr = CostManager()
 
