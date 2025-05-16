@@ -19,8 +19,8 @@ class CostManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.cost_model = Cost
-        self.monthly_cost_model = MonthlyCost()
-        self.cost_query_history_model = CostQueryHistory()
+        self.monthly_cost_model = MonthlyCost
+        self.cost_query_history_model = CostQueryHistory
         self.data_source_rule_mgr = DataSourceRuleManager()
         self.data_source_account_mgr = DataSourceAccountManager()
         self.data_source_mgr = DataSourceManager()
