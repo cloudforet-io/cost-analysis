@@ -17,7 +17,7 @@ class DataSourceAccountManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.data_source_mgr = DataSourceManager()
-        self.data_source_account_model = DataSourceAccount()
+        self.data_source_account_model = DataSourceAccount
         self._workspace_info = {}
         self._data_source_info = {}
 
@@ -134,6 +134,29 @@ class DataSourceAccountManager(BaseManager):
             )
 
         return data_source_account_vo
+
+    def get_virtual_workspace_ids_and_map(
+        self, domain_id: str, workspace_ids: list
+    ) -> Tuple[list, dict]:
+        v_workspace_ids = []
+        v_workspace_id_map = {}
+
+        query = {
+            "filter": [
+                {"k": "domain_id", "v": domain_id, "o": "eq"},
+                {"k": "workspace_id", "v": workspace_ids, "o": "in"},
+            ]
+        }
+        ds_account_vos, _ = self.list_data_source_accounts(query)
+
+        for ds_account_vo in ds_account_vos:
+            v_workspace_ids.append(ds_account_vo.v_workspace_id)
+            if not v_workspace_id_map.get(ds_account_vo.v_workspace_id):
+                v_workspace_id_map[ds_account_vo.v_workspace_id] = (
+                    ds_account_vo.workspace_id
+                )
+
+        return v_workspace_ids, v_workspace_id_map
 
     def _get_workspace_by_references(
         self, reference_id: str, domain_id: str

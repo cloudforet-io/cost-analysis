@@ -11,6 +11,7 @@ class CostReportData(MongoModel):
     report_year = StringField(max_length=20)
     report_month = StringField(max_length=40)
     is_confirmed = BooleanField(default=False)
+    is_adjusted = BooleanField(default=False)
     provider = StringField(max_length=40)
     product = StringField(max_length=255)
     service_account_name = StringField(max_length=255)
@@ -21,6 +22,7 @@ class CostReportData(MongoModel):
     data_source_id = StringField(max_length=40)
     cost_report_id = StringField(max_length=40)
     cost_report_config_id = StringField(max_length=40)
+    report_adjustment_policy_id = StringField(max_length=40, default=None, null=True)
     project_id = StringField(max_length=40, default=None, null=True)
     workspace_id = StringField(max_length=40)
     domain_id = StringField(max_length=40)
@@ -34,7 +36,7 @@ class CostReportData(MongoModel):
             "data_source_id",
             "workspace_id",
         ],
-        "ordering": ["is_confirmed", "-report_year"],
+        "ordering": ["is_confirmed", "is_adjusted", "-report_year"],
         "change_query_keys": {"user_projects": "project_id"},
         "indexes": [
             {

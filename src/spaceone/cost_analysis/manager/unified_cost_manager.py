@@ -10,6 +10,8 @@ from spaceone.core.error import *
 from spaceone.core.manager import BaseManager
 
 from spaceone.cost_analysis.error import ERROR_INVALID_DATE_RANGE
+from spaceone.cost_analysis.manager import DataSourceAccountManager
+from spaceone.cost_analysis.manager.identity_manager import IdentityManager
 from spaceone.cost_analysis.model.unified_cost.database import UnifiedCost
 
 _LOGGER = logging.getLogger(__name__)
@@ -18,7 +20,8 @@ _LOGGER = logging.getLogger(__name__)
 class UnifiedCostManager(BaseManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.unified_cost_model = UnifiedCost()
+        self.unified_cost_model = UnifiedCost
+        self.ds_account_mgr = DataSourceAccountManager()
 
     def create_unified_cost(self, params: dict) -> UnifiedCost:
         def _rollback(vo: UnifiedCost):
@@ -68,7 +71,6 @@ class UnifiedCostManager(BaseManager):
         query["target"] = target
         query["date_field"] = "billed_month"
         query["date_field_format"] = "%Y-%m"
-        _LOGGER.debug(f"[analyze_unified_costs] query: {query}")
 
         query = self._change_filter_project_group_id(query, domain_id)
 
@@ -82,7 +84,6 @@ class UnifiedCostManager(BaseManager):
         query["target"] = target
         query["date_field"] = "billed_year"
         query["date_field_format"] = "%Y"
-        _LOGGER.debug(f"[analyze_yearly_unified_costs] query: {query}")
 
         query = self._change_filter_project_group_id(query, domain_id)
 
@@ -95,7 +96,7 @@ class UnifiedCostManager(BaseManager):
         expire=3600 * 24,
     )
     def analyze_unified_yearly_costs_with_cache(
-            self, query: dict, query_hash: str, domain_id: str
+        self, query: dict, query_hash: str, domain_id: str
     ) -> dict:
         return self.analyze_unified_costs(query, domain_id)
 
@@ -104,7 +105,7 @@ class UnifiedCostManager(BaseManager):
         expire=3600 * 24,
     )
     def analyze_unified_monthly_costs_with_cache(
-            self, query: dict, query_hash: str, domain_id: str
+        self, query: dict, query_hash: str, domain_id: str
     ) -> dict:
         return self.analyze_unified_costs(query, domain_id)
 
@@ -129,6 +130,56 @@ class UnifiedCostManager(BaseManager):
             )
 
         return response
+
+    def analyze_unified_cost_for_report(
+        self,
+        report_month: str,
+        data_source_ids: list,
+        domain_id: str,
+        workspace_ids: list,
+        project_ids: list,
+        scope: str = "WORKSPACE",
+    ) -> list:
+        currencies = ["KRW", "USD", "JPY"]
+
+        # collect enabled data_sources cost data
+        query = {
+            "group_by": ["workspace_id", "billed_year", "data_source_id"],
+            "start": report_month,
+            "end": report_month,
+            "filter": [
+                {"k": "domain_id", "v": domain_id, "o": "eq"},
+                {"k": "billed_year", "v": report_month.split("-")[0], "o": "eq"},
+                {"k": "billed_month", "v": report_month, "o": "eq"},
+                {"k": "data_source_id", "v": data_source_ids, "o": "in"},
+            ],
+        }
+
+        fields = {
+            f"cost_{currency}": {"key": f"cost.{currency}", "operator": "sum"}
+            for currency in currencies
+        }
+        query["fields"] = fields
+
+        if scope == "WORKSPACE":
+            query["filter"].append({"k": "workspace_id", "v": workspace_ids, "o": "in"})
+
+            _LOGGER.debug(f"[aggregate_monthly_cost_report] query: {query}")
+            response = self.analyze_unified_costs(query, domain_id)
+            return response.get("results", [])
+        elif scope == "PROJECT":
+            query["group_by"] = [
+                "workspace_id",
+                "project_id",
+                "billed_year",
+                "data_source_id",
+            ]
+            query["filter"].append({"k": "workspace_id", "v": workspace_ids, "o": "in"})
+            query["filter"].append({"k": "project_id", "v": project_ids, "o": "in"})
+
+            _LOGGER.debug(f"[aggregate_monthly_cost_report] query: {query}")
+            response = self.analyze_unified_costs(query, domain_id)
+            return response.get("results", [])
 
     def stat_unified_costs(self, query) -> dict:
         return self.unified_cost_model.stat(**query)
@@ -262,7 +313,7 @@ class UnifiedCostManager(BaseManager):
 
             if key == "project_group_id":
                 if self.identity_mgr is None:
-                    self.identity_mgr = self.locator.get_manager("IdentityManager")
+                    self.identity_mgr = IdentityManager()
 
                 project_groups_info = self.identity_mgr.list_project_groups(
                     {
