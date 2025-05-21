@@ -11,11 +11,8 @@ __all__ = [
     "ReportAdjustmentPolicySearchQueryRequest",
 ]
 
-SCOPE = Literal["WORKSPACE", "PROJECT", "SERVICE_ACCOUNT"]
-
 
 class CreateReportAdjustmentPolicyRequest(BaseModel):
-    scope: SCOPE
     cost_report_config_id: str
     order: Union[int, None] = None
     description: Union[None, str] = None

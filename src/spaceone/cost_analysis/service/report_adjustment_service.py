@@ -286,7 +286,7 @@ class ReportAdjustmentService(BaseService):
         Returns:
             ReportAdjustmentsResponse:
         """
-        query = params.dict() or {}
+        query = params.query or {}
         adjustment_vos, total_count = self.adjustment_mgr.list_adjustments(query)
         results = [adj.to_dict() for adj in adjustment_vos]
         return ReportAdjustmentsResponse(results=results, total_count=total_count)

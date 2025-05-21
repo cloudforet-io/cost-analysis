@@ -41,7 +41,6 @@ class ReportAdjustmentPolicyService(BaseService):
 
         Args:
             params (CreateReportAdjustmentPolicyRequest): {
-                'scope': 'str',                   # required
                 'cost_report_config_id': 'str',   # required
                 'order': 'int',
                 'description': 'str',
@@ -54,16 +53,29 @@ class ReportAdjustmentPolicyService(BaseService):
             ReportAdjustmentPolicyResponse:
         """
 
-        if params.scope == "PROJECT":
+        params_dict = params.dict()
+
+        domain_id = params_dict["domain_id"]
+        cost_report_config_id = params_dict["cost_report_config_id"]
+
+        cost_report_config_vo = self.cost_report_config_mgr.get_cost_report_config(
+            cost_report_config_id=cost_report_config_id, domain_id=domain_id
+        )
+
+        scope = cost_report_config_vo.scope
+        if scope == "PROJECT":
             policy_filter = params.policy_filter or {}
             workspace_ids = policy_filter.get("workspace_ids", [])
             project_ids = policy_filter.get("project_ids", [])
             if not workspace_ids or not project_ids:
                 raise ERROR_PROJECT_OR_WORKSPACE_REQUIRED(
-                    scope=params.scope,
+                    scope=scope,
                     workspace_ids=workspace_ids,
                     project_ids=project_ids,
                 )
+        elif scope == "SERVICE_ACCOUNT":
+            # todo : check if service account is required
+            pass
 
         self.cost_report_config_mgr.get_cost_report_config(
             params.domain_id, params.cost_report_config_id
@@ -73,23 +85,23 @@ class ReportAdjustmentPolicyService(BaseService):
             params.cost_report_config_id, params.domain_id
         )
 
-        if not params.order:
+        if not params_dict.get("order"):
             if existing_policies:
-                params.order = existing_policies[-1]["order"] + 1
+                params_dict["order"] = existing_policies[-1]["order"] + 1
             else:
-                params.order = 1
+                params_dict["order"] = 1
 
         else:
             if not existing_policies:
-                params.order = 1
+                params_dict["order"] = 1
             else:
                 max_existing_order = existing_policies[-1]["order"]
 
-                if params.order is None:
-                    params.order = max_existing_order + 1
+                if params_dict.get("order") is None:
+                    params_dict["order"] = max_existing_order + 1
 
-                if params.order > max_existing_order:
-                    params.order = max_existing_order + 1
+                if params_dict["order"] > max_existing_order:
+                    params_dict["order"] = max_existing_order + 1
                 else:
                     for policy in reversed(existing_policies):
                         if policy["order"] >= params.order:
@@ -100,7 +112,8 @@ class ReportAdjustmentPolicyService(BaseService):
                                 {"order": policy["order"]},
                             )
 
-        policy_vo = self.policy_mgr.create_policy(params.dict())
+        params_dict["scope"] = scope
+        policy_vo = self.policy_mgr.create_policy(params_dict)
         return ReportAdjustmentPolicyResponse(**policy_vo.to_dict())
 
     @transaction(
@@ -341,9 +354,9 @@ class ReportAdjustmentPolicyService(BaseService):
         Returns:
             ReportAdjustmentPoliciesResponse:
         """
-        policy_vos, total_count = self.policy_mgr.list_policies(
-            params.dict(exclude_unset=True)
-        )
+
+        query = params.query or {}
+        policy_vos, total_count = self.policy_mgr.list_policies(query)
 
         results = [policy_vo.to_dict() for policy_vo in policy_vos]
         return ReportAdjustmentPoliciesResponse(
