@@ -1,4 +1,6 @@
 import logging
+from typing import Union
+
 from spaceone.core.service import *
 from spaceone.core.service.utils import *
 
@@ -34,15 +36,15 @@ class ReportAdjustmentPolicyService(BaseService):
     @convert_model
     def create(
         self, params: CreateReportAdjustmentPolicyRequest
-    ) -> ReportAdjustmentPolicyResponse:
+    ) -> Union[ReportAdjustmentPolicyResponse, dict]:
         """Create report adjustment policy
 
         Args:
             params (CreateReportAdjustmentPolicyRequest): {
-                'name': 'str',                    # required
                 'scope': 'str',                   # required
                 'cost_report_config_id': 'str',   # required
                 'order': 'int',
+                'description': 'str',
                 'tags': 'dict',
                 'policy_filter': 'dict',
                 'domain_id': 'str'                 # injected from auth (required)
@@ -108,13 +110,13 @@ class ReportAdjustmentPolicyService(BaseService):
     @convert_model
     def update(
         self, params: UpdateReportAdjustmentPolicyRequest
-    ) -> ReportAdjustmentPolicyResponse:
+    ) -> Union[ReportAdjustmentPolicyResponse, dict]:
         """Update report adjustment policy
 
         Args:
             params (UpdateReportAdjustmentPolicyRequest): {
                 'report_adjustment_policy_id': 'str',    # required
-                'name': 'str',
+                'description': 'str',
                 'tags': 'dict',
                 'policy_filter': 'dict',
                 'domain_id': 'str'                       # injected from auth (required)
@@ -136,7 +138,7 @@ class ReportAdjustmentPolicyService(BaseService):
     @convert_model
     def change_order(
         self, params: ChangeOrderReportAdjustmentPolicyRequest
-    ) -> ReportAdjustmentPolicyResponse:
+    ) -> Union[ReportAdjustmentPolicyResponse, dict]:
         """Change order of report adjustment policy
 
         Args:
@@ -244,13 +246,59 @@ class ReportAdjustmentPolicyService(BaseService):
             )
 
     @transaction(
+        permission="cost-analysis:ReportAdjustmentPolicy.write",
+        role_types=["DOMAIN_ADMIN"],
+    )
+    @convert_model
+    def sync_currency(
+        self, params: ReportAdjustmentPolicySyncCurrencyRequest
+    ) -> Union[ReportAdjustmentPolicyResponse, dict]:
+        """
+        Args:
+            params (ReportAdjustmentPolicySyncCurrencyRequest): {
+                'report_adjustment_policy_id': 'str',    # required
+                'domain_id': 'str'                       # injected from auth (required)
+            }
+
+        Returns:
+            ReportAdjustmentPolicyResponse:
+
+        """
+
+        domain_id = params.domain_id
+        report_adj_policy_id = params.report_adjustment_policy_id
+
+        policy_vo = self.policy_mgr.get_policy(
+            policy_id=report_adj_policy_id, domain_id=domain_id
+        )
+
+        cost_report_config_id = policy_vo.cost_report_config_id
+        cost_report_config_vo = self.cost_report_config_mgr.get_cost_report_config(
+            domain_id, cost_report_config_id
+        )
+
+        adjustment_vos = self.adjustment_mgr.filter_adjustments(
+            report_adjustment_policy_id=report_adj_policy_id,
+            domain_id=domain_id,
+            cost_report_config_id=cost_report_config_id,
+        )
+
+        for adjustment_vo in adjustment_vos:
+            if cost_report_config_vo.currency != adjustment_vo.currency:
+                self.policy_mgr.update_policy_by_vo(
+                    {"currency": cost_report_config_vo.currency}, adjustment_vo
+                )
+
+        return ReportAdjustmentPolicyResponse(**policy_vo.to_dict())
+
+    @transaction(
         permission="cost-analysis:ReportAdjustmentPolicy.read",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @convert_model
     def get(
         self, params: ReportAdjustmentPolicyGetRequest
-    ) -> ReportAdjustmentPolicyResponse:
+    ) -> Union[ReportAdjustmentPolicyResponse, dict]:
         """Get report adjustment policy
 
         Args:
@@ -273,20 +321,20 @@ class ReportAdjustmentPolicyService(BaseService):
     )
     @append_query_filter(
         [
-            "name",
             "domain_id",
+            "report_adjustment_policy_id",
         ]
     )
     @convert_model
     def list(
         self, params: ReportAdjustmentPolicySearchQueryRequest
-    ) -> ReportAdjustmentPoliciesResponse:
+    ) -> Union[ReportAdjustmentPoliciesResponse, dict]:
         """List report adjustment policies
 
         Args:
             params (ReportAdjustmentPolicySearchQueryRequest): {
                 'query': 'dict',
-                'name': 'str',
+                'report_adjustment_policy_id': 'str',
                 'domain_id': 'str',
             }
 
