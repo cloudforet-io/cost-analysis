@@ -6,18 +6,19 @@ __all__ = [
     "UpdateReportAdjustmentPolicyRequest",
     "ChangeOrderReportAdjustmentPolicyRequest",
     "ReportAdjustmentPolicyDeleteRequest",
+    "ReportAdjustmentPolicySyncCurrencyRequest",
     "ReportAdjustmentPolicyGetRequest",
     "ReportAdjustmentPolicySearchQueryRequest",
 ]
 
-SCOPE = Literal["WORKSPACE", "PROJECT"]
+SCOPE = Literal["WORKSPACE", "PROJECT", "SERVICE_ACCOUNT"]
 
 
 class CreateReportAdjustmentPolicyRequest(BaseModel):
-    name: str
     scope: SCOPE
     cost_report_config_id: str
     order: Union[int, None] = None
+    description: Union[None, str] = None
     tags: Union[dict, None] = None
     policy_filter: Union[dict, None] = None
     domain_id: str
@@ -25,7 +26,7 @@ class CreateReportAdjustmentPolicyRequest(BaseModel):
 
 class UpdateReportAdjustmentPolicyRequest(BaseModel):
     report_adjustment_policy_id: str
-    name: Union[str, None] = None
+    description: Union[str, None] = None
     tags: Union[dict, None] = None
     policy_filter: Union[dict, None] = None
     domain_id: str
@@ -42,6 +43,11 @@ class ReportAdjustmentPolicyDeleteRequest(BaseModel):
     domain_id: str
 
 
+class ReportAdjustmentPolicySyncCurrencyRequest(BaseModel):
+    report_adjustment_policy_id: str
+    domain_id: str
+
+
 class ReportAdjustmentPolicyGetRequest(BaseModel):
     report_adjustment_policy_id: str
     domain_id: str
@@ -49,5 +55,5 @@ class ReportAdjustmentPolicyGetRequest(BaseModel):
 
 class ReportAdjustmentPolicySearchQueryRequest(BaseModel):
     query: dict
-    name: Union[str, None] = None
+    report_adjustment_policy_id: Union[str, None] = None
     domain_id: str
