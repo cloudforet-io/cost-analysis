@@ -1,17 +1,14 @@
 class CostReportFormatGenerator:
     def __init__(
-        self,
-        metadata: dict,
-        report_month: str,
-        scope: str,
-        cost_report_config_id: str,
-        domain_id: str,
+            self,
+            metadata: dict,
+            report_month: str,
+            scope: str,
+            cost_report_config_id: str,
+            domain_id: str,
     ):
         self.issue_month = metadata["current_month"]
         self.issue_day = metadata["issue_day"]
-        self.v_workspace_id_map = metadata["v_workspace_id_map"]
-        self.workspace_name_map = metadata["workspace_name_map"]
-        self.project_name_map = metadata["project_name_map"]
 
         self.scope = scope
         self.report_month = report_month
@@ -19,9 +16,9 @@ class CostReportFormatGenerator:
         self.domain_id = domain_id
 
     def make_cost_reports(
-        self,
-        unified_costs: list,
-        status: str,
+            self,
+            unified_costs: list,
+            status: str,
     ) -> list:
         cost_reports = [
             self._transform_cost(unified_cost, status) for unified_cost in unified_costs
@@ -30,31 +27,23 @@ class CostReportFormatGenerator:
 
     def _transform_cost(self, unified_cost: dict, status: str) -> dict:
         unified_cost = unified_cost.copy()
-        workspace_id = unified_cost["workspace_id"]
-        unified_cost["workspace_id"] = self.v_workspace_id_map.get(
-            workspace_id, workspace_id
-        )
         unified_cost["cost"] = self._extract_cost_by_currency(unified_cost)
         unified_cost["status"] = status
         unified_cost["issue_date"] = (
             f"{self.report_month}-{str(self.issue_day).zfill(2)}"
         )
         unified_cost["report_month"] = self.report_month
-        unified_cost["report_year"] = unified_cost.pop("billed_year")
-        unified_cost["workspace_name"] = self.workspace_name_map.get(
-            unified_cost["workspace_id"], "Unknown"
-        )
-        unified_cost["bank_name"] = unified_cost.pop(
-            "exchange_source", "Yahoo! Finance"
-        )
+        unified_cost["report_year"] = unified_cost.get("billed_year")
+        unified_cost["bank_name"] = unified_cost.get("exchange_source", "Yahoo! Finance")
         unified_cost["cost_report_config_id"] = self.cost_report_config_id
         unified_cost["domain_id"] = self.domain_id
 
-        if self.scope == "PROJECT":
-            project_id = unified_cost.get("project_id")
-            unified_cost["project_name"] = self.project_name_map.get(
-                project_id, "Unknown"
-            )
+        if self.scope == "WORKSPACE":
+            unified_cost["name"] = unified_cost.get("workspace_name", "Unknown")
+        elif self.scope == "PROJECT":
+            unified_cost["name"] = unified_cost.get("project_name", "Unknown")
+        elif self.scope == "SERVICE_ACCOUNT":
+            unified_cost["name"] = unified_cost.get("service_account_name", "Unknown")
 
         return unified_cost
 

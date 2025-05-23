@@ -138,18 +138,29 @@ class UnifiedCostManager(BaseManager):
         data_source_ids: list,
         domain_id: str,
         workspace_ids: list,
-        project_ids: list,
-        scope: str = "WORKSPACE",
+        scope: str,
     ) -> list:
         currencies = ["KRW", "USD", "JPY"]
 
+        default_group_by = ["workspace_id", "billed_year", "billed_month"]
+
+        if scope == "WORKSPACE":
+            default_group_by.append("workspace_name")
+        elif scope == "PROJECT":
+            default_group_by.append("project_id")
+            default_group_by.append("project_name")
+        elif scope == "SERVICE_ACCOUNT":
+            default_group_by.append("service_account_id")
+            default_group_by.append("service_account_name")
+
         # collect enabled data_sources cost data
         query = {
-            "group_by": ["workspace_id", "billed_year", "data_source_id"],
+            "group_by": default_group_by,
             "start": report_month,
             "end": report_month,
             "filter": [
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
+                {"k": "workspace_id", "v": workspace_ids, "o": "in"},
                 {"k": "billed_year", "v": report_month.split("-")[0], "o": "eq"},
                 {"k": "billed_month", "v": report_month, "o": "eq"},
                 {"k": "data_source_id", "v": data_source_ids, "o": "in"},
@@ -162,25 +173,11 @@ class UnifiedCostManager(BaseManager):
         }
         query["fields"] = fields
 
-        if scope == "WORKSPACE":
-            query["filter"].append({"k": "workspace_id", "v": workspace_ids, "o": "in"})
 
-            _LOGGER.debug(f"[aggregate_monthly_cost_report] query: {query}")
-            response = self.analyze_unified_costs(query, domain_id)
-            return response.get("results", [])
-        elif scope == "PROJECT":
-            query["group_by"] = [
-                "workspace_id",
-                "project_id",
-                "billed_year",
-                "data_source_id",
-            ]
-            query["filter"].append({"k": "workspace_id", "v": workspace_ids, "o": "in"})
-            query["filter"].append({"k": "project_id", "v": project_ids, "o": "in"})
+        _LOGGER.debug(f"[aggregate_monthly_cost_report] query: {query}")
+        response = self.analyze_unified_costs(query, domain_id)
+        return response.get("results", [])
 
-            _LOGGER.debug(f"[aggregate_monthly_cost_report] query: {query}")
-            response = self.analyze_unified_costs(query, domain_id)
-            return response.get("results", [])
 
     def stat_unified_costs(self, query) -> dict:
         return self.unified_cost_model.stat(**query)
