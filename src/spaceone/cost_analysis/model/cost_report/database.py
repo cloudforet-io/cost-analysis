@@ -5,16 +5,14 @@ from spaceone.core.model.mongo_model import MongoModel
 class CostReport(MongoModel):
     cost_report_id = StringField(max_length=40, generate_id="cost-report", unique=True)
     cost = DictField(default={})
-    status = StringField(
-        max_length=20, choices=["IN_PROGRESS", "ADJUSTING", "DONE"], required=True
-    )
+    status = StringField(max_length=20, choices=("IN_PROGRESS", "SUCCESS"))
     report_number = StringField(max_length=255)
     currency = StringField(choices=["KRW", "USD", "JPY"], default="KRW")
     currency_date = StringField(max_length=20)
     issue_date = StringField(max_length=10)
     report_year = StringField(max_length=10)
     report_month = StringField(max_length=10)
-    name = StringField(max_length=255)
+    workspace_name = StringField(max_length=255)
     project_name = StringField(max_length=255, default=None, null=True)
     bank_name = StringField(max_length=255)
     is_adjusted = BooleanField(default=False)
@@ -23,12 +21,14 @@ class CostReport(MongoModel):
     project_id = StringField(max_length=40, default=None, null=True)
     domain_id = StringField(max_length=40)
     created_at = DateTimeField(auto_now_add=True)
+    updated_at = DateTimeField(auto_now=True)
 
     meta = {
         "updatable_fields": [
             "cost",
             "status",
             "is_adjusted",
+            "updated_at",
         ],
         "minimal_fields": [
             "cost_report_id",
