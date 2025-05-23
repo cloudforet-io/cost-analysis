@@ -5,7 +5,9 @@ from spaceone.core.model.mongo_model import MongoModel
 class CostReport(MongoModel):
     cost_report_id = StringField(max_length=40, generate_id="cost-report", unique=True)
     cost = DictField(default={})
-    status = StringField(max_length=20, choices=("IN_PROGRESS", "SUCCESS"))
+    status = StringField(
+        max_length=20, choices=["IN_PROGRESS", "ADJUSTING", "DONE"], required=True
+    )
     report_number = StringField(max_length=255)
     currency = StringField(choices=["KRW", "USD", "JPY"], default="KRW")
     currency_date = StringField(max_length=20)

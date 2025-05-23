@@ -9,7 +9,7 @@ __all__ = [
     "CostReportDataStatQueryRequest",
 ]
 
-Status = Literal["IN_PROGRESS", "SUCCESS"]
+Status = Literal["IN_PROGRESS", "ADJUSTING", "DONE"]
 
 
 class CostReportSendRequest(BaseModel):
