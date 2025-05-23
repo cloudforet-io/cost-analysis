@@ -189,7 +189,7 @@ class CostReportService(BaseService):
     @append_keyword_filter(
         [
             "report_number",
-            "workspace_name",
+            "name",
             "report_year",
             "report_month",
         ]
@@ -204,7 +204,7 @@ class CostReportService(BaseService):
         query = params.query or {}
 
         if params.status is None:
-            query["filter"].append({"k": "status", "v": "SUCCESS", "o": "eq"})
+            query["filter"].append({"k": "status", "v": "DONE", "o": "eq"})
 
         cost_report_vos, total_count = self.cost_report_mgr.list_cost_reports(query)
 
