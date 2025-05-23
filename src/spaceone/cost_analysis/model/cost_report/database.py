@@ -14,7 +14,7 @@ class CostReport(MongoModel):
     issue_date = StringField(max_length=10)
     report_year = StringField(max_length=10)
     report_month = StringField(max_length=10)
-    workspace_name = StringField(max_length=255)
+    name = StringField(max_length=255)
     project_name = StringField(max_length=255, default=None, null=True)
     bank_name = StringField(max_length=255)
     is_adjusted = BooleanField(default=False)
