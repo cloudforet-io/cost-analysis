@@ -204,7 +204,7 @@ class CostReportService(BaseService):
         query = params.query or {}
 
         if params.status is None:
-            query["filter"].append({"k": "status", "v": "SUCCESS", "o": "eq"})
+            query["filter"].append({"k": "status", "v": "DONE", "o": "eq"})
 
         cost_report_vos, total_count = self.cost_report_mgr.list_cost_reports(query)
 
@@ -258,13 +258,15 @@ class CostReportService(BaseService):
 
         metadata = self._collect_cost_report_metadata(config_vo, current_date)
 
-        create_adjusting_report, report_month = self._get_create_adjusting_report_and_report_month(
-            metadata["issue_day"],
-            metadata["is_last_day"],
-            current_date,
-            adjustment_options,
-            domain_id,
-            cost_report_config_id
+        create_adjusting_report, report_month = (
+            self._get_create_adjusting_report_and_report_month(
+                metadata["issue_day"],
+                metadata["is_last_day"],
+                current_date,
+                adjustment_options,
+                domain_id,
+                cost_report_config_id,
+            )
         )
 
         metadata["report_month"] = report_month
@@ -404,7 +406,7 @@ class CostReportService(BaseService):
         )
 
     def get_email_verified_workspace_owner_users(
-            self, domain_id: str, workspace_id: str, role_types: list = None
+        self, domain_id: str, workspace_id: str, role_types: list = None
     ) -> list:
         if "WORKSPACE_OWNER" not in role_types:
             return []
@@ -430,10 +432,10 @@ class CostReportService(BaseService):
         self, domain_id: str, issue_date: str = None
     ) -> int:
         return (
-                self.cost_report_mgr.filter_cost_reports(
-                    domain_id=domain_id, issue_date=issue_date
-                ).count()
-                + 1
+            self.cost_report_mgr.filter_cost_reports(
+                domain_id=domain_id, issue_date=issue_date
+            ).count()
+            + 1
         )
 
     def _get_workspace_name_map(self, domain_id: str) -> list:
@@ -494,7 +496,7 @@ class CostReportService(BaseService):
         current_date: datetime,
         adjustment_options: dict,
         domain_id: str,
-        cost_report_config_id: str
+        cost_report_config_id: str,
     ) -> Tuple[bool, str]:
         adjustment_state = adjustment_options.get("enabled", False)
         adjustment_period = adjustment_options.get("period", 0)
@@ -528,8 +530,9 @@ class CostReportService(BaseService):
             create_adjusting_report = True
             report_month = (current_date - relativedelta(months=1)).strftime("%Y-%m")
 
-        if (create_adjusting_report and
-            self._check_done_cost_report_exist(domain_id, cost_report_config_id,report_month)):
+        if create_adjusting_report and self._check_done_cost_report_exist(
+            domain_id, cost_report_config_id, report_month
+        ):
             create_adjusting_report = False
 
         if current_date > done_date:
@@ -639,7 +642,6 @@ class CostReportService(BaseService):
             cost_report_vo = self.cost_report_mgr.create_cost_report(report)
             cost_report_data_svc.create_cost_report_data(cost_report_vo)
 
-
             if cost_report_vo.status == "ADJUSTING":
                 if self.is_within_adjustment_period:
                     _LOGGER.info(
@@ -671,7 +673,7 @@ class CostReportService(BaseService):
 
             if self.is_done_report:
                 cost_report_vo = self.cost_report_mgr.update_cost_report_by_vo(
-                    {"status":"DONE"}, cost_report_vo
+                    {"status": "DONE"}, cost_report_vo
                 )
                 self.send_cost_report(cost_report_vo)
 
