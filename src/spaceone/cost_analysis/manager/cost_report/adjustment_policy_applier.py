@@ -1,7 +1,6 @@
 import logging
 
-from datetime import datetime
-from decimal import Decimal
+from spaceone.cost_analysis.model.report_adjustment_policy.database import ReportAdjustmentPolicy
 from spaceone.cost_analysis.manager import (
     ReportAdjustmentManager,
     ReportAdjustmentPolicyManager,
@@ -9,6 +8,7 @@ from spaceone.cost_analysis.manager import (
     UnifiedCostManager,
 )
 from spaceone.cost_analysis.manager.currency_manager import CurrencyManager
+from spaceone.cost_analysis.model import CostReport
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ CURRENCIES = [
 
 
 class AdjustmentPolicyApplier:
-    def __init__(self, cost_report_vo, data_source_ids):
+    def __init__(self, cost_report_vo: CostReport, data_source_ids):
         self.policy_mgr = ReportAdjustmentPolicyManager()
         self.adjustment_mgr = ReportAdjustmentManager()
         self.cost_report_data_mgr = CostReportDataManager()
@@ -54,6 +54,7 @@ class AdjustmentPolicyApplier:
                 continue
 
             _LOGGER.debug(f"Applying policy: {policy['name']}")
+
             report_adjustment_policy_id = policy["report_adjustment_policy_id"]
             adjustments = self.adjustment_mgr.list_sorted_adjustments_by_order(
                 report_adjustment_policy_id, self.domain_id
@@ -62,107 +63,42 @@ class AdjustmentPolicyApplier:
             if not adjustments:
                 continue
 
-            if all(adj["method"] == "FIXED" for adj in adjustments):
-                self._create_cost_report_data_for_fixed_only(
-                    adjustments, report_adjustment_policy_id
-                )
-            else:
-                self._create_cost_report_data_for_all_methods(
-                    adjustments, report_adjustment_policy_id
-                )
+            self._create_cost_report_data_for_all_methods(
+                adjustments, report_adjustment_policy_id
+            )
 
             self.is_applied = True
 
-    def _create_cost_report_data_for_fixed_only(
-        self, adjustments: list, report_adjustment_policy_id: str
-    ) -> None:
-        currency_map, _ = self.currency_mgr.get_currency_map_date(
-            currency_end_date=self.currency_date,
-        )
-
-        for adjustment in adjustments:
-            adjusted_cost = {}
-            value = adjustment.get("value")
-            provider = adjustment.get("provider")
-            product = adjustment.get("name")
-            currency = adjustment.get("currency")
-            fixed_value = self.unified_cost_mgr.get_exchange_currency(
-                value, currency, currency_map
-            )
-            for cur, val in fixed_value.items():
-                adjusted_cost[cur] = float(adjusted_cost.get(cur, 0)) + float(val)
-
-            cost_report_data = self._build_cost_report_data_dict(
-                adjusted_cost,
-                provider,
-                product,
-                report_adjustment_policy_id,
-            )
-
-            self.cost_report_data_mgr.create_cost_report_data(cost_report_data)
-
     def _create_cost_report_data_for_all_methods(
         self, adjustments: list, report_adjustment_policy_id: str
-    ) -> None:
+    ):
         currency_map, _ = self.currency_mgr.get_currency_map_date(
-            currency_end_date=datetime.utcnow()
+            currency_end_date=self.currency_date
         )
-        total_adjusted_cost = {}
-        unified_cost_list = None
 
-        for adjustment in adjustments:
-            value = adjustment.get("value")
-            method = adjustment.get("method")
-            provider = adjustment.get("provider")
-            product = adjustment.get("name")
-            currency = adjustment.get("currency")
+        adjustment_policy_vo = self.policy_mgr.get_policy(policy_id=report_adjustment_policy_id, domain_id=self.domain_id)
 
-            # Not implemented
-            filters = adjustment.get("adjustment_filter")
+        for adjustment_info in adjustments:
+            query_filter = self._make_query_filter_with_adjustment(adjustment_policy_vo, adjustment_info)
+            value = adjustment_info.get("value")
+            unit = adjustment_info.get("unit")
+            currency = adjustment_info.get("currency")
+            provider = adjustment_info.get("provider")
+            product = adjustment_info.get("name")
 
-            if method == "FIXED":
-                adjusted_cost = self._convert_fixed_value_to_adjusted_cost(
-                    value, currency, currency_map, total_adjusted_cost
-                )
+            adjusted_cost = self._calculate_percentage_adjustment_cost(query_filter, unit, value, currency)
+            if adjusted_cost:
                 cost_report_data = self._build_cost_report_data_dict(
                     adjusted_cost,
                     provider,
                     product,
                     report_adjustment_policy_id,
                 )
+
                 self.cost_report_data_mgr.create_cost_report_data(cost_report_data)
 
-            elif method == "PERCENTAGE":
-                if unified_cost_list is None:
-                    project_ids = None
-                    if not self.project_id:
-                        project_ids = [self.project_id]
-                    unified_cost_list = (
-                        self.unified_cost_mgr.analyze_unified_cost_for_report(
-                            self.report_month,
-                            self.data_source_ids,
-                            self.domain_id,
-                            [self.workspace_id],
-                            project_ids,
-                            scope="WORKSPACE",
-                        )
-                    )
-                for unified_cost in unified_cost_list:
-                    adjusted_cost = self._calculate_percentage_adjustment_cost(
-                        unified_cost, value, total_adjusted_cost
-                    )
-                    data_source_id = unified_cost["data_source_id"]
-                    cost_report_data = self._build_cost_report_data_dict(
-                        adjusted_cost,
-                        provider,
-                        product,
-                        report_adjustment_policy_id,
-                        data_source_id,
-                    )
-                    self.cost_report_data_mgr.create_cost_report_data(cost_report_data)
-
     def _convert_fixed_value_to_adjusted_cost(
-        self, value, currency, currency_map, total_adjusted_cost
+        self, value, currency, currency_map
     ):
         adjusted_cost = {}
         fixed_value = self.unified_cost_mgr.get_exchange_currency(
@@ -170,22 +106,30 @@ class AdjustmentPolicyApplier:
         )
         for cur, val in fixed_value.items():
             adjusted_cost[cur] = adjusted_cost.get(cur, 0) + float(val)
-            total_adjusted_cost[cur] = total_adjusted_cost.get(cur, 0) + float(val)
         return adjusted_cost
 
-    def _calculate_percentage_adjustment_cost(
-        self, unified_cost, percentage, total_adjusted_cost
-    ):
-        adjusted_cost = self._extract_cost_by_currency(
-            {f"cost_{cur}": unified_cost.get(f"cost_{cur}", 0) for cur in CURRENCIES}
-        )
 
-        for cur in CURRENCIES:
-            adjusted_cost[cur] += total_adjusted_cost.get(cur, 0)
-            adjusted_cost[cur] = adjusted_cost[cur] * (percentage / 100)
-            total_adjusted_cost[cur] = (
-                total_adjusted_cost.get(cur, 0) + adjusted_cost[cur]
+    def _calculate_percentage_adjustment_cost(
+           self, query_filter:dict, unit:str, value:float, currency:str
+    ):
+        adjusted_cost = {}
+
+        if unit == "PERCENT":
+            adjusted_cost = self.cost_report_data_mgr.analyze_cost_reports_data(query_filter)
+
+            for cur in CURRENCIES:
+                adjusted_cost[cur] = adjusted_cost[cur] * (value / 100)
+        elif unit == "FIXED":
+            currency_map, _ = self.currency_mgr.get_currency_map_date(
+                currency_end_date=self.currency_date,
             )
+            fixed_value = self.unified_cost_mgr.get_exchange_currency(
+                value, currency, currency_map
+            )
+
+            for cur, val in fixed_value.items():
+                adjusted_cost[cur] = adjusted_cost.get(cur, 0) + float(val)
+
         return adjusted_cost
 
     def _build_cost_report_data_dict(
@@ -254,3 +198,80 @@ class AdjustmentPolicyApplier:
             return self.workspace_id in workspace_ids
 
         return False
+
+    def _make_query_filter_with_adjustment(self, adjustment_policy_vo: ReportAdjustmentPolicy, adjustment_info:dict) -> dict:
+        provider = adjustment_info.get("provider")
+        product = adjustment_info.get("name")
+
+        query_filter = {
+            "filter": [
+                {
+                    "k": "domain_id",
+                    "v": self.domain_id,
+                    "o": "eq"
+                },
+                {
+                    "k": "cost_report_config_id",
+                    "v": self.config_id,
+                    "o": "eq"
+                },
+                {
+                    "k": "report_month",
+                    "v": self.report_month,
+                    "o": "eq"
+                },
+                {
+                    "k": "adjustment_policy_id",
+                    "v": adjustment_info["adjustment_policy_id"],
+                    "o": "not"
+                }
+            ]
+        }
+
+       # step 1 apply adjustment policy filter
+        if policy_filter := adjustment_policy_vo.policy_filter:
+            if adjustment_policy_vo.scope == 'WORKSPACE':
+                workspace_ids = policy_filter.get("workspace_ids", [])
+                if workspace_ids:
+                    query_filter["filter"].append(
+                        {
+                            "k": "workspace_id",
+                            "v": workspace_ids,
+                            "o": "in"
+                        }
+                    )
+
+            elif adjustment_policy_vo.scope == 'PROJECT':
+                project_ids = policy_filter.get("project_ids", [])
+                if project_ids:
+                    query_filter["filter"].append(
+                        {
+                            "k": "project_id",
+                            "v": project_ids,
+                            "o": "in"
+                        }
+                    )
+
+        # step2 apply adjustment filter
+        if adj_filter := adjustment_info.get("adjustment_filter",[]):
+            query_filter["filter"].extend(adj_filter)
+
+        if provider:
+            query_filter["filter"].append(
+                {
+                    "k": "provider",
+                    "v": provider,
+                    "o": "eq"
+                }
+            )
+        if product:
+            query_filter["filter"].append(
+                {
+                    "k": "product",
+                    "v": product,
+                    "o": "eq"
+                }
+            )
+
+        return query_filter
+
