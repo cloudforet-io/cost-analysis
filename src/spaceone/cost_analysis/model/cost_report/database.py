@@ -39,9 +39,8 @@ class CostReport(MongoModel):
             "report_number",
             "issue_date",
             "is_adjusted",
-            "workspace_name",
+            "name",
             "workspace_id",
-            "project_name",
             "domain_id",
         ],
         "ordering": [

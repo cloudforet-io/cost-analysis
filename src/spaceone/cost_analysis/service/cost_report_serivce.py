@@ -189,7 +189,7 @@ class CostReportService(BaseService):
     @append_keyword_filter(
         [
             "report_number",
-            "workspace_name",
+            "name",
             "report_year",
             "report_month",
         ]
@@ -236,7 +236,7 @@ class CostReportService(BaseService):
     @append_keyword_filter(
         [
             "report_number",
-            "workspace_name",
+            "name",
         ]
     )
     @convert_model
