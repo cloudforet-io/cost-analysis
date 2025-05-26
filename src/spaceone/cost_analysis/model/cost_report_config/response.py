@@ -1,16 +1,15 @@
 from datetime import datetime
-from typing import Union, List, Literal
+from typing import Union, List
 from pydantic import BaseModel
 
 from spaceone.core import utils
+
+from spaceone.cost_analysis.model.cost_report_config.request import State, Scope
 
 __all__ = [
     "CostReportConfigResponse",
     "CostReportConfigsResponse",
 ]
-
-STATE = Literal["ENABLED", "DISABLED", "DELETED"]
-SCOPE = Literal["WORKSPACE", "PROJECT"]
 
 
 class AdjustmentOptions(BaseModel):
@@ -20,8 +19,8 @@ class AdjustmentOptions(BaseModel):
 
 class CostReportConfigResponse(BaseModel):
     cost_report_config_id: Union[str, None] = None
-    state: Union[STATE, None] = None
-    scope: Union[SCOPE, None] = None
+    state: Union[State, None] = None
+    scope: Union[Scope, None] = None
     issue_day: Union[int, None] = None
     is_last_day: Union[bool, None] = None
     adjustment_options: Union[AdjustmentOptions, None] = None

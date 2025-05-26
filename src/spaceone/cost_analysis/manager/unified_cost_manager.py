@@ -140,9 +140,16 @@ class UnifiedCostManager(BaseManager):
         workspace_ids: list,
         scope: str,
     ) -> list:
-        currencies = ["KRW", "USD", "JPY"]
+        currencies = config.get_global(
+            "SUPPORTED_CURRENCIES", default=["USD", "KRW", "JPY"]
+        )
 
-        default_group_by = ["workspace_id", "billed_year", "billed_month"]
+        default_group_by = [
+            "workspace_id",
+            "billed_year",
+            "billed_month",
+            "exchange_date",
+        ]
 
         if scope == "WORKSPACE":
             default_group_by.append("workspace_name")
@@ -173,11 +180,9 @@ class UnifiedCostManager(BaseManager):
         }
         query["fields"] = fields
 
-
         _LOGGER.debug(f"[aggregate_monthly_cost_report] query: {query}")
         response = self.analyze_unified_costs(query, domain_id)
         return response.get("results", [])
-
 
     def stat_unified_costs(self, query) -> dict:
         return self.unified_cost_model.stat(**query)
