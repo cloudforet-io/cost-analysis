@@ -18,10 +18,11 @@ class CostReportResponse(BaseModel):
     issue_date: Union[str, None] = None
     report_year: Union[str, None] = None
     report_month: Union[str, None] = None
-    workspace_name: Union[str, None] = None
+    name: Union[str, None] = None
     bank_name: Union[str, None] = None
     is_adjusted = bool
     cost_report_config_id: Union[str, None] = None
+    service_account_id: Union[str, None] = None
     project_id: Union[str, None] = None
     workspace_id: Union[str, None] = None
     domain_id: Union[str, None] = None
