@@ -270,6 +270,7 @@ class CostReportService(BaseService):
         )
 
         metadata["report_month"] = report_month
+        metadata["currency"] = config_vo.currency
 
         issue_month, report_issue_day, issue_date = self._prepare_report_metadata(
             metadata, report_month
@@ -520,7 +521,7 @@ class CostReportService(BaseService):
 
         create_adjusting_report = False
 
-        if retry_start_date < done_date < current_date:
+        if retry_start_date < done_date <= current_date:
             create_adjusting_report = True
             if adjustment_state and adjustment_period > 0:
                 self.is_within_adjustment_period = True
@@ -535,7 +536,7 @@ class CostReportService(BaseService):
         ):
             create_adjusting_report = False
 
-        if current_date > done_date:
+        if current_date >= done_date:
             self.is_done_report = True
 
         if adjustment_state and adjustment_period > 0:
@@ -636,7 +637,6 @@ class CostReportService(BaseService):
             report["report_number"] = self.generate_report_number(
                 report_month, report_issue_day, idx
             )
-            report["currency_date"] = report.pop("exchange_date", None)
             cost_report_config_id = report["cost_report_config_id"]
 
             cost_report_vo = self.cost_report_mgr.create_cost_report(report)
@@ -655,12 +655,8 @@ class CostReportService(BaseService):
 
                     if adjustment_applier.is_applied:
                         adjustment_applier.apply_policies()
-                        adjusted_cost = self.cost_report_data_mgr.get_monthly_total_cost_for_adjustments(
-                            cost_report_vo.cost_report_id,
-                            report_month,
-                            cost_report_vo.domain_id,
-                            cost_report_vo.workspace_id,
-                            cost_report_vo.project_id,
+                        adjusted_cost = self._get_total_cost_applied_adjustment(
+                            cost_report_vo
                         )
 
                         self.cost_report_mgr.update_cost_report_by_vo(
@@ -672,9 +668,7 @@ class CostReportService(BaseService):
                         )
 
             if self.is_done_report:
-                cost_report_vo = self.cost_report_mgr.update_cost_report_by_vo(
-                    {"status": "DONE"}, cost_report_vo
-                )
+                cost_report_vo = self._update_cost_report_done_status(cost_report_vo)
                 self.send_cost_report(cost_report_vo)
 
         self._delete_old_cost_reports(
@@ -754,3 +748,70 @@ class CostReportService(BaseService):
             project_name_map[project["project_id"]] = project["name"]
             project_ids.append(project["project_id"])
         return project_name_map, project_ids
+
+    def _get_total_cost_applied_adjustment(self, cost_report_vo: CostReport) -> dict:
+        cost_info = {}
+
+        domain_id = cost_report_vo.domain_id
+        workspace_id = cost_report_vo.workspace_id
+        cost_report_id = cost_report_vo.cost_report_id
+        report_month = cost_report_vo.report_month
+
+        currencies = config.get_global("SUPPORTED_CURRENCIES", ["USD", "KRW", "JPY"])
+
+        query = {
+            "start": report_month,
+            "end": report_month,
+            "filter": [
+                {"k": "cost_report_id", "v": cost_report_id, "o": "eq"},
+                {"k": "domain_id", "v": domain_id, "o": "eq"},
+                {"k": "workspace_id", "v": workspace_id, "o": "eq"},
+                {"k": "report_year", "v": report_month.split("-")[0], "o": "eq"},
+                {"k": "report_month", "v": report_month, "o": "eq"},
+            ],
+        }
+
+        if project_id := cost_report_vo.project_id:
+            query["filter"].append({"k": "project_id", "v": project_id, "o": "eq"})
+
+        if service_account_id := cost_report_vo.service_account_id:
+            query["filter"].append(
+                {"k": "service_account_id", "v": service_account_id, "o": "eq"}
+            )
+
+        fields = {
+            f"cost_{currency}": {"key": f"cost.{currency}", "operator": "sum"}
+            for currency in currencies
+        }
+        query["fields"] = fields
+
+        _LOGGER.debug(f"[analyze_cost_reports_data] query: {query}")
+        response = self.cost_report_data_mgr.analyze_cost_reports_data(query)
+        results = response.get("results", [])
+
+        for key, value in results[0].items():
+            if key.startswith("cost_"):
+                currency = key.replace("cost_", "")
+                cost_info[currency] = value or 0.0
+        return cost_info
+
+    def _update_cost_report_done_status(self, cost_report_vo: CostReport) -> CostReport:
+        domain_id = cost_report_vo.domain_id
+        report_month = cost_report_vo.report_month
+
+        cost_report_vo = self.cost_report_mgr.update_cost_report_by_vo(
+            {"status": "DONE"}, cost_report_vo
+        )
+
+        adjusted_cost_data_vos = self.cost_report_data_mgr.filter_cost_reports_data(
+            domain_id=domain_id,
+            cost_report_id=cost_report_vo.cost_report_id,
+            report_month=report_month,
+            is_confirmed=False,
+        )
+        for adjusted_cost_data_vo in adjusted_cost_data_vos:
+            self.cost_report_data_mgr.update_cost_report_data_by_vo(
+                {"is_confirmed": True}, adjusted_cost_data_vo
+            )
+
+        return cost_report_vo

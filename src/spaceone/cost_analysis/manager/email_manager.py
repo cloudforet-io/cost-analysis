@@ -58,7 +58,7 @@ class EmailManager(BaseManager):
         email_contents = template.render(
             user_name=user_id,
             report_number=cost_report_vo.report_number,
-            workspace_name=cost_report_vo.workspace_name,
+            name=cost_report_vo.name,
             report_date=cost_report_vo.issue_date,
             report_period=self.get_date_range_of_month(cost_report_vo.report_month),
             download_link=cost_report_link,
