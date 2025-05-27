@@ -31,7 +31,7 @@ class CostReportFormatGenerator:
         tr_unified_cost["cost"] = self._extract_cost_by_currency(tr_unified_cost)
         tr_unified_cost["status"] = status
         tr_unified_cost["issue_date"] = (
-            f"{self.report_month}-{str(self.issue_day).zfill(2)}"
+            f"{self.issue_month}-{str(self.issue_day).zfill(2)}"
         )
         tr_unified_cost["report_month"] = self.report_month
         tr_unified_cost["report_year"] = tr_unified_cost.get("billed_year")

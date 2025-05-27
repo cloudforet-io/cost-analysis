@@ -521,26 +521,30 @@ class CostReportService(BaseService):
 
         create_adjusting_report = False
 
+        # check the retry process
         if retry_start_date < done_date <= current_date:
             create_adjusting_report = True
             if adjustment_state and adjustment_period > 0:
                 self.is_within_adjustment_period = True
             self.is_done_report = True
 
-        if issue_day == current_day:
-            create_adjusting_report = True
-            report_month = (current_date - relativedelta(months=1)).strftime("%Y-%m")
-
         if create_adjusting_report and self._check_done_cost_report_exist(
             domain_id, cost_report_config_id, report_month
         ):
             create_adjusting_report = False
 
-        if current_date >= done_date:
-            self.is_done_report = True
+        # check the normal process
+        if issue_date == current_date:
+            create_adjusting_report = True
+            report_month = (current_date - relativedelta(months=1)).strftime("%Y-%m")
 
-        if adjustment_state and adjustment_period > 0:
-            if report_date <= done_date:
+        if current_date == done_date:
+            self.is_done_report = True
+            self.is_within_adjustment_period = True
+            create_adjusting_report = True
+
+        if issue_date <= current_date <= done_date:
+            if adjustment_state and adjustment_period > 0:
                 self.is_within_adjustment_period = True
 
         return create_adjusting_report, report_month
