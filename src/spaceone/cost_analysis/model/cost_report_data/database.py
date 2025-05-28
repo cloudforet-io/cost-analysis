@@ -29,7 +29,9 @@ class CostReportData(MongoModel):
     created_at = DateTimeField(auto_now_add=True)
 
     meta = {
-        "updatable_fields": [],
+        "updatable_fields": [
+            "is_confirmed",
+        ],
         "minimal_fields": [
             "cost_report_config_id",
             "cost_report_data_id",

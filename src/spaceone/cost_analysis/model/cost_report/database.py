@@ -5,28 +5,32 @@ from spaceone.core.model.mongo_model import MongoModel
 class CostReport(MongoModel):
     cost_report_id = StringField(max_length=40, generate_id="cost-report", unique=True)
     cost = DictField(default={})
-    status = StringField(max_length=20, choices=("IN_PROGRESS", "SUCCESS"))
+    status = StringField(
+        max_length=20, choices=["IN_PROGRESS", "ADJUSTING", "DONE"], required=True
+    )
     report_number = StringField(max_length=255)
-    currency = StringField(choices=["KRW", "USD", "JPY"], default="KRW")
+    currency = StringField(choices=["KRW", "USD", "JPY"], required=True)
     currency_date = StringField(max_length=20)
     issue_date = StringField(max_length=10)
     report_year = StringField(max_length=10)
     report_month = StringField(max_length=10)
-    workspace_name = StringField(max_length=255)
-    project_name = StringField(max_length=255, default=None, null=True)
+    name = StringField(max_length=255)
     bank_name = StringField(max_length=255)
     is_adjusted = BooleanField(default=False)
     cost_report_config_id = StringField(max_length=40)
-    workspace_id = StringField(max_length=40)
+    service_account_id = StringField(max_length=40, default=None, null=True)
     project_id = StringField(max_length=40, default=None, null=True)
+    workspace_id = StringField(max_length=40)
     domain_id = StringField(max_length=40)
     created_at = DateTimeField(auto_now_add=True)
+    updated_at = DateTimeField(auto_now=True)
 
     meta = {
         "updatable_fields": [
             "cost",
             "status",
             "is_adjusted",
+            "updated_at",
         ],
         "minimal_fields": [
             "cost_report_id",
@@ -35,9 +39,8 @@ class CostReport(MongoModel):
             "report_number",
             "issue_date",
             "is_adjusted",
-            "workspace_name",
+            "name",
             "workspace_id",
-            "project_name",
             "domain_id",
         ],
         "ordering": [

@@ -6,7 +6,7 @@ from spaceone.core.model.mongo_model import MongoModel
 class ReportAdjustment(MongoModel):
     report_adjustment_id = StringField(max_length=40, generate_id="ra", unique=True)
     name = StringField(max_length=255, required=True)
-    method = StringField(max_length=20, choices=("FIXED", "PERCENTAGE"), required=True)
+    unit = StringField(max_length=20, choices=["FIXED", "PERCENT"], required=True)
     value = FloatField(required=True)
     description = StringField(default="")
     provider = StringField(max_length=20, required=True)
@@ -22,7 +22,7 @@ class ReportAdjustment(MongoModel):
     meta = {
         "updatable_fields": [
             "name",
-            "method",
+            "unit",
             "value",
             "description",
             "provider",
@@ -34,7 +34,7 @@ class ReportAdjustment(MongoModel):
         "minimal_fields": [
             "report_adjustment_id",
             "name",
-            "method",
+            "unit",
             "order",
             "value",
             "adjustment_filter",

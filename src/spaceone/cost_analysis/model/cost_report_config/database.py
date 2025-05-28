@@ -7,18 +7,20 @@ from spaceone.core.model.mongo_model import MongoModel
 class CostReportConfig(MongoModel):
     cost_report_config_id = StringField(max_length=60, generate_id="crc", unique=True)
     state = StringField(
-        max_length=20, default="ENABLED", choices=("ENABLED", "DISABLED", "DELETED")
+        max_length=20, default="ENABLED", choices=["ENABLED", "DISABLED", "DELETED"]
     )
     scope = StringField(
-        max_length=20, default="WORKSPACE", choices=("WORKSPACE", "PROJECT")
+        max_length=20,
+        choices=["WORKSPACE", "PROJECT", "SERVICE_ACCOUNT"],
+        required=True,
     )
     issue_day = IntField(default=10, min_value=1, max_value=31)
     is_last_day = BooleanField(default=False)
     adjustment_options = DictField(default={"enabled": False, "period": 0})
-    currency = StringField(max_length=20, default="KRW")
+    currency = StringField(max_length=20, required=True)
     recipients = DictField(default={})
     data_source_filter = DictField(default={})
-    language = StringField(max_length=7, default="ko")
+    language = StringField(max_length=7, required=True)
     domain_id = StringField(max_length=40)
     created_at = DateTimeField(auto_now_add=True)
     updated_at = DateTimeField(auto_now=True)
@@ -41,6 +43,7 @@ class CostReportConfig(MongoModel):
         "minimal_fields": [
             "cost_report_config_id",
             "state",
+            "scope",
             "issue_day",
             "adjustment_options",
             "created_at",

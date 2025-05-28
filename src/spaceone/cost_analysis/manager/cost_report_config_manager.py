@@ -22,6 +22,9 @@ class CostReportConfigManager(BaseManager):
             )
             vo.delete()
 
+        if params.get("language"):
+            params["language"] = "ko"
+
         cost_report_config_vo = self.cost_report_config_model.create(params)
         self.transaction.add_rollback(_rollback, cost_report_config_vo)
 

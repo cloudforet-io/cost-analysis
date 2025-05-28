@@ -9,7 +9,7 @@ __all__ = [
     "CostReportDataStatQueryRequest",
 ]
 
-Status = Literal["IN_PROGRESS", "SUCCESS"]
+Status = Literal["IN_PROGRESS", "ADJUSTING", "DONE"]
 
 
 class CostReportSendRequest(BaseModel):
@@ -36,7 +36,7 @@ class CostReportSearchQueryRequest(BaseModel):
     cost_report_config_id: Union[str, None] = None
     status: Union[Status, None] = None
     issue_date: Union[str, None] = None
-    workspace_name: Union[str, None] = None
+    name: Union[str, None] = None
     workspace_id: Union[str, None] = None
     domain_id: str
 

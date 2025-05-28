@@ -1,4 +1,6 @@
 import logging
+from typing import Union
+
 from spaceone.core.service import *
 from spaceone.core.service.utils import *
 
@@ -34,15 +36,14 @@ class ReportAdjustmentPolicyService(BaseService):
     @convert_model
     def create(
         self, params: CreateReportAdjustmentPolicyRequest
-    ) -> ReportAdjustmentPolicyResponse:
+    ) -> Union[ReportAdjustmentPolicyResponse, dict]:
         """Create report adjustment policy
 
         Args:
             params (CreateReportAdjustmentPolicyRequest): {
-                'name': 'str',                    # required
-                'scope': 'str',                   # required
                 'cost_report_config_id': 'str',   # required
                 'order': 'int',
+                'description': 'str',
                 'tags': 'dict',
                 'policy_filter': 'dict',
                 'domain_id': 'str'                 # injected from auth (required)
@@ -52,16 +53,29 @@ class ReportAdjustmentPolicyService(BaseService):
             ReportAdjustmentPolicyResponse:
         """
 
-        if params.scope == "PROJECT":
+        params_dict = params.dict()
+
+        domain_id = params_dict["domain_id"]
+        cost_report_config_id = params_dict["cost_report_config_id"]
+
+        cost_report_config_vo = self.cost_report_config_mgr.get_cost_report_config(
+            cost_report_config_id=cost_report_config_id, domain_id=domain_id
+        )
+
+        scope = cost_report_config_vo.scope
+        if scope == "PROJECT":
             policy_filter = params.policy_filter or {}
             workspace_ids = policy_filter.get("workspace_ids", [])
             project_ids = policy_filter.get("project_ids", [])
             if not workspace_ids or not project_ids:
                 raise ERROR_PROJECT_OR_WORKSPACE_REQUIRED(
-                    scope=params.scope,
+                    scope=scope,
                     workspace_ids=workspace_ids,
                     project_ids=project_ids,
                 )
+        elif scope == "SERVICE_ACCOUNT":
+            # todo : check if service account is required
+            pass
 
         self.cost_report_config_mgr.get_cost_report_config(
             params.domain_id, params.cost_report_config_id
@@ -71,23 +85,23 @@ class ReportAdjustmentPolicyService(BaseService):
             params.cost_report_config_id, params.domain_id
         )
 
-        if not params.order:
+        if not params_dict.get("order"):
             if existing_policies:
-                params.order = existing_policies[-1]["order"] + 1
+                params_dict["order"] = existing_policies[-1]["order"] + 1
             else:
-                params.order = 1
+                params_dict["order"] = 1
 
         else:
             if not existing_policies:
-                params.order = 1
+                params_dict["order"] = 1
             else:
                 max_existing_order = existing_policies[-1]["order"]
 
-                if params.order is None:
-                    params.order = max_existing_order + 1
+                if params_dict.get("order") is None:
+                    params_dict["order"] = max_existing_order + 1
 
-                if params.order > max_existing_order:
-                    params.order = max_existing_order + 1
+                if params_dict["order"] > max_existing_order:
+                    params_dict["order"] = max_existing_order + 1
                 else:
                     for policy in reversed(existing_policies):
                         if policy["order"] >= params.order:
@@ -98,7 +112,8 @@ class ReportAdjustmentPolicyService(BaseService):
                                 {"order": policy["order"]},
                             )
 
-        policy_vo = self.policy_mgr.create_policy(params.dict())
+        params_dict["scope"] = scope
+        policy_vo = self.policy_mgr.create_policy(params_dict)
         return ReportAdjustmentPolicyResponse(**policy_vo.to_dict())
 
     @transaction(
@@ -108,13 +123,13 @@ class ReportAdjustmentPolicyService(BaseService):
     @convert_model
     def update(
         self, params: UpdateReportAdjustmentPolicyRequest
-    ) -> ReportAdjustmentPolicyResponse:
+    ) -> Union[ReportAdjustmentPolicyResponse, dict]:
         """Update report adjustment policy
 
         Args:
             params (UpdateReportAdjustmentPolicyRequest): {
                 'report_adjustment_policy_id': 'str',    # required
-                'name': 'str',
+                'description': 'str',
                 'tags': 'dict',
                 'policy_filter': 'dict',
                 'domain_id': 'str'                       # injected from auth (required)
@@ -136,7 +151,7 @@ class ReportAdjustmentPolicyService(BaseService):
     @convert_model
     def change_order(
         self, params: ChangeOrderReportAdjustmentPolicyRequest
-    ) -> ReportAdjustmentPolicyResponse:
+    ) -> Union[ReportAdjustmentPolicyResponse, dict]:
         """Change order of report adjustment policy
 
         Args:
@@ -244,13 +259,59 @@ class ReportAdjustmentPolicyService(BaseService):
             )
 
     @transaction(
+        permission="cost-analysis:ReportAdjustmentPolicy.write",
+        role_types=["DOMAIN_ADMIN"],
+    )
+    @convert_model
+    def sync_currency(
+        self, params: ReportAdjustmentPolicySyncCurrencyRequest
+    ) -> Union[ReportAdjustmentPolicyResponse, dict]:
+        """
+        Args:
+            params (ReportAdjustmentPolicySyncCurrencyRequest): {
+                'report_adjustment_policy_id': 'str',    # required
+                'domain_id': 'str'                       # injected from auth (required)
+            }
+
+        Returns:
+            ReportAdjustmentPolicyResponse:
+
+        """
+
+        domain_id = params.domain_id
+        report_adj_policy_id = params.report_adjustment_policy_id
+
+        policy_vo = self.policy_mgr.get_policy(
+            policy_id=report_adj_policy_id, domain_id=domain_id
+        )
+
+        cost_report_config_id = policy_vo.cost_report_config_id
+        cost_report_config_vo = self.cost_report_config_mgr.get_cost_report_config(
+            domain_id, cost_report_config_id
+        )
+
+        adjustment_vos = self.adjustment_mgr.filter_adjustments(
+            report_adjustment_policy_id=report_adj_policy_id,
+            domain_id=domain_id,
+            cost_report_config_id=cost_report_config_id,
+        )
+
+        for adjustment_vo in adjustment_vos:
+            if cost_report_config_vo.currency != adjustment_vo.currency:
+                self.policy_mgr.update_policy_by_vo(
+                    {"currency": cost_report_config_vo.currency}, adjustment_vo
+                )
+
+        return ReportAdjustmentPolicyResponse(**policy_vo.to_dict())
+
+    @transaction(
         permission="cost-analysis:ReportAdjustmentPolicy.read",
         role_types=["DOMAIN_ADMIN", "WORKSPACE_OWNER"],
     )
     @convert_model
     def get(
         self, params: ReportAdjustmentPolicyGetRequest
-    ) -> ReportAdjustmentPolicyResponse:
+    ) -> Union[ReportAdjustmentPolicyResponse, dict]:
         """Get report adjustment policy
 
         Args:
@@ -273,29 +334,29 @@ class ReportAdjustmentPolicyService(BaseService):
     )
     @append_query_filter(
         [
-            "name",
             "domain_id",
+            "report_adjustment_policy_id",
         ]
     )
     @convert_model
     def list(
         self, params: ReportAdjustmentPolicySearchQueryRequest
-    ) -> ReportAdjustmentPoliciesResponse:
+    ) -> Union[ReportAdjustmentPoliciesResponse, dict]:
         """List report adjustment policies
 
         Args:
             params (ReportAdjustmentPolicySearchQueryRequest): {
                 'query': 'dict',
-                'name': 'str',
+                'report_adjustment_policy_id': 'str',
                 'domain_id': 'str',
             }
 
         Returns:
             ReportAdjustmentPoliciesResponse:
         """
-        policy_vos, total_count = self.policy_mgr.list_policies(
-            params.dict(exclude_unset=True)
-        )
+
+        query = params.query or {}
+        policy_vos, total_count = self.policy_mgr.list_policies(query)
 
         results = [policy_vo.to_dict() for policy_vo in policy_vos]
         return ReportAdjustmentPoliciesResponse(

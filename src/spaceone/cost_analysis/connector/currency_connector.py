@@ -7,16 +7,19 @@ from dateutil.relativedelta import relativedelta
 import FinanceDataReader as fdr
 from typing import Tuple, Union
 
+from spaceone.core import config
 from spaceone.core.connector import BaseConnector
 
 __all__ = ["CurrencyConnector"]
 
 _LOGGER = logging.getLogger(__name__)
 
-FROM_EXCHANGE_CURRENCIES = ["KRW", "USD", "JPY"]
-
 
 class CurrencyConnector(BaseConnector):
+    from_exchange_currencies = config.get_global(
+        "SUPPORTED_CURRENCIES", ["KRW", "USD", "JPY"]
+    )
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -26,8 +29,8 @@ class CurrencyConnector(BaseConnector):
         currency_map = self._initialize_currency_map()
         currency_date = currency_end_date
 
-        for from_currency in FROM_EXCHANGE_CURRENCIES:
-            for to_currency in FROM_EXCHANGE_CURRENCIES:
+        for from_currency in self.from_exchange_currencies:
+            for to_currency in self.from_exchange_currencies:
                 if from_currency == to_currency:
                     exchange_rate = 1.0
                 else:
@@ -45,10 +48,9 @@ class CurrencyConnector(BaseConnector):
 
         return currency_map, currency_date
 
-    @staticmethod
-    def _initialize_currency_map():
+    def _initialize_currency_map(self):
         currency_map = {}
-        for exchange_currency in FROM_EXCHANGE_CURRENCIES:
+        for exchange_currency in self.from_exchange_currencies:
             currency_map[exchange_currency] = {}
         return currency_map
 
