@@ -43,7 +43,9 @@ class Schedule(EmbeddedDocument):
 class DataSource(MongoModel):
     data_source_id = StringField(max_length=40, generate_id="ds", unique=True)
     name = StringField(max_length=255, unique_with="domain_id")
-    data_source_type = StringField(max_length=20, choices=("LOCAL", "EXTERNAL"))
+    data_source_type = StringField(
+        max_length=20, choices=["LOCAL", "EXTERNAL", "WAREHOUSE"]
+    )
     secret_type = StringField(
         max_length=32,
         default="MANUAL",

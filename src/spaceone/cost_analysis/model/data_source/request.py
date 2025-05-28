@@ -8,7 +8,7 @@ __all__ = [
     "DataSourceSearchQueryRequest",
 ]
 
-DataSourceType = Literal["LOCAL", "EXTERNAL"]
+DataSourceType = Literal["LOCAL", "EXTERNAL", "WAREHOUSE"]
 State = Literal["ENABLED", "DISABLED"]
 SecretType = Literal["MANUAL", "USE_SERVICE_ACCOUNT_SECRET"]
 ResourceGroup = Literal["DOMAIN", "WORKSPACE"]

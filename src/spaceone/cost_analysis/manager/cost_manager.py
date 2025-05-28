@@ -5,6 +5,8 @@ from dateutil.relativedelta import relativedelta
 
 from spaceone.core import cache, utils
 from spaceone.core.manager import BaseManager
+
+from spaceone.cost_analysis.connector.databricks_connector import DatabricksConnector
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.model.cost_model import Cost, MonthlyCost, CostQueryHistory
 from spaceone.cost_analysis.manager.data_source_rule_manager import (
@@ -119,10 +121,21 @@ class CostManager(BaseManager):
         return self.cost_model.filter(**conditions)
 
     def list_costs(self, query: dict, domain_id: str, data_source_id: str):
-        query = self.change_filter_v_workspace_id(query, domain_id, data_source_id)
-        query = self._change_filter_project_group_id(query, domain_id)
-        query = self._add_hint_to_query(query)
-        return self.cost_model.query(**query)
+        data_source_vo = self.data_source_mgr.get_data_source(
+            domain_id=domain_id, data_source_id=data_source_id
+        )
+
+        if data_source_vo.data_source_type == "WAREHOUSE":
+            warehouse_cost_connector = DatabricksConnector(
+                provider=data_source_vo.provider
+            )
+
+            return warehouse_cost_connector.list_costs(query)
+        else:
+            query = self.change_filter_v_workspace_id(query, domain_id, data_source_id)
+            query = self._change_filter_project_group_id(query, domain_id)
+            query = self._add_hint_to_query(query)
+            return self.cost_model.query(**query)
 
     def stat_costs(self, query: dict, domain_id: str):
         query = self._change_filter_project_group_id(query, domain_id)
@@ -144,23 +157,54 @@ class CostManager(BaseManager):
         _LOGGER.debug(f"[stat_monthly_costs] query: {query}")
         return self.monthly_cost_model.stat(**query)
 
-    def analyze_costs(self, query, domain_id, target="SECONDARY_PREFERRED"):
-        query["target"] = target
-        query["date_field"] = "billed_date"
-        query["date_field_format"] = "%Y-%m-%d"
-        _LOGGER.debug(f"[analyze_costs] query: {query}")
+    def analyze_costs(
+        self,
+        query: dict,
+        domain_id: str,
+        data_source_id: str,
+        target="SECONDARY_PREFERRED",
+    ):
+        data_source_vo = self.data_source_mgr.get_data_source(
+            domain_id=domain_id, data_source_id=data_source_id
+        )
 
-        query = self._change_filter_project_group_id(query, domain_id)
-        return self.cost_model.analyze(**query)
+        if data_source_vo.data_source_type == "WAREHOUSE":
+            warehouse_cost_connector = DatabricksConnector(
+                provider=data_source_vo.provider
+            )
 
-    def analyze_monthly_costs(self, query, domain_id, target="SECONDARY_PREFERRED"):
-        query["target"] = target
-        query["date_field"] = "billed_month"
-        query["date_field_format"] = "%Y-%m"
-        _LOGGER.debug(f"[analyze_monthly_costs] query: {query}")
+            response = warehouse_cost_connector.analyze_costs(query)
+        else:
+            query["target"] = target
+            query["date_field"] = "billed_date"
+            query["date_field_format"] = "%Y-%m-%d"
+            _LOGGER.debug(f"[analyze_costs] query: {query}")
 
-        query = self._change_filter_project_group_id(query, domain_id)
-        response = self.monthly_cost_model.analyze(**query)
+            query = self._change_filter_project_group_id(query, domain_id)
+            response = self.cost_model.analyze(**query)
+        return response
+
+    def analyze_monthly_costs(
+        self, query, domain_id, data_source_id: str, target="SECONDARY_PREFERRED"
+    ):
+        data_source_vo = self.data_source_mgr.get_data_source(
+            domain_id=domain_id, data_source_id=data_source_id
+        )
+
+        if data_source_vo.data_source_type == "WAREHOUSE":
+            warehouse_cost_connector = DatabricksConnector(
+                provider=data_source_vo.provider
+            )
+
+            response = warehouse_cost_connector.analyze_costs(query)
+        else:
+            query["target"] = target
+            query["date_field"] = "billed_month"
+            query["date_field_format"] = "%Y-%m"
+            _LOGGER.debug(f"[analyze_monthly_costs] query: {query}")
+
+            query = self._change_filter_project_group_id(query, domain_id)
+            response = self.monthly_cost_model.analyze(**query)
         return response
 
     def analyze_yearly_costs(self, query, domain_id, target="SECONDARY_PREFERRED"):
@@ -188,7 +232,7 @@ class CostManager(BaseManager):
     def analyze_costs_with_cache(
         self, query, query_hash, domain_id, data_source_id, target="SECONDARY_PREFERRED"
     ):
-        return self.analyze_costs(query, domain_id, target)
+        return self.analyze_costs(query, domain_id, data_source_id, target)
 
     @cache.cacheable(
         key="cost-analysis:analyze-costs:monthly:{domain_id}:{data_source_id}:{query_hash}",
@@ -197,7 +241,7 @@ class CostManager(BaseManager):
     def analyze_monthly_costs_with_cache(
         self, query, query_hash, domain_id, data_source_id, target="SECONDARY_PREFERRED"
     ):
-        return self.analyze_monthly_costs(query, domain_id, target)
+        return self.analyze_monthly_costs(query, domain_id, data_source_id, target)
 
     @cache.cacheable(
         key="cost-analysis:analyze-costs:yearly:{domain_id}:{data_source_id}:{query_hash}",
@@ -459,6 +503,10 @@ class CostManager(BaseManager):
         workspace_ids = []
 
         data_source_vo = self.data_source_mgr.get_data_source(data_source_id, domain_id)
+
+        if data_source_vo.data_source_type == "WAREHOUSE":
+            return query
+
         plugin_metadata = data_source_vo.plugin_info.metadata
         use_account_routing = plugin_metadata.get("use_account_routing", False)
         if not use_account_routing:

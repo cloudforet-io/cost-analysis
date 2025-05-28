@@ -89,13 +89,13 @@ class DataSourceService(BaseService):
 
         if not params.get("schedule"):
             schedule = {
-                "state" : "ENABLED",
+                "state": "ENABLED",
                 "hour": config.get_global("DATA_SOURCE_SYNC_HOUR", 16),
             }
 
             params["schedule"] = schedule
         else:
-             self._check_schedule(params["schedule"])
+            self._check_schedule(params["schedule"])
 
         if data_source_type == "EXTERNAL":
             params["template"] = None
@@ -146,6 +146,11 @@ class DataSourceService(BaseService):
 
                 params["plugin_info"]["secret_id"] = secret_info["secret_id"]
                 del params["plugin_info"]["secret_data"]
+
+        elif data_source_type == "WAREHOUSE":
+            params["plugin_info"] = None
+            params["secret_type"] = None
+            params["secret_filter"] = None
 
         else:
             params["plugin_info"] = None
@@ -932,7 +937,8 @@ class DataSourceService(BaseService):
         if schedule.get("state", "ENABLED") == "ENABLED":
             if not schedule.get("hour"):
                 raise ERROR_INVALID_PARAMETER(
-                    key="schedule.hour", reason="Need to set an hour when the state is ENABLED."
+                    key="schedule.hour",
+                    reason="Need to set an hour when the state is ENABLED.",
                 )
 
     @staticmethod
