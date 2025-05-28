@@ -10,6 +10,8 @@ __all__ = ["DatabricksConnector"]
 
 _LOGGER = logging.getLogger(__name__)
 
+EXCLUDE_FIELDS = ["data_source_id"]
+
 
 class DatabricksConnector(BaseConnector):
     def __init__(self, *args, **kwargs):
@@ -18,12 +20,15 @@ class DatabricksConnector(BaseConnector):
         self.connection = None
         self.cursor = None
         self.table_name = None
-        self.init()
+        self.provider = None
+        self.init(*args, **kwargs)
 
     def init(self, *args, **kwargs):
-        provider = kwargs.get("provider", "databricks")
+        self.provider = kwargs.get("provider")
+        warehouse_type = kwargs.get("warehouse_type", "DATABRICKS")
+
         warehouse_configs = config.get_global("WAREHOUSES")
-        databricks_config = warehouse_configs.get(provider)
+        databricks_config = warehouse_configs.get(warehouse_type)
 
         server_hostname = databricks_config.get("server_hostname")
         http_path = databricks_config.get("http_path")
@@ -43,13 +48,10 @@ class DatabricksConnector(BaseConnector):
         if not table_name:
             table_name = self.table_name
 
-        query["filter"] = [
-            {
-                "key": "domain_id",
-                "value": "domain-8c5e20add8d6",
-                "operator": "eq",
-            }
-        ]
+        query["filter"].append(
+            {"key": "provider", "operator": "eq", "value": self.provider}
+        )
+
         converted_query = self.convert_query_to_sql(query, table_name)
         _LOGGER.debug(f"[DatabricksConnector] Converted Query: {converted_query}")
 
@@ -72,6 +74,8 @@ class DatabricksConnector(BaseConnector):
             conditions = []
             for f in filter_list:
                 key = f.get("key") or f.get("k")
+                if key in EXCLUDE_FIELDS:
+                    continue
                 value = f.get("value") or f.get("v")
                 op = f.get("operator") or f.get("o")
 

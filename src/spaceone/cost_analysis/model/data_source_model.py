@@ -18,6 +18,13 @@ class PluginInfo(EmbeddedDocument):
         return dict(self.to_mongo())
 
 
+class WarehouseInfo(EmbeddedDocument):
+    type = StringField(default=None, null=True, max_length=40)
+
+    def to_dict(self):
+        return dict(self.to_mongo())
+
+
 class SecretFilter(EmbeddedDocument):
     state = StringField(
         max_length=20, default="ENABLED", choices=("ENABLED", "DISABLED")
@@ -55,6 +62,7 @@ class DataSource(MongoModel):
     permissions = DictField(default=None, null=True)
     provider = StringField(max_length=40, default=None, null=True)
     plugin_info = EmbeddedDocumentField(PluginInfo, default=None, null=True)
+    warehouse_info = EmbeddedDocumentField(WarehouseInfo, default=None, null=True)
     schedule = EmbeddedDocumentField(Schedule)
     template = DictField(default={})
     tags = DictField(default={})
