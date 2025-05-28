@@ -39,6 +39,12 @@ class ReportAdjustmentPolicy(
         cost_report_svc.delete(params)
         return self.empty()
 
+    def sync_currency(self, request, context):
+        params, metadata = self.parse_request(request, context)
+        adjustment_policy_svc = ReportAdjustmentPolicyService(metadata)
+        response: dict = adjustment_policy_svc.sync_currency(params)
+        return self.dict_to_message(response)
+
     def get(self, request, context):
         params, metadata = self.parse_request(request, context)
         adjustment_policy_svc = ReportAdjustmentPolicyService(metadata)

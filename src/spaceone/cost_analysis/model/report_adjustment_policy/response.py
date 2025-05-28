@@ -8,13 +8,15 @@ __all__ = [
     "ReportAdjustmentPoliciesResponse",
 ]
 
+Scope = Literal["WORKSPACE", "PROJECT", "SERVICE_ACCOUNT"]
+
 
 class ReportAdjustmentPolicyResponse(BaseModel):
     report_adjustment_policy_id: Union[str, None] = None
-    name: Union[str, None] = None
-    scope: Union[str, None] = None
+    scope: Union[Scope, None] = None
     order: Union[int, None] = None
     adjustments: Union[list, None] = None
+    description: Union[str, None] = None
     tags: Union[dict, None] = None
     policy_filter: Union[dict, None] = None
 

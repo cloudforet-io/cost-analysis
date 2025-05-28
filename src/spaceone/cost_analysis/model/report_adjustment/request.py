@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, Literal
 from pydantic import BaseModel
 
 __all__ = [
@@ -10,10 +10,12 @@ __all__ = [
     "ReportAdjustmentSearchQueryRequest",
 ]
 
+Unit = Literal["FIXED", "PERCENT"]
+
 
 class CreateReportAdjustmentRequest(BaseModel):
     name: str
-    method: str
+    unit: Unit
     value: float
     description: Union[str, None] = None
     provider: str
@@ -27,7 +29,7 @@ class CreateReportAdjustmentRequest(BaseModel):
 class UpdateReportAdjustmentRequest(BaseModel):
     report_adjustment_id: str
     name: Union[str, None] = None
-    method: Union[str, None] = None
+    unit: Union[Unit, None] = None
     value: Union[float, None] = None
     description: Union[str, None] = None
     provider: Union[str, None] = None

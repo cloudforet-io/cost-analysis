@@ -7,12 +7,14 @@ class ReportAdjustmentPolicy(MongoModel):
     report_adjustment_policy_id = StringField(
         max_length=40, generate_id="rap", unique=True
     )
-    name = StringField(max_length=255, required=True)
     adjustments = ListField(StringField(), default=[])
     scope = StringField(
-        max_length=20, choices=("WORKSPACE", "PROJECT"), default="WORKSPACE"
+        required=True,
+        max_length=20,
+        choices=["WORKSPACE", "PROJECT", "SERVICE_ACCOUNT"],
     )
-    order = IntField(required=True, default=1)
+    order = IntField(required=True, min_value=1)
+    description = StringField(max_length=255, default=None, null=True)
     tags = DictField(default={})
     policy_filter = DictField(default={"workspace_ids": [], "project_ids": []})
     cost_report_config_id = StringField(max_length=40, required=True)
@@ -22,17 +24,16 @@ class ReportAdjustmentPolicy(MongoModel):
 
     meta = {
         "updatable_fields": [
-            "name",
             "adjustments",
             "scope",
             "order",
+            "description",
             "tags",
             "policy_filter",
             "updated_at",
         ],
         "minimal_fields": [
             "report_adjustment_policy_id",
-            "name",
             "scope",
             "order",
             "policy_filter",

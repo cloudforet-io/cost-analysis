@@ -9,9 +9,7 @@ class CostReportFormatGenerator:
     ):
         self.issue_month = metadata["current_month"]
         self.issue_day = metadata["issue_day"]
-        self.v_workspace_id_map = metadata["v_workspace_id_map"]
-        self.workspace_name_map = metadata["workspace_name_map"]
-        self.project_name_map = metadata["project_name_map"]
+        self.report_currency = metadata["currency"]
 
         self.scope = scope
         self.report_month = report_month
@@ -29,34 +27,32 @@ class CostReportFormatGenerator:
         return self._aggregate_result_by_currency(cost_reports)
 
     def _transform_cost(self, unified_cost: dict, status: str) -> dict:
-        unified_cost = unified_cost.copy()
-        workspace_id = unified_cost["workspace_id"]
-        unified_cost["workspace_id"] = self.v_workspace_id_map.get(
-            workspace_id, workspace_id
-        )
-        unified_cost["cost"] = self._extract_cost_by_currency(unified_cost)
-        unified_cost["status"] = status
-        unified_cost["issue_date"] = (
+        tr_unified_cost = unified_cost.copy()
+        tr_unified_cost["cost"] = self._extract_cost_by_currency(tr_unified_cost)
+        tr_unified_cost["status"] = status
+        tr_unified_cost["issue_date"] = (
             f"{self.report_month}-{str(self.issue_day).zfill(2)}"
         )
-        unified_cost["report_month"] = self.report_month
-        unified_cost["report_year"] = unified_cost.pop("billed_year")
-        unified_cost["workspace_name"] = self.workspace_name_map.get(
-            unified_cost["workspace_id"], "Unknown"
-        )
-        unified_cost["bank_name"] = unified_cost.pop(
+        tr_unified_cost["report_month"] = self.report_month
+        tr_unified_cost["report_year"] = tr_unified_cost.get("billed_year")
+        tr_unified_cost["bank_name"] = tr_unified_cost.get(
             "exchange_source", "Yahoo! Finance"
         )
-        unified_cost["cost_report_config_id"] = self.cost_report_config_id
-        unified_cost["domain_id"] = self.domain_id
+        tr_unified_cost["cost_report_config_id"] = self.cost_report_config_id
+        tr_unified_cost["domain_id"] = self.domain_id
+        tr_unified_cost["currency"] = self.report_currency
+        tr_unified_cost["currency_date"] = tr_unified_cost["exchange_date"]
 
-        if self.scope == "PROJECT":
-            project_id = unified_cost.get("project_id")
-            unified_cost["project_name"] = self.project_name_map.get(
-                project_id, "Unknown"
+        if self.scope == "WORKSPACE":
+            tr_unified_cost["name"] = tr_unified_cost.get("workspace_name", "Unknown")
+        elif self.scope == "PROJECT":
+            tr_unified_cost["name"] = tr_unified_cost.get("project_name", "Unknown")
+        elif self.scope == "SERVICE_ACCOUNT":
+            tr_unified_cost["name"] = tr_unified_cost.get(
+                "service_account_name", "Unknown"
             )
 
-        return unified_cost
+        return tr_unified_cost
 
     @staticmethod
     def _extract_cost_by_currency(unified_cost):

@@ -17,9 +17,13 @@ DATABASES = {
 BUDGET_UPDATE_DAY = 1  # Every 1st day of month
 BUDGET_UPDATE_HOUR = 0
 
+# Currency Info
+SUPPORTED_CURRENCIES = ["KRW", "USD", "JPY"]
+
 # Cost Report Config Settings
 COST_REPORT_CONFIG_DEFAULT_ISSUE_DAY = 10
 COST_REPORT_DEFAULT_CURRENCY = "KRW"  # KRW | USD | JPY
+
 
 # Cost Report Token Settings
 COST_REPORT_TOKEN_TIMEOUT = 259200  # 3 days

@@ -3,6 +3,8 @@ from datetime import datetime
 from pydantic import BaseModel
 from spaceone.core import utils
 
+from spaceone.cost_analysis.model.report_adjustment.request import Unit
+
 __all__ = [
     "ReportAdjustmentResponse",
     "ReportAdjustmentsResponse",
@@ -12,7 +14,7 @@ __all__ = [
 class ReportAdjustmentResponse(BaseModel):
     report_adjustment_id: Union[str, None] = None
     name: Union[str, None] = None
-    method: Union[str, None] = None
+    unit: Union[Unit, None] = None
     value: Union[float, None] = None
     description: Union[str, None] = None
     provider: Union[str, None] = None

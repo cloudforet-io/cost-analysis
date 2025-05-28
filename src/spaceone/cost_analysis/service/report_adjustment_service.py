@@ -1,4 +1,6 @@
 import logging
+from typing import Union
+
 from spaceone.core.service import *
 from spaceone.core.service.utils import *
 
@@ -36,7 +38,9 @@ class ReportAdjustmentService(BaseService):
         permission="cost-analysis:ReportAdjustment.write", role_types=["DOMAIN_ADMIN"]
     )
     @convert_model
-    def create(self, params: CreateReportAdjustmentRequest) -> ReportAdjustmentResponse:
+    def create(
+        self, params: CreateReportAdjustmentRequest
+    ) -> Union[ReportAdjustmentResponse, dict]:
         """Create report adjustment
 
         Args:
@@ -91,7 +95,9 @@ class ReportAdjustmentService(BaseService):
         permission="cost-analysis:ReportAdjustment.write", role_types=["DOMAIN_ADMIN"]
     )
     @convert_model
-    def update(self, params: UpdateReportAdjustmentRequest) -> ReportAdjustmentResponse:
+    def update(
+        self, params: UpdateReportAdjustmentRequest
+    ) -> Union[ReportAdjustmentResponse, dict]:
         """Update report adjustment
 
         Args:
@@ -123,7 +129,7 @@ class ReportAdjustmentService(BaseService):
     @convert_model
     def change_order(
         self, params: ChangeOrderReportAdjustmentRequest
-    ) -> ReportAdjustmentResponse:
+    ) -> Union[ReportAdjustmentResponse, dict]:
         """Change order of report adjustment
 
         Args:
@@ -230,7 +236,9 @@ class ReportAdjustmentService(BaseService):
         permission="cost-analysis:ReportAdjustment.read", role_types=["DOMAIN_ADMIN"]
     )
     @convert_model
-    def get(self, params: ReportAdjustmentGetRequest) -> ReportAdjustmentResponse:
+    def get(
+        self, params: ReportAdjustmentGetRequest
+    ) -> Union[ReportAdjustmentResponse, dict]:
         """Get report adjustment
 
         Args:
@@ -262,7 +270,7 @@ class ReportAdjustmentService(BaseService):
     @convert_model
     def list(
         self, params: ReportAdjustmentSearchQueryRequest
-    ) -> ReportAdjustmentsResponse:
+    ) -> Union[ReportAdjustmentsResponse, dict]:
         """List report adjustments
 
         Args:
@@ -278,7 +286,7 @@ class ReportAdjustmentService(BaseService):
         Returns:
             ReportAdjustmentsResponse:
         """
-        query = params.dict() or {}
+        query = params.query or {}
         adjustment_vos, total_count = self.adjustment_mgr.list_adjustments(query)
         results = [adj.to_dict() for adj in adjustment_vos]
         return ReportAdjustmentsResponse(results=results, total_count=total_count)
