@@ -13,6 +13,16 @@ DATABASES = {
     }
 }
 
+WAREHOUSES = {
+    "databricks": {
+        "server_hostname": "",
+        "http_path": "",
+        "access_token": "",
+        "table_name": "",
+    },
+    # "bigquery": {},
+}
+
 # Budget Settings
 BUDGET_UPDATE_DAY = 1  # Every 1st day of month
 BUDGET_UPDATE_HOUR = 0
