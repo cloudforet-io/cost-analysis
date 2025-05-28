@@ -36,6 +36,7 @@ class DatabricksConnector(BaseConnector):
         )
 
         self.table_name = databricks_config.get("table_name")
+        self.connection = connection
         self.cursor = connection.cursor()
 
     def analyze_costs(self, query: dict, table_name: str = None):
@@ -135,7 +136,7 @@ class DatabricksConnector(BaseConnector):
         # granularity and field_group
         if granularity and "date" in field_group:
             date_expr = (
-                "DATE_FORMAT(date, 'yyyy-MM')"
+                "DATE_FORMAT(billed_month, 'yyyy-MM')"
                 if granularity == "MONTHLY"
                 else "billed_month"
             )
@@ -207,7 +208,7 @@ class DatabricksConnector(BaseConnector):
         if where_clauses:
             query_parts.append("WHERE\n    " + " AND\n    ".join(where_clauses))
         if group_by_clauses:
-            query_parts.append("GROUP BY\n    " + ",\n    ".join(group_by_clauses))
+            query_parts.append("GROUP BY ALL")
         if order_by_clause:
             query_parts.append(order_by_clause)
         query_parts.append(limit_offset_clause)
