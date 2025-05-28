@@ -14,7 +14,7 @@ DATABASES = {
 }
 
 WAREHOUSES = {
-    "databricks": {
+    "DATABRICKS": {
         "server_hostname": "",
         "http_path": "",
         "access_token": "",

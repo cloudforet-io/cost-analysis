@@ -126,8 +126,9 @@ class CostManager(BaseManager):
         )
 
         if data_source_vo.data_source_type == "WAREHOUSE":
+            warehouse_options = data_source_vo.warehouse_options or {}
             warehouse_cost_connector = DatabricksConnector(
-                provider=data_source_vo.provider
+                warehouse_type=warehouse_options["type"]
             )
 
             return warehouse_cost_connector.list_costs(query)
@@ -192,8 +193,11 @@ class CostManager(BaseManager):
         )
 
         if data_source_vo.data_source_type == "WAREHOUSE":
+            warehouse_type = data_source_vo.warehouse_info["type"]
+            provider = data_source_vo.provider
             warehouse_cost_connector = DatabricksConnector(
-                provider=data_source_vo.provider
+                warehouse_type=warehouse_type,
+                provider=provider,
             )
 
             response = warehouse_cost_connector.analyze_costs(query)

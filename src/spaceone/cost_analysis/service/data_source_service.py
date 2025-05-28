@@ -152,6 +152,10 @@ class DataSourceService(BaseService):
             params["secret_type"] = None
             params["secret_filter"] = None
 
+            warehouse_info = params.get("warehouse_info", {})
+            if "type" not in warehouse_info:
+                raise ERROR_REQUIRED_PARAMETER(key="warehouse_info.type")
+
         else:
             params["plugin_info"] = None
             params["secret_type"] = None

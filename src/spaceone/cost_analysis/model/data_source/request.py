@@ -25,6 +25,10 @@ class Plugin(BaseModel):
     upgrade_mode: Union[str, None] = None
 
 
+class Warehouse(BaseModel):
+    type: str
+
+
 class Schedule(BaseModel):
     state: str
     hour: Union[int, None] = None
@@ -38,6 +42,7 @@ class DataSourceRegisterRequest(BaseModel):
     secret_filter: Union[dict, None] = None
     template: Union[dict, None] = None
     plugin_info: Union[Plugin, None] = None
+    warehouse_info: Union[Warehouse, None] = None
     schedule: Schedule
     tags: Union[dict, None] = None
     resource_group: Union[ResourceGroup, None] = None
