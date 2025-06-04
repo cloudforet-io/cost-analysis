@@ -18,7 +18,7 @@ __all__ = [
     "DataSourceStatQueryRequest",
 ]
 
-DataSourceType = Literal["LOCAL", "EXTERNAL"]
+DataSourceType = Literal["LOCAL", "EXTERNAL", "WAREHOUSE"]
 State = Literal["ENABLED", "DISABLED"]
 SecretType = Literal["MANUAL", "USE_SERVICE_ACCOUNT_SECRET"]
 ResourceGroup = Literal["DOMAIN", "WORKSPACE"]
@@ -35,6 +35,10 @@ class Plugin(BaseModel):
     upgrade_mode: Union[str, None] = None
 
 
+class Warehouse(BaseModel):
+    type: str
+
+
 class Schedule(BaseModel):
     state: str
     hour: Union[int, None] = None
@@ -48,6 +52,7 @@ class DataSourceRegisterRequest(BaseModel):
     secret_filter: Union[dict, None] = None
     template: Union[dict, None] = None
     plugin_info: Union[Plugin, None] = None
+    warehouse_info: Union[Warehouse, None] = None
     schedule: Schedule
     tags: Union[dict, None] = None
     resource_group: Union[ResourceGroup, None] = None

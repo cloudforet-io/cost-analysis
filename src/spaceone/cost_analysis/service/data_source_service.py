@@ -151,6 +151,15 @@ class DataSourceService(BaseService):
                 params_dict["plugin_info"]["secret_id"] = secret_info["secret_id"]
                 del params_dict["plugin_info"]["secret_data"]
 
+        elif data_source_type == "WAREHOUSE":
+            params_dict["plugin_info"] = None
+            params_dict["secret_type"] = None
+            params_dict["secret_filter"] = None
+
+            warehouse_info = params_dict.get("warehouse_info", {})
+            if "type" not in warehouse_info:
+                raise ERROR_REQUIRED_PARAMETER(key="warehouse_info.type")
+
         else:
             params_dict["plugin_info"] = None
             params_dict["secret_type"] = None

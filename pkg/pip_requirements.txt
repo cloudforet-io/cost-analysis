@@ -5,3 +5,4 @@ jinja2
 finance-datareader
 plotly
 bs4
+databricks-sql-connector
