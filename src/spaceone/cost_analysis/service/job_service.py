@@ -1076,7 +1076,7 @@ class JobService(BaseService):
                 {f"data_{data_key}": {"key": f"data.{data_key}", "operator": "sum"}}
             )
 
-        cursor = self.cost_mgr.analyze_costs(query, domain_id, target="PRIMARY")
+        cursor = self.cost_mgr.analyze_costs(query, domain_id, data_source_id, target="PRIMARY")
 
         row_count = 0
         for row in cursor:
