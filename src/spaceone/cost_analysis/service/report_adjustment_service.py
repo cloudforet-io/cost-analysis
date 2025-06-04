@@ -156,18 +156,18 @@ class ReportAdjustmentService(BaseService):
             adjustment_vo.report_adjustment_policy_id, params.domain_id
         )
 
-        existing_adjustments = [
-            adjustment
-            for adjustment in existing_adjustments
-            if adjustment["report_adjustment_id"] != params.report_adjustment_id
-        ]
-
         max_order = existing_adjustments[-1]["order"] if existing_adjustments else 1
 
         if params.order > max_order:
             raise ERROR_ADJUSTMENT_ORDER_EXCEEDS_MAXIMUM(
                 order=params.order, maximum_order=max_order
             )
+
+        existing_adjustments = [
+            adjustment
+            for adjustment in existing_adjustments
+            if adjustment["report_adjustment_id"] != params.report_adjustment_id
+        ]
 
         self._reorder_adjustments(
             adjustments=existing_adjustments,
