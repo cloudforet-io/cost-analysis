@@ -63,19 +63,29 @@ class ReportAdjustmentPolicyService(BaseService):
         )
 
         scope = cost_report_config_vo.scope
-        if scope == "PROJECT":
+
+        if scope != "WORKSPACE":
             policy_filter = params.policy_filter or {}
             workspace_ids = policy_filter.get("workspace_ids", [])
-            project_ids = policy_filter.get("project_ids", [])
-            if not workspace_ids or not project_ids:
-                raise ERROR_PROJECT_OR_WORKSPACE_REQUIRED(
-                    scope=scope,
-                    workspace_ids=workspace_ids,
-                    project_ids=project_ids,
-                )
-        elif scope == "SERVICE_ACCOUNT":
-            # todo : check if service account is required
-            pass
+
+            if scope == "PROJECT":
+                project_ids = policy_filter.get("project_ids", [])
+
+                if not workspace_ids or not project_ids:
+                    raise ERROR_PROJECT_OR_WORKSPACE_REQUIRED(
+                        scope=scope,
+                        workspace_ids=workspace_ids,
+                        project_ids=project_ids,
+                    )
+            elif scope == "SERVICE_ACCOUNT":
+                service_account_ids = policy_filter.get("service_account_ids", [])
+
+                if not workspace_ids or not service_account_ids:
+                    raise ERROR_SERVICE_ACCOUNT_OR_WORKSPACE_REQUIRED(
+                        scope=scope,
+                        workspace_ids=workspace_ids,
+                        service_account_ids=service_account_ids,
+                    )
 
         self.cost_report_config_mgr.get_cost_report_config(
             params.domain_id, params.cost_report_config_id
