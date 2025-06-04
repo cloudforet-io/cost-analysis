@@ -92,28 +92,22 @@ class CostReportConfigService(BaseService):
             params.cost_report_config_id,
         )
 
-        params_dict = params.dict(exclude_unset=True)
-
-        if "adjustment_options" in params_dict:
-            adjustment_options = params_dict.get("adjustment_options", {})
-
-            if adjustment_options is not None:
-                current_adjustment_options = (
+        if adjustment_options:= params.adjustment_options:
+            current_adjustment_options = (
                     cost_report_config_vo.adjustment_options or {}
-                )
-                new_adjustment_options = current_adjustment_options.copy()
+            )
+            new_adjustment_options = current_adjustment_options.copy()
 
-                if "enabled" in adjustment_options:
-                    new_adjustment_options["enabled"] = adjustment_options["enabled"]
+            new_adjustment_options["enabled"] = adjustment_options.get("enabled", False)
 
-                if "period" in adjustment_options:
-                    new_adjustment_options["period"] = adjustment_options["period"]
+            if "period" in adjustment_options:
+                new_adjustment_options["period"] = adjustment_options["period"]
 
-                params_dict["adjustment_options"] = new_adjustment_options
+            params.adjustment_options = new_adjustment_options
 
         cost_report_config_vo = (
             self.cost_report_config_mgr.update_cost_report_config_by_vo(
-                params_dict, cost_report_config_vo
+                params.dict(exclude_unset=True), cost_report_config_vo
             )
         )
 
