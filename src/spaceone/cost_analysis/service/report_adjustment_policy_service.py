@@ -177,12 +177,6 @@ class ReportAdjustmentPolicyService(BaseService):
         existing_policies = self.policy_mgr.list_sorted_policies_by_order(
             policy_vo.cost_report_config_id, params.domain_id
         )
-        existing_policies = [
-            policy
-            for policy in existing_policies
-            if policy["report_adjustment_policy_id"]
-            != params.report_adjustment_policy_id
-        ]
 
         max_existing_order = existing_policies[-1]["order"] if existing_policies else 1
 
@@ -190,6 +184,13 @@ class ReportAdjustmentPolicyService(BaseService):
             raise ERROR_POLICY_ORDER_EXCEEDS_MAXIMUM(
                 order=params.order, maximum_order=max_existing_order
             )
+
+        existing_policies = [
+            policy
+            for policy in existing_policies
+            if policy["report_adjustment_policy_id"]
+               != params.report_adjustment_policy_id
+        ]
 
         if policy_vo.order > params.order:
             for policy in existing_policies:

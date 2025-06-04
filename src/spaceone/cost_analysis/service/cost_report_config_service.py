@@ -92,14 +92,13 @@ class CostReportConfigService(BaseService):
             params.cost_report_config_id,
         )
 
-        if adjustment_options := params.adjustment_options:
+        if adjustment_options:= params.adjustment_options:
             current_adjustment_options = (
                     cost_report_config_vo.adjustment_options or {}
             )
             new_adjustment_options = current_adjustment_options.copy()
 
-            if "enabled" in adjustment_options:
-                new_adjustment_options["enabled"] = adjustment_options["enabled"]
+            new_adjustment_options["enabled"] = adjustment_options.get("enabled", False)
 
             if "period" in adjustment_options:
                 new_adjustment_options["period"] = adjustment_options["period"]
