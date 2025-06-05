@@ -134,7 +134,7 @@ class CostReportDataService(BaseService):
         report_month = cost_report_vo.report_month
         issue_date = cost_report_vo.issue_date
         workspace_name = self._get_workspace_name(domain_id, workspace_id)
-        is_confirmed = True if cost_report_vo.status == "SUCCESS" else False
+        is_confirmed = True if cost_report_vo.status == "DONE" else False
 
         cost_report_config_vo = cost_report_config_mgr.get_cost_report_config(
             domain_id=domain_id, cost_report_config_id=cost_report_config_id

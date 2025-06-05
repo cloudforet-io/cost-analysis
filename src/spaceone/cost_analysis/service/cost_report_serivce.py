@@ -203,14 +203,8 @@ class CostReportService(BaseService):
 
         query = params.query or {}
 
-        filter_status = None
-
-        for _filter in query["filter"]:
-            if _filter.get("k") == "status":
-                filter_status = _filter.get("v")
-
-        if filter_status is None:
-            query["filter"].append({"k": "status", "v": "DONE", "o": "eq"})
+        if params.status and not any(_filter.get("k") == "status" for _filter in query.get("filter", [])):
+            query.setdefault("filter", []).append({"k": "status", "v": "DONE", "o": "eq"})
 
         cost_report_vos, total_count = self.cost_report_mgr.list_cost_reports(query)
 
