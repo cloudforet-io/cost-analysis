@@ -36,6 +36,7 @@ class AdjustmentPolicyApplier:
         self.name = cost_report_vo.name
         self.workspace_id = cost_report_vo.workspace_id
         self.project_id = cost_report_vo.project_id
+        self.service_account_id = cost_report_vo.service_account_id
 
         self.data_source_ids = data_source_ids
 
@@ -193,15 +194,22 @@ class AdjustmentPolicyApplier:
         policy_filter = policy.get("policy_filter", {})
         workspace_ids = policy_filter.get("workspace_ids", [])
         project_ids = policy_filter.get("project_ids", [])
+        service_account_ids = policy_filter.get("service_account_ids", [])
 
-        if not workspace_ids and not project_ids:
-            return True
+        scope = policy.get("scope")
 
-        if workspace_ids and project_ids:
-            return self.workspace_id in workspace_ids and self.project_id in project_ids
-
-        if workspace_ids and not project_ids:
+        if scope == "WORKSPACE":
+            if not workspace_ids:
+                return True
             return self.workspace_id in workspace_ids
+        elif scope == "PROJECT":
+            if not project_ids:
+                return True
+            return self.project_id in project_ids
+        elif scope == "SERVICE_ACCOUNT":
+            if not service_account_ids:
+                return True
+            return self.service_account_id in service_account_ids
 
         return False
 
@@ -213,6 +221,7 @@ class AdjustmentPolicyApplier:
         query_filter = {
             "filter": [
                 {"k": "domain_id", "v": self.domain_id, "o": "eq"},
+                {"k": "cost_report_id", "v": self.cost_report_vo.cost_report_id, "o": "eq"},
                 {"k": "cost_report_config_id", "v": self.config_id, "o": "eq"},
                 {"k": "report_month", "v": self.report_month, "o": "eq"},
                 {
@@ -232,7 +241,6 @@ class AdjustmentPolicyApplier:
         # step 1 apply adjustment policy filter
         if policy_filter := adjustment_policy_vo.policy_filter:
             if adjustment_policy_vo.scope == "WORKSPACE":
-                query_filter["group_by"] = ["workspace_id"]
                 workspace_ids = policy_filter.get("workspace_ids", [])
                 if workspace_ids:
                     query_filter["filter"].append(
@@ -240,7 +248,6 @@ class AdjustmentPolicyApplier:
                     )
 
             elif adjustment_policy_vo.scope == "PROJECT":
-                query_filter["group_by"] = ["project_id"]
                 project_ids = policy_filter.get("project_ids", [])
                 if project_ids:
                     query_filter["filter"].append(
@@ -248,7 +255,6 @@ class AdjustmentPolicyApplier:
                     )
 
             elif adjustment_policy_vo.scope == "SERVICE_ACCOUNT":
-                query_filter["group_by"] = ["service_account_id"]
                 service_account_ids = policy_filter.get("service_account_ids", [])
                 if service_account_ids:
                     query_filter["filter"].append(
