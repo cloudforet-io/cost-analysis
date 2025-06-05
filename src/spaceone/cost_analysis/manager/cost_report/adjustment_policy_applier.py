@@ -3,9 +3,6 @@ from datetime import datetime
 
 from spaceone.core import config
 
-from spaceone.cost_analysis.model.report_adjustment_policy.database import (
-    ReportAdjustmentPolicy,
-)
 from spaceone.cost_analysis.manager import (
     ReportAdjustmentManager,
     ReportAdjustmentPolicyManager,
@@ -74,7 +71,7 @@ class AdjustmentPolicyApplier:
             self.is_applied = True
 
     def _create_cost_report_data_for_all_methods(
-        self, adjustments: list, adjustment_policy_vo: ReportAdjustmentPolicy
+        self, adjustments: list, adjustment_policy: dict
     ):
         currency_map, _ = self.currency_mgr.get_currency_map_date(
             currency_end_date=self.currency_date
@@ -82,7 +79,7 @@ class AdjustmentPolicyApplier:
 
         for adjustment_info in adjustments:
             query_filter = self._make_query_filter_with_adjustment(
-                adjustment_policy_vo, adjustment_info
+                adjustment_policy, adjustment_info
             )
             value = adjustment_info.get("value")
             unit = adjustment_info.get("unit")
@@ -99,7 +96,7 @@ class AdjustmentPolicyApplier:
                     adjusted_cost,
                     provider,
                     product,
-                    adjustment_policy_vo.report_adjustment_policy_id,
+                    adjustment_policy.get("report_adjustment_policy_id"),
                     description,
                 )
 
@@ -214,7 +211,7 @@ class AdjustmentPolicyApplier:
         return False
 
     def _make_query_filter_with_adjustment(
-        self, adjustment_policy_vo: ReportAdjustmentPolicy, adjustment_info: dict
+        self, adjustment_policy_vo: dict, adjustment_info: dict
     ) -> dict:
         provider = adjustment_info.get("provider")
 
@@ -239,22 +236,23 @@ class AdjustmentPolicyApplier:
         }
 
         # step 1 apply adjustment policy filter
-        if policy_filter := adjustment_policy_vo.policy_filter:
-            if adjustment_policy_vo.scope == "WORKSPACE":
+        if policy_filter := adjustment_policy_vo.get("policy_filter", {}):
+            scope = adjustment_policy_vo.get("scope")
+            if scope == "WORKSPACE":
                 workspace_ids = policy_filter.get("workspace_ids", [])
                 if workspace_ids:
                     query_filter["filter"].append(
                         {"k": "workspace_id", "v": workspace_ids, "o": "in"}
                     )
 
-            elif adjustment_policy_vo.scope == "PROJECT":
+            elif scope == "PROJECT":
                 project_ids = policy_filter.get("project_ids", [])
                 if project_ids:
                     query_filter["filter"].append(
                         {"k": "project_id", "v": project_ids, "o": "in"}
                     )
 
-            elif adjustment_policy_vo.scope == "SERVICE_ACCOUNT":
+            elif scope == "SERVICE_ACCOUNT":
                 service_account_ids = policy_filter.get("service_account_ids", [])
                 if service_account_ids:
                     query_filter["filter"].append(
