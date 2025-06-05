@@ -534,7 +534,7 @@ class CostReportService(BaseService):
             create_adjusting_report = False
 
         # check the normal process
-        if issue_date == current_date:
+        if issue_day == current_day:
             create_adjusting_report = True
             report_month = (current_date - relativedelta(months=1)).strftime("%Y-%m")
 
