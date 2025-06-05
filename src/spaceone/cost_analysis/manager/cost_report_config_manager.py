@@ -109,6 +109,7 @@ class CostReportConfigManager(BaseManager):
             _LOGGER.debug(f"[create_default_cost_report_config] domain_id: {domain_id}")
             self.cost_report_config_model.create(
                 {
+                    "language": "ko",
                     "issue_day": config.get_global(
                         "COST_REPORT_CONFIG_DEFAULT_ISSUE_DAY", 10
                     ),
