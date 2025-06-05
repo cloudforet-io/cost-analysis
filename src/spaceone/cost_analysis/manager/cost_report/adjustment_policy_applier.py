@@ -36,6 +36,7 @@ class AdjustmentPolicyApplier:
         self.name = cost_report_vo.name
         self.workspace_id = cost_report_vo.workspace_id
         self.project_id = cost_report_vo.project_id
+        self.service_account_id = cost_report_vo.service_account_id
 
         self.data_source_ids = data_source_ids
 
@@ -67,20 +68,16 @@ class AdjustmentPolicyApplier:
                 continue
 
             self._create_cost_report_data_for_all_methods(
-                adjustments, report_adjustment_policy_id
+                adjustments, policy
             )
 
             self.is_applied = True
 
     def _create_cost_report_data_for_all_methods(
-        self, adjustments: list, report_adjustment_policy_id: str
+        self, adjustments: list, adjustment_policy_vo: ReportAdjustmentPolicy
     ):
         currency_map, _ = self.currency_mgr.get_currency_map_date(
             currency_end_date=self.currency_date
-        )
-
-        adjustment_policy_vo = self.policy_mgr.get_policy(
-            policy_id=report_adjustment_policy_id, domain_id=self.domain_id
         )
 
         for adjustment_info in adjustments:
@@ -94,7 +91,7 @@ class AdjustmentPolicyApplier:
             product = adjustment_info.get("name")
             description = adjustment_info.get("description")
 
-            adjusted_cost = self._calculate_percentage_adjustment_cost(
+            adjusted_cost = self._calculate_adjustment_cost(
                 query_filter, unit, value, currency
             )
             if adjusted_cost:
@@ -102,7 +99,7 @@ class AdjustmentPolicyApplier:
                     adjusted_cost,
                     provider,
                     product,
-                    report_adjustment_policy_id,
+                    adjustment_policy_vo.report_adjustment_policy_id,
                     description,
                 )
 
@@ -117,7 +114,7 @@ class AdjustmentPolicyApplier:
             adjusted_cost[cur] = adjusted_cost.get(cur, 0) + float(val)
         return adjusted_cost
 
-    def _calculate_percentage_adjustment_cost(
+    def _calculate_adjustment_cost(
         self, query_filter: dict, unit: str, value: float, currency: str
     ):
         adjusted_cost = {}
@@ -197,15 +194,22 @@ class AdjustmentPolicyApplier:
         policy_filter = policy.get("policy_filter", {})
         workspace_ids = policy_filter.get("workspace_ids", [])
         project_ids = policy_filter.get("project_ids", [])
+        service_account_ids = policy_filter.get("service_account_ids", [])
 
-        if not workspace_ids and not project_ids:
-            return True
+        scope = policy.get("scope")
 
-        if workspace_ids and project_ids:
-            return self.workspace_id in workspace_ids and self.project_id in project_ids
-
-        if workspace_ids and not project_ids:
+        if scope == "WORKSPACE":
+            if not workspace_ids:
+                return True
             return self.workspace_id in workspace_ids
+        elif scope == "PROJECT":
+            if not project_ids:
+                return True
+            return self.project_id in project_ids
+        elif scope == "SERVICE_ACCOUNT":
+            if not service_account_ids:
+                return True
+            return self.service_account_id in service_account_ids
 
         return False
 
@@ -217,6 +221,7 @@ class AdjustmentPolicyApplier:
         query_filter = {
             "filter": [
                 {"k": "domain_id", "v": self.domain_id, "o": "eq"},
+                {"k": "cost_report_id", "v": self.cost_report_vo.cost_report_id, "o": "eq"},
                 {"k": "cost_report_config_id", "v": self.config_id, "o": "eq"},
                 {"k": "report_month", "v": self.report_month, "o": "eq"},
                 {
@@ -247,6 +252,13 @@ class AdjustmentPolicyApplier:
                 if project_ids:
                     query_filter["filter"].append(
                         {"k": "project_id", "v": project_ids, "o": "in"}
+                    )
+
+            elif adjustment_policy_vo.scope == "SERVICE_ACCOUNT":
+                service_account_ids = policy_filter.get("service_account_ids", [])
+                if service_account_ids:
+                    query_filter["filter"].append(
+                        {"k": "service_account_id", "v": service_account_ids, "o": "in"}
                     )
 
         # step2 apply adjustment filter
