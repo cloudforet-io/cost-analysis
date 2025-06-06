@@ -502,15 +502,13 @@ class CostReportService(BaseService):
         adjustment_state = adjustment_options.get("enabled", False)
         adjustment_period = adjustment_options.get("period", 0)
         retry_days = min(config.get_global("COST_REPORT_RETRY_DAYS", 7), 10)
-        current_day = current_date.day
-
         total_retry_days = retry_days + adjustment_period
         retry_start_date = current_date - relativedelta(days=total_retry_days)
 
         if retry_start_date.month != current_date.month:
-            issue_month = current_date - relativedelta(months=1)
-            issue_day = self.get_issue_day(is_last_day, issue_day, issue_month)
-            issue_date = issue_month.replace(day=issue_day)
+            issue_date = current_date - relativedelta(months=1)
+            issue_day = self.get_issue_day(is_last_day, issue_day, issue_date)
+            issue_date = issue_date.replace(day=issue_day)
             report_date = current_date - relativedelta(months=2)
         else:
             issue_date = current_date.replace(day=issue_day)
@@ -521,31 +519,24 @@ class CostReportService(BaseService):
 
         create_adjusting_report = False
 
-        # check the retry process
         if retry_start_date < done_date <= current_date:
             create_adjusting_report = True
-            if adjustment_state and adjustment_period > 0:
-                self.is_within_adjustment_period = True
-            self.is_done_report = True
 
-        if create_adjusting_report and self._check_done_cost_report_exist(
-            domain_id, cost_report_config_id, report_month
-        ):
+        if create_adjusting_report and self._check_done_cost_report_exist(domain_id, cost_report_config_id, report_month):
             create_adjusting_report = False
 
-        # check the normal process
-        if issue_day == current_day:
+        if current_date.day == issue_day:
             create_adjusting_report = True
             report_month = (current_date - relativedelta(months=1)).strftime("%Y-%m")
 
-        if current_date == done_date:
-            self.is_done_report = True
-            self.is_within_adjustment_period = True
+        if current_date.date() == done_date.date():
             create_adjusting_report = True
 
-        if issue_date <= current_date <= done_date:
+        if create_adjusting_report:
             if adjustment_state and adjustment_period > 0:
                 self.is_within_adjustment_period = True
+            if current_date.date() == done_date.date():
+                self.is_done_report = True
 
         return create_adjusting_report, report_month
 
