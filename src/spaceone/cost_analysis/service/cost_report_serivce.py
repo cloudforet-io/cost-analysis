@@ -501,6 +501,7 @@ class CostReportService(BaseService):
     ) -> Tuple[bool, str]:
         adjustment_state = adjustment_options.get("enabled", False)
         adjustment_period = adjustment_options.get("period", 0)
+
         retry_days = min(config.get_global("COST_REPORT_RETRY_DAYS", 7), 10)
         total_retry_days = retry_days + adjustment_period
         retry_start_date = current_date - relativedelta(days=total_retry_days)
@@ -518,25 +519,21 @@ class CostReportService(BaseService):
         done_date = issue_date + relativedelta(days=adjustment_period)
 
         create_adjusting_report = False
+        is_issue_day = current_date.day == issue_day
+        is_done_date = current_date.date() == done_date.date()
 
         if retry_start_date < done_date <= current_date:
             create_adjusting_report = True
 
-        if create_adjusting_report and self._check_done_cost_report_exist(domain_id, cost_report_config_id, report_month):
-            create_adjusting_report = False
-
-        if current_date.day == issue_day:
+        if is_issue_day:
             create_adjusting_report = True
             report_month = (current_date - relativedelta(months=1)).strftime("%Y-%m")
 
-        if current_date.date() == done_date.date():
-            create_adjusting_report = True
+        if create_adjusting_report and self._check_done_cost_report_exist(domain_id, cost_report_config_id, report_month):
+            create_adjusting_report = False
 
-        if create_adjusting_report:
-            if adjustment_state and adjustment_period > 0:
-                self.is_within_adjustment_period = True
-            if current_date.date() == done_date.date():
-                self.is_done_report = True
+        self.is_within_adjustment_period = adjustment_state and adjustment_period > 0 and create_adjusting_report
+        self.is_done_report = is_done_date and create_adjusting_report
 
         return create_adjusting_report, report_month
 
