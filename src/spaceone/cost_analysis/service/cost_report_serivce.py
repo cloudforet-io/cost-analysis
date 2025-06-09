@@ -500,43 +500,91 @@ class CostReportService(BaseService):
         domain_id: str,
         cost_report_config_id: str,
     ) -> Tuple[bool, str]:
+        create_adjusting_report = False
+
         adjustment_state = adjustment_options.get("enabled", False)
         adjustment_period = adjustment_options.get("period", 0)
+        self.is_within_adjustment_period = adjustment_state and adjustment_period > 0
 
-        retry_days = min(config.get_global("COST_REPORT_RETRY_DAYS", 7), 10)
-        total_retry_days = retry_days + adjustment_period
-        retry_start_date = current_date - relativedelta(days=total_retry_days)
+        current_day = current_date.day
+        done_day = issue_day + adjustment_period
 
-        if retry_start_date.month != current_date.month:
-            issue_date = current_date - relativedelta(months=1)
-            issue_day = self.get_issue_day(is_last_day, issue_day, issue_date)
-            issue_date = issue_date.replace(day=issue_day)
-            report_date = current_date - relativedelta(months=2)
-        else:
-            issue_date = current_date.replace(day=issue_day)
-            report_date = current_date - relativedelta(months=1)
-
-        report_month = report_date.strftime("%Y-%m")
-        done_date = issue_date + relativedelta(days=adjustment_period)
-
-        create_adjusting_report = False
-        is_issue_day = current_date.day == issue_day
-        is_done_date = current_date.date() == done_date.date()
-
-        if retry_start_date < done_date <= current_date:
-            create_adjusting_report = True
-
-        if is_issue_day:
-            create_adjusting_report = True
+        if issue_day <= current_day:
             report_month = (current_date - relativedelta(months=1)).strftime("%Y-%m")
 
-        if create_adjusting_report and self._check_done_cost_report_exist(domain_id, cost_report_config_id, report_month):
-            create_adjusting_report = False
+            if current_day <= done_day:
+                create_adjusting_report = True
+                self.is_done_report = current_day == done_day
+            else:
+                if not self._check_done_cost_report_exist(domain_id, cost_report_config_id, report_month):
+                    create_adjusting_report = True
+                    self.is_done_report = True
+        else:
+            retry_days = min(config.get_global("COST_REPORT_RETRY_DAYS", 7), 10)
+            total_retry_days = retry_days + adjustment_period
+            retry_start_date = current_date - relativedelta(days=total_retry_days)
 
-        self.is_within_adjustment_period = adjustment_state and adjustment_period > 0 and create_adjusting_report
-        self.is_done_report = is_done_date
+            if retry_start_date.month != current_date.month:
+                issue_date = current_date - relativedelta(months=1)
+                issue_day = self.get_issue_day(is_last_day, issue_day, issue_date)
+                issue_date = issue_date.replace(day=issue_day)
+                report_date = current_date - relativedelta(months=2)
+            else:
+                issue_date = current_date.replace(day=issue_day)
+                report_date = current_date - relativedelta(months=1)
+
+            report_month = report_date.strftime("%Y-%m")
+            done_date = issue_date + relativedelta(days=adjustment_period)
+
+            if retry_start_date < done_date <= current_date:
+                create_adjusting_report = True
+
+            if create_adjusting_report:
+                if self._check_done_cost_report_exist(domain_id, cost_report_config_id, report_month):
+                    create_adjusting_report = False
+                else :
+                    self.is_done_report = True
 
         return create_adjusting_report, report_month
+
+        #FIRST VERSION
+        # adjustment_state = adjustment_options.get("enabled", False)
+        # adjustment_period = adjustment_options.get("period", 0)
+        #
+        # retry_days = min(config.get_global("COST_REPORT_RETRY_DAYS", 7), 10)
+        # total_retry_days = retry_days + adjustment_period
+        # retry_start_date = current_date - relativedelta(days=total_retry_days)
+        #
+        # if retry_start_date.month != current_date.month:
+        #     issue_date = current_date - relativedelta(months=1)
+        #     issue_day = self.get_issue_day(is_last_day, issue_day, issue_date)
+        #     issue_date = issue_date.replace(day=issue_day)
+        #     report_date = current_date - relativedelta(months=2)
+        # else:
+        #     issue_date = current_date.replace(day=issue_day)
+        #     report_date = current_date - relativedelta(months=1)
+        #
+        # report_month = report_date.strftime("%Y-%m")
+        # done_date = issue_date + relativedelta(days=adjustment_period)
+        #
+        # create_adjusting_report = False
+        # is_issue_day = current_date.day == issue_day
+        # is_done_date = current_date.date() == done_date.date()
+        #
+        # if retry_start_date < done_date <= current_date:
+        #     create_adjusting_report = True
+        #
+        # if is_issue_day:
+        #     create_adjusting_report = True
+        #     report_month = (current_date - relativedelta(months=1)).strftime("%Y-%m")
+        #
+        # if create_adjusting_report and self._check_done_cost_report_exist(domain_id, cost_report_config_id, report_month):
+        #     create_adjusting_report = False
+        #
+        # self.is_within_adjustment_period = adjustment_state and adjustment_period > 0 and create_adjusting_report
+        # self.is_done_report = is_done_date
+        #
+        # return create_adjusting_report, report_month
 
     def _check_done_cost_report_exist(
         self,
