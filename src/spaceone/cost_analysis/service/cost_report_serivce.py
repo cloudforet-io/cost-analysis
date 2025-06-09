@@ -284,18 +284,19 @@ class CostReportService(BaseService):
             scope=config_vo.scope,
         )
 
-        # IN_PROGRESS
-        in_progress_reports = self._build_cost_reports_from_costs(
-            "IN_PROGRESS", config_vo, unified_costs, metadata
-        )
-        self._persist_cost_reports_by_status(
-            in_progress_reports,
-            report_month,
-            report_issue_day,
-            metadata["data_source_ids"],
-            domain_id,
-            issue_date,
-        )
+        if not self.is_done_report:
+            # IN_PROGRESS
+            in_progress_reports = self._build_cost_reports_from_costs(
+                "IN_PROGRESS", config_vo, unified_costs, metadata
+            )
+            self._persist_cost_reports_by_status(
+                in_progress_reports,
+                report_month,
+                report_issue_day,
+                metadata["data_source_ids"],
+                domain_id,
+                issue_date,
+            )
 
         if create_adjusting_report:
             _LOGGER.debug(
@@ -328,7 +329,7 @@ class CostReportService(BaseService):
             "filter": [
                 {"k": "cost_report_config_id", "v": cost_report_config_id, "o": "eq"},
                 {"k": "report_month", "v": report_month, "o": "eq"},
-                # {"k": "status", "v": status, "o": "in"},
+                {"k": "status", "v": "DONE", "o": "not"},
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
                 {"k": "created_at", "v": cost_report_created_at, "o": "lt"},
             ]
@@ -533,7 +534,7 @@ class CostReportService(BaseService):
             create_adjusting_report = False
 
         self.is_within_adjustment_period = adjustment_state and adjustment_period > 0 and create_adjusting_report
-        self.is_done_report = is_done_date and create_adjusting_report
+        self.is_done_report = is_done_date
 
         return create_adjusting_report, report_month
 
