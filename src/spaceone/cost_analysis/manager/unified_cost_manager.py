@@ -149,6 +149,10 @@ class UnifiedCostManager(BaseManager):
             "billed_year",
             "billed_month",
             "exchange_date",
+            "usage_type",
+            "usage_unit",
+            "region_key",
+            "region_code",
         ]
 
         if scope == "WORKSPACE":
