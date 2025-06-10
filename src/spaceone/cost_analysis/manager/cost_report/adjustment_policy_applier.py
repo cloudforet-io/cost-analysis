@@ -16,7 +16,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class AdjustmentPolicyApplier:
-    def __init__(self, cost_report_vo: CostReport, data_source_ids):
+    def __init__(self, cost_report_vo: CostReport, data_source_ids, unified_cost: dict):
         self.policy_mgr = ReportAdjustmentPolicyManager()
         self.adjustment_mgr = ReportAdjustmentManager()
         self.cost_report_data_mgr = CostReportDataManager()
@@ -34,6 +34,10 @@ class AdjustmentPolicyApplier:
         self.workspace_id = cost_report_vo.workspace_id
         self.project_id = cost_report_vo.project_id
         self.service_account_id = cost_report_vo.service_account_id
+        self.usage_type = unified_cost["usage_type"]
+        self.usage_unit = unified_cost["usage_unit"]
+        self.region_key = unified_cost["region_key"]
+        self.region_code = unified_cost["region_code"]
 
         self.data_source_ids = data_source_ids
 
@@ -71,7 +75,7 @@ class AdjustmentPolicyApplier:
             self.is_applied = True
 
     def _create_cost_report_data_for_all_methods(
-        self, adjustments: list, adjustment_policy: dict
+            self, adjustments: list, adjustment_policy: dict
     ):
         currency_map, _ = self.currency_mgr.get_currency_map_date(
             currency_end_date=self.currency_date
@@ -86,7 +90,6 @@ class AdjustmentPolicyApplier:
             currency = adjustment_info.get("currency")
             provider = adjustment_info.get("provider")
             product = adjustment_info.get("name")
-            description = adjustment_info.get("description")
 
             adjusted_cost = self._calculate_adjustment_cost(
                 query_filter, unit, value, currency
@@ -97,7 +100,6 @@ class AdjustmentPolicyApplier:
                     provider,
                     product,
                     adjustment_policy.get("report_adjustment_policy_id"),
-                    description,
                 )
 
                 self.cost_report_data_mgr.create_cost_report_data(cost_report_data)
@@ -112,7 +114,7 @@ class AdjustmentPolicyApplier:
         return adjusted_cost
 
     def _calculate_adjustment_cost(
-        self, query_filter: dict, unit: str, value: float, currency: str
+            self, query_filter: dict, unit: str, value: float, currency: str
     ):
         adjusted_cost = {}
 
@@ -137,17 +139,20 @@ class AdjustmentPolicyApplier:
         return adjusted_cost
 
     def _build_cost_report_data_dict(
-        self,
-        adjusted_cost: dict,
-        provider: str,
-        product: str,
-        report_adjustment_policy_id: str,
-        description: str,
+            self,
+            adjusted_cost: dict,
+            provider: str,
+            product: str,
+            report_adjustment_policy_id: str,
     ):
         return {
             "is_adjusted": True,
+            "is_confirmed": False,
             "cost": adjusted_cost,
-            "usage_type": description,
+            "usage_type": self.usage_type,
+            "usage_unit": self.usage_unit,
+            "region_key": self.region_key,
+            "region_code": self.region_code,
             "provider": provider,
             "product": product,
             "billed_month": self.cost_report_vo.report_month,
@@ -155,9 +160,7 @@ class AdjustmentPolicyApplier:
             "report_month": self.cost_report_vo.report_month,
             "report_year": self.cost_report_vo.report_month.split("-")[0],
             "issue_date": self.cost_report_vo.issue_date,
-            "is_confirmed": False,
             "workspace_id": self.cost_report_vo.workspace_id,
-            "name": self.cost_report_vo.name,
             "project_id": self.cost_report_vo.project_id,
             "domain_id": self.cost_report_vo.domain_id,
             "cost_report_id": self.cost_report_vo.cost_report_id,
@@ -211,7 +214,7 @@ class AdjustmentPolicyApplier:
         return False
 
     def _make_query_filter_with_adjustment(
-        self, adjustment_policy_vo: dict, adjustment_info: dict
+            self, adjustment_policy_vo: dict, adjustment_info: dict
     ) -> dict:
         provider = adjustment_info.get("provider")
 

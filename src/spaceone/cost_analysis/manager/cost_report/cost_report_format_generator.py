@@ -43,14 +43,16 @@ class CostReportFormatGenerator:
         tr_unified_cost["currency"] = self.report_currency
         tr_unified_cost["currency_date"] = tr_unified_cost["exchange_date"]
 
+        name = "Unknown"
         if self.scope == "WORKSPACE":
-            tr_unified_cost["name"] = tr_unified_cost.get("workspace_name", "Unknown")
+            name = tr_unified_cost.get("workspace_name", "Unknown")
         elif self.scope == "PROJECT":
-            tr_unified_cost["name"] = tr_unified_cost.get("project_name", "Unknown")
+            name = tr_unified_cost.get("project_name", "Unknown")
         elif self.scope == "SERVICE_ACCOUNT":
-            tr_unified_cost["name"] = tr_unified_cost.get(
+            name = tr_unified_cost.get(
                 "service_account_name", "Unknown"
             )
+        tr_unified_cost["name"] = name
 
         return tr_unified_cost
 

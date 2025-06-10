@@ -692,6 +692,7 @@ class CostReportService(BaseService):
                     adjustment_applier = AdjustmentPolicyApplier(
                         cost_report_vo,
                         data_source_ids,
+                        report,
                     )
 
                     if adjustment_applier.is_applied:
