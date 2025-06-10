@@ -511,6 +511,7 @@ class CostReportService(BaseService):
         done_day = issue_day + adjustment_period
 
         if issue_day <= current_day:
+            #TODO: If Done Report Exist and then BackWard the issue day then it create adjusting report, this is not good
             create_adjusting_report = True
             report_month = (current_date - relativedelta(months=1)).strftime("%Y-%m")
 
@@ -518,6 +519,7 @@ class CostReportService(BaseService):
                 if not self._check_done_cost_report_exist(domain_id, cost_report_config_id, report_month):
                     self.is_done_report = True
                 else :
+                    #TODO: Don't need to create in_progress report
                     create_adjusting_report = False
                     self.is_done_report = False
         else:
