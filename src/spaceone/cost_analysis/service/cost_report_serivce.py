@@ -259,7 +259,7 @@ class CostReportService(BaseService):
 
         metadata = self._collect_cost_report_metadata(config_vo, current_date)
 
-        create_adjusting_report, report_month = (
+        create_in_progress_report, create_adjusting_report, report_month = (
             self._get_create_adjusting_report_and_report_month(
                 metadata["issue_day"],
                 metadata["is_last_day"],
@@ -285,7 +285,7 @@ class CostReportService(BaseService):
             scope=config_vo.scope,
         )
 
-        if not self.is_done_report:
+        if create_in_progress_report:
             # IN_PROGRESS
             in_progress_reports = self._build_cost_reports_from_costs(
                 "IN_PROGRESS", config_vo, unified_costs, metadata
@@ -330,7 +330,7 @@ class CostReportService(BaseService):
             "filter": [
                 {"k": "cost_report_config_id", "v": cost_report_config_id, "o": "eq"},
                 {"k": "report_month", "v": report_month, "o": "eq"},
-                {"k": "status", "v": "DONE", "o": "not"},
+                # {"k": "status", "v": "DONE", "o": "not"},
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
                 {"k": "created_at", "v": cost_report_created_at, "o": "lt"},
             ]
@@ -500,9 +500,7 @@ class CostReportService(BaseService):
         adjustment_options: dict,
         domain_id: str,
         cost_report_config_id: str,
-    ) -> Tuple[bool, str]:
-        create_adjusting_report = False
-
+    ) -> Tuple[bool, bool, str]:
         adjustment_state = adjustment_options.get("enabled", False)
         adjustment_period = adjustment_options.get("period", 0)
         self.is_within_adjustment_period = adjustment_state and adjustment_period > 0
@@ -510,18 +508,15 @@ class CostReportService(BaseService):
         current_day = current_date.day
         done_day = issue_day + adjustment_period
 
+        create_in_progress_report = False
+        create_adjusting_report = False
+
         if issue_day <= current_day:
-            #TODO: If Done Report Exist and then BackWard the issue day then it create adjusting report, this is not good
             create_adjusting_report = True
             report_month = (current_date - relativedelta(months=1)).strftime("%Y-%m")
 
             if done_day <= current_day:
-                if not self._check_done_cost_report_exist(domain_id, cost_report_config_id, report_month):
-                    self.is_done_report = True
-                else :
-                    #TODO: Don't need to create in_progress report
-                    create_adjusting_report = False
-                    self.is_done_report = False
+                self.is_done_report = True
         else:
             retry_days = min(config.get_global("COST_REPORT_RETRY_DAYS", 7), 10)
             total_retry_days = retry_days + adjustment_period
@@ -533,6 +528,7 @@ class CostReportService(BaseService):
                 issue_date = issue_date.replace(day=issue_day)
                 report_date = current_date - relativedelta(months=2)
             else:
+                create_in_progress_report = True
                 issue_date = current_date.replace(day=issue_day)
                 report_date = current_date - relativedelta(months=1)
 
@@ -545,10 +541,10 @@ class CostReportService(BaseService):
             if create_adjusting_report:
                 if self._check_done_cost_report_exist(domain_id, cost_report_config_id, report_month):
                     create_adjusting_report = False
-                else :
+                elif current_date.date() >= done_date.date():
                     self.is_done_report = True
 
-        return create_adjusting_report, report_month
+        return create_in_progress_report, create_adjusting_report, report_month
 
         # adjustment_state = adjustment_options.get("enabled", False)
         # adjustment_period = adjustment_options.get("period", 0)
