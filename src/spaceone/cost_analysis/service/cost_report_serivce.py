@@ -260,7 +260,7 @@ class CostReportService(BaseService):
         metadata = self._collect_cost_report_metadata(config_vo, current_date)
 
         create_in_progress_report, create_adjusting_report, report_month = (
-            self._get_create_adjusting_report_and_report_month(
+            self._calculate_report_flags_and_report_month(
                 metadata["issue_day"],
                 metadata["is_last_day"],
                 current_date,
@@ -285,30 +285,21 @@ class CostReportService(BaseService):
             scope=config_vo.scope,
         )
 
+        status = None
         if create_in_progress_report:
-            # IN_PROGRESS
-            in_progress_reports = self._build_cost_reports_from_costs(
-                "IN_PROGRESS", config_vo, unified_costs, metadata
-            )
-            self._persist_cost_reports_by_status(
-                in_progress_reports,
-                report_month,
-                report_issue_day,
-                metadata["data_source_ids"],
-                domain_id,
-                issue_date,
-            )
+            status = "IN_PROGRESS"
+        elif create_adjusting_report:
+            status = "ADJUSTING"
 
-        if create_adjusting_report:
+        if status:
             _LOGGER.debug(
-                f"[create_cost_report] issue_month={issue_month}, report_month={report_month}, report_issue_day={report_issue_day}"
-            )
-            adjusting_reports = self._build_cost_reports_from_costs(
-                "ADJUSTING", config_vo, unified_costs, metadata
-            )
+                f"[create_cost_report] status = {status}, issue_month={issue_month}, report_month={report_month}, report_issue_day={report_issue_day}")
 
+            reports = self._build_cost_reports_from_costs(
+                status, config_vo, unified_costs, metadata
+            )
             self._persist_cost_reports_by_status(
-                adjusting_reports,
+                reports,
                 report_month,
                 report_issue_day,
                 metadata["data_source_ids"],
@@ -492,7 +483,7 @@ class CostReportService(BaseService):
         }
         return self.identity_mgr.grant_token(params)
 
-    def _get_create_adjusting_report_and_report_month(
+    def _calculate_report_flags_and_report_month(
         self,
         issue_day: int,
         is_last_day: bool,
@@ -667,6 +658,7 @@ class CostReportService(BaseService):
         issue_date,
     ):
         cost_report_data_svc = CostReportDataService()
+
         start_cost_report_number = self.get_start_cost_report_number(
             domain_id, issue_date
         )
