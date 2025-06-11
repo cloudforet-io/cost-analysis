@@ -518,22 +518,22 @@ class CostReportService(BaseService):
                 issue_day = self.get_issue_day(is_last_day, issue_day, issue_date)
                 issue_date = issue_date.replace(day=issue_day)
                 report_date = current_date - relativedelta(months=2)
+
+                report_month = report_date.strftime("%Y-%m")
+                done_date = issue_date + relativedelta(days=adjustment_period)
+
+                if retry_start_date < done_date <= current_date:
+                    create_adjusting_report = True
+
+                if create_adjusting_report:
+                    if self._check_done_cost_report_exist(domain_id, cost_report_config_id, report_month):
+                        create_adjusting_report = False
+                    elif current_date.date() >= done_date.date():
+                        self.is_done_report = True
             else:
                 create_in_progress_report = True
-                issue_date = current_date.replace(day=issue_day)
                 report_date = current_date - relativedelta(months=1)
-
-            report_month = report_date.strftime("%Y-%m")
-            done_date = issue_date + relativedelta(days=adjustment_period)
-
-            if retry_start_date < done_date <= current_date:
-                create_adjusting_report = True
-
-            if create_adjusting_report:
-                if self._check_done_cost_report_exist(domain_id, cost_report_config_id, report_month):
-                    create_adjusting_report = False
-                elif current_date.date() >= done_date.date():
-                    self.is_done_report = True
+                report_month = report_date.strftime("%Y-%m")
 
         return create_in_progress_report, create_adjusting_report, report_month
 
@@ -700,9 +700,9 @@ class CostReportService(BaseService):
                             cost_report_vo,
                         )
 
-            if self.is_done_report:
-                cost_report_vo = self._update_cost_report_done_status(cost_report_vo)
-                self.send_cost_report(cost_report_vo)
+                if self.is_done_report:
+                    cost_report_vo = self._update_cost_report_done_status(cost_report_vo)
+                    self.send_cost_report(cost_report_vo)
 
         self._delete_old_cost_reports(
             report_month,
