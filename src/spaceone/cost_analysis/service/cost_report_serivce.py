@@ -499,8 +499,7 @@ class CostReportService(BaseService):
         adjustment_period = adjustment_options.get("period", 0)
 
         retry_days = min(config.get_global("COST_REPORT_RETRY_DAYS", 7), 10)
-        total_retry_days = max(adjustment_period, retry_days)
-        retry_start_date = current_date - relativedelta(days=total_retry_days)
+        retry_start_date = current_date - relativedelta(days=retry_days)
 
         if retry_start_date.month != current_date.month:
             issue_base_date = current_date - relativedelta(months=1)
