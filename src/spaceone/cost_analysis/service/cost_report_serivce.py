@@ -4,11 +4,9 @@ import logging
 from dateutil.relativedelta import relativedelta
 from datetime import datetime, timezone
 from typing import Tuple, Union
-from datetime import timedelta
 
 from mongoengine import QuerySet
 from spaceone.core import config
-from spaceone.core.plugin import serve
 from spaceone.core.service import *
 
 from spaceone.cost_analysis.manager import DataSourceAccountManager
@@ -265,8 +263,6 @@ class CostReportService(BaseService):
                 metadata["is_last_day"],
                 current_date,
                 adjustment_options,
-                domain_id,
-                cost_report_config_id,
             )
         )
 
@@ -310,6 +306,27 @@ class CostReportService(BaseService):
     def _get_all_cost_report_configs(self) -> QuerySet:
         return self.cost_report_config_mgr.filter_cost_report_configs(state="ENABLED")
 
+    def _change_status_to_expired(
+        self,
+        report_month: str,
+        domain_id: str,
+        cost_report_config_id: str,
+    ):
+        cost_report_update_query = {
+            "filter": [
+                {"k": "cost_report_config_id", "v": cost_report_config_id, "o": "eq"},
+                {"k": "report_month", "v": report_month, "o": "eq"},
+                {"k": "domain_id", "v": domain_id, "o": "eq"},
+            ]
+        }
+
+        cost_reports_vos, total_count = self.cost_report_mgr.list_cost_reports(
+            cost_report_update_query
+        )
+
+        for cost_report_vo in cost_reports_vos:
+            self.cost_report_mgr.update_cost_report_by_vo({"status": "EXPIRED"}, cost_report_vo)
+
     def _delete_old_cost_reports(
         self,
         report_month: str,
@@ -321,8 +338,8 @@ class CostReportService(BaseService):
             "filter": [
                 {"k": "cost_report_config_id", "v": cost_report_config_id, "o": "eq"},
                 {"k": "report_month", "v": report_month, "o": "eq"},
-                # {"k": "status", "v": "DONE", "o": "not"},
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
+                {"k": "status", "v": ["DONE","EXPIRED"], "o": "not"},
                 {"k": "created_at", "v": cost_report_created_at, "o": "lt"},
             ]
         }
@@ -489,18 +506,16 @@ class CostReportService(BaseService):
         is_last_day: bool,
         current_date: datetime,
         adjustment_options: dict,
-        domain_id: str,
-        cost_report_config_id: str,
     ) -> Tuple[bool, bool, str]:
         create_in_progress_report = False
         create_adjusting_report = False
 
         adjustment_state = adjustment_options.get("enabled", False)
         adjustment_period = adjustment_options.get("period", 0)
+        self.is_within_adjustment_period = adjustment_state and adjustment_period > 0
 
         retry_days = min(config.get_global("COST_REPORT_RETRY_DAYS", 7), 10)
-        total_retry_days = max(adjustment_period, retry_days)
-        retry_start_date = current_date - relativedelta(days=total_retry_days)
+        retry_start_date = current_date - relativedelta(days=retry_days)
 
         if retry_start_date.month != current_date.month:
             issue_base_date = current_date - relativedelta(months=1)
@@ -517,66 +532,12 @@ class CostReportService(BaseService):
 
         if current_date < issue_date:
             create_in_progress_report = True
-        elif issue_date <= current_date < done_date:
+        else:
             create_adjusting_report = True
-        elif current_date >= done_date:
-            if not self._check_done_cost_report_exist(domain_id, cost_report_config_id, report_month):
-                create_adjusting_report = True
+            if current_date >= done_date:
                 self.is_done_report = True
 
-        self.is_within_adjustment_period = adjustment_state and adjustment_period > 0
-
         return create_in_progress_report, create_adjusting_report, report_month
-
-        # adjustment_state = adjustment_options.get("enabled", False)
-        # adjustment_period = adjustment_options.get("period", 0)
-        # retry_days = min(config.get_global("COST_REPORT_RETRY_DAYS", 7), 10)
-        # current_day = current_date.day
-        #
-        # total_retry_days = retry_days + adjustment_period
-        # retry_start_date = current_date - relativedelta(days=total_retry_days)
-        #
-        # if retry_start_date.month != current_date.month:
-        #     issue_month = current_date - relativedelta(months=1)
-        #     issue_day = self.get_issue_day(is_last_day, issue_day, issue_month)
-        #     issue_date = issue_month.replace(day=issue_day)
-        #     report_date = current_date - relativedelta(months=2)
-        # else:
-        #     issue_date = current_date.replace(day=issue_day)
-        #     report_date = current_date - relativedelta(months=1)
-        #
-        # report_month = report_date.strftime("%Y-%m")
-        # done_date = issue_date + relativedelta(days=adjustment_period)
-        #
-        # create_adjusting_report = False
-        #
-        # # check the retry process
-        # if retry_start_date < done_date <= current_date:
-        #     create_adjusting_report = True
-        #     if adjustment_state and adjustment_period > 0:
-        #         self.is_within_adjustment_period = True
-        #     self.is_done_report = True
-        #
-        # if create_adjusting_report and self._check_done_cost_report_exist(
-        #         domain_id, cost_report_config_id, report_month
-        # ):
-        #     create_adjusting_report = False
-        #
-        # # check the normal process
-        # if issue_date == current_date:
-        #     create_adjusting_report = True
-        #     report_month = (current_date - relativedelta(months=1)).strftime("%Y-%m")
-        #
-        # if current_date == done_date:
-        #     self.is_done_report = True
-        #     self.is_within_adjustment_period = True
-        #     create_adjusting_report = True
-        #
-        # if issue_date <= current_date <= done_date:
-        #     if adjustment_state and adjustment_period > 0:
-        #         self.is_within_adjustment_period = True
-        #
-        # return create_adjusting_report, report_month
 
     def _check_done_cost_report_exist(
         self,
@@ -705,6 +666,9 @@ class CostReportService(BaseService):
                 if self.is_done_report:
                     cost_report_vo = self._update_cost_report_done_status(cost_report_vo)
                     self.send_cost_report(cost_report_vo)
+
+        if self._check_done_cost_report_exist(domain_id, cost_report_config_id, report_month):
+            self._change_status_to_expired(domain_id, cost_report_config_id, report_month)
 
         self._delete_old_cost_reports(
             report_month,

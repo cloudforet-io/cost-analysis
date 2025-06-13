@@ -6,7 +6,7 @@ class CostReport(MongoModel):
     cost_report_id = StringField(max_length=40, generate_id="cost-report", unique=True)
     cost = DictField(default={})
     status = StringField(
-        max_length=20, choices=["IN_PROGRESS", "ADJUSTING", "DONE"], required=True
+        max_length=20, choices=["IN_PROGRESS", "ADJUSTING", "DONE", "EXPIRED"], required=True
     )
     report_number = StringField(max_length=255)
     currency = StringField(choices=["KRW", "USD", "JPY"], required=True)
