@@ -294,6 +294,7 @@ class CostReportService(BaseService):
             reports = self._build_cost_reports_from_costs(
                 status, config_vo, unified_costs, metadata
             )
+
             self._persist_cost_reports_by_status(
                 reports,
                 report_month,
@@ -308,9 +309,9 @@ class CostReportService(BaseService):
 
     def _change_status_to_expired(
         self,
-        report_month: str,
         domain_id: str,
         cost_report_config_id: str,
+        report_month: str,
     ):
         cost_report_update_query = {
             "filter": [
