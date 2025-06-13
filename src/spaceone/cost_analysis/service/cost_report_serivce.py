@@ -312,6 +312,7 @@ class CostReportService(BaseService):
         domain_id: str,
         cost_report_config_id: str,
         report_month: str,
+        cost_report_created_at: datetime,
     ):
         cost_report_update_query = {
             "filter": [
@@ -319,6 +320,7 @@ class CostReportService(BaseService):
                 {"k": "report_month", "v": report_month, "o": "eq"},
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
                 {"k": "status", "v": "DONE", "o": "eq"},
+                {"k": "created_at", "v": cost_report_created_at, "o": "lt"},
             ]
         }
 
@@ -670,13 +672,13 @@ class CostReportService(BaseService):
                     self.send_cost_report(cost_report_vo)
 
         if self._check_done_cost_report_exist(domain_id, cost_report_config_id, report_month):
-            self._change_status_to_expired(domain_id, cost_report_config_id, report_month)
+            self._change_status_to_expired(domain_id, cost_report_config_id, report_month, report_created_at)
 
         self._delete_old_cost_reports(
             report_month,
             domain_id,
             cost_report_config_id,
-            report_created_at,
+            report_created_at
         )
 
     @staticmethod
