@@ -317,6 +317,7 @@ class CostReportService(BaseService):
                 {"k": "cost_report_config_id", "v": cost_report_config_id, "o": "eq"},
                 {"k": "report_month", "v": report_month, "o": "eq"},
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
+                {"k": "status", "v": "DONE", "o": "eq"},
             ]
         }
 
