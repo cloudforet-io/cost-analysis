@@ -339,7 +339,7 @@ class CostReportService(BaseService):
                 {"k": "cost_report_config_id", "v": cost_report_config_id, "o": "eq"},
                 {"k": "report_month", "v": report_month, "o": "eq"},
                 {"k": "domain_id", "v": domain_id, "o": "eq"},
-                {"k": "status", "v": ["DONE","EXPIRED"], "o": "not"},
+                {"k": "status", "v": ["DONE","EXPIRED"], "o": "not_in"},
                 {"k": "created_at", "v": cost_report_created_at, "o": "lt"},
             ]
         }
