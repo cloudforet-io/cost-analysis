@@ -263,8 +263,6 @@ class CostReportService(BaseService):
                 metadata["is_last_day"],
                 current_date,
                 adjustment_options,
-                domain_id,
-                cost_report_config_id,
             )
         )
 
@@ -508,8 +506,6 @@ class CostReportService(BaseService):
         is_last_day: bool,
         current_date: datetime,
         adjustment_options: dict,
-        domain_id: str,
-        cost_report_config_id: str,
     ) -> Tuple[bool, bool, str]:
         create_in_progress_report = False
         create_adjusting_report = False
