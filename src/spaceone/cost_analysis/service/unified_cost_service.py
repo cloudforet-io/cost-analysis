@@ -399,7 +399,6 @@ class UnifiedCostService(BaseService):
         aggregation_month: str,
         is_confirmed: bool = False,
     ) -> None:
-
         identity_mgr = IdentityManager(token=config.get_global("TOKEN"))
         workspace_ids = [workspace_id]
         workspace_name = None
