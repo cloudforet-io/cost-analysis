@@ -186,30 +186,31 @@ class CostManager(BaseManager):
         return response
 
     def analyze_monthly_costs(
-        self, query, domain_id, data_source_id: str, target="SECONDARY_PREFERRED"
+            self, query, domain_id, data_source_id: str = None, target="SECONDARY_PREFERRED"
     ):
-        data_source_vo = self.data_source_mgr.get_data_source(
-            domain_id=domain_id, data_source_id=data_source_id
-        )
-
-        if data_source_vo.data_source_type == "WAREHOUSE":
-            warehouse_type = data_source_vo.warehouse_info["type"]
-            provider = data_source_vo.provider
-            warehouse_cost_connector = DatabricksConnector(
-                warehouse_type=warehouse_type,
-                provider=provider,
+        if data_source_id:
+            data_source_vo = self.data_source_mgr.get_data_source(
+                domain_id=domain_id, data_source_id=data_source_id
             )
 
-            response = warehouse_cost_connector.analyze_costs(query)
-        else:
-            query["target"] = target
-            query["date_field"] = "billed_month"
-            query["date_field_format"] = "%Y-%m"
-            _LOGGER.debug(f"[analyze_monthly_costs] query: {query}")
+            if data_source_vo.data_source_type == "WAREHOUSE":
+                warehouse_type = data_source_vo.warehouse_info["type"]
+                provider = data_source_vo.provider
+                warehouse_cost_connector = DatabricksConnector(
+                    warehouse_type=warehouse_type,
+                    provider=provider,
+                )
 
-            query = self._change_filter_project_group_id(query, domain_id)
-            response = self.monthly_cost_model.analyze(**query)
-        return response
+                return warehouse_cost_connector.analyze_costs(query)
+
+        # 공통 처리 로직
+        query["target"] = target
+        query["date_field"] = "billed_month"
+        query["date_field_format"] = "%Y-%m"
+        _LOGGER.debug(f"[analyze_monthly_costs] query: {query}")
+
+        query = self._change_filter_project_group_id(query, domain_id)
+        return self.monthly_cost_model.analyze(**query)
 
     def analyze_yearly_costs(self, query, domain_id, target="SECONDARY_PREFERRED"):
         query["target"] = target
