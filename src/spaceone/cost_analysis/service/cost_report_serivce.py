@@ -77,6 +77,7 @@ class CostReportService(BaseService):
                     params={
                         "domain_id": cost_report_config_vo.domain_id,
                         "cost_report_config_id": cost_report_config_vo.cost_report_config_id,
+                        "is_scheduled": True,
                     }
                 )
             except Exception as e:
@@ -248,6 +249,7 @@ class CostReportService(BaseService):
     def create_cost_report(self, params: dict):
         domain_id = params["domain_id"]
         cost_report_config_id = params["cost_report_config_id"]
+        is_scheduled = params.get("is_scheduled", False)
 
         config_vo = self.cost_report_config_mgr.get_cost_report_config(
             domain_id, cost_report_config_id
@@ -263,6 +265,9 @@ class CostReportService(BaseService):
                 metadata["is_last_day"],
                 current_date,
                 adjustment_options,
+                is_scheduled,
+                cost_report_config_id,
+                domain_id,
             )
         )
 
@@ -510,6 +515,9 @@ class CostReportService(BaseService):
         is_last_day: bool,
         current_date: datetime,
         adjustment_options: dict,
+        is_scheduled: bool = False,
+        cost_report_config_id: str = None,
+        domain_id:str = None
     ) -> Tuple[bool, bool, str]:
         create_in_progress_report = False
         create_adjusting_report = False
@@ -539,7 +547,14 @@ class CostReportService(BaseService):
         else:
             create_adjusting_report = True
             if current_date >= done_date:
-                self.is_done_report = True
+                if is_scheduled and self._check_done_cost_report_exist(
+                        domain_id=domain_id,
+                        cost_report_config_id=cost_report_config_id,
+                        report_month=report_month,
+                ):
+                    create_adjusting_report = False
+                else:
+                    self.is_done_report = True
 
         return create_in_progress_report, create_adjusting_report, report_month
 
