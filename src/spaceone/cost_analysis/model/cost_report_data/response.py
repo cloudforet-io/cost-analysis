@@ -18,6 +18,10 @@ class CostReportDataResponse(BaseModel):
     is_adjusted: Union[bool, None] = None
     provider: Union[str, None] = None
     product: Union[str, None] = None
+    region_code: Union[str, None] = None
+    region_key: Union[str, None] = None
+    usage_type: Union[str, None] = None
+    usage_unit: Union[str, None] = None
     service_account_name: Union[str, None] = None
     data_source_name: Union[str, None] = None
     project_name: Union[str, None] = None
