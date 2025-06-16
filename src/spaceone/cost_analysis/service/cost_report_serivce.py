@@ -547,15 +547,12 @@ class CostReportService(BaseService):
         else:
             create_adjusting_report = True
             if current_date >= done_date:
-                if is_scheduled:
-                    if not self._check_done_cost_report_exist(
+                if is_scheduled and self._check_done_cost_report_exist(
                         domain_id=domain_id,
                         cost_report_config_id=cost_report_config_id,
                         report_month=report_month,
-                    ):
-                        self.is_done_report = True
-                    else:
-                        create_adjusting_report = False
+                ):
+                    create_adjusting_report = False
                 else:
                     self.is_done_report = True
 
