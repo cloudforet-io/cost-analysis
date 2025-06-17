@@ -34,14 +34,10 @@ class AdjustmentPolicyApplier:
         self.workspace_id = cost_report_vo.workspace_id
         self.project_id = cost_report_vo.project_id
         self.service_account_id = cost_report_vo.service_account_id
-        self.usage_type = ""
-        self.usage_unit = ""
-        self.region_key = ""
-        self.region_code = ""
-        # self.usage_type = unified_cost["usage_type"]
-        # self.usage_unit = unified_cost["usage_unit"]
-        # self.region_key = unified_cost["region_key"]
-        # self.region_code = unified_cost["region_code"]
+        self.usage_type = unified_cost["usage_type"]
+        self.usage_unit = unified_cost["usage_unit"]
+        self.region_key = unified_cost["region_key"]
+        self.region_code = unified_cost["region_code"]
 
         self.data_source_ids = data_source_ids
 
@@ -153,12 +149,12 @@ class AdjustmentPolicyApplier:
             "is_adjusted": True,
             "is_confirmed": False,
             "cost": adjusted_cost,
+            "provider": provider,
+            "product": product,
             "usage_type": self.usage_type,
             "usage_unit": self.usage_unit,
             "region_key": self.region_key,
             "region_code": self.region_code,
-            "provider": provider,
-            "product": product,
             "billed_month": self.cost_report_vo.report_month,
             "billed_year": self.cost_report_vo.report_month.split("-")[0],
             "report_month": self.cost_report_vo.report_month,
