@@ -654,7 +654,7 @@ class CostReportService(BaseService):
             cost_report_config_id = report["cost_report_config_id"]
 
             cost_report_vo = self.cost_report_mgr.create_cost_report(report)
-            cost_report_data_svc.create_cost_report_data(cost_report_vo)
+            cost_report_data_svc.create_cost_report_data(cost_report_vo, report)
 
             if cost_report_vo.status == "ADJUSTING":
                 if self.is_within_adjustment_period:

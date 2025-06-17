@@ -124,7 +124,7 @@ class CostReportDataService(BaseService):
         query = params.query or {}
         return self.cost_report_data_mgr.stat_cost_reports_data(query)
 
-    def create_cost_report_data(self, cost_report_vo: CostReport):
+    def create_cost_report_data(self, cost_report_vo: CostReport, unified_cost: dict):
         cost_report_config_mgr = CostReportConfigManager()
 
         domain_id = cost_report_vo.domain_id
@@ -161,6 +161,7 @@ class CostReportDataService(BaseService):
             report_month=report_month,
             issue_date=issue_date,
             is_confirmed=is_confirmed,
+            unified_cost=unified_cost,
         )
 
     def _aggregate_unified_cost_report_data(
@@ -176,6 +177,7 @@ class CostReportDataService(BaseService):
         report_month: str,
         issue_date: str,
         is_confirmed: bool = False,
+        unified_cost: dict = None,
     ):
         report_year = report_month.split("-")[0]
         currencies = ["KRW", "USD", "JPY"]
@@ -242,6 +244,11 @@ class CostReportDataService(BaseService):
             aggregated_cost_report_data["workspace_id"] = workspace_id
             aggregated_cost_report_data["domain_id"] = domain_id
             aggregated_cost_report_data["is_confirmed"] = is_confirmed
+
+            aggregated_cost_report_data["usage_type"] = unified_cost["usage_type"]
+            aggregated_cost_report_data["usage_unit"] = unified_cost["usage_unit"]
+            aggregated_cost_report_data["region_key"] = unified_cost["region_key"]
+            aggregated_cost_report_data["region_code"] = unified_cost["region_code"]
 
             self.cost_report_data_mgr.create_cost_report_data(
                 aggregated_cost_report_data
