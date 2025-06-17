@@ -1,0 +1,9 @@
+name: Check Pull Request
+
+on:
+  pull_request_target:
+
+jobs:
+  call-workflow:
+    uses: spaceone-dev/actions/.github/workflows/called_common_check_pull_request.yml@master
+    secrets: inherit
