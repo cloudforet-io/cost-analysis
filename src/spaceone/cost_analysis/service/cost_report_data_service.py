@@ -231,11 +231,11 @@ class CostReportDataService(BaseService):
             )
             aggregated_cost_report_data["workspace_name"] = workspace_name
             aggregated_cost_report_data["project_name"] = project_name_map.get(
-                aggregated_cost_report_data["project_id"], "Unknown"
+                aggregated_cost_report_data["project_id"], ""
             )
             aggregated_cost_report_data["service_account_name"] = (
                 service_account_name_map.get(
-                    aggregated_cost_report_data.get("service_account_id"), "Unknown"
+                    aggregated_cost_report_data.get("service_account_id"), ""
                 )
             )
 
