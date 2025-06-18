@@ -162,32 +162,11 @@ class CostManager(BaseManager):
         self,
         query: dict,
         domain_id: str,
-        data_source_id: str,
+        data_source_id: str = None,
         target="SECONDARY_PREFERRED",
     ):
-        data_source_vo = self.data_source_mgr.get_data_source(
-            domain_id=domain_id, data_source_id=data_source_id
-        )
+        query = self._change_filter_project_group_id(query, domain_id)
 
-        if data_source_vo.data_source_type == "WAREHOUSE":
-            warehouse_cost_connector = DatabricksConnector(
-                provider=data_source_vo.provider
-            )
-
-            response = warehouse_cost_connector.analyze_costs(query)
-        else:
-            query["target"] = target
-            query["date_field"] = "billed_date"
-            query["date_field_format"] = "%Y-%m-%d"
-            _LOGGER.debug(f"[analyze_costs] query: {query}")
-
-            query = self._change_filter_project_group_id(query, domain_id)
-            response = self.cost_model.analyze(**query)
-        return response
-
-    def analyze_monthly_costs(
-            self, query, domain_id, data_source_id: str = None, target="SECONDARY_PREFERRED"
-    ):
         if data_source_id:
             data_source_vo = self.data_source_mgr.get_data_source(
                 domain_id=domain_id, data_source_id=data_source_id
@@ -196,10 +175,46 @@ class CostManager(BaseManager):
             if data_source_vo.data_source_type == "WAREHOUSE":
                 warehouse_type = data_source_vo.warehouse_info["type"]
                 provider = data_source_vo.provider
-                warehouse_cost_connector = DatabricksConnector(
-                    warehouse_type=warehouse_type,
-                    provider=provider,
-                )
+
+                if warehouse_type == "DATABRICKS":
+                    warehouse_cost_connector = DatabricksConnector(
+                        warehouse_type=warehouse_type,
+                        provider=provider
+                    )
+                else:
+                    raise ValueError(f"Unsupported warehouse_type: {warehouse_type}")
+
+                return warehouse_cost_connector.analyze_costs(query)
+
+        query["target"] = target
+        query["date_field"] = "billed_date"
+        query["date_field_format"] = "%Y-%m-%d"
+        _LOGGER.debug(f"[analyze_costs] query: {query}")
+
+        response = self.cost_model.analyze(**query)
+        return response
+
+    def analyze_monthly_costs(
+            self, query, domain_id, data_source_id: str = None, target="SECONDARY_PREFERRED"
+    ):
+        query = self._change_filter_project_group_id(query, domain_id)
+
+        if data_source_id:
+            data_source_vo = self.data_source_mgr.get_data_source(
+                domain_id=domain_id, data_source_id=data_source_id
+            )
+
+            if data_source_vo.data_source_type == "WAREHOUSE":
+                warehouse_type = data_source_vo.warehouse_info["type"]
+                provider = data_source_vo.provider
+
+                if warehouse_type == "DATABRICKS":
+                    warehouse_cost_connector = DatabricksConnector(
+                        warehouse_type=warehouse_type,
+                        provider=provider
+                    )
+                else:
+                    raise ValueError(f"Unsupported warehouse_type: {warehouse_type}")
 
                 return warehouse_cost_connector.analyze_costs(query)
 
@@ -209,7 +224,6 @@ class CostManager(BaseManager):
         query["date_field_format"] = "%Y-%m"
         _LOGGER.debug(f"[analyze_monthly_costs] query: {query}")
 
-        query = self._change_filter_project_group_id(query, domain_id)
         return self.monthly_cost_model.analyze(**query)
 
     def analyze_yearly_costs(self, query, domain_id, target="SECONDARY_PREFERRED"):
