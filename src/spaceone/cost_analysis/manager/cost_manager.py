@@ -120,23 +120,31 @@ class CostManager(BaseManager):
     def filter_costs(self, **conditions):
         return self.cost_model.filter(**conditions)
 
-    def list_costs(self, query: dict, domain_id: str, data_source_id: str):
-        data_source_vo = self.data_source_mgr.get_data_source(
-            domain_id=domain_id, data_source_id=data_source_id
-        )
+    def list_costs(self, query: dict, domain_id: str, data_source_id: str = None):
+        query = self._change_filter_project_group_id(query, domain_id)
 
-        if data_source_vo.data_source_type == "WAREHOUSE":
-            warehouse_options = data_source_vo.warehouse_options or {}
-            warehouse_cost_connector = DatabricksConnector(
-                warehouse_type=warehouse_options["type"]
+        if data_source_id:
+            data_source_vo = self.data_source_mgr.get_data_source(
+                domain_id=domain_id, data_source_id=data_source_id
             )
 
-            return warehouse_cost_connector.list_costs(query)
-        else:
-            query = self.change_filter_v_workspace_id(query, domain_id, data_source_id)
-            query = self._change_filter_project_group_id(query, domain_id)
-            query = self._add_hint_to_query(query)
-            return self.cost_model.query(**query)
+            if data_source_vo.data_source_type == "WAREHOUSE":
+                warehouse_type = data_source_vo.warehouse_info["type"]
+                provider = data_source_vo.provider
+
+                if warehouse_type == "DATABRICKS":
+                    warehouse_cost_connector = DatabricksConnector(
+                        warehouse_type=warehouse_type,
+                        provider=provider
+                    )
+                else:
+                    raise ValueError(f"Unsupported warehouse_type: {warehouse_type}")
+
+                return warehouse_cost_connector.list_costs(query)
+
+        query = self.change_filter_v_workspace_id(query, domain_id, data_source_id)
+        query = self._add_hint_to_query(query)
+        return self.cost_model.query(**query)
 
     def stat_costs(self, query: dict, domain_id: str):
         query = self._change_filter_project_group_id(query, domain_id)
