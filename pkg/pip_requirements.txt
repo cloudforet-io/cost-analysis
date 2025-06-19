@@ -5,4 +5,7 @@ jinja2
 finance-datareader
 plotly
 bs4
-databricks-sql-connector
+databricks-sql-connector>=3.0.0
+databricks-sqlalchemy>=1.0.0
+sqlalchemy>=2.0.0
+tenacity>=8.0.0

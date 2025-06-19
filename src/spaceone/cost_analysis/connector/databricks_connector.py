@@ -1,222 +1,247 @@
 import logging
-from datetime import datetime
 from decimal import Decimal
-from databricks import sql
+from typing import Dict, Any, List
+from collections.abc import Iterable
+
+from sqlalchemy import create_engine, text
+from sqlalchemy.exc import ProgrammingError, DatabaseError, SQLAlchemyError
+from sqlalchemy.engine import Result
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+import threading
 
 from spaceone.core import config
 from spaceone.core.connector import BaseConnector
+from spaceone.cost_analysis.error import *
+from spaceone.cost_analysis.connector.databricks_sql_builder import DatabricksSQLBuilder
 
 __all__ = ["DatabricksConnector"]
 
 _LOGGER = logging.getLogger(__name__)
 
-EXCLUDE_FIELDS = ["data_source_id"]
+EXCLUDE_FIELDS = ["data_source_id", "job_id", "job_task_id", "v_workspace_id"]
 
 
 class DatabricksConnector(BaseConnector):
+    _engine = None
+    _lock = threading.Lock()
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.warehouse_config = None
-        self.connection = None
-        self.cursor = None
-        self.table_name = None
-        self.provider = None
-        self.init(*args, **kwargs)
 
-    def init(self, *args, **kwargs):
+        self.sql_builder = DatabricksSQLBuilder
+        self.config = config
+        self.table = None
         self.provider = kwargs.get("provider")
-        warehouse_type = kwargs.get("warehouse_type", "DATABRICKS")
+        self.warehouse_type = kwargs.get("warehouse_type")
+        self._init_engine()
 
-        warehouse_configs = config.get_global("WAREHOUSES")
-        databricks_config = warehouse_configs.get(warehouse_type)
+    def _init_engine(self):
+        with self._lock:
+            if not self._engine:
+                _LOGGER.info("Databricks engine initializing")
 
-        server_hostname = databricks_config.get("server_hostname")
-        http_path = databricks_config.get("http_path")
-        access_token = databricks_config.get("access_token")
+                warehouse_config = self.config.get_global("WAREHOUSES")
+                databricks_config = warehouse_config.get(self.warehouse_type)
 
-        connection = sql.connect(
-            server_hostname=server_hostname,
-            http_path=http_path,
-            access_token=access_token,
-        )
+                access_token = databricks_config.get("access_token")
+                server_hostname = databricks_config.get("server_hostname")
+                http_path = databricks_config.get("http_path")
+                catalog = databricks_config.get("catalog")
+                schema = databricks_config.get("schema")
+                pool_size = databricks_config.get("pool_size")
+                max_overflow = databricks_config.get("max_overflow")
+                pool_recycle = databricks_config.get("pool_recycle")
+                pool_timeout = databricks_config.get("pool_timeout")
+                transport_command_timeout = databricks_config.get("transport_command_timeout")
+                self.table = databricks_config.get("table", {})
 
-        self.table_name = databricks_config.get("table_name")
-        self.connection = connection
-        self.cursor = connection.cursor()
+                dbrx_url = (
+                    f"databricks://token:{access_token}@{server_hostname}"
+                    f"?http_path={http_path}"
+                    f"&catalog={catalog}"
+                    f"&schema={schema}"
+                )
 
-    def analyze_costs(self, query: dict, table_name: str = None):
-        if not table_name:
-            table_name = self.table_name
+                self._engine = create_engine(
+                    dbrx_url,
+                    pool_size=pool_size,
+                    max_overflow=max_overflow,
+                    pool_recycle=pool_recycle,                       # Recycle connections every 5 minutes
+                    pool_timeout=pool_timeout,
+                    pool_pre_ping=True,
+                    connect_args = {
+                        "_transport_command_timeout": transport_command_timeout   # Server-side timeout
+                    },
+                )
+                _LOGGER.info("Databricks engine initialized with connection pool")
 
-        query["filter"].append(
-            {"key": "provider", "operator": "eq", "value": self.provider}
-        )
+    def _generate_sql(self, query: Dict, table: str) -> str:
+        try:
+            sql_builder = self.sql_builder(query, table)
+            raw_sql = sql_builder.build_sql()
+            return raw_sql
+        except Exception as e:
+            logging.error(f"SQL 생성 실패: {str(e)}")
+            raise
 
-        converted_query = self.convert_query_to_sql(query, table_name)
-        _LOGGER.debug(f"[DatabricksConnector] Converted Query: {converted_query}")
+    @retry(stop=stop_after_attempt(3),
+           wait=wait_exponential(multiplier=1, max=10),
+           retry=retry_if_exception_type(SQLAlchemyError))
+    def analyze_costs(self, query: dict):
+        if "fields" not in query:
+            raise ERROR_REQUIRED_PARAMETER(key="fields")
 
-        self.cursor.execute(converted_query)
+        if "granularity" not in query:
+            raise ERROR_REQUIRED_PARAMETER(key="granularity")
 
-        results = []
-        for row in self.cursor.fetchall():
-            row_dict = {
-                k: (float(v) if isinstance(v, Decimal) else v)
-                for k, v in row.asDict().items()
+        granularity = query["granularity"]
+
+        table_name = self.table.get(self.provider, {}).get(granularity)
+
+        # EXCLUDE_FIELDS에 속한 필드는 제거.
+        filtered_query = self._preprocess_query_dict(query, EXCLUDE_FIELDS)
+
+        sql_query = self._generate_sql(filtered_query, table_name)
+        _LOGGER.info(f"sql_query: {sql_query}")
+
+        try:
+            with self._engine.connect() as conn:  # 풀에서 연결 자동 할당
+                _LOGGER.info(f"Pool stats: {self._engine.pool.status()}")
+
+                dbrx_result = conn.execute(text(sql_query))
+
+                formatted_result = self._format_like_mongodb(dbrx_result, filtered_query)
+                return formatted_result
+
+        except ProgrammingError as e:
+            _LOGGER.error(f"SQL syntax error: {str(e)}", exc_info=True)
+            raise
+        except DatabaseError as e:
+            _LOGGER.error(f"Database error: {str(e)}", exc_info=True)
+            raise
+        except SQLAlchemyError as e:
+            _LOGGER.error(f"Query execution error: {str(e)}", exc_info=True)
+            raise
+
+    def _preprocess_query_dict(self, query_dict, exclude_list):
+        """
+        주어진 쿼리 딕셔너리에서 exclude_list에 포함된 필드를 제거.
+        """
+        if not query_dict:
+            return query_dict
+
+        processed_query = query_dict.copy()
+        exclude_set = set(exclude_list)
+
+        # 공통 필드 제거 로직
+        def remove_excluded_fields(items: List[str]) -> List[str]:
+            return [item for item in items if item not in exclude_set]
+
+        def remove_excluded_by_key(items: List[Dict], key_field: str = 'k') -> List[Dict]:
+            return [item for item in items if item.get(key_field) not in exclude_set]
+
+        # 1. group_by 처리
+        if 'group_by' in processed_query and isinstance(processed_query['group_by'], list):
+            processed_query['group_by'] = remove_excluded_fields(processed_query['group_by'])
+
+        # 2. fields 처리
+        if 'fields' in processed_query and isinstance(processed_query['fields'], dict):
+            processed_query['fields'] = {
+                name: config for name, config in processed_query['fields'].items()
+                if config.get('key') not in exclude_set
             }
-            results.append(row_dict)
 
-        self.cursor.close()
-        self.connection.close()
-        return {"results": results, "total_count": len(results)}
+        # 3. sort 처리
+        if 'sort' in processed_query and isinstance(processed_query['sort'], list):
+            valid_total_fields = {f"_total_{name}" for name in processed_query.get('fields', {})}
+            processed_query['sort'] = [
+                item for item in processed_query['sort']
+                if item.get('key') not in exclude_set and
+                   (not item.get('key').startswith('_total_') or item.get('key') in valid_total_fields)
+            ]
 
-    def convert_query_to_sql(self, query: dict, table_name: str) -> str:
-        def parse_filter(filter_list):
-            conditions = []
-            for f in filter_list:
-                key = f.get("key") or f.get("k")
-                if key in EXCLUDE_FIELDS:
+        # 4. filter 및 filter_or 처리
+        for filter_key in ['filter', 'filter_or']:
+            if filter_key in processed_query and isinstance(processed_query[filter_key], list):
+                processed_query[filter_key] = remove_excluded_by_key(processed_query[filter_key])
+
+        # 5. field_group 처리
+        if 'field_group' in processed_query and isinstance(processed_query['field_group'], list):
+            processed_query['field_group'] = remove_excluded_fields(processed_query['field_group'])
+            if not processed_query['field_group']:
+                # field_group이 비면 SQL 의미가 달라질 수 있으므로 로그 또는 예외 처리
+                processed_query.pop('field_group', None)
+
+        # 6. select 처리
+        if 'select' in processed_query and isinstance(processed_query['select'], dict):
+            new_select = {}
+            for alias, definition in processed_query['select'].items():
+                if alias in exclude_set:
                     continue
-                value = f.get("value") or f.get("v")
-                op = f.get("operator") or f.get("o")
 
-                if isinstance(value, str):
-                    value = f"'{value}'"
-                elif isinstance(value, list):
-                    value = "(" + ", ".join(map(str, value)) + ")"
-                else:
-                    value = str(value)
+                is_valid = True
+                if isinstance(definition, str):
+                    is_valid = definition not in exclude_set
+                elif isinstance(definition, dict) and 'fields' in definition:
+                    is_valid = not any(
+                        f in exclude_set for f in definition.get('fields', []) if isinstance(f, str)
+                    )
 
-                if op == "eq":
-                    conditions.append(f"{key} = {value}")
-                elif op == "ne":
-                    conditions.append(f"{key} != {value}")
-                elif op == "in":
-                    conditions.append(f"{key} IN {value}")
-                elif op == "nin":
-                    conditions.append(f"{key} NOT IN {value}")
-                elif op == "gt":
-                    conditions.append(f"{key} > {value}")
-                elif op == "lt":
-                    conditions.append(f"{key} < {value}")
-                elif op == "gte":
-                    conditions.append(f"{key} >= {value}")
-                elif op == "lte":
-                    conditions.append(f"{key} <= {value}")
-                else:
-                    conditions.append(f"{key} {op} {value}")
-            return conditions
+                if is_valid:
+                    new_select[alias] = definition
 
-        group_by = query.get("group_by", [])
-        fields = query.get("fields", {})
-        select = query.get("select", {})
-        sort = query.get("sort", [])
-        page = query.get("page", {})
-        field_group = query.get("field_group", [])
-        granularity = query.get("granularity")
-        start = query.get("start")
-        end = query.get("end")
-        filters = query.get("filter", [])
-        filters_or = query.get("filter_or", [])
-        unwind = query.get("unwind", {})
-        keyword = query.get("keyword")
-
-        group_by_clauses = []
-        select_clauses = []
-
-        # group_by
-        for item in group_by:
-            if isinstance(item, str):
-                key = item
-                select_clauses.append(f"{key}")
-            elif isinstance(item, dict):
-                key = item.get("key", item.get("k"))
-                name = item.get("name", key)
-                select_clauses.append(f"{key} AS {name}")
+            if new_select:
+                processed_query['select'] = new_select
             else:
-                continue
+                processed_query.pop('select', None)
 
-            group_by_clauses.append(key)
+        return processed_query
 
-        # granularity and field_group
-        if granularity and "date" in field_group:
-            date_expr = (
-                "DATE_FORMAT(billed_month, 'yyyy-MM')"
-                if granularity == "MONTHLY"
-                else "billed_month"
-            )
-            select_clauses.append(f"{date_expr} AS billed_date")
-            group_by_clauses.append(date_expr)
+    def _format_like_mongodb(self, sql_result: Result, query_dict: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Databricks SQL 쿼리 결과를 최종 JSON 형태로 변환.
+        """
 
-        # fields (aggregation)
-        for alias, field_def in fields.items():
-            agg_key = field_def["key"]
-            agg_op = field_def["operator"].upper()
-            select_clauses.append(f"{agg_op}({agg_key}) AS {alias}")
+        # 모든 중첩 구조에서 Decimal을 float으로 재귀적으로 변환
+        def _decimal_to_float(item: Any) -> Any:
+            # 딕셔너리 처리
+            if isinstance(item, dict):
+                return {k: _decimal_to_float(v) for k, v in item.items()}
+            # list, tuple, NdArrayItemsContainer 등 모든 리스트 형태 컨테이너 처리
+            # (단, 문자열(str, bytes)은 반복 가능하지만 분해하지 않음)
+            if isinstance(item, Iterable) and not isinstance(item, (str, bytes)):
+                return [_decimal_to_float(i) for i in item]
+            # Decimal 타입은 float으로 변환
+            if isinstance(item, Decimal):
+                return float(item)
+            # 그 외 타입은 그대로 반환
+            return item
 
-        # select (projection)
-        for key, val in select.items():
-            select_clauses.append(f"{val.get('key', key)} AS {key}")
+        # 1. SQLAlchemy Result를 dict 리스트로 변환
+        results_as_dicts = [row._asdict() for row in sql_result]
 
-        # unwind (flattening) - placeholder
-        if unwind:
-            select_clauses.insert(0, f"-- Unwind on {unwind.get('path')}")
+        # 2. 결과 리스트 전체에 대해 재귀적으로 Decimal 변환을 적용
+        # 이렇게 하면 field_group으로 생성된 중첩 배열 내부의 Decimal 값도 float으로 변환
+        processed_results = [_decimal_to_float(row) for row in results_as_dicts]
 
-        # keyword (text search)
-        if keyword:
-            filters.append({"key": "text", "operator": "like", "value": f"%{keyword}%"})
+        # 3. 페이지네이션 처리를 위해 사용자가 요청한 원래 limit 값을 가져와서 비교
+        page_info = query_dict.get('page', {})
+        if page_info:
+            # query.page 가 있는 경우에 more_flag를 함께 리턴해야 한다
+            original_limit = int(page_info.get('limit', 0))
 
-        # WHERE
-        where_clauses = []
-        if granularity == "MONTHLY":
-            date_field_name = "billed_month"
-            date_format = "%Y-%m"
-        elif granularity == "DAILY":
-            date_field_name = "billed_date"
-            date_format = "%Y-%m-%d"
+            # 3.1. 'more' 플래그를 확인하고, 필요한 경우 추가로 가져온 항목을 제거
+            more_flag = False
+            final_results_list = processed_results
+
+            # 3.2. 사용자가 limit을 요청했고, 실제로 요청한 것보다 많은 결과가 반환되었는지 확인
+            if original_limit > 0 and len(processed_results) > original_limit:
+                more_flag = True
+                # 'more' 확인용으로 가져온 마지막 항목을 결과 리스트에서 제거
+                final_results_list = processed_results[:original_limit]
+
+            # 4. 최종 형식에 맞춰 'results'와 'more' 플래그를 함께 래핑하여 반환
+            return {"results": final_results_list, "more": more_flag}
         else:
-            date_field_name = "billed_year"
-            date_format = "%Y"
-
-        if start:
-            start_date = datetime.strptime(start, date_format).strftime(date_format)
-            where_clauses.append(f"{date_field_name} >= DATE('{start_date}')")
-        if end:
-            end_date = datetime.strptime(end, date_format).strftime(date_format)
-            where_clauses.append(f"{date_field_name} <= DATE('{end_date}')")
-
-        where_clauses.extend(parse_filter(filters))
-        if filters_or:
-            or_conditions = parse_filter(filters_or)
-            if or_conditions:
-                where_clauses.append("(" + " OR ".join(or_conditions) + ")")
-
-        # ORDER BY
-        order_by_clause = ""
-        if sort:
-            sort_key = sort[0]["key"].replace("_total_", "")
-            sort_dir = "DESC" if sort[0].get("desc", False) else "ASC"
-            order_by_clause = f"ORDER BY {sort_key} {sort_dir}"
-
-        # PAGINATION
-        limit = page.get("limit", 100)
-        start_offset = max(page.get("start", 1) - 1, 0)
-        limit_offset_clause = f"LIMIT {limit} OFFSET {start_offset}"
-
-        # Final SQL assembly
-        query_parts = [
-            "SELECT",
-            "    " + ",\n    ".join(select_clauses),
-            f"FROM\n    {table_name}",
-        ]
-
-        if where_clauses:
-            query_parts.append("WHERE\n    " + " AND\n    ".join(where_clauses))
-        if group_by_clauses:
-            query_parts.append("GROUP BY ALL")
-        if order_by_clause:
-            query_parts.append(order_by_clause)
-        query_parts.append(limit_offset_clause)
-
-        converted_query = "\n".join(query_parts)
-        _LOGGER.debug(f"[convert_query_to_sql] Final SQL Query: {query_parts}")
-        return converted_query
+            # 4. 최종 형식에 맞춰 래핑하여 반환
+            return {"results": processed_results}

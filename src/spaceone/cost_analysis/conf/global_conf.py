@@ -18,9 +18,27 @@ WAREHOUSES = {
         "server_hostname": "",
         "http_path": "",
         "access_token": "",
-        "table_name": "",
+        "catalog": "",
+        "schema": "",
+        "table": {
+            "aws": {
+                "MONTHLY": "",
+                "DAILY": "",
+
+            },
+            "azure": {
+                "MONTHLY": "",
+                "DAILY": "",
+
+            },
+        },
+        "pool_size": 1,
+        "max_overflow": 5,
+        "pool_recycle": 300,
+        "pool_timeout": 30,
+        "transport_command_timeout": 120
     },
-    # "bigquery": {},
+    # "BIGQUERY": {},
 }
 
 # Budget Settings
