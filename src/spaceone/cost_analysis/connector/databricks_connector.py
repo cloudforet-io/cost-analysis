@@ -18,7 +18,7 @@ __all__ = ["DatabricksConnector"]
 
 _LOGGER = logging.getLogger(__name__)
 
-EXCLUDE_FIELDS = ["data_source_id"]
+EXCLUDE_FIELDS = ["data_source_id", "job_id", "job_task_id", "v_workspace_id"]
 
 
 class DatabricksConnector(BaseConnector):
