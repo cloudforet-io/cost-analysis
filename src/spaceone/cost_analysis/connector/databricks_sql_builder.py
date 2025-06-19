@@ -422,10 +422,31 @@ class DatabricksSQLBuilder:
         return None
 
     def _get_dt_format(self, date_str: str) -> Optional[str]:
+        """
+        'dt' 컬럼 필터용 날짜 형식(YYYYMM)을 반환.
+        'YYYY-MM', 'YYYY-MM-DD', 'YYYY-MM-DDTHH:MM:SSZ' 형식을 모두 지원.
+        """
+        if not date_str:
+            return None
+
         try:
-            year, month, _ = map(int, str(date_str).split('T')[0].split('-'))
-            return f"{year:04d}{month:02d}"
-        except (ValueError, IndexError):
+            # 'T'를 기준으로 날짜 부분만 추출
+            date_part = str(date_str).split('T')[0]
+            # '-'를 기준으로 분리
+            parts = date_part.split('-')
+
+            # 최소 YYYY와 MM은 있어야 함
+            if len(parts) >= 2:
+                year = int(parts[0])
+                month = int(parts[1])
+                return f"{year:04d}{month:02d}"
+            else:
+                # YYYY-MM 형식보다 짧은 경우, 잘못된 형식으로 간주
+                _LOGGER.warning("Invalid date format for dt: %s", date_str)
+                return None
+
+        except (ValueError, IndexError) as e:
+            _LOGGER.warning("Could not parse date string for dt format '%s': %s", date_str, e)
             return None
 
     def _format_date_for_filter(self, date_str: str, granularity_type: str, is_start_date: bool) -> Optional[str]:
