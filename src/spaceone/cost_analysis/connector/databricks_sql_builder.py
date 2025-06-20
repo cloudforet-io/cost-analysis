@@ -450,19 +450,39 @@ class DatabricksSQLBuilder:
             return None
 
     def _format_date_for_filter(self, date_str: str, granularity_type: str, is_start_date: bool) -> Optional[str]:
+        """Granularity 기반 필터용 날짜 형식을 반환 (안정성 개선)."""
+        if not date_str:
+            return None
         try:
-            parts = list(map(int, str(date_str).split('T')[0].split('-')))
-            year, month = parts[0], parts[1]
-            day = parts[2] if len(parts) > 2 else None
+            date_part = str(date_str).split('T')[0]
+            parts = date_part.split('-')
+
+            if len(parts) < 2:
+                _LOGGER.warning("Invalid date format for filter: %s", date_str)
+                return None
+
+            year = int(parts[0])
+            month = int(parts[1])
+            # YYYY-MM-DD 형식인 경우 day 값 추출
+            day = int(parts[2]) if len(parts) > 2 else None
+
             if granularity_type == 'MONTHLY':
                 return f"{year:04d}-{month:02d}"
             elif granularity_type == 'DAILY':
-                if day: return f"{year:04d}-{month:02d}-{day:02d}"
-                last_day = calendar.monthrange(year, month)[1]
-                day_to_use = "01" if is_start_date else str(last_day)
-                return f"{year:04d}-{month:02d}-{day_to_use.zfill(2)}"
-        except (ValueError, IndexError):
+                if day:
+                    return f"{year:04d}-{month:02d}-{day:02d}"
+
+                # YYYY-MM 형식으로 들어왔을 때, 시작/종료일에 따라 일(day)을 결정
+                if is_start_date:
+                    return f"{year:04d}-{month:02d}-01"
+                else:
+                    _, last_day_of_month = calendar.monthrange(year, month)
+                    return f"{year:04d}-{month:02d}-{last_day_of_month:02d}"
+
+        except (ValueError, IndexError) as e:
+            _LOGGER.warning("Could not parse date string for filter '%s': %s", date_str, e)
             return None
+
         return None
 
     def _escape_sql_string(self, value: Any) -> str:
