@@ -8,7 +8,18 @@ from decimal import Decimal
 __all__ = ["DatabricksSQLBuilder"]
 
 _LOGGER = logging.getLogger(__name__)
-
+COST_MINIMAL_FIELDS = [
+    "cost",
+    "provider",
+    "region_code",
+    "product",
+    "usage_type",
+    "resource",
+    "billed_date",
+    "tags",
+    "additional_info",
+    "data"
+    ]
 
 class DatabricksSQLBuilder:
     """
@@ -82,19 +93,7 @@ class DatabricksSQLBuilder:
         # 3. SELECT 절 구성 (minimal, only)
         select_list = []
         if self.query.get('minimal'):
-            minimal_fields = [
-                "cost",
-                "provider",
-                "region_code",
-                "product",
-                "usage_type",
-                "resource",
-                "billed_date",
-                "tags",
-                "additional_info",
-                "data"
-            ]
-            select_list.extend(f"`{col}`" for col in minimal_fields)
+            select_list.extend(f"`{col}`" for col in COST_MINIMAL_FIELDS)
         elif only_cols := self.query.get('only'):
             select_list.extend(f"`{col}`" for col in only_cols)
         else:
