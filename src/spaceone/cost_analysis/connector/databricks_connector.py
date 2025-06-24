@@ -3,6 +3,7 @@ from decimal import Decimal
 from typing import Dict, Any, List
 from collections.abc import Iterable
 
+from narwhals.utils import exclude_column_names
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import ProgrammingError, DatabaseError, SQLAlchemyError
 from sqlalchemy.engine import Result
@@ -12,13 +13,14 @@ import threading
 from spaceone.core import config
 from spaceone.core.connector import BaseConnector
 from spaceone.cost_analysis.error import *
+from spaceone.cost_analysis.model.cost_model import Cost
 from spaceone.cost_analysis.connector.databricks_sql_builder import DatabricksSQLBuilder
 
 __all__ = ["DatabricksConnector"]
 
 _LOGGER = logging.getLogger(__name__)
 
-EXCLUDE_FIELDS = ["data_source_id", "job_id", "job_task_id", "v_workspace_id"]
+EXCLUDE_FIELDS = ["cost_id", "data_source_id", "job_id", "job_task_id", "v_workspace_id"]
 
 
 class DatabricksConnector(BaseConnector):
@@ -75,10 +77,19 @@ class DatabricksConnector(BaseConnector):
                 )
                 _LOGGER.info("Databricks engine initialized with connection pool")
 
-    def _generate_sql(self, query: Dict, table: str) -> str:
+    def _generate_analyze_sql(self, query: Dict, table: str) -> str:
         try:
             sql_builder = self.sql_builder(query, table)
-            raw_sql = sql_builder.build_sql()
+            raw_sql = sql_builder.build_analyze_sql()
+            return raw_sql
+        except Exception as e:
+            logging.error(f"SQL 생성 실패: {str(e)}")
+            raise
+
+    def _generate_search_sql(self, query: Dict, table: str) -> str:
+        try:
+            sql_builder = self.sql_builder(query, table)
+            raw_sql = sql_builder.build_search_sql()
             return raw_sql
         except Exception as e:
             logging.error(f"SQL 생성 실패: {str(e)}")
@@ -101,7 +112,7 @@ class DatabricksConnector(BaseConnector):
         # EXCLUDE_FIELDS에 속한 필드는 제거.
         filtered_query = self._preprocess_query_dict(query, EXCLUDE_FIELDS)
 
-        sql_query = self._generate_sql(filtered_query, table_name)
+        sql_query = self._generate_analyze_sql(filtered_query, table_name)
         _LOGGER.info(f"sql_query: {sql_query}")
 
         try:
@@ -112,6 +123,36 @@ class DatabricksConnector(BaseConnector):
 
                 formatted_result = self._format_like_mongodb(dbrx_result, filtered_query)
                 return formatted_result
+
+        except ProgrammingError as e:
+            _LOGGER.error(f"SQL syntax error: {str(e)}", exc_info=True)
+            raise
+        except DatabaseError as e:
+            _LOGGER.error(f"Database error: {str(e)}", exc_info=True)
+            raise
+        except SQLAlchemyError as e:
+            _LOGGER.error(f"Query execution error: {str(e)}", exc_info=True)
+            raise
+
+    @retry(stop=stop_after_attempt(3),
+           wait=wait_exponential(multiplier=1, max=10),
+           retry=retry_if_exception_type(SQLAlchemyError))
+    def list_costs(self, query: dict):
+        table_name = self.table.get(self.provider, {}).get("DAILY")
+
+        # EXCLUDE_FIELDS에 속한 필드는 제거.
+        filtered_query = self._preprocess_query_dict(query, EXCLUDE_FIELDS)
+
+        sql_query = self._generate_search_sql(filtered_query, table_name)
+        _LOGGER.info(f"sql_query: {sql_query}")
+
+        try:
+            with self._engine.connect() as conn:  # 풀에서 연결 자동 할당
+                _LOGGER.info(f"Pool stats: {self._engine.pool.status()}")
+
+                dbrx_result = conn.execute(text(sql_query))
+
+                return self._format_like_mongodb(dbrx_result, filtered_query)
 
         except ProgrammingError as e:
             _LOGGER.error(f"SQL syntax error: {str(e)}", exc_info=True)
@@ -200,6 +241,8 @@ class DatabricksConnector(BaseConnector):
     def _format_like_mongodb(self, sql_result: Result, query_dict: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
         """
         Databricks SQL 쿼리 결과를 최종 JSON 형태로 변환.
+        - analyze_query: more 플래그 처리
+        - search_query: total_count 처리
         """
 
         # 모든 중첩 구조에서 Decimal을 float으로 재귀적으로 변환
@@ -224,7 +267,19 @@ class DatabricksConnector(BaseConnector):
         # 이렇게 하면 field_group으로 생성된 중첩 배열 내부의 Decimal 값도 float으로 변환
         processed_results = [_decimal_to_float(row) for row in results_as_dicts]
 
-        # 3. 페이지네이션 처리를 위해 사용자가 요청한 원래 limit 값을 가져와서 비교
+        # 3.1. search_query 결과 처리 (total_count) ---
+        if processed_results and 'total_count' in processed_results[0]:
+            # 첫 번째 행에서 total_count를 추출
+            total_count = processed_results[0]['total_count']
+            cost_vo_list = []
+            for row in processed_results:
+                # Cost 객체 생성 시 total_count, dt, database, payeraccountid 필드는 제외
+                exclude_column_names = {'database', 'dt', 'usageaccountid', 'payeraccountid', 'total_count'}
+                cost_data = {k: v for k, v in row.items() if k not in exclude_column_names}
+                cost_vo_list.append(Cost(**cost_data))
+            return cost_vo_list, total_count
+
+        # 3.2. analyze_query 결과 처리 (more) ---
         page_info = query_dict.get('page', {})
         if page_info:
             # query.page 가 있는 경우에 more_flag를 함께 리턴해야 한다
