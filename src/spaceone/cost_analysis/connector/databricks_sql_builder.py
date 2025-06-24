@@ -1,6 +1,7 @@
 import logging
 import re
 import calendar
+import datetime
 from typing import Optional, List, Dict, Any, Callable, Tuple, Set
 from decimal import Decimal
 
@@ -12,6 +13,8 @@ _LOGGER = logging.getLogger(__name__)
 class DatabricksSQLBuilder:
     """
     SPO 타입의 쿼리를 Databricks SQL 쿼리로 빌드.
+    - build_analyze_sql: 복잡한 집계 쿼리 생성
+    - build_search_sql: 단순 조회 및 카운트 쿼리 생성
     """
     CTE_BASE_QUERY_NAME = "base_query"
     FG_QUERY_NAME = "fg_query"
@@ -19,6 +22,7 @@ class DatabricksSQLBuilder:
 
     def __init__(self, query_dict: Dict[str, Any], table_name: str):
         self.query = query_dict
+        self.table_name = table_name
         self.with_select_expressions: List[str] = []
         self.with_aliases_map: Dict[str, Dict[str, Any]] = {}
         self.where_conditions_with: List[str] = []
@@ -26,14 +30,17 @@ class DatabricksSQLBuilder:
         self.from_clause_with: str = table_name
         self.unwind_clauses: List[str] = []
 
-    def build_sql(self) -> str:
-        """전체 SQL 쿼리를 구성하고 반환."""
+    # --- Method 1: Analyze Query ---
+    def build_analyze_sql(self) -> str:
+        """
+        analyze_costs 요청을 받아 조건에 맞는 SQL 생성 (SPO의 Analyze Query 대응)
+        """
         # 1. base_query CTE 구성
         self._build_with_select_expressions()
-        self._build_where_conditions()
+        where_clause_str = self._build_where_clause(is_search_query=False)
         self._build_unwind()
         self._build_group_by()
-        base_query_sql = self._assemble_base_query()
+        base_query_sql = self._assemble_base_query(where_clause=where_clause_str)
 
         final_query_parts = [f"WITH {self.CTE_BASE_QUERY_NAME} AS (\n{base_query_sql}\n)"]
 
@@ -42,11 +49,11 @@ class DatabricksSQLBuilder:
             # --- field_group이 있으면 ---
             partition_keys, field_group_keys = self._get_fg_key_sets()
 
-            # 2a. fg_query CTE 추가
+            # 2.1. fg_query CTE 추가
             fg_query_sql = self._build_fg_query(partition_keys=partition_keys)
             final_query_parts.append(f", {self.FG_QUERY_NAME} AS (\n{fg_query_sql}\n)")
 
-            # 2b. 최종 SELECT 문 구성
+            # 2.2. 최종 SELECT 문 구성
             final_select_sql = self._build_final_select_for_fg_path(
                 grouping_cols=partition_keys,
                 field_group_cols=field_group_keys
@@ -59,8 +66,143 @@ class DatabricksSQLBuilder:
 
         return "\n".join(final_query_parts)
 
+    # --- Method 2: Search Query ---
+    def build_search_sql(self) -> str:
+        """
+        list_costs 요청을 받아 집계가 없는 단순 조회하는 SQL 생성 (SPO의 Search Query 대응)
+        billed_month 조건이 없으면, 성능상 이번달만 조회한다. (dt = 이번달)
+        """
+        # 1. WHERE 절 구성 (항상 이번 달 데이터만 필터링)
+        where_clause = self._build_where_clause(is_search_query=True)
+
+        # 2. count_only 처리
+        if self.query.get('count_only'):
+            return f"SELECT COUNT(*) AS total_count\nFROM {self.from_clause_with}\n{where_clause}"
+
+        # 3. SELECT 절 구성 (minimal, only)
+        select_list = []
+        if self.query.get('minimal'):
+            minimal_fields = [
+                "cost",
+                "provider",
+                "region_code",
+                "product",
+                "usage_type",
+                "resource",
+                "billed_date",
+                "tags",
+                "additional_info",
+                "data"
+            ]
+            select_list.extend(f"`{col}`" for col in minimal_fields)
+        elif only_cols := self.query.get('only'):
+            select_list.extend(f"`{col}`" for col in only_cols)
+        else:
+            select_list.append("*")
+
+        # total_count를 위한 윈도우 함수 추가
+        select_list.append("COUNT(*) OVER () as total_count")
+
+        select_list_str = ", ".join(select_list)
+
+        # 4. 정렬 및 페이지네이션 절 구성
+        sort_clause = self._build_sort_clause()
+        # list_costs는 more 플래그가 필요 없으므로 use_plus_one=False
+        pagination_clause = self._build_pagination_clause(use_plus_one=False)
+
+        # 5. 최종 쿼리 조립 (CROSS JOIN으로 total_count 추가)
+        return f"SELECT {select_list_str}\nFROM {self.table_name}\n{where_clause}\n{sort_clause}\n{pagination_clause}"
+
+    def _build_where_clause(self, is_search_query: bool) -> str:
+        """WHERE 절 문자열을 생성하는 통합 헬퍼."""
+        conditions = []
+
+        # --- 공통 필터 로직을 먼저 처리 ---
+        filter_conditions = []
+        if filter_items := self.query.get('filter'):
+            sub_conds = [self._build_single_filter_condition(item, is_search_query) for item in filter_items if item]
+            if valid_conds := [c for c in sub_conds if c]:
+                filter_conditions.append(f"({' AND '.join(valid_conds)})")
+        if filter_or_items := self.query.get('filter_or'):
+            sub_conds = [self._build_single_filter_condition(item, is_search_query) for item in filter_or_items if item]
+            if valid_conds := [c for c in sub_conds if c]:
+                filter_conditions.append(f"({' OR '.join(valid_conds)})")
+
+        if is_search_query:
+            # search_query일 때, billed_month 필터가 있는지 확인, 없으면 현재달만 조회한다. (성능상)
+            all_filters = self.query.get('filter', [])
+            has_billed_month_filter = any(item.get('k') == 'billed_month' for item in all_filters)
+
+            # billed_month 필터가 없으면, 현재 월 dt를 기본 조건으로 추가
+            if not has_billed_month_filter:
+                current_dt = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m')
+                conditions.append(f"dt = '{current_dt}'")
+        else:
+            # analyze_query는 start/end date 사용
+            if start_date := self.query.get('start'):
+                if end_date := self.query.get('end'):
+                    if dt_start := self._get_dt_format(start_date):
+                        if dt_end := self._get_dt_format(end_date):
+                            conditions.append(f"dt BETWEEN '{dt_start}' AND '{dt_end}'")
+                    if granularity := self.query.get('granularity'):
+                        filter_col = 'billed_month' if granularity == 'MONTHLY' else 'billed_date'
+                        if f_start := self._format_date_for_filter(start_date, granularity, True):
+                            if f_end := self._format_date_for_filter(end_date, granularity, False):
+                                conditions.append(f"`{filter_col}` BETWEEN '{f_start}' AND '{f_end}'")
+
+        # 모든 조건을 합침
+        all_conditions = conditions + filter_conditions
+        return f"WHERE {' AND '.join(all_conditions)}" if all_conditions else ""
+
+    def _build_sort_clause(self) -> str:
+        """
+        ORDER BY 절 문자열을 생성하는 헬퍼.
+        analyze_query(list)와 search_query(dict)의 다른 sort 스펙을 모두 처리
+        """
+        sort_input = self.query.get('sort')
+        if not sort_input:
+            return ""
+
+        sort_items = []
+        # search_query 형식: {"keys": [...]}
+        if isinstance(sort_input, dict):
+            sort_items = sort_input.get('keys', [])
+        # analyze_query 형식: [...]
+        elif isinstance(sort_input, list):
+            sort_items = sort_input
+
+        if not sort_items:
+            return ""
+
+        # 공통 로직: sort_items 리스트를 사용하여 SQL 구문 생성
+        sort_expressions = []
+        for item in sort_items:
+            # item이 유효한 dict이고 'key'를 포함하는지 확인하여 안정성 강화
+            if isinstance(item, dict) and 'key' in item:
+                sort_expressions.append(f"`{item['key']}` {'DESC' if item.get('desc') else 'ASC'}")
+
+        if not sort_expressions:
+            return ""
+
+        return f"ORDER BY {', '.join(sort_expressions)}"
+
+    def _build_pagination_clause(self, use_plus_one: bool) -> str:
+        """LIMIT/OFFSET 절 문자열을 생성하는 헬퍼."""
+        if page_info := self.query.get('page'):
+            try:
+                limit = int(page_info.get('limit', 0))
+                if limit > 0:
+                    sql_limit = limit + 1 if use_plus_one else limit
+                    start = int(page_info.get('start', 1))
+                    offset = (start - 1) * limit
+                    return f"LIMIT {sql_limit}" + (f" OFFSET {offset}" if offset > 0 else "")
+            except (ValueError, TypeError):
+                _LOGGER.warning("Invalid pagination info: %s", page_info)
+        return ""
+
     # --- 1. base_query 구성 헬퍼 메서드 ---
-    def _assemble_base_query(self) -> str:
+    def _assemble_base_query(self, where_clause: str) -> str:
+        """WITH 절 내부의 SQL 쿼리를 조립 (WHERE 절을 인자로 받음)."""
         clauses = []
         unique_with_selects = sorted(list(set(self.with_select_expressions)))
         clauses.append(f"  SELECT {', '.join(unique_with_selects)}" if unique_with_selects else "  SELECT *")
@@ -68,8 +210,11 @@ class DatabricksSQLBuilder:
         if self.unwind_clauses:
             from_sql += "\n  " + "\n  ".join(self.unwind_clauses)
         clauses.append(from_sql)
-        if self.where_conditions_with:
-            clauses.append(f"  WHERE {' AND '.join(self.where_conditions_with)}")
+
+        # where_clause가 있는 경우에 추가
+        if where_clause:
+            clauses.append(f"  {where_clause}")
+
         if self.is_group_by_needed:
             clauses.append("  GROUP BY ALL")
         return "\n".join(clauses)
@@ -214,35 +359,27 @@ class DatabricksSQLBuilder:
                                              display_alias=alias_name)
 
 
-    def _build_where_conditions(self):
-        if start_date := self.query.get('start'):
-            if end_date := self.query.get('end'):
-                if dt_start := self._get_dt_format(start_date):
-                    if dt_end := self._get_dt_format(end_date): self.where_conditions_with.append(
-                        f"dt BETWEEN '{dt_start}' AND '{dt_end}'")
 
-                if granularity := self.query.get('granularity'):
-                    filter_col = 'billed_month' if granularity == 'MONTHLY' else 'billed_date'
-                    if f_start := self._format_date_for_filter(start_date, granularity, True):
-                        if f_end := self._format_date_for_filter(end_date, granularity,
-                                                                 False): self.where_conditions_with.append(
-                            f"`{filter_col}` BETWEEN '{f_start}' AND '{f_end}'")
-
-        if filter_items := self.query.get('filter'):
-            conditions = [self._build_single_filter_condition(item) for item in filter_items if item]
-
-            if valid_conditions := [c for c in conditions if c]: self.where_conditions_with.append(
-                f"({' AND '.join(valid_conditions)})")
-
-        if filter_or_items := self.query.get('filter_or'):
-            conditions = [self._build_single_filter_condition(item) for item in filter_or_items if item]
-
-            if valid_conditions := [c for c in conditions if c]: self.where_conditions_with.append(
-                f"({' OR '.join(valid_conditions)})")
-
-    def _build_single_filter_condition(self, cond_item: Dict[str, Any]) -> Optional[str]:
+    def _build_single_filter_condition(self, cond_item: Dict[str, Any], is_search_query: bool = False) -> Optional[str]:
         op, value = cond_item.get('o', '').lower(), cond_item.get('v')
-        key_accessor = self._format_column_accessor(cond_item['k'])
+        key = cond_item.get('k')
+
+        # search_query이고 key가 'billed_month'일 때 특별 처리
+        if is_search_query and key == 'billed_month':
+            # 1. billed_month 조건 생성
+            billed_month_accessor = self._format_column_accessor(key)
+            billed_month_sql = self._handle_simple_op(op, billed_month_accessor, value)
+
+            # 2. dt 조건 생성
+            dt_accessor = self._format_column_accessor('dt')
+            dt_value = self._get_dt_format(str(value))  # YYYY-MM -> YYYYMM
+            dt_sql = self._handle_simple_op(op, dt_accessor, dt_value) if dt_value else None
+
+            if billed_month_sql and dt_sql:
+                return f"({billed_month_sql} AND {dt_sql})"
+            return billed_month_sql  # dt 변환 실패 시 billed_month 조건만이라도 반환
+
+        key_accessor = self._format_column_accessor(key)
         op_handlers: Dict[str, Callable] = {
             'eq': self._handle_simple_op,
             'not': self._handle_simple_op,
@@ -268,7 +405,9 @@ class DatabricksSQLBuilder:
             'timediff_lt': self._handle_timediff_op,
             'timediff_lte': self._handle_timediff_op,
         }
-        if handler := op_handlers.get(op): return handler(op, key_accessor, value)
+        if handler := op_handlers.get(op):
+            return handler(op, key_accessor, value)
+
         return None
 
     def _build_unwind(self):
