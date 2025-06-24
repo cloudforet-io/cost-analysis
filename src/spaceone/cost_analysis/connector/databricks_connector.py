@@ -3,7 +3,6 @@ from decimal import Decimal
 from typing import Dict, Any, List
 from collections.abc import Iterable
 
-from narwhals.utils import exclude_column_names
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import ProgrammingError, DatabaseError, SQLAlchemyError
 from sqlalchemy.engine import Result
@@ -20,8 +19,8 @@ __all__ = ["DatabricksConnector"]
 
 _LOGGER = logging.getLogger(__name__)
 
-EXCLUDE_FIELDS = ["cost_id", "data_source_id", "job_id", "job_task_id", "v_workspace_id"]
-
+REQUEST_EXCLUDE_FIELDS = ["cost_id", "data_source_id", "job_id", "job_task_id", "v_workspace_id"]
+RESPONSE_EXCLUDE_FIELDS = ['database', 'dt', 'usageaccountid', 'payeraccountid', 'total_count']
 
 class DatabricksConnector(BaseConnector):
     _engine = None
@@ -110,7 +109,7 @@ class DatabricksConnector(BaseConnector):
         table_name = self.table.get(self.provider, {}).get(granularity)
 
         # EXCLUDE_FIELDS에 속한 필드는 제거.
-        filtered_query = self._preprocess_query_dict(query, EXCLUDE_FIELDS)
+        filtered_query = self._preprocess_query_dict(query, REQUEST_EXCLUDE_FIELDS)
 
         sql_query = self._generate_analyze_sql(filtered_query, table_name)
         _LOGGER.info(f"sql_query: {sql_query}")
@@ -141,7 +140,7 @@ class DatabricksConnector(BaseConnector):
         table_name = self.table.get(self.provider, {}).get("DAILY")
 
         # EXCLUDE_FIELDS에 속한 필드는 제거.
-        filtered_query = self._preprocess_query_dict(query, EXCLUDE_FIELDS)
+        filtered_query = self._preprocess_query_dict(query, REQUEST_EXCLUDE_FIELDS)
 
         sql_query = self._generate_search_sql(filtered_query, table_name)
         _LOGGER.info(f"sql_query: {sql_query}")
@@ -274,8 +273,7 @@ class DatabricksConnector(BaseConnector):
             cost_vo_list = []
             for row in processed_results:
                 # Cost 객체 생성 시 total_count, dt, database, payeraccountid 필드는 제외
-                exclude_column_names = {'database', 'dt', 'usageaccountid', 'payeraccountid', 'total_count'}
-                cost_data = {k: v for k, v in row.items() if k not in exclude_column_names}
+                cost_data = {k: v for k, v in row.items() if k not in RESPONSE_EXCLUDE_FIELDS}
                 cost_vo_list.append(Cost(**cost_data))
             return cost_vo_list, total_count
 
