@@ -116,23 +116,10 @@ class DatabricksSQLBuilder:
         """WHERE 절 문자열을 생성하는 통합 헬퍼."""
         conditions = []
 
-        # --- 공통 필터 로직을 먼저 처리 ---
-        filter_conditions = []
-        if filter_items := self.query.get('filter'):
-            sub_conds = [self._build_single_filter_condition(item, is_search_query) for item in filter_items if item]
-            if valid_conds := [c for c in sub_conds if c]:
-                filter_conditions.append(f"({' AND '.join(valid_conds)})")
-        if filter_or_items := self.query.get('filter_or'):
-            sub_conds = [self._build_single_filter_condition(item, is_search_query) for item in filter_or_items if item]
-            if valid_conds := [c for c in sub_conds if c]:
-                filter_conditions.append(f"({' OR '.join(valid_conds)})")
-
+        # --- 날짜 필터링 ---
         if is_search_query:
-            # search_query일 때, billed_month 필터가 있는지 확인, 없으면 현재달만 조회한다. (성능상)
-            all_filters = self.query.get('filter', [])
+            all_filters = self.query.get('filter', []) + self.query.get('filter_or', [])
             has_billed_month_filter = any(item.get('k') == 'billed_month' for item in all_filters)
-
-            # billed_month 필터가 없으면, 현재 월 dt를 기본 조건으로 추가
             if not has_billed_month_filter:
                 current_dt = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m')
                 conditions.append(f"dt = '{current_dt}'")
@@ -147,7 +134,23 @@ class DatabricksSQLBuilder:
                         filter_col = 'billed_month' if granularity == 'MONTHLY' else 'billed_date'
                         if f_start := self._format_date_for_filter(start_date, granularity, True):
                             if f_end := self._format_date_for_filter(end_date, granularity, False):
-                                conditions.append(f"`{filter_col}` BETWEEN '{f_start}' AND '{f_end}'")
+                                # billed_month 필터링 시 SUBSTRING 적용
+                                if filter_col == 'billed_month':
+                                    where_accessor = f"SUBSTRING(`{filter_col}`, 1, 7)"
+                                else:
+                                    where_accessor = f"`{filter_col}`"
+                                conditions.append(f"{where_accessor} BETWEEN '{f_start}' AND '{f_end}'")
+
+        # --- 공통 필터 ---
+        filter_conditions = []
+        if filter_items := self.query.get('filter'):
+            sub_conds = [self._build_single_filter_condition(item, is_search_query) for item in filter_items if item]
+            if valid_conds := [c for c in sub_conds if c]:
+                filter_conditions.append(f"({' AND '.join(valid_conds)})")
+        if filter_or_items := self.query.get('filter_or'):
+            sub_conds = [self._build_single_filter_condition(item, is_search_query) for item in filter_or_items if item]
+            if valid_conds := [c for c in sub_conds if c]:
+                filter_conditions.append(f"({' OR '.join(valid_conds)})")
 
         # 모든 조건을 합침
         all_conditions = conditions + filter_conditions
@@ -363,7 +366,7 @@ class DatabricksSQLBuilder:
         op, value = cond_item.get('o', '').lower(), cond_item.get('v')
         key = cond_item.get('k')
 
-        # search_query이고 key가 'billed_month'일 때 특별 처리
+        # search_query이고 key가 'billed_month'일 때 SUBSTRING, dt 컬럼에도 필터 적용
         if is_search_query and key == 'billed_month':
             # 1. billed_month 조건 생성
             billed_month_accessor = self._format_column_accessor(key)
@@ -418,16 +421,31 @@ class DatabricksSQLBuilder:
                     self._add_to_with_select(alias, alias, display_alias=alias)
 
     def _format_column_accessor(self, col_name_str: str, for_select_alias: bool = False, avoid_cast: bool = False):
+        # 1. 맵 하위 필드 처리
         if '.' in col_name_str:
             parts = col_name_str.split('.', 1)
             base_col, sub_field_key = self._sanitize_name(parts[0]), parts[1]
             accessor = f"`{base_col}`['{sub_field_key}']"
-            if not avoid_cast: accessor = f"CAST({accessor} AS STRING)"
-            if for_select_alias: return accessor, self._sanitize_name(sub_field_key), sub_field_key
+            if not avoid_cast:
+                accessor = f"CAST({accessor} AS STRING)"
+            if for_select_alias:
+                return accessor, self._sanitize_name(sub_field_key), sub_field_key
             return accessor
+        # 2. 일반 컬럼 처리
         else:
-            if for_select_alias: return f'`{col_name_str}`', self._sanitize_name(col_name_str), col_name_str
-            return f'`{col_name_str}`'
+            # billed_month 컬럼은 SUBSTRING 처리
+            if col_name_str == 'billed_month':
+                accessor = f"SUBSTRING(`billed_month`, 1, 7)"
+                if for_select_alias:
+                    # 별칭(alias)은 'billed_month' 그대로 사용
+                    return accessor, 'billed_month', 'billed_month'
+                return accessor
+            # 그 외 다른 일반 컬럼 처리
+            else:
+                accessor = f'`{col_name_str}`'
+                if for_select_alias:
+                    return accessor, self._sanitize_name(col_name_str), col_name_str
+                return accessor
 
     # --- 2. 최종 쿼리 구성 헬퍼 메서드 (신규/변경) ---
     def _get_fg_key_sets(self) -> Tuple[Set[str], Set[str]]:
