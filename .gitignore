@@ -16,3 +16,5 @@ test/_trial_temp
 skaffold.yaml
 tmp
 .venv
+.kiro
+.vscode

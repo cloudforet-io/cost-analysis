@@ -363,8 +363,9 @@ class DatabricksSQLBuilder:
 
 
     def _build_single_filter_condition(self, cond_item: Dict[str, Any], is_search_query: bool = False) -> Optional[str]:
-        op, value = cond_item.get('o', '').lower(), cond_item.get('v')
-        key = cond_item.get('k')
+        key = cond_item.get("key", cond_item.get("k"))
+        value = cond_item.get("value", cond_item.get("v"))
+        op = cond_item.get("operator", cond_item.get("o", '')).lower()
 
         # search_query이고 key가 'billed_month'일 때 SUBSTRING, dt 컬럼에도 필터 적용
         if is_search_query and key == 'billed_month':
