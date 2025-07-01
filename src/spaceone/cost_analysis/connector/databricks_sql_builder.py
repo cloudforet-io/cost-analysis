@@ -305,9 +305,32 @@ class DatabricksSQLBuilder:
             self._add_to_with_select(self.GRANULARITY_DATE_ALIAS, granularity_expr,
                                      display_alias=self.GRANULARITY_DATE_ALIAS)
 
-        for col_name in self.query.get('group_by', []):
-            col_accessor, internal_alias, display_alias = self._format_column_accessor(col_name, for_select_alias=True)
-            self._add_to_with_select(internal_alias, col_accessor, display_alias=display_alias)
+        # 'group_by'의 두 가지 형식(string list, object list) 지원,
+        for item in self.query.get('group_by', []):
+            # 1. Object 형식: {'key': 'column_name', 'name': 'Display Alias'}
+            if isinstance(item, dict):
+                col_name = item.get('key')
+                display_alias = item.get('name')
+
+                if not col_name or not display_alias:
+                    _LOGGER.warning("Invalid group_by item format: %s. Skipping.", item)
+                    continue
+                
+                # 'key'로 실제 SQL 접근자(accessor)를 가져옴
+                col_accessor = self._format_column_accessor(col_name)
+                # 내부 참조용 별칭은 일관성을 위해 실제 컬럼명(key)을 기반으로 생성
+                internal_alias = self._sanitize_name(col_name)
+                
+                self._add_to_with_select(internal_alias, col_accessor, display_alias=display_alias)
+
+            # 2. String 형식: 'column_name'
+            elif isinstance(item, str):
+                col_accessor, internal_alias, display_alias = self._format_column_accessor(item, for_select_alias=True)
+                self._add_to_with_select(internal_alias, col_accessor, display_alias=display_alias)
+            
+            else:
+                _LOGGER.warning("Unsupported group_by item type: %s. Skipping.", type(item))
+                continue
 
         # field_group 존재 여부를 미리 확인
         has_field_group = 'field_group' in self.query

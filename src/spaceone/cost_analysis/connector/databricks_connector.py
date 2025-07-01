@@ -181,8 +181,24 @@ class DatabricksConnector(BaseConnector):
             return [item for item in items if item.get(key_field) not in exclude_set]
 
         # 1. group_by 처리
-        if 'group_by' in processed_query and isinstance(processed_query['group_by'], list):
-            processed_query['group_by'] = remove_excluded_fields(processed_query['group_by'])
+        if ('group_by' in processed_query and 
+            isinstance(processed_query['group_by'], list) and 
+            processed_query['group_by']
+        ):
+            # list의 첫번째 아이템을 보고 데이터 형식 판별
+            first_item = processed_query['group_by'][0]
+            
+            # Object 형식: [{'key': '...', 'name': '...'}]
+            if isinstance(first_item, dict):
+                # 'key' 값을 기준으로 exclude
+                processed_query['group_by'] = [
+                    item for item in processed_query['group_by']
+                    if isinstance(item, dict) and item.get('key') not in exclude_set
+                ]
+            
+            # String 형식: ['item1', 'item2']
+            elif isinstance(first_item, str):
+                processed_query['group_by'] = remove_excluded_fields(processed_query['group_by'])
 
         # 2. fields 처리
         if 'fields' in processed_query and isinstance(processed_query['fields'], dict):
