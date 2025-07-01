@@ -67,7 +67,7 @@ class CurrencyConnector(BaseConnector):
             "Content-Type": "application/json",
             "User-Agent": "Mozilla/5.0",
         }
-        response = requests.request(method="GET", url=url, headers=headers)
+        response = requests.request(method="GET", url=url, headers=headers, timeout=3)
         return response.json()
 
     def _get_exchange_rate_info(
@@ -92,24 +92,61 @@ class CurrencyConnector(BaseConnector):
             )
             return df
         except Exception as e:
-            _LOGGER.error(f"[get_exchange_rate_info] Error {e}, {df}")
-            response_json = self.http_datareader(
-                pair, currency_end_date, currency_start_date
-            )
+            _LOGGER.warning(f"[get_exchange_rate_info] Failed {e}, {df} => trying Yahoo Finance API")
+            try:
+                response_json = self.http_datareader(
+                    pair, currency_end_date, currency_start_date
+                )
 
-            quotes = response_json["chart"]["result"][0]["indicators"]["quote"][0]
-            timestamps = response_json["chart"]["result"][0]["timestamp"]
+                quotes = response_json["chart"]["result"][0]["indicators"]["quote"][0]
+                timestamps = response_json["chart"]["result"][0]["timestamp"]
 
-            # convert bst to utc
-            converted_datetime = [
-                datetime.fromtimestamp(ts, tz=timezone.utc) for ts in timestamps
-            ]
+                # convert bst to utc
+                converted_datetime = [
+                    datetime.fromtimestamp(ts, tz=timezone.utc) for ts in timestamps
+                ]
 
-            df = pd.DataFrame(
-                {
-                    "Date": converted_datetime,
-                    "Close": quotes["close"],
-                }
-            )
+                df = pd.DataFrame(
+                    {
+                        "Date": converted_datetime,
+                        "Close": quotes["close"],
+                    }
+                )
 
-            return df.dropna().reset_index()[["Date", "Close"]]
+                return df.dropna().reset_index()[["Date", "Close"]]
+            except Exception as e2:
+                _LOGGER.warning(f"[get_exchange_rate_info] Error while fetching data from Yahoo Finance API. {e2}")
+                _LOGGER.warning(f"[get_exchange_rate_info] Returning default rate_info DataFrame from global config.")
+
+                default_rates = config.get_global("DEFAULT_EXCHANGE_RATES", {})
+                dates = self.make_datetime_list(currency_start_date, currency_end_date)
+                rates = self.make_default_rates_list(pair, default_rates, len(dates))
+
+                df = pd.DataFrame({
+                    "Date": dates,
+                    "Close": rates
+                })
+
+                return df.dropna().reset_index()[["Date", "Close"]]
+
+    @staticmethod
+    def make_datetime_list(start_date: datetime, end_date: datetime) -> list[datetime]:
+        dates = []
+        while start_date <= end_date:
+            dates.append(start_date)
+            start_date += relativedelta(days=1)
+        return dates
+
+    @staticmethod
+    def make_default_rates_list(pair: str, default_rates: dict, count: int) -> list[float]:
+        if default_rates and default_rates.get(pair):
+            try:
+                rate = float(default_rates[pair])
+                return [rate] * count
+            except ValueError as e:
+                _LOGGER.error(f"[make_default_rates_list] Invalid rate value for pair {pair}: {default_rates[pair]}. Error: {e}")
+                raise ValueError(f"Invalid rate value for pair {pair}: {default_rates[pair]}")
+        else:
+            _LOGGER.error(f"[make_default_rates_list] Pair {pair} not found in default rates.")
+            raise ValueError(f"Pair {pair} not found in default rates: {default_rates}")
+
