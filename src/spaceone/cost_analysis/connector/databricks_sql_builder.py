@@ -131,14 +131,15 @@ class DatabricksSQLBuilder:
                         if dt_end := self._get_dt_format(end_date):
                             conditions.append(f"dt BETWEEN '{dt_start}' AND '{dt_end}'")
                     if granularity := self.query.get('granularity'):
-                        filter_col = 'billed_month' if granularity == 'MONTHLY' else 'billed_date'
+                        if granularity == 'MONTHLY':
+                            filter_col, length = 'billed_month', 7
+                        else: # DAILY
+                            filter_col, length = 'billed_date', 10
+
                         if f_start := self._format_date_for_filter(start_date, granularity, True):
                             if f_end := self._format_date_for_filter(end_date, granularity, False):
-                                # billed_month 필터링 시 SUBSTRING 적용
-                                if filter_col == 'billed_month':
-                                    where_accessor = f"SUBSTRING(`{filter_col}`, 1, 7)"
-                                else:
-                                    where_accessor = f"`{filter_col}`"
+                                # billed_month, billed_date 필터링 시 SUBSTRING 적용
+                                where_accessor = f"SUBSTRING(`{filter_col}`, 1, {length})"
                                 conditions.append(f"{where_accessor} BETWEEN '{f_start}' AND '{f_end}'")
 
         # --- 공통 필터 ---
@@ -438,12 +439,18 @@ class DatabricksSQLBuilder:
             return accessor
         # 2. 일반 컬럼 처리
         else:
-            # billed_month 컬럼은 SUBSTRING 처리
+            # billed_month 컬럼은 SUBSTRING(`billed_month`, 1, 7) 처리
             if col_name_str == 'billed_month':
                 accessor = f"SUBSTRING(`billed_month`, 1, 7)"
                 if for_select_alias:
                     # 별칭(alias)은 'billed_month' 그대로 사용
                     return accessor, 'billed_month', 'billed_month'
+                return accessor
+            # billed_date 컬럼은 SUBSTRING(`billed_date`, 1, 10) 처리
+            elif col_name_str == 'billed_date':
+                accessor = f"SUBSTRING(`billed_date`, 1, 10)"
+                if for_select_alias:
+                    return accessor, 'billed_date', 'billed_date'
                 return accessor
             # 그 외 다른 일반 컬럼 처리
             else:
