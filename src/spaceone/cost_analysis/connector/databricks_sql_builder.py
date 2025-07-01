@@ -428,7 +428,11 @@ class DatabricksSQLBuilder:
             base_col, sub_field_key = self._sanitize_name(parts[0]), parts[1]
             accessor = f"`{base_col}`['{sub_field_key}']"
             if not avoid_cast:
-                accessor = f"CAST({accessor} AS STRING)"
+                # data 하위 필드들은 DECIMAL(38, 16)으로 형변환하고 NULL인 경우 0으로 대체
+                if base_col == 'data':
+                    accessor = f"COALESCE(CAST({accessor} AS DECIMAL(38, 16)), 0)"
+                else:
+                    accessor = f"CAST({accessor} AS STRING)"
             if for_select_alias:
                 return accessor, self._sanitize_name(sub_field_key), sub_field_key
             return accessor
