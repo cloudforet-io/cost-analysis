@@ -116,19 +116,39 @@ class DatabricksSQLBuilder:
         """WHERE 절 문자열을 생성하는 통합 헬퍼."""
         conditions = []
 
-        # --- 날짜 필터링 ---
+        # --- 공통 필터 로직을 먼저 처리 ---
+        filter_conditions = []
+        if filter_items := self.query.get('filter'):
+            sub_conds = [self._build_single_filter_condition(item, is_search_query) for item in filter_items if item]
+            if valid_conds := [c for c in sub_conds if c]:
+                filter_conditions.append(f"({' AND '.join(valid_conds)})")
+
+        if filter_or_items := self.query.get('filter_or'):
+            sub_conds = [self._build_single_filter_condition(item, is_search_query) for item in filter_or_items if item]
+            if valid_conds := [c for c in sub_conds if c]:
+                filter_conditions.append(f"({' OR '.join(valid_conds)})")
+        
         if is_search_query:
+            # search_query일 때, billed_date/billed_month 필터가 있는지 확인
             all_filters = self.query.get('filter', []) + self.query.get('filter_or', [])
-            has_billed_month_filter = any(item.get('k') == 'billed_month' for item in all_filters)
-            if not has_billed_month_filter:
-                current_dt = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m')
-                conditions.append(f"dt = '{current_dt}'")
+            has_date_filter = any(item.get('k') in ['billed_month', 'billed_date'] for item in all_filters)
+            
+            # billed_date/billed_month 필터가 없으면, 날짜에 따라 기본 월(dt)을 설정
+            if not has_date_filter:
+                now = datetime.datetime.now(datetime.timezone.utc)
+                target_date = now
+                
+                if now.day <= 2:
+                    # 오늘이 1일 또는 2일이면, 지난달을 기준으로 조회 (이번달은 데이터가 없을 수 있다.)
+                    target_date = now - datetime.timedelta(days=3)
+                
+                target_dt = target_date.strftime('%Y%m')
+                conditions.append(f"dt = '{target_dt}'")
         else:
             # analyze_query는 start/end date 사용
             if start_date := self.query.get('start'):
                 if end_date := self.query.get('end'):
                     granularity = self.query.get('granularity')
-
                     if granularity == 'YEARLY':
                         start_dt = f"{str(start_date).split('-')[0]}01"
                         end_dt = f"{str(end_date).split('-')[0]}12"
@@ -138,29 +158,17 @@ class DatabricksSQLBuilder:
                             if dt_end := self._get_dt_format(end_date):
                                 conditions.append(f"dt BETWEEN '{dt_start}' AND '{dt_end}'")
 
-                    # billed_year/month/date 필터링 로직
-                    if granularity == 'YEARLY':
+                    if granularity == 'YEARLY': 
                         filter_col, length = 'billed_year', 4
-                    elif granularity == 'MONTHLY':
+                    elif granularity == 'MONTHLY': 
                         filter_col, length = 'billed_month', 7
-                    else: # DAILY
+                    else: 
                         filter_col, length = 'billed_date', 10
                     
                     if f_start := self._format_date_for_filter(start_date, granularity, True):
                         if f_end := self._format_date_for_filter(end_date, granularity, False):
                             where_accessor = f"SUBSTRING(`{filter_col}`, 1, {length})"
                             conditions.append(f"{where_accessor} BETWEEN '{f_start}' AND '{f_end}'")
-
-        # --- 공통 필터 ---
-        filter_conditions = []
-        if filter_items := self.query.get('filter'):
-            sub_conds = [self._build_single_filter_condition(item, is_search_query) for item in filter_items if item]
-            if valid_conds := [c for c in sub_conds if c]:
-                filter_conditions.append(f"({' AND '.join(valid_conds)})")
-        if filter_or_items := self.query.get('filter_or'):
-            sub_conds = [self._build_single_filter_condition(item, is_search_query) for item in filter_or_items if item]
-            if valid_conds := [c for c in sub_conds if c]:
-                filter_conditions.append(f"({' OR '.join(valid_conds)})")
 
         # 모든 조건을 합침
         all_conditions = conditions + filter_conditions
@@ -400,20 +408,21 @@ class DatabricksSQLBuilder:
         value = cond_item.get("value", cond_item.get("v"))
         op = cond_item.get("operator", cond_item.get("o", '')).lower()
 
-        # search_query이고 key가 'billed_month'일 때 SUBSTRING, dt 컬럼에도 필터 적용
-        if is_search_query and key == 'billed_month':
-            # 1. billed_month 조건 생성
-            billed_month_accessor = self._format_column_accessor(key)
-            billed_month_sql = self._handle_simple_op(op, billed_month_accessor, value)
-
-            # 2. dt 조건 생성
+        # search_query이고 key가 billed_month, billed_date일 때 SUBSTRING, dt 컬럼에도 필터 적용
+        if is_search_query and key in ['billed_month', 'billed_date']:
+            # 1. 원래 컬럼에 대한 조건 생성 ( accessor가 SUBSTRING을 자동으로 처리 )
+            original_col_accessor = self._format_column_accessor(key)
+            original_col_sql = self._handle_simple_op(op, original_col_accessor, value)
+            
+            # 2. dt 컬럼에 대한 조건 생성
             dt_accessor = self._format_column_accessor('dt')
-            dt_value = self._get_dt_format(str(value))  # YYYY-MM -> YYYYMM
+            dt_value = self._get_dt_format(str(value)) # YYYY-MM... -> YYYYMM
             dt_sql = self._handle_simple_op(op, dt_accessor, dt_value) if dt_value else None
-
-            if billed_month_sql and dt_sql:
-                return f"({billed_month_sql} AND {dt_sql})"
-            return billed_month_sql  # dt 변환 실패 시 billed_month 조건만이라도 반환
+            
+            # 두 조건이 모두 유효하면 AND로 연결, 아니면 원래 조건만 반환
+            if original_col_sql and dt_sql:
+                return f"({original_col_sql} AND {dt_sql})"
+            return original_col_sql
 
         key_accessor = self._format_column_accessor(key)
         op_handlers: Dict[str, Callable] = {
