@@ -312,7 +312,15 @@ class DatabricksConnector(BaseConnector):
         # 이렇게 하면 field_group으로 생성된 중첩 배열 내부의 Decimal 값도 float으로 변환
         processed_results = [_decimal_to_float(row) for row in results_as_dicts]
 
-        # 3.1. search_query 결과 처리 (total_count) ---
+        # 3.1. distinct 처리
+        if query_dict.get('distinct'):
+            if not processed_results:
+                return {"results": []}
+            # 객체 리스트 [ {'Values': v1}, ... ] 를 값 리스트 [ v1, ... ] 로 변환
+            unwrapped_list = [row['Values'] for row in processed_results]
+            return {"results": unwrapped_list}
+
+        # 3.2. search_query 결과 처리 (total_count) ---
         if processed_results and 'total_count' in processed_results[0]:
             # 첫 번째 행에서 total_count를 추출
             total_count = processed_results[0]['total_count']
@@ -323,17 +331,17 @@ class DatabricksConnector(BaseConnector):
                 cost_vo_list.append(Cost(**cost_data))
             return cost_vo_list, total_count
 
-        # 3.2. analyze_query 결과 처리 (more) ---
+        # 3.3. analyze_query 결과 처리 (more) ---
         page_info = query_dict.get('page', {})
         if page_info:
             # query.page 가 있는 경우에 more_flag를 함께 리턴해야 한다
             original_limit = int(page_info.get('limit', 0))
 
-            # 3.1. 'more' 플래그를 확인하고, 필요한 경우 추가로 가져온 항목을 제거
+            # 3.3.1. 'more' 플래그를 확인하고, 필요한 경우 추가로 가져온 항목을 제거
             more_flag = False
             final_results_list = processed_results
 
-            # 3.2. 사용자가 limit을 요청했고, 실제로 요청한 것보다 많은 결과가 반환되었는지 확인
+            # 3.3.2. 사용자가 limit을 요청했고, 실제로 요청한 것보다 많은 결과가 반환되었는지 확인
             if original_limit > 0 and len(processed_results) > original_limit:
                 more_flag = True
                 # 'more' 확인용으로 가져온 마지막 항목을 결과 리스트에서 제거
