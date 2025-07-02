@@ -234,13 +234,35 @@ class CostManager(BaseManager):
 
         return self.monthly_cost_model.analyze(**query)
 
-    def analyze_yearly_costs(self, query, domain_id, target="SECONDARY_PREFERRED"):
+    def analyze_yearly_costs(
+        self, query, domain_id, data_source_id: str = None, target="SECONDARY_PREFERRED"
+    ):
+        query = self._change_filter_project_group_id(query, domain_id)
+
+        if data_source_id:
+            data_source_vo = self.data_source_mgr.get_data_source(
+                domain_id=domain_id, data_source_id=data_source_id
+            )
+
+            if data_source_vo.data_source_type == "WAREHOUSE":
+                warehouse_type = data_source_vo.warehouse_info["type"]
+                provider = data_source_vo.provider
+
+                if warehouse_type == "DATABRICKS":
+                    warehouse_cost_connector = DatabricksConnector(
+                        warehouse_type=warehouse_type,
+                        provider=provider
+                    )
+                else:
+                    raise ValueError(f"Unsupported warehouse_type: {warehouse_type}")
+
+                return warehouse_cost_connector.analyze_costs(query)
+
         query["target"] = target
         query["date_field"] = "billed_year"
         query["date_field_format"] = "%Y"
         _LOGGER.debug(f"[analyze_yearly_costs] query: {query}")
 
-        query = self._change_filter_project_group_id(query, domain_id)
         return self.monthly_cost_model.analyze(**query)
 
     @cache.cacheable(
@@ -277,7 +299,7 @@ class CostManager(BaseManager):
     def analyze_yearly_costs_with_cache(
         self, query, query_hash, domain_id, data_source_id, target="SECONDARY_PREFERRED"
     ):
-        return self.analyze_yearly_costs(query, domain_id, target)
+        return self.analyze_yearly_costs(query, domain_id, data_source_id, target)
 
     def analyze_costs_by_granularity(
         self, query: dict, domain_id: str, data_source_id: str

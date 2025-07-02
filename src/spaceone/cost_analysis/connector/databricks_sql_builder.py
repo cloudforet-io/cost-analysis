@@ -127,20 +127,29 @@ class DatabricksSQLBuilder:
             # analyze_query는 start/end date 사용
             if start_date := self.query.get('start'):
                 if end_date := self.query.get('end'):
-                    if dt_start := self._get_dt_format(start_date):
-                        if dt_end := self._get_dt_format(end_date):
-                            conditions.append(f"dt BETWEEN '{dt_start}' AND '{dt_end}'")
-                    if granularity := self.query.get('granularity'):
-                        if granularity == 'MONTHLY':
-                            filter_col, length = 'billed_month', 7
-                        else: # DAILY
-                            filter_col, length = 'billed_date', 10
+                    granularity = self.query.get('granularity')
 
-                        if f_start := self._format_date_for_filter(start_date, granularity, True):
-                            if f_end := self._format_date_for_filter(end_date, granularity, False):
-                                # billed_month, billed_date 필터링 시 SUBSTRING 적용
-                                where_accessor = f"SUBSTRING(`{filter_col}`, 1, {length})"
-                                conditions.append(f"{where_accessor} BETWEEN '{f_start}' AND '{f_end}'")
+                    if granularity == 'YEARLY':
+                        start_dt = f"{str(start_date).split('-')[0]}01"
+                        end_dt = f"{str(end_date).split('-')[0]}12"
+                        conditions.append(f"dt BETWEEN '{start_dt}' AND '{end_dt}'")
+                    else: # MONTHLY/DAILY
+                        if dt_start := self._get_dt_format(start_date):
+                            if dt_end := self._get_dt_format(end_date):
+                                conditions.append(f"dt BETWEEN '{dt_start}' AND '{dt_end}'")
+
+                    # billed_year/month/date 필터링 로직
+                    if granularity == 'YEARLY':
+                        filter_col, length = 'billed_year', 4
+                    elif granularity == 'MONTHLY':
+                        filter_col, length = 'billed_month', 7
+                    else: # DAILY
+                        filter_col, length = 'billed_date', 10
+                    
+                    if f_start := self._format_date_for_filter(start_date, granularity, True):
+                        if f_end := self._format_date_for_filter(end_date, granularity, False):
+                            where_accessor = f"SUBSTRING(`{filter_col}`, 1, {length})"
+                            conditions.append(f"{where_accessor} BETWEEN '{f_start}' AND '{f_end}'")
 
         # --- 공통 필터 ---
         filter_conditions = []
@@ -607,8 +616,12 @@ class DatabricksSQLBuilder:
 
     def _get_granularity_expression(self) -> Optional[str]:
         if granularity := self.query.get('granularity'):
-            col = 'billed_month' if granularity == 'MONTHLY' else 'billed_date'
-            length = 7 if granularity == 'MONTHLY' else 10
+            if granularity == 'YEARLY':
+                col, length = 'billed_year', 4
+            elif granularity == 'MONTHLY':
+                col, length = 'billed_month', 7
+            else: # DAILY
+                col, length = 'billed_date', 10
             return f"SUBSTRING(`{col}`, 1, {length})"
         return None
 
@@ -648,22 +661,17 @@ class DatabricksSQLBuilder:
             date_part = str(date_str).split('T')[0]
             parts = date_part.split('-')
 
-            if len(parts) < 2:
-                _LOGGER.warning("Invalid date format for filter: %s", date_str)
-                return None
-
             year = int(parts[0])
-            month = int(parts[1])
-            # YYYY-MM-DD 형식인 경우 day 값 추출
+            month = int(parts[1]) if len(parts) > 1 else 1 # YYYY 형식일 경우 월은 1로 간주
             day = int(parts[2]) if len(parts) > 2 else None
 
-            if granularity_type == 'MONTHLY':
+            if granularity_type == 'YEARLY':
+                return f"{year:04d}"
+            elif granularity_type == 'MONTHLY':
                 return f"{year:04d}-{month:02d}"
             elif granularity_type == 'DAILY':
                 if day:
                     return f"{year:04d}-{month:02d}-{day:02d}"
-
-                # YYYY-MM 형식으로 들어왔을 때, 시작/종료일에 따라 일(day)을 결정
                 if is_start_date:
                     return f"{year:04d}-{month:02d}-01"
                 else:
