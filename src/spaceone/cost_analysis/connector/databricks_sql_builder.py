@@ -81,35 +81,47 @@ class DatabricksSQLBuilder:
     def build_search_sql(self) -> str:
         """
         list_costs 요청을 받아 집계가 없는 단순 조회하는 SQL 생성 (SPO의 Search Query 대응)
-        billed_month 조건이 없으면, 성능상 이번달만 조회한다. (dt = 이번달)
+        billed_date, billed_month 조건이 없으면 성능상 지난달 또는 이번달을 기준으로 조회한다.
         """
-        # 1. WHERE 절 구성 (항상 이번 달 데이터만 필터링)
+        # 1. WHERE 절 구성
         where_clause = self._build_where_clause(is_search_query=True)
-
-        # 2. count_only 처리
+        
+        # 2. count_only 처리 
         if self.query.get('count_only'):
-            return f"SELECT COUNT(*) AS total_count\nFROM {self.from_clause_with}\n{where_clause}"
+            return f"SELECT COUNT(*) as total_count\nFROM {self.table_name}\n{where_clause}"
 
-        # 3. SELECT 절 구성 (minimal, only)
+        # 3. distinct 처리
+        if distinct_col := self.query.get('distinct'):
+            # distinct는 다른 select, pagination, sort 옵션을 무시하고 고유 값 목록만 반환
+            if not isinstance(distinct_col, str) or not distinct_col:
+                _LOGGER.warning("The 'distinct' value must be a non-empty string. Returning empty result.")
+                return f"SELECT NULL AS Values LIMIT 0"
+
+            # `distinct_col`이 `billed_month` 등일 경우 SUBSTRING 처리
+            col_accessor = self._format_column_accessor(distinct_col)
+            # `Values` 라는 고정된 별칭 사용
+            return f"SELECT DISTINCT {col_accessor} AS Values\nFROM {self.table_name}\n{where_clause}"
+
+        # 4. distinct 없는 조회 (minimals, only, *)
         select_list = []
-        if self.query.get('minimal'):
+        if self.query.get('minimals'):
             select_list.extend(f"`{col}`" for col in COST_MINIMAL_FIELDS)
         elif only_cols := self.query.get('only'):
             select_list.extend(f"`{col}`" for col in only_cols)
         else:
             select_list.append("*")
-
+        
         # total_count를 위한 윈도우 함수 추가
         select_list.append("COUNT(*) OVER () as total_count")
 
         select_list_str = ", ".join(select_list)
 
-        # 4. 정렬 및 페이지네이션 절 구성
+        # 5. 정렬 및 페이지네이션 절 구성
         sort_clause = self._build_sort_clause()
         # list_costs는 more 플래그가 필요 없으므로 use_plus_one=False
         pagination_clause = self._build_pagination_clause(use_plus_one=False)
 
-        # 5. 최종 쿼리 조립 (CROSS JOIN으로 total_count 추가)
+        # 6. 최종 쿼리 조립 (CROSS JOIN으로 total_count 추가)
         return f"SELECT {select_list_str}\nFROM {self.table_name}\n{where_clause}\n{sort_clause}\n{pagination_clause}"
 
     def _build_where_clause(self, is_search_query: bool) -> str:

@@ -160,8 +160,28 @@ class CostManager(BaseManager):
         query = self._add_hint_to_query(query)
         return self.monthly_cost_model.query(**query)
 
-    def stat_monthly_costs(self, query: dict, domain_id: str):
+    def stat_monthly_costs(self, query: dict, domain_id: str, data_source_id: str = None):
         query = self._change_filter_project_group_id(query, domain_id)
+
+        if data_source_id:
+            data_source_vo = self.data_source_mgr.get_data_source(
+                domain_id=domain_id, data_source_id=data_source_id
+            )
+
+            if data_source_vo.data_source_type == "WAREHOUSE":
+                warehouse_type = data_source_vo.warehouse_info["type"]
+                provider = data_source_vo.provider
+
+                if warehouse_type == "DATABRICKS":
+                    warehouse_cost_connector = DatabricksConnector(
+                        warehouse_type=warehouse_type,
+                        provider=provider
+                    )
+                else:
+                    raise ValueError(f"Unsupported warehouse_type: {warehouse_type}")
+
+                return warehouse_cost_connector.stat_costs(query)
+
         query = self._add_hint_to_query(query)
         _LOGGER.debug(f"[stat_monthly_costs] query: {query}")
         return self.monthly_cost_model.stat(**query)
@@ -272,7 +292,7 @@ class CostManager(BaseManager):
     def stat_monthly_costs_with_cache(
         self, query, query_hash, domain_id, data_source_id
     ):
-        return self.stat_monthly_costs(query, domain_id)
+        return self.stat_monthly_costs(query, domain_id, data_source_id)
 
     @cache.cacheable(
         key="cost-analysis:analyze-costs:daily:{domain_id}:{data_source_id}:{query_hash}",
