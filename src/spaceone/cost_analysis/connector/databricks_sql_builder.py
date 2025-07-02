@@ -102,9 +102,9 @@ class DatabricksSQLBuilder:
             # `Values` 라는 고정된 별칭 사용
             return f"SELECT DISTINCT {col_accessor} AS Values\nFROM {self.table_name}\n{where_clause}"
 
-        # 4. distinct 없는 조회 (minimals, only, *)
+        # 4. distinct 없는 조회 (minimal, only, *)
         select_list = []
-        if self.query.get('minimals'):
+        if self.query.get('minimal'):
             select_list.extend(f"`{col}`" for col in COST_MINIMAL_FIELDS)
         elif only_cols := self.query.get('only'):
             select_list.extend(f"`{col}`" for col in only_cols)
