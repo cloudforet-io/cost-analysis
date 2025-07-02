@@ -19,7 +19,7 @@ __all__ = ["DatabricksConnector"]
 
 _LOGGER = logging.getLogger(__name__)
 
-REQUEST_EXCLUDE_FIELDS = ["cost_id", "data_source_id", "job_id", "job_task_id", "v_workspace_id"]
+REQUEST_EXCLUDE_FIELDS = ["cost_id", "data_source_id", "job_id", "job_task_id", "v_workspace_id", "target"]
 RESPONSE_EXCLUDE_FIELDS = ['database', 'dt', 'usageaccountid', 'payeraccountid', 'total_count']
 
 class DatabricksConnector(BaseConnector):
@@ -138,6 +138,36 @@ class DatabricksConnector(BaseConnector):
            retry=retry_if_exception_type(SQLAlchemyError))
     def list_costs(self, query: dict):
         table_name = self.table.get(self.provider, {}).get("DAILY")
+
+        # EXCLUDE_FIELDS에 속한 필드는 제거.
+        filtered_query = self._preprocess_query_dict(query, REQUEST_EXCLUDE_FIELDS)
+
+        sql_query = self._generate_search_sql(filtered_query, table_name)
+        _LOGGER.info(f"sql_query: {sql_query}")
+
+        try:
+            with self._engine.connect() as conn:  # 풀에서 연결 자동 할당
+                _LOGGER.info(f"Pool stats: {self._engine.pool.status()}")
+
+                dbrx_result = conn.execute(text(sql_query))
+
+                return self._format_like_mongodb(dbrx_result, filtered_query)
+
+        except ProgrammingError as e:
+            _LOGGER.error(f"SQL syntax error: {str(e)}", exc_info=True)
+            raise
+        except DatabaseError as e:
+            _LOGGER.error(f"Database error: {str(e)}", exc_info=True)
+            raise
+        except SQLAlchemyError as e:
+            _LOGGER.error(f"Query execution error: {str(e)}", exc_info=True)
+            raise
+    
+    @retry(stop=stop_after_attempt(3),
+           wait=wait_exponential(multiplier=1, max=10),
+           retry=retry_if_exception_type(SQLAlchemyError))
+    def stat_costs(self, query: dict):
+        table_name = self.table.get(self.provider, {}).get("MONTHLY")
 
         # EXCLUDE_FIELDS에 속한 필드는 제거.
         filtered_query = self._preprocess_query_dict(query, REQUEST_EXCLUDE_FIELDS)
