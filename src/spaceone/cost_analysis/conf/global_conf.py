@@ -22,14 +22,14 @@ WAREHOUSES = {
         "schema": "",
         "table": {
             "aws": {
+                "YEARLY": "",
                 "MONTHLY": "",
-                "DAILY": "",
-
+                "DAILY": ""
             },
             "azure": {
+                "YEARLY": "",
                 "MONTHLY": "",
-                "DAILY": "",
-
+                "DAILY": ""
             },
         },
         "pool_size": 1,
