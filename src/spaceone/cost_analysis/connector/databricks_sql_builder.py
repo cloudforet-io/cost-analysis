@@ -688,8 +688,26 @@ class DatabricksSQLBuilder:
         return str(value).replace("'", "''")
 
     def _handle_simple_op(self, op: str, key: str, val: Any) -> str:
+        # 1. null 값 케이스를 먼저 처리
+        if val is None:
+            if op == 'eq':
+                return f"{key} IS NULL"
+            if op == 'not':
+                return f"{key} IS NOT NULL"
+            
+            # lt, gt 등 null과 비교하는 것이 의미 없는 연산자는 무시
+            _LOGGER.warning("Operator '%s' with a NULL value is not supported. Skipping condition.", op)
+            return None
+
+        # 2. null이 아닌 값에 대한 기존 처리
         op_map = {'eq': '=', 'not': '!=', 'lt': '<', 'lte': '<=', 'gt': '>', 'gte': '>=', 'regex': 'RLIKE'}
-        return f"{key} {op_map[op]} '{self._escape_sql_string(val)}'"
+        
+        if op in op_map:
+            return f"{key} {op_map[op]} '{self._escape_sql_string(val)}'"
+        
+        # 지원하지 않는 연산자인 경우
+        _LOGGER.warning("Unsupported simple operator '%s'.", op)
+        return None
 
     def _handle_exists_op(self, op: str, key: str, val: Any) -> str:
         return f"{key} IS NOT NULL" if val else f"{key} IS NULL"
@@ -699,12 +717,43 @@ class DatabricksSQLBuilder:
         return f"{key} {sql_op} '%{self._escape_sql_string(val)}%'"
 
     def _handle_array_op(self, op: str, key: str, val: Any) -> Optional[str]:
-        if not isinstance(val, list): return None
+        if not isinstance(val, list): 
+            return None
 
         if op in ['in', 'not_in']:
-            sql_op = 'IN' if op == 'in' else 'NOT IN'
-            proc_vals = [f"'{self._escape_sql_string(item)}'" if isinstance(item, str) else str(item) for item in val]
-            return f"{key} {sql_op} ({', '.join(proc_vals)})"
+            # 1. null 값과 일반 값 분리
+            has_null = None in val
+            non_null_values = [item for item in val if item is not None]
+
+            condition_parts = []
+
+            # 2. null 아닌 값에 대한 IN / NOT IN 구문 생성
+            if non_null_values:
+                sql_op = 'IN' if op == 'in' else 'NOT IN'
+                proc_vals = [
+                    f"'{self._escape_sql_string(item)}'" 
+                    if isinstance(item, str) else str(item) 
+                    for item in non_null_values
+                    ]
+                condition_parts.append(f"{key} {sql_op} ({', '.join(proc_vals)})")
+            
+            # 3. null 값에 대한 IS NULL / IS NOT NULL 구문 생성
+            if has_null:
+                null_op = 'IS NULL' if op == 'in' else 'IS NOT NULL'
+                condition_parts.append(f"{key} {null_op}")
+            
+            # 4. 생성된 구문들을 결합
+            if not condition_parts:
+                # 빈 리스트가 입력된 경우, 항상 false를 반환하여 아무것도 선택되지 않도록 함
+                return "1 = 0" 
+            
+            # 'in'은 OR로, 'not_in'은 AND로 결합
+            joiner = ' OR ' if op == 'in' else ' AND '
+            
+            if len(condition_parts) > 1:
+                return f"({joiner.join(condition_parts)})"
+            else:
+                return condition_parts[0]
 
         if op in ['contain_in', 'not_contain_in', 'regex_in']:
             base_op = {'contain_in': 'ILIKE', 'not_contain_in': 'NOT ILIKE', 'regex_in': 'RLIKE'}[op]
