@@ -18,19 +18,23 @@ WAREHOUSES = {
         "server_hostname": "",
         "http_path": "",
         "access_token": "",
-        "catalog": "",
-        "schema": "",
-        "table": {
-            "aws": {
+        "aws": {
+            "catalog": "",
+            "schema": "",
+            "table": {
                 "YEARLY": "",
                 "MONTHLY": "",
                 "DAILY": ""
-            },
-            "azure": {
+            }
+        },
+        "azure": {
+            "catalog": "",
+            "schema": "",
+            "table": {
                 "YEARLY": "",
                 "MONTHLY": "",
                 "DAILY": ""
-            },
+            }
         },
         "pool_size": 1,
         "max_overflow": 5,

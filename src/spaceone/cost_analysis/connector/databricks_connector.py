@@ -29,11 +29,12 @@ class DatabricksConnector(BaseConnector):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        warehouse_config = config.get_global("WAREHOUSES")
+        warehouse_type = kwargs.get("warehouse_type")
+
         self.sql_builder = DatabricksSQLBuilder
-        self.config = config
-        self.table = None
-        self.provider = kwargs.get("provider")
-        self.warehouse_type = kwargs.get("warehouse_type")
+        self.databricks_config = warehouse_config.get(warehouse_type)
+
         self._init_engine()
 
     def _init_engine(self):
@@ -41,26 +42,18 @@ class DatabricksConnector(BaseConnector):
             if not self._engine:
                 _LOGGER.info("Databricks engine initializing")
 
-                warehouse_config = self.config.get_global("WAREHOUSES")
-                databricks_config = warehouse_config.get(self.warehouse_type)
-
-                access_token = databricks_config.get("access_token")
-                server_hostname = databricks_config.get("server_hostname")
-                http_path = databricks_config.get("http_path")
-                catalog = databricks_config.get("catalog")
-                schema = databricks_config.get("schema")
-                pool_size = databricks_config.get("pool_size")
-                max_overflow = databricks_config.get("max_overflow")
-                pool_recycle = databricks_config.get("pool_recycle")
-                pool_timeout = databricks_config.get("pool_timeout")
-                transport_command_timeout = databricks_config.get("transport_command_timeout")
-                self.table = databricks_config.get("table", {})
+                access_token = self.databricks_config.get("access_token")
+                server_hostname = self.databricks_config.get("server_hostname")
+                http_path = self.databricks_config.get("http_path")
+                pool_size = self.databricks_config.get("pool_size")
+                max_overflow = self.databricks_config.get("max_overflow")
+                pool_recycle = self.databricks_config.get("pool_recycle")
+                pool_timeout = self.databricks_config.get("pool_timeout")
+                transport_command_timeout = self.databricks_config.get("transport_command_timeout")
 
                 dbrx_url = (
                     f"databricks://token:{access_token}@{server_hostname}"
                     f"?http_path={http_path}"
-                    f"&catalog={catalog}"
-                    f"&schema={schema}"
                 )
 
                 self._engine = create_engine(
@@ -97,7 +90,7 @@ class DatabricksConnector(BaseConnector):
     @retry(stop=stop_after_attempt(3),
            wait=wait_exponential(multiplier=1, max=10),
            retry=retry_if_exception_type(SQLAlchemyError))
-    def analyze_costs(self, query: dict):
+    def analyze_costs(self, provider: str, query: dict):
         if "fields" not in query:
             raise ERROR_REQUIRED_PARAMETER(key="fields")
 
@@ -106,12 +99,17 @@ class DatabricksConnector(BaseConnector):
 
         granularity = query["granularity"]
 
-        table_name = self.table.get(self.provider, {}).get(granularity)
+        provider_config = self.databricks_config.get(provider, {})
+        catalog = provider_config.get("catalog")
+        schema = provider_config.get("schema")
+        table = provider_config.get("table", {}).get(granularity)
+
+        full_table_name = f"{catalog}.{schema}.{table}"
 
         # EXCLUDE_FIELDS에 속한 필드는 제거.
         filtered_query = self._preprocess_query_dict(query, REQUEST_EXCLUDE_FIELDS)
 
-        sql_query = self._generate_analyze_sql(filtered_query, table_name)
+        sql_query = self._generate_analyze_sql(filtered_query, full_table_name)
         _LOGGER.info(f"sql_query: {sql_query}")
 
         try:
@@ -136,13 +134,18 @@ class DatabricksConnector(BaseConnector):
     @retry(stop=stop_after_attempt(3),
            wait=wait_exponential(multiplier=1, max=10),
            retry=retry_if_exception_type(SQLAlchemyError))
-    def list_costs(self, query: dict):
-        table_name = self.table.get(self.provider, {}).get("DAILY")
+    def list_costs(self, provider: str, query: dict):
+        provider_config = self.databricks_config.get(provider, {})
+        catalog = provider_config.get("catalog")
+        schema = provider_config.get("schema")
+        table = provider_config.get("table", {}).get("DAILY")
+
+        full_table_name = f"{catalog}.{schema}.{table}"
 
         # EXCLUDE_FIELDS에 속한 필드는 제거.
         filtered_query = self._preprocess_query_dict(query, REQUEST_EXCLUDE_FIELDS)
 
-        sql_query = self._generate_search_sql(filtered_query, table_name)
+        sql_query = self._generate_search_sql(filtered_query, full_table_name)
         _LOGGER.info(f"sql_query: {sql_query}")
 
         try:
@@ -166,13 +169,18 @@ class DatabricksConnector(BaseConnector):
     @retry(stop=stop_after_attempt(3),
            wait=wait_exponential(multiplier=1, max=10),
            retry=retry_if_exception_type(SQLAlchemyError))
-    def stat_costs(self, query: dict):
-        table_name = self.table.get(self.provider, {}).get("MONTHLY")
+    def stat_costs(self, provider: str, query: dict):
+        provider_config = self.databricks_config.get(provider, {})
+        catalog = provider_config.get("catalog")
+        schema = provider_config.get("schema")
+        table = provider_config.get("table", {}).get("MONTHLY")
+        
+        full_table_name = f"{catalog}.{schema}.{table}"
 
         # EXCLUDE_FIELDS에 속한 필드는 제거.
         filtered_query = self._preprocess_query_dict(query, REQUEST_EXCLUDE_FIELDS)
 
-        sql_query = self._generate_search_sql(filtered_query, table_name)
+        sql_query = self._generate_search_sql(filtered_query, full_table_name)
         _LOGGER.info(f"sql_query: {sql_query}")
 
         try:

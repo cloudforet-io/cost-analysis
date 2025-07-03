@@ -134,13 +134,12 @@ class CostManager(BaseManager):
 
                 if warehouse_type == "DATABRICKS":
                     warehouse_cost_connector = DatabricksConnector(
-                        warehouse_type=warehouse_type,
-                        provider=provider
+                        warehouse_type=warehouse_type
                     )
                 else:
                     raise ValueError(f"Unsupported warehouse_type: {warehouse_type}")
 
-                return warehouse_cost_connector.list_costs(query)
+                return warehouse_cost_connector.list_costs(provider, query)
 
         query = self.change_filter_v_workspace_id(query, domain_id, data_source_id)
         query = self._add_hint_to_query(query)
@@ -174,13 +173,12 @@ class CostManager(BaseManager):
 
                 if warehouse_type == "DATABRICKS":
                     warehouse_cost_connector = DatabricksConnector(
-                        warehouse_type=warehouse_type,
-                        provider=provider
+                        warehouse_type=warehouse_type
                     )
                 else:
                     raise ValueError(f"Unsupported warehouse_type: {warehouse_type}")
 
-                return warehouse_cost_connector.stat_costs(query)
+                return warehouse_cost_connector.stat_costs(provider, query)
 
         query = self._add_hint_to_query(query)
         _LOGGER.debug(f"[stat_monthly_costs] query: {query}")
@@ -206,13 +204,12 @@ class CostManager(BaseManager):
 
                 if warehouse_type == "DATABRICKS":
                     warehouse_cost_connector = DatabricksConnector(
-                        warehouse_type=warehouse_type,
-                        provider=provider
+                        warehouse_type=warehouse_type
                     )
                 else:
                     raise ValueError(f"Unsupported warehouse_type: {warehouse_type}")
 
-                return warehouse_cost_connector.analyze_costs(query)
+                return warehouse_cost_connector.analyze_costs(provider, query)
 
         query["target"] = target
         query["date_field"] = "billed_date"
@@ -238,13 +235,12 @@ class CostManager(BaseManager):
 
                 if warehouse_type == "DATABRICKS":
                     warehouse_cost_connector = DatabricksConnector(
-                        warehouse_type=warehouse_type,
-                        provider=provider
+                        warehouse_type=warehouse_type
                     )
                 else:
                     raise ValueError(f"Unsupported warehouse_type: {warehouse_type}")
 
-                return warehouse_cost_connector.analyze_costs(query)
+                return warehouse_cost_connector.analyze_costs(provider, query)
 
         # 공통 처리 로직
         query["target"] = target
@@ -270,13 +266,12 @@ class CostManager(BaseManager):
 
                 if warehouse_type == "DATABRICKS":
                     warehouse_cost_connector = DatabricksConnector(
-                        warehouse_type=warehouse_type,
-                        provider=provider
+                        warehouse_type=warehouse_type
                     )
                 else:
                     raise ValueError(f"Unsupported warehouse_type: {warehouse_type}")
 
-                return warehouse_cost_connector.analyze_costs(query)
+                return warehouse_cost_connector.analyze_costs(provider, query)
 
         query["target"] = target
         query["date_field"] = "billed_year"
