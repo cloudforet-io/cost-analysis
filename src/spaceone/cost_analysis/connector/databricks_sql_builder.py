@@ -145,17 +145,19 @@ class DatabricksSQLBuilder:
             all_filters = self.query.get('filter', []) + self.query.get('filter_or', [])
             has_date_filter = any(item.get('k') in ['billed_month', 'billed_date'] for item in all_filters)
             
-            # billed_date/billed_month 필터가 없으면, 날짜에 따라 기본 월(dt)을 설정
+            # billed_date/billed_month 필터가 없으면, 이번 달과 지난달을 기본 조건으로 추가
             if not has_date_filter:
                 now = datetime.datetime.now(datetime.timezone.utc)
-                target_date = now
                 
-                if now.day <= 2:
-                    # 오늘이 1일 또는 2일이면, 지난달을 기준으로 조회 (이번달은 데이터가 없을 수 있다.)
-                    target_date = now - datetime.timedelta(days=3)
+                # 이번 달 YYYYMM
+                current_month_dt = now.strftime('%Y%m')
                 
-                target_dt = target_date.strftime('%Y%m')
-                conditions.append(f"dt = '{target_dt}'")
+                # 지난달 YYYYMM 계산 (연도가 바뀌는 경우도 안전하게 처리)
+                first_day_of_current_month = now.replace(day=1)
+                last_day_of_previous_month = first_day_of_current_month - datetime.timedelta(days=1)
+                previous_month_dt = last_day_of_previous_month.strftime('%Y%m')
+                
+                conditions.append(f"dt IN ('{current_month_dt}', '{previous_month_dt}')")
         else:
             # analyze_query는 start/end date 사용
             if start_date := self.query.get('start'):
