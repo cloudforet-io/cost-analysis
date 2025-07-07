@@ -539,8 +539,14 @@ class DatabricksSQLBuilder:
 
     def _build_fg_query(self, partition_keys: Set[str]) -> str:
         """fg_query CTE의 SQL 문자열을 생성 (count, average 특별 처리)."""
-        partition_by_sql = ", ".join(f"b.`{key}`" for key in sorted(list(partition_keys)))
 
+        # OVER clause를 조건부로 생성
+        over_clause = "OVER ()"
+        if partition_keys:
+            partition_by_sql = ", ".join(f"b.`{key}`" for key in sorted(list(partition_keys)))
+            over_clause = f"OVER (PARTITION BY {partition_by_sql})"
+
+        # 윈도우 함수 표현식
         window_expressions = []
         # 히든이 아닌 집계 필드만 순회
         agg_fields_meta = {alias: meta for alias, meta in self.with_aliases_map.items() if
@@ -556,8 +562,9 @@ class DatabricksSQLBuilder:
                 hidden_sum_display_alias = self.with_aliases_map[f"__sum_for_avg_{internal_alias}"]['display_alias']
                 hidden_count_display_alias = self.with_aliases_map[f"__count_for_avg_{internal_alias}"]['display_alias']
 
-                sum_over = f"SUM(b.`{hidden_sum_display_alias}`) OVER (PARTITION BY {partition_by_sql})"
-                count_over = f"SUM(b.`{hidden_count_display_alias}`) OVER (PARTITION BY {partition_by_sql})"
+                # 미리 생성해둔 over_clause 사용
+                sum_over = f"SUM(b.`{hidden_sum_display_alias}`) {over_clause}"
+                count_over = f"SUM(b.`{hidden_count_display_alias}`) {over_clause}"
 
                 window_expressions.append(
                     f"CASE WHEN {count_over} = 0 THEN 0 ELSE {sum_over} / {count_over} END AS {total_alias}")
@@ -565,16 +572,27 @@ class DatabricksSQLBuilder:
             elif op == 'count':
                 # count의 total은 SUM으로 계산
                 window_expressions.append(
-                    f"SUM(b.`{display_alias}`) OVER (PARTITION BY {partition_by_sql}) AS {total_alias}")
+                    f"SUM(b.`{display_alias}`) {over_clause} AS {total_alias}")
 
             elif op in ['sum', 'min', 'max']:
                 # sum, min, max는 동일한 연산자 사용
                 window_op = op.upper()
                 window_expressions.append(
-                    f"{window_op}(b.`{display_alias}`) OVER (PARTITION BY {partition_by_sql}) AS {total_alias}")
+                    f"{window_op}(b.`{display_alias}`) {over_clause} AS {total_alias}")
 
-        select_list = ["b.*"] + window_expressions
-        return f"  SELECT\n    {', '.join(select_list)}\n  FROM\n    {self.CTE_BASE_QUERY_NAME} b"
+        # fg_query의 SELECT 목록 구성 (b.* 대신 명시적 선택) ---
+        # base_query로부터 가져올 컬럼 목록 (히든 필드 제외)
+        select_list_from_base = []
+        for meta in self.with_aliases_map.values():
+            if not meta.get('is_hidden'):
+                display_alias = meta['display_alias']
+                select_list_from_base.append(f"b.`{display_alias}`")
+
+        # 최종 fg_query SELECT 목록 조합
+        final_select_list = select_list_from_base + window_expressions
+
+        return (f"  SELECT\n    {', '.join(sorted(list(set(final_select_list))))}\n"
+                f"  FROM\n    {self.CTE_BASE_QUERY_NAME} b")
 
     def _build_final_select_for_fg_path(self, grouping_cols: Set[str], field_group_cols: Set[str]) -> str:
         """field_group이 있을 때의 최종 SELECT 문을 생성."""
