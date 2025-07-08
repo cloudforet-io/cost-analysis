@@ -245,10 +245,10 @@ class CostReportDataService(BaseService):
             aggregated_cost_report_data["domain_id"] = domain_id
             aggregated_cost_report_data["is_confirmed"] = is_confirmed
 
-            aggregated_cost_report_data["usage_type"] = unified_cost["usage_type"]
-            aggregated_cost_report_data["usage_unit"] = unified_cost["usage_unit"]
-            aggregated_cost_report_data["region_key"] = unified_cost["region_key"]
-            aggregated_cost_report_data["region_code"] = unified_cost["region_code"]
+            aggregated_cost_report_data["usage_type"] = unified_cost.get("usage_type")
+            aggregated_cost_report_data["usage_unit"] = unified_cost.get("usage_unit")
+            aggregated_cost_report_data["region_key"] = unified_cost.get("region_key")
+            aggregated_cost_report_data["region_code"] = unified_cost.get("region_code")
 
             self.cost_report_data_mgr.create_cost_report_data(
                 aggregated_cost_report_data
