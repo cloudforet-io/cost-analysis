@@ -6,8 +6,7 @@ class CostReportFormatGenerator:
         cost_report_config_id: str,
         domain_id: str,
     ):
-        self.issue_month = metadata["issue_month"]
-        self.issue_day = metadata["issue_day"]
+        self.issue_date = metadata["issue_date"]
         self.report_currency = metadata["currency"]
 
         self.scope = scope
@@ -29,9 +28,7 @@ class CostReportFormatGenerator:
         tr_unified_cost = unified_cost.copy()
         tr_unified_cost["cost"] = self._extract_cost_by_currency(tr_unified_cost)
         tr_unified_cost["status"] = status
-        tr_unified_cost["issue_date"] = (
-            f"{self.issue_month}-{str(self.issue_day).zfill(2)}"
-        )
+        tr_unified_cost["issue_date"] = self.issue_date
         tr_unified_cost["report_month"] = self.report_month
         tr_unified_cost["report_year"] = tr_unified_cost.get("billed_year")
         tr_unified_cost["bank_name"] = tr_unified_cost.get(
