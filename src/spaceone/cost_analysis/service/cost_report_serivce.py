@@ -529,7 +529,7 @@ class CostReportService(BaseService):
         is_last_day = report_metadata["is_last_day"]
         issue_day = report_metadata["issue_day"]
         adjustment_state = adjustment_options.get("enabled", False)
-        adjustment_period = adjustment_options.get("period", 0)
+        adjustment_period = adjustment_options.get("period", 0) if adjustment_state else 0
         self.is_within_adjustment_period = adjustment_state and adjustment_period > 0
 
         retry_days = min(config.get_global("COST_REPORT_RETRY_DAYS", 7), 10)
