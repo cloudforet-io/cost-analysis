@@ -34,10 +34,10 @@ class AdjustmentPolicyApplier:
         self.workspace_id = cost_report_vo.workspace_id
         self.project_id = cost_report_vo.project_id
         self.service_account_id = cost_report_vo.service_account_id
-        self.usage_type = unified_cost["usage_type"]
-        self.usage_unit = unified_cost["usage_unit"]
-        self.region_key = unified_cost["region_key"]
-        self.region_code = unified_cost["region_code"]
+        self.usage_type = unified_cost.get("usage_type")
+        self.usage_unit = unified_cost.get("usage_unit")
+        self.region_key = unified_cost.get("region_key")
+        self.region_code = unified_cost.get("region_code")
 
         self.data_source_ids = data_source_ids
 
