@@ -563,8 +563,7 @@ class CostReportService(BaseService):
                     self.is_done_report = True
 
         report_metadata["report_month"] = report_month
-        report_metadata["issue_day"] = issue_day
-        report_metadata["issue_date"] = issue_date
+        report_metadata["issue_date"] = issue_date.strftime("%Y-%m-%d")
 
         return create_in_progress_report, create_adjusting_report, report_metadata
 
@@ -583,10 +582,9 @@ class CostReportService(BaseService):
 
         issue_month = self._get_issue_month_from_report_month(report_month)
         issue_day = self.get_issue_day(report_metadata["is_last_day"], report_metadata["issue_day"], issue_month)
-        issue_date = issue_month.replace(day=issue_day).date()
+        issue_date = issue_month.replace(day=issue_day).date().strftime("%Y-%m-%d")
 
         report_metadata["report_month"] = report_month
-        report_metadata["issue_day"] = issue_day
         report_metadata["issue_date"] = issue_date
 
         return create_in_progress_report, create_adjusting_report, report_metadata
