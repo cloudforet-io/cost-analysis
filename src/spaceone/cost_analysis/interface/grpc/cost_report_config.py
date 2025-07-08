@@ -13,6 +13,12 @@ class CostReportConfig(BaseAPI, cost_report_config_pb2_grpc.CostReportConfigServ
     pb2 = cost_report_config_pb2
     pb2_grpc = cost_report_config_pb2_grpc
 
+    def generate_report(self, request, context):
+        params, metadata = self.parse_request(request, context)
+        cost_report_svc = CostReportConfigService(metadata)
+        cost_report_svc.generate_report(params)
+        return self.empty()
+
     def create(self, request, context):
         params, metadata = self.parse_request(request, context)
         cost_report_svc = CostReportConfigService(metadata)

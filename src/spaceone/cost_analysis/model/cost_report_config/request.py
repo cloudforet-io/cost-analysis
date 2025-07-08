@@ -3,6 +3,7 @@ from typing import Union, Literal
 from pydantic import BaseModel
 
 __all__ = [
+    "CostReportConfigGenerateReportRequest",
     "CostReportConfigCreateRequest",
     "CostReportConfigUpdateRequest",
     "CostReportConfigUpdateRecipientsRequest",
@@ -18,6 +19,11 @@ __all__ = [
 State = Literal["ENABLED", "DISABLED"]
 Scope = Literal["WORKSPACE", "PROJECT", "SERVICE_ACCOUNT"]
 
+
+class CostReportConfigGenerateReportRequest(BaseModel):
+    cost_report_config_id: str
+    report_month: str
+    domain_id: str
 
 class CostReportConfigCreateRequest(BaseModel):
     scope: Scope

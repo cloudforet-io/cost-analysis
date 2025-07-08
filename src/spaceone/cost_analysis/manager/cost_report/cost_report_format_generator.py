@@ -2,17 +2,16 @@ class CostReportFormatGenerator:
     def __init__(
         self,
         metadata: dict,
-        report_month: str,
         scope: str,
         cost_report_config_id: str,
         domain_id: str,
     ):
-        self.issue_month = metadata["current_month"]
+        self.issue_month = metadata["issue_month"]
         self.issue_day = metadata["issue_day"]
         self.report_currency = metadata["currency"]
 
         self.scope = scope
-        self.report_month = report_month
+        self.report_month = metadata["report_month"]
         self.cost_report_config_id = cost_report_config_id
         self.domain_id = domain_id
 
