@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Union
 
 from spaceone.core.error import *
@@ -13,7 +14,7 @@ from spaceone.cost_analysis.service.cost_report_serivce import CostReportService
 from spaceone.cost_analysis.model.cost_report_config.request import *
 from spaceone.cost_analysis.model.cost_report_config.response import *
 from spaceone.cost_analysis.error.cost_report_config import (
-    ERROR_COST_REPORT_CONFIG_NOT_ENABLED,
+    ERROR_COST_REPORT_CONFIG_NOT_ENABLED, ERROR_CANT_REGENERATE_REPORT_FOR_THIS_MONTH,
 )
 
 
@@ -29,6 +30,48 @@ class CostReportConfigService(BaseService):
         self.cost_report_config_mgr = CostReportConfigManager()
         self.adjustment_mgr = ReportAdjustmentManager()
         self.adjustment_policy_mgr = ReportAdjustmentPolicyManager()
+
+
+    @transaction(
+        permission="cost-analysis:CostReportConfig.write", role_types=["DOMAIN_ADMIN"]
+    )
+    @convert_model
+    def generate_report(self, params: CostReportConfigGenerateReportRequest) -> None:
+        """Generate cost report config
+
+        Args:
+            params (CostReportConfigGenerateReportRequest): {
+                'cost_report_config_id': 'str',     # required
+                'report_month': 'str',              # required
+                'domain_id': 'str'                  # injected from auth (required)
+            }
+
+        Returns:
+            None
+        """
+        report_month = params.report_month
+
+        if report_month == datetime.now(timezone.utc).strftime("%Y-%m"):
+            raise ERROR_CANT_REGENERATE_REPORT_FOR_THIS_MONTH(
+                report_month=report_month
+            )
+
+        cost_report_config_vo = self.cost_report_config_mgr.get_cost_report_config(
+            params.domain_id, params.cost_report_config_id
+        )
+
+        if cost_report_config_vo.state != "ENABLED":
+            raise ERROR_COST_REPORT_CONFIG_NOT_ENABLED(
+                cost_report_config_id=cost_report_config_vo.cost_report_config_id,
+                state=cost_report_config_vo.state,
+            )
+
+        cost_report_config_dict = cost_report_config_vo.to_dict()
+        cost_report_config_dict["is_regenerate"] = True
+        cost_report_config_dict["report_month"] = report_month
+
+        cost_report_service = CostReportService()
+        cost_report_service.create_cost_report(cost_report_config_dict)
 
     @transaction(
         permission="cost-analysis:CostReportConfig.write", role_types=["DOMAIN_ADMIN"]

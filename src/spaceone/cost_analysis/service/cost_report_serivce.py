@@ -250,39 +250,40 @@ class CostReportService(BaseService):
         domain_id = params["domain_id"]
         cost_report_config_id = params["cost_report_config_id"]
         is_scheduled = params.get("is_scheduled", False)
+        is_regenerate = params.get("is_regenerate", False)
 
         config_vo = self.cost_report_config_mgr.get_cost_report_config(
             domain_id, cost_report_config_id
         )
-        current_date = datetime.now(timezone.utc)
         adjustment_options = config_vo.adjustment_options or {}
+        report_metadata = self._collect_cost_report_metadata(config_vo)
 
-        metadata = self._collect_cost_report_metadata(config_vo, current_date)
-
-        create_in_progress_report, create_adjusting_report, report_month = (
-            self._calculate_report_flags_and_report_month(
-                metadata["issue_day"],
-                metadata["is_last_day"],
-                current_date,
-                adjustment_options,
-                is_scheduled,
-                cost_report_config_id,
-                domain_id,
+        if is_regenerate:
+            create_in_progress_report, create_adjusting_report, report_metadata = (
+                self._calculate_regenerate_report_flags_and_report_month(
+                    report_metadata,
+                    adjustment_options,
+                    params["report_month"],
+                )
             )
-        )
-
-        metadata["report_month"] = report_month
-        metadata["currency"] = config_vo.currency
-
-        issue_month, report_issue_day, issue_date = self._prepare_report_metadata(
-            metadata, report_month
-        )
+        else:
+            current_date = datetime.now(timezone.utc)
+            create_in_progress_report, create_adjusting_report, report_metadata = (
+                self._calculate_report_flags_and_report_month(
+                    report_metadata,
+                    current_date,
+                    adjustment_options,
+                    is_scheduled,
+                    cost_report_config_id,
+                    domain_id,
+                )
+            )
 
         unified_costs = self.unified_cost_mgr.analyze_unified_cost_for_report(
-            report_month=report_month,
-            data_source_ids=metadata["data_source_ids"],
+            report_month=report_metadata["report_month"],
+            data_source_ids=report_metadata["data_source_ids"],
             domain_id=domain_id,
-            workspace_ids=metadata["workspace_ids"],
+            workspace_ids=report_metadata["workspace_ids"],
             scope=config_vo.scope,
         )
 
@@ -293,18 +294,22 @@ class CostReportService(BaseService):
             status = "ADJUSTING"
 
         if status:
+            issue_day = report_metadata["issue_day"]
+            issue_date = report_metadata["issue_date"]
+            report_month = report_metadata["report_month"]
+
             _LOGGER.debug(
-                f"[create_cost_report] status = {status}, issue_month={issue_month}, report_month={report_month}, report_issue_day={report_issue_day}")
+                f"[create_cost_report] status = {status}, issue_day={issue_day}, issue_date={issue_date}, report_month={report_month}")
 
             reports = self._build_cost_reports_from_costs(
-                status, config_vo, unified_costs, metadata
+                status, config_vo, unified_costs, report_metadata
             )
 
             self._persist_cost_reports_by_status(
                 reports,
                 report_month,
-                report_issue_day,
-                metadata["data_source_ids"],
+                issue_day,
+                report_metadata["data_source_ids"],
                 domain_id,
                 issue_date,
             )
@@ -511,17 +516,18 @@ class CostReportService(BaseService):
 
     def _calculate_report_flags_and_report_month(
         self,
-        issue_day: int,
-        is_last_day: bool,
+        report_metadata: dict,
         current_date: datetime,
         adjustment_options: dict,
         is_scheduled: bool = False,
         cost_report_config_id: str = None,
         domain_id:str = None
-    ) -> Tuple[bool, bool, str]:
+    ) -> Tuple[bool, bool, dict]:
         create_in_progress_report = False
         create_adjusting_report = False
 
+        is_last_day = report_metadata["is_last_day"]
+        issue_day = report_metadata["issue_day"]
         adjustment_state = adjustment_options.get("enabled", False)
         adjustment_period = adjustment_options.get("period", 0)
         self.is_within_adjustment_period = adjustment_state and adjustment_period > 0
@@ -556,7 +562,34 @@ class CostReportService(BaseService):
                 else:
                     self.is_done_report = True
 
-        return create_in_progress_report, create_adjusting_report, report_month
+        report_metadata["report_month"] = report_month
+        report_metadata["issue_day"] = issue_day
+        report_metadata["issue_date"] = issue_date
+
+        return create_in_progress_report, create_adjusting_report, report_metadata
+
+    def _calculate_regenerate_report_flags_and_report_month(self,
+        report_metadata: dict,
+        adjustment_options: dict,
+        report_month: str,
+    ) -> Tuple[bool, bool, dict]:
+        create_in_progress_report = False
+        create_adjusting_report = True
+        self.is_done_report = True
+
+        adjustment_state = adjustment_options.get("enabled", False)
+        adjustment_period = adjustment_options.get("period", 0)
+        self.is_within_adjustment_period = adjustment_state and adjustment_period > 0
+
+        issue_month = self._get_issue_month_from_report_month(report_month)
+        issue_day = self.get_issue_day(report_metadata["is_last_day"], report_metadata["issue_day"], issue_month)
+        issue_date = issue_month.replace(day=issue_day).date()
+
+        report_metadata["report_month"] = report_month
+        report_metadata["issue_day"] = issue_day
+        report_metadata["issue_date"] = issue_date
+
+        return create_in_progress_report, create_adjusting_report, report_metadata
 
     def _check_done_cost_report_exist(
         self,
@@ -620,15 +653,10 @@ class CostReportService(BaseService):
             cost_report_config_mgr.create_default_cost_report_config(domain_id)
 
     @staticmethod
-    def _get_issue_month_from_report_month(report_month: str) -> str:
-        """
-        report_month: 2024-06
-        """
-        issue_month_datetime = datetime.strptime(report_month, "%Y-%m") + relativedelta(
+    def _get_issue_month_from_report_month(report_month: str) -> datetime:
+        return datetime.strptime(report_month, "%Y-%m") + relativedelta(
             months=1
         )
-        issue_month = issue_month_datetime.strftime("%Y-%m")
-        return issue_month
 
     def _persist_cost_reports_by_status(
         self,
@@ -698,11 +726,10 @@ class CostReportService(BaseService):
 
     @staticmethod
     def _build_cost_reports_from_costs(
-        status, config_vo, unified_costs, metadata
+        status, config_vo, unified_costs, report_metadata
     ) -> list:
         generator = CostReportFormatGenerator(
-            metadata=metadata,
-            report_month=metadata["report_month"],
+            metadata=report_metadata,
             scope=config_vo.scope,
             cost_report_config_id=config_vo.cost_report_config_id,
             domain_id=config_vo.domain_id,
@@ -712,13 +739,10 @@ class CostReportService(BaseService):
     def _collect_cost_report_metadata(
         self,
         config_vo: CostReportConfig,
-        current_date: datetime,
     ) -> dict:
         domain_id = config_vo.domain_id
         data_source_filter = config_vo.data_source_filter or {}
         is_last_day = config_vo.is_last_day or False
-        issue_day = self.get_issue_day(is_last_day, config_vo.issue_day, current_date)
-        current_month = current_date.strftime("%Y-%m")
 
         workspace_ids = self._get_workspace_name_map(domain_id)
 
@@ -731,21 +755,9 @@ class CostReportService(BaseService):
             "workspace_ids": workspace_ids,
             "data_source_ids": data_source_ids,
             "is_last_day": is_last_day,
-            "issue_day": issue_day,
-            "current_month": current_month,
+            "issue_day": config_vo.issue_day,
+            "currency": config_vo.currency,
         }
-
-    def _prepare_report_metadata(
-        self, context: dict, report_month: str
-    ) -> tuple[str, int, str]:
-        issue_month = self._get_issue_month_from_report_month(report_month)
-        report_issue_day = self.get_issue_day(
-            context["is_last_day"],
-            context["issue_day"],
-            datetime.strptime(report_month, "%Y-%m"),
-        )
-        issue_date = f"{issue_month}-{str(context['issue_day']).zfill(2)}"
-        return issue_month, report_issue_day, issue_date
 
     def get_project_name_map(
         self, domain_id: str, workspace_ids: list
