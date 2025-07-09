@@ -312,6 +312,7 @@ class CostReportService(BaseService):
                 report_metadata["data_source_ids"],
                 domain_id,
                 issue_date,
+                is_regenerate,
             )
 
     def _get_all_cost_report_configs(self) -> QuerySet:
@@ -659,12 +660,13 @@ class CostReportService(BaseService):
     def _persist_cost_reports_by_status(
         self,
         cost_reports: Union[list, QuerySet],
-        report_month,
-        report_issue_day,
-        data_source_ids,
-        domain_id,
-        issue_date,
-    ):
+        report_month: str,
+        report_issue_day: int,
+        data_source_ids: list,
+        domain_id: str,
+        issue_date: str,
+        is_regenerate: bool,
+    ) -> None:
         cost_report_data_svc = CostReportDataService()
 
         start_cost_report_number = self.get_start_cost_report_number(
@@ -710,7 +712,9 @@ class CostReportService(BaseService):
 
                 if self.is_done_report:
                     cost_report_vo = self._update_cost_report_done_status(cost_report_vo)
-                    self.send_cost_report(cost_report_vo)
+
+                    if not is_regenerate:
+                        self.send_cost_report(cost_report_vo)
 
         if self._check_done_cost_report_exist(domain_id, cost_report_config_id, report_month):
             self._change_status_to_expired(domain_id, cost_report_config_id, report_month, report_created_at)
