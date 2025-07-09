@@ -1,9 +1,0 @@
-name: "[Dispatch] Build Dev"
-
-on:
-  workflow_dispatch:
-
-jobs:
-  call-workflow:
-    uses: spaceone-dev/actions/.github/workflows/called_python_service_dispatch_build_dev.yml@master
-    secrets: inherit
