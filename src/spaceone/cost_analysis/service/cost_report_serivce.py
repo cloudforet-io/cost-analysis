@@ -279,6 +279,8 @@ class CostReportService(BaseService):
                 )
             )
 
+        _LOGGER.debug(f"Create IN_PROGRESS report: {create_in_progress_report}, Create ADJUSTING report: {create_adjusting_report}, Report Metadata: {report_metadata}")
+
         unified_costs = self.unified_cost_mgr.analyze_unified_cost_for_report(
             report_month=report_metadata["report_month"],
             data_source_ids=report_metadata["data_source_ids"],
