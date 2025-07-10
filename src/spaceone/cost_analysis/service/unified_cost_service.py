@@ -727,7 +727,7 @@ class UnifiedCostService(BaseService):
         aggregation_day = unified_cost_config.get("aggregation_day", 15)
         is_last_day = unified_cost_config.get("is_last_day", False)
 
-        last_day = self.get_is_last_day(current_date, is_last_day, aggregation_day)
+        last_day = self.get_is_last_day(aggregation_date, is_last_day, aggregation_day)
 
         aggregation_date = aggregation_date.replace(day=last_day) + relativedelta(
             months=1
