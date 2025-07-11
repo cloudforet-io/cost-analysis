@@ -471,11 +471,9 @@ class CostReportService(BaseService):
     def _get_workspace_name_map(self, domain_id: str) -> list:
         workspace_ids = []
 
-        system_token = config.get_global("TOKEN")
         workspaces = self.identity_mgr.list_workspaces(
             {"query": {"filter": [{"k": "state", "v": "ENABLED", "o": "eq"}]}},
             domain_id,
-            token=system_token,
         )
 
         for workspace in workspaces.get("results", []):
