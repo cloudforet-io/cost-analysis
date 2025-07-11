@@ -440,7 +440,6 @@ class CostReportService(BaseService):
             return []
 
         # list users in workspace
-        system_token = config.get_global("TOKEN")
         users_info = self.identity_mgr.list_workspace_users(
             params={
                 "workspace_id": workspace_id,
@@ -453,7 +452,6 @@ class CostReportService(BaseService):
                 },
             },
             domain_id=domain_id,
-            token=system_token,
         ).get("results", [])
 
         return users_info
