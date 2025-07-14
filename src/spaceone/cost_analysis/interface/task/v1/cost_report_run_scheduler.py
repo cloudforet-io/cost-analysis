@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime, timezone
 
+from spaceone.core.auth.jwt.jwt_util import JWTUtil
 from spaceone.core.error import ERROR_CONFIGURATION
 from spaceone.core import config
 from spaceone.core import utils
@@ -46,6 +47,8 @@ class CostReportRunScheduler(HourlyScheduler):
                     }
                 ],
             }
+            print("scheduler token exists:", self._token is not None)
+            print("scheduler token type:", JWTUtil.get_value_from_token(self._token, "typ"))
             print(
                 f"{utils.datetime_to_iso8601(datetime.now(timezone.utc))} [INFO] [create_task] create_cost_report_by_cost_report_config => START"
             )

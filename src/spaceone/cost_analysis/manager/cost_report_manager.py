@@ -1,7 +1,9 @@
 import logging
+from multiprocessing.pool import worker
 from typing import Tuple
 from mongoengine import QuerySet
 
+from spaceone.core.auth.jwt.jwt_util import JWTUtil
 from spaceone.core import queue, utils
 from spaceone.core.manager import BaseManager
 from spaceone.cost_analysis.model.cost_report.database import CostReport
@@ -80,6 +82,8 @@ class CostReportManager(BaseManager):
 
     def push_creating_cost_report_job(self, params: dict) -> None:
         token = self.transaction.meta.get("token")
+        print("worker token exists :", token is not None)
+        print("worker token type :", JWTUtil.get_value_from_token(token, "typ"))
         task = {
             "name": "create_cost_report_job",
             "version": "v1",
