@@ -1,6 +1,4 @@
 import logging
-from time import sleep
-from typing import Union
 
 from spaceone.core import cache
 from spaceone.core import config
@@ -114,19 +112,17 @@ class IdentityManager(BaseManager):
             return workspace_id
 
     def list_workspaces(self, params: dict, domain_id: str, token: str = None) -> dict:
-        print("request token type:", self.token_type)
         if self.token_type == "SYSTEM_TOKEN" or token:
             return self.identity_conn.dispatch(
                 "Workspace.list", params, x_domain_id=domain_id, token=token
             )
         else:
-            print("else in")
             return self.identity_conn.dispatch("Workspace.list", params)
 
-    def list_workspace_users(self, params: dict, domain_id: str) -> dict:
-        if self.token_type == "SYSTEM_TOKEN":
+    def list_workspace_users(self, params: dict, domain_id: str, token: str = None) -> dict:
+        if self.token_type == "SYSTEM_TOKEN" or token:
             return self.identity_conn.dispatch(
-                "WorkspaceUser.list", params, x_domain_id=domain_id
+                "WorkspaceUser.list", params, x_domain_id=domain_id, token=token
             )
         else:
             return self.identity_conn.dispatch("WorkspaceUser.list", params)
