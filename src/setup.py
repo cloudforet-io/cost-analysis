@@ -27,8 +27,8 @@ setup(
     license="Apache License 2.0",
     packages=find_packages(),
     install_requires=[
-        "spaceone-core==2.0.96",
-        "spaceone-api==2.0.280",
+        "spaceone-core==2.0.123",
+        "spaceone-api==2.0.398",
         "pandas==2.0.3",
         "numpy==1.24.4",
         "jinja2==3.1.4",
