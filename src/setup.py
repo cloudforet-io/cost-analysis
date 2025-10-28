@@ -17,7 +17,7 @@ import os
 from setuptools import setup, find_packages
 
 setup(
-    name="spaceone-cost-analysis",
+    name="spaceone_cost_analysis",
     version=os.environ.get("PACKAGE_VERSION"),
     description="SpaceONE cost analysis service",
     long_description="",
