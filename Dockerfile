@@ -9,7 +9,7 @@ ENV PACKAGE_VERSION=$PACKAGE_VERSION
 
 COPY pkg/pip_requirements.txt pip_requirements.txt
 
-RUN pip install --upgrade pip && \
+RUN pip install --upgrade pip==23.0.1 && \
     pip install --upgrade -r pip_requirements.txt
 
 COPY src ${SRC_DIR}
