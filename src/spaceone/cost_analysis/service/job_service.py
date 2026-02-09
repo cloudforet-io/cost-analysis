@@ -7,7 +7,7 @@ from typing import Dict
 from dateutil.relativedelta import relativedelta
 
 from spaceone.core.service import *
-from spaceone.core import utils, config
+from spaceone.core import cache, utils, config
 from spaceone.cost_analysis.error import *
 from spaceone.cost_analysis.model import DataSourceAccount
 from spaceone.cost_analysis.model.job_task_model import JobTask
@@ -307,8 +307,8 @@ class JobService(BaseService):
                         f"[get_cost_data] total job time ({job_task_id}): {end_dt - start_dt}"
                     )
 
-                    self._update_keys(
-                        data_source_vo, tag_keys, additional_info_keys, data_keys
+                    self._store_task_keys_in_cache(
+                        job_id, job_task_id, tag_keys, additional_info_keys, data_keys
                     )
                     self.job_task_mgr.change_success_status(job_task_vo, count)
 
@@ -319,9 +319,6 @@ class JobService(BaseService):
             job_id,
             data_source_id,
             domain_id,
-            data_source_vo.cost_data_keys,
-            data_source_vo.cost_additional_info_keys,
-            data_source_vo.cost_tag_keys,
             job_task_vo.workspace_id,
         )
 
@@ -628,9 +625,6 @@ class JobService(BaseService):
         job_id: str,
         data_source_id: str,
         domain_id: str,
-        data_keys: list,
-        additional_info_keys: list,
-        tag_keys: list,
         workspace_id: str = None,
     ) -> None:
         job_vo: Job = self.job_mgr.get_job(job_id, domain_id, workspace_id)
@@ -639,10 +633,37 @@ class JobService(BaseService):
         if job_vo.remained_tasks == 0:
             if job_vo.status == "IN_PROGRESS":
                 try:
-                    # self._aggregate_cost_data(
-                    #     job_vo, data_keys, additional_info_keys, tag_keys
-                    # )
+                    data_source_vo = self.data_source_mgr.get_data_source(
+                        data_source_id, domain_id
+                    )
+                    (
+                        merged_tag_keys,
+                        merged_additional_info_keys,
+                        merged_data_keys,
+                    ) = self._merge_task_keys_from_cache(
+                        job_id,
+                        data_source_vo.cost_tag_keys,
+                        data_source_vo.cost_additional_info_keys,
+                        data_source_vo.cost_data_keys,
+                    )
+                    self._update_keys(
+                        data_source_vo,
+                        merged_tag_keys,
+                        merged_additional_info_keys,
+                        merged_data_keys,
+                    )
+                except Exception as e:
+                    _LOGGER.error(
+                        f"[_close_job] merge task keys error: {e}",
+                        exc_info=True,
+                    )
+                    self._delete_task_keys_from_cache(job_id)
+                    self.job_mgr.change_error_status(
+                        job_vo, f"merge task keys error: {e}"
+                    )
+                    raise e
 
+                try:
                     for changed_vo in job_vo.changed:
                         self._delete_changed_cost_data(
                             job_vo,
@@ -697,12 +718,14 @@ class JobService(BaseService):
                     raise e
 
             elif job_vo.status == "ERROR":
+                self._delete_task_keys_from_cache(job_id)
                 self._rollback_cost_data(job_vo)
                 self.job_mgr.update_job_by_vo(
                     {"finished_at": datetime.utcnow()}, job_vo
                 )
 
             elif job_vo.status == "CANCELED":
+                self._delete_task_keys_from_cache(job_id)
                 self._rollback_cost_data(job_vo)
 
     def _update_keys(
@@ -720,6 +743,66 @@ class JobService(BaseService):
             },
             data_source_vo,
         )
+
+    @staticmethod
+    def _store_task_keys_in_cache(
+        job_id: str,
+        job_task_id: str,
+        tag_keys: list,
+        additional_info_keys: list,
+        data_keys: list,
+    ) -> None:
+        if not cache.is_set():
+            return
+
+        cache_key = f"cost-analysis:job-keys:{job_id}:{job_task_id}"
+        cache.set(
+            cache_key,
+            {
+                "tag_keys": tag_keys,
+                "additional_info_keys": additional_info_keys,
+                "data_keys": data_keys,
+            },
+            expire=86400,
+        )
+
+    @staticmethod
+    def _merge_task_keys_from_cache(
+        job_id: str,
+        existing_tag_keys: list,
+        existing_additional_info_keys: list,
+        existing_data_keys: list,
+    ) -> tuple:
+        if not cache.is_set():
+            return existing_tag_keys, existing_additional_info_keys, existing_data_keys
+
+        pattern = f"cost-analysis:job-keys:{job_id}:*"
+        task_cache_keys = cache.keys(pattern)
+
+        merged_tags = set(existing_tag_keys)
+        merged_info = set(existing_additional_info_keys)
+        merged_data = set(existing_data_keys)
+
+        for task_cache_key in task_cache_keys:
+            if isinstance(task_cache_key, bytes):
+                task_cache_key = task_cache_key.decode("utf-8")
+
+            task_data = cache.get(task_cache_key)
+            if task_data:
+                merged_tags.update(task_data.get("tag_keys", []))
+                merged_info.update(task_data.get("additional_info_keys", []))
+                merged_data.update(task_data.get("data_keys", []))
+
+        cache.delete_pattern(pattern)
+
+        return list(merged_tags), list(merged_info), list(merged_data)
+
+    @staticmethod
+    def _delete_task_keys_from_cache(job_id: str) -> None:
+        if not cache.is_set():
+            return
+
+        cache.delete_pattern(f"cost-analysis:job-keys:{job_id}:*")
 
     def _rollback_cost_data(self, job_vo: Job):
         cost_vos = self.cost_mgr.filter_costs(
