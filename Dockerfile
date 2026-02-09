@@ -9,13 +9,13 @@ ENV PACKAGE_VERSION=$PACKAGE_VERSION
 
 COPY pkg/pip_requirements.txt pip_requirements.txt
 
-RUN pip install --upgrade pip==23.0.1 && \
+RUN pip install --upgrade pip && \
     pip install --upgrade -r pip_requirements.txt
 
 COPY src ${SRC_DIR}
 WORKDIR ${SRC_DIR}
 
-RUN python3 setup.py install && rm -rf /tmp/*
+RUN PACKAGE_VERSION="0.0.0" python3 setup.py install && rm -rf /tmp/*
 
 RUN pip install --upgrade spaceone-api==2.0.280
 
